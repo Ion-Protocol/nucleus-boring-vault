@@ -6,6 +6,7 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
 error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidSource();
 error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidDestination();
+error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
 
 struct BridgeData{
     address destinationChainReceiver;
@@ -13,6 +14,12 @@ struct BridgeData{
     uint256 maxBridgeFee;
     bytes data;
 }
+
+struct Chain{
+    address targetTeller;
+    uint256 gasLimit;
+}
+
 interface ICrosschainTeller {
 
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
@@ -39,10 +46,12 @@ interface ICrosschainTeller {
     /**
      * @dev adds an acceptable chain to bridge to
      * @param chainId of chain
-     * @param target address of other chainss teller receiver
+     * @param allowMessagesFrom allow messages from this chain
+     * @param allowMessagesTo allow messages to this chain
+     * @param target address of the target teller on this chain
      * @param gasLimit to pass to bridge
      */
-    function addChain(uint chainId, address target, uint gasLimit) external;
+    function addChain(uint chainId, bool allowMessagesFrom, bool allowMessagesTo, address target, uint gasLimit) external;
 
     /**
      * @dev block messages from a particular chain

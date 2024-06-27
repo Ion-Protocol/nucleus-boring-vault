@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {ICrosschainTeller, ERC20, BridgeData} from "../../../interfaces/ICrossChainTeller.sol";
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
+import "../../../interfaces/ICrossChainTeller.sol";
 
 abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAssetSupport{
-        
+    
+    mapping(uint256 => Chain) public chainById;
+
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
     {
 
     }
 
-    function addChain(uint chainId, address target, uint gasLimit) external requiresAuth{
-
+    function addChain(uint chainId, bool allowMessagesFrom, bool allowMessagesTo, address target, uint gasLimit) external requiresAuth{
+        if(gasLimit == 0) revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+        chainById[chainId] = Chain(target,gasLimit);
     }
 
     function stopMessagesFromChain(uint chainId) external requiresAuth{
-
     }
 
     function allowMessagesFromChain(uint chainId) external requiresAuth{

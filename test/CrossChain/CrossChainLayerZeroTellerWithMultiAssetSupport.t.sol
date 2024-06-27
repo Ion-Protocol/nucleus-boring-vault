@@ -11,8 +11,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
     // note auth is assumed to function properly
     function testAddChain() external{
-        sourceTeller.addChain(DESTINATION_SELECTOR, address(destinationTeller), GAS_LIMIT);
-        destinationTeller.addChain(SOURCE_SELECTOR, address(sourceTeller), GAS_LIMIT);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), GAS_LIMIT);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), GAS_LIMIT);
 
         _simpleBridgeOne();
         assertEq(boringVault.balanceOf(payout_address), 1);
@@ -53,8 +53,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
         uint256 startingShareBalance = boringVault.balanceOf(address(this));
         // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, address(sourceTeller), 100_000);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
 
         // Bridge 100 shares.
         address to = vm.addr(1);
