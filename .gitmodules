@@ -10,3 +10,6 @@
 [submodule "lib/ion-protocol"]
 	path = lib/ion-protocol
 	url = https://github.com/Ion-Protocol/ion-protocol
+[submodule "lib/devtools"]
+	path = lib/devtools
+	url = https://github.com/LayerZero-Labs/devtools
