@@ -14,20 +14,21 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
 
     }
 
-    function addChain(uint chainId, bool allowMessagesFrom, bool allowMessagesTo, address target, uint gasLimit) external requiresAuth{
+    function addChain(uint256 chainId, bool allowMessagesFrom, bool allowMessagesTo, address target, uint256 gasLimit) external requiresAuth{
         if(gasLimit == 0) revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
-        chainById[chainId] = Chain(target,gasLimit);
+        chainById[chainId] = Chain(target, allowMessagesFrom, allowMessagesTo, gasLimit);
     }
 
-    function stopMessagesFromChain(uint chainId) external requiresAuth{
+    function stopMessagesFromChain(uint256 chainId) external requiresAuth{
+        chainById[chainId].allowMessagesFrom = false;
     }
 
-    function allowMessagesFromChain(uint chainId) external requiresAuth{
-
+    function allowMessagesFromChain(uint256 chainId) external requiresAuth{
+        chainById[chainId].allowMessagesTo = false;
     }
 
-    function setTargetTeller(address target) external requiresAuth{
-
+    function setTargetTeller(uint256 chainId, address target) external requiresAuth{
+        chainById[chainId].targetTeller = target;
     }
     
 
@@ -63,6 +64,8 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      */
     function _beforeBridge(uint256 shareAmount, BridgeData calldata data) internal virtual{
         if(isPaused) revert TellerWithMultiAssetSupport__Paused();
+        if(!chainById[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
+        
         // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
         beforeTransfer(msg.sender);
 

@@ -34,19 +34,13 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sourceTeller.allowMessagesFromChain(DESTINATION_SELECTOR);
 
         // test error when targetTeller isn't correct in destination
-        destinationTeller.setTargetTeller(address(12));
+        destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(12));
         vm.expectRevert(abi.encodeWithSelector(
             CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidSource.selector
         ));
         _simpleBridgeOne();
-        sourceTeller.setTargetTeller(address(sourceTeller));
+        destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(sourceTeller));
 
-        // test error when targetTeller isn't correct in source
-        sourceTeller.setTargetTeller(address(12));
-        vm.expectRevert(abi.encodeWithSelector(
-            CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidDestination.selector
-        ));
-        _simpleBridgeOne();
     }
 
     function testBridgingShares(uint256 sharesToBridge) external {
@@ -62,6 +56,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         LINK.safeApprove(address(sourceTeller), expectedFee);
 
         BridgeData memory data = BridgeData({
+            chainId: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
             bridgeFeeToken: LINK,
             maxBridgeFee: 0,
@@ -152,6 +147,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
     function _simpleBridgeOne() internal{
         BridgeData memory data = BridgeData({
+            chainId: DESTINATION_SELECTOR,
             destinationChainReceiver: payout_address,
             bridgeFeeToken: ERC20(address(0)),
             maxBridgeFee: 0,

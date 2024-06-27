@@ -9,6 +9,7 @@ error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidDestination();
 error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
 
 struct BridgeData{
+    uint256 chainId;
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint256 maxBridgeFee;
@@ -17,6 +18,8 @@ struct BridgeData{
 
 struct Chain{
     address targetTeller;
+    bool allowMessagesFrom;
+    bool allowMessagesTo;
     uint256 gasLimit;
 }
 
@@ -47,7 +50,7 @@ interface ICrosschainTeller {
      * @dev adds an acceptable chain to bridge to
      * @param chainId of chain
      * @param allowMessagesFrom allow messages from this chain
-     * @param allowMessagesTo allow messages to this chain
+     * @param allowMessagesTo allow messages to the chain
      * @param target address of the target teller on this chain
      * @param gasLimit to pass to bridge
      */
@@ -69,5 +72,5 @@ interface ICrosschainTeller {
      * @dev set the target teller to receive messages
      * @param target address
      */
-    function setTargetTeller(address target) external;
+    function setTargetTeller(uint256 chainId, address target) external;
 }
