@@ -5,6 +5,8 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 
 interface ICrosschainTeller {
 
+    event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
+    event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
     struct BridgeData{
         address destinationChainReceiver;
