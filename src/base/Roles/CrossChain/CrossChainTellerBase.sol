@@ -1,15 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {ICrosschainTeller, ERC20} from "../../../interfaces/ICrossChainTeller.sol";
+import {ICrosschainTeller, ERC20, BridgeData} from "../../../interfaces/ICrossChainTeller.sol";
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 
 abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAssetSupport{
+        
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
     {
 
     }
+
+    function addChain(uint chainId, address target, uint gasLimit) external requiresAuth{
+
+    }
+
+    function stopMessagesFromChain(uint chainId) external requiresAuth{
+
+    }
+
+    function allowMessagesFromChain(uint chainId) external requiresAuth{
+
+    }
+
+    function setTargetTeller(address target) external requiresAuth{
+
+    }
+    
 
     /**
      * @dev function to deposit into the vault AND bridge cosschain in 1 call

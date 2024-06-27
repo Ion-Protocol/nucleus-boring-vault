@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {CrossChainTellerBase} from "./CrossChainTellerBase.sol";
+import {CrossChainTellerBase, BridgeData} from "./CrossChainTellerBase.sol";
 contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase{
     
     constructor(address _owner, address _vault, address _accountant, address _weth)

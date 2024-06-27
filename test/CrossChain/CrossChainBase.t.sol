@@ -20,7 +20,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     using stdStorage for StdStorage;
 
     BoringVault public boringVault;
-    
+
     uint constant GAS_LIMIT = 100_000;
 
     uint8 public constant ADMIN_ROLE = 1;
@@ -36,8 +36,8 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
 
-    uint64 public constant SOURCE_SELECTOR = 1;
-    uint64 public constant DESTINATION_SELECTOR = 2;
+    uint256 public constant SOURCE_SELECTOR = 1;
+    uint256 public constant DESTINATION_SELECTOR = 2;
 
     CrossChainTellerBase sourceTeller;
     CrossChainTellerBase destinationTeller;
