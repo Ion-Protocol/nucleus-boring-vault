@@ -5,9 +5,15 @@ import {CrossChainBaseTest} from "./CrossChainBase.t.sol";
 import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
 import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
+import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
-contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest{
+contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
+
+    function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
+        TestHelperOz5.setUp();
+        CrossChainBaseTest.setUp();
+    }
 
     // note auth is assumed to function properly
     function testAddChain() external{
@@ -140,9 +146,21 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     // }
 
     function _deploySourceAndDestinationTeller() internal override{
-        sourceTeller = new CrossChainLayerZeroTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH));
+        setUpEndpoints(2, LibraryType.UltraLightNode);
 
-        destinationTeller = new CrossChainLayerZeroTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH));
+        sourceTeller = CrossChainTellerBase(
+            _deployOApp(type(CrossChainTellerBase).creationCode, abi.encode("aOFT", "aOFT", address(endpoints[aEid]), address(this)))
+        );
+
+        destinationTeller = CrossChainTellerBase(
+            _deployOApp(type(CrossChainTellerBase).creationCode, abi.encode("bOFT", "bOFT", address(endpoints[bEid]), address(this)))
+        );
+
+        // config and wire the ofts
+        address[] memory ofts = new address[](2);
+        ofts[0] = address(aOFT);
+        ofts[1] = address(bOFT);
+        this.wireOApps(ofts);
     }
 
     function _simpleBridgeOne() internal{
