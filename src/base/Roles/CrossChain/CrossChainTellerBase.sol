@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {ICrosschainTeller, ERC20} from "../../../interfaces/ICrosschainTeller.sol";
+import {ICrosschainTeller, ERC20} from "../../../interfaces/ICrossChainTeller.sol";
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 
 abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAssetSupport{
