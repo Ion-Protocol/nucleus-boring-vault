@@ -35,4 +35,30 @@ interface ICrosschainTeller {
      * @param data bridge data
      */
     function bridge(uint256 shareAmount, BridgeData calldata data) external;
+
+    /**
+     * @dev adds an acceptable chain to bridge to
+     * @param chainId of chain
+     * @param target address of other chainss teller receiver
+     * @param gasLimit to pass to bridge
+     */
+    function addChain(uint chainId, address target, uint gasLimit) external;
+
+    /**
+     * @dev block messages from a particular chain
+     * @param chainId of chain
+     */
+    function stopMessagesFromChain(uint chainId) external;
+
+    /**
+     * @dev allow messages from a particular chain
+     * @param chainId of chain
+     */
+    function allowMessagesFromChain(uint chainId) external;
+
+    /**
+     * @dev set the target teller to receive messages
+     * @param target address
+     */
+    function setTargetTeller(address target) external;
 }
