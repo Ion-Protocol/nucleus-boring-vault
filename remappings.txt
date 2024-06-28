@@ -4,4 +4,8 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 @openzeppelin/=lib/openzeppelin-contracts/
 @ion-protocol/=lib/ion-protocol/src/
+@layerzerolabs/=node_modules/@layerzerolabs/
 @layerzerolabs/test-devtools-evm-foundry/=lib/devtools/packages/test-devtools-evm-foundry
+
+
+@openzeppelin/=node_modules/@openzeppelin/
