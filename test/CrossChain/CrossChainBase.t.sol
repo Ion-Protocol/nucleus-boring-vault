@@ -45,7 +45,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     function _deploySourceAndDestinationTeller() internal virtual{
     }
 
-    function setUp() external {
+    function setUp() public virtual{
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
         uint256 blockNumber = 19363419;

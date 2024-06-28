@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {CrossChainBaseTest} from "./CrossChainBase.t.sol";
+import {CrossChainBaseTest, CrossChainTellerBase} from "./CrossChainBase.t.sol";
 import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
 import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
@@ -11,7 +11,6 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     using SafeTransferLib for ERC20;
 
     function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
-        TestHelperOz5.setUp();
         CrossChainBaseTest.setUp();
     }
 
@@ -148,18 +147,18 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     function _deploySourceAndDestinationTeller() internal override{
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
-        sourceTeller = CrossChainTellerBase(
-            _deployOApp(type(CrossChainTellerBase).creationCode, abi.encode("aOFT", "aOFT", address(endpoints[aEid]), address(this)))
+        sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(
+            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(vault), address(accountant), address(WETH)))
         );
 
-        destinationTeller = CrossChainTellerBase(
-            _deployOApp(type(CrossChainTellerBase).creationCode, abi.encode("bOFT", "bOFT", address(endpoints[bEid]), address(this)))
+        destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(
+            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(vault), address(accountant), address(WETH)))
         );
 
         // config and wire the ofts
         address[] memory ofts = new address[](2);
-        ofts[0] = address(aOFT);
-        ofts[1] = address(bOFT);
+        ofts[0] = address(sourceTeller);
+        ofts[1] = address(destinationTeller);
         this.wireOApps(ofts);
     }
 
