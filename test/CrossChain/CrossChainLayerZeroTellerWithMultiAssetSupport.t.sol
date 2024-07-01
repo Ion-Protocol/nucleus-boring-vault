@@ -6,6 +6,7 @@ import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/Cro
 import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import {console} from "@forge-std/Test.sol";
 
 contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
@@ -147,12 +148,14 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     function _deploySourceAndDestinationTeller() internal override{
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
+        console.log("deploying source");
         sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(
-            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(vault), address(accountant), address(WETH)))
+            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(SOURCE_SELECTOR)]))
         );
 
+        console.log("deploying destination");
         destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(
-            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(vault), address(accountant), address(WETH)))
+            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(DESTINATION_SELECTOR)]))
         );
 
         // config and wire the ofts
