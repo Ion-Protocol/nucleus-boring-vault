@@ -36,8 +36,8 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
 
-    uint256 public constant SOURCE_SELECTOR = 1;
-    uint256 public constant DESTINATION_SELECTOR = 2;
+    uint64 public constant SOURCE_SELECTOR = 1;
+    uint64 public constant DESTINATION_SELECTOR = 2;
 
     CrossChainTellerBase sourceTeller;
     CrossChainTellerBase destinationTeller;

@@ -6,7 +6,7 @@ import "../../../interfaces/ICrossChainTeller.sol";
 
 abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAssetSupport{
     
-    mapping(uint256 => Chain) public chainById;
+    mapping(uint64 => Chain) public selectorToChains;
 
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
@@ -14,22 +14,108 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
 
     }
 
-    function addChain(uint256 chainId, bool allowMessagesFrom, bool allowMessagesTo, address target, uint256 gasLimit) external requiresAuth{
-        if(gasLimit == 0) revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
-        chainById[chainId] = Chain(target, allowMessagesFrom, allowMessagesTo, gasLimit);
+    // ========================================= ADMIN FUNCTIONS =========================================
+    /**
+     * @notice Add a chain to the teller.
+     * @dev Callable by OWNER_ROLE.
+     * @param chainSelector The CCIP chain selector to add.
+     * @param allowMessagesFrom Whether to allow messages from this chain.
+     * @param allowMessagesTo Whether to allow messages to this chain.
+     * @param targetTeller The address of the target teller on the other chain.
+     * @param messageGasLimit The gas limit for messages to this chain.
+     */
+    function addChain(
+        uint64 chainSelector,
+        bool allowMessagesFrom,
+        bool allowMessagesTo,
+        address targetTeller,
+        uint64 messageGasLimit
+    ) external requiresAuth {
+        if (allowMessagesTo && messageGasLimit == 0) {
+            revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+        }
+        selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
+
+        emit ChainAdded(chainSelector, allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
     }
 
-    function stopMessagesFromChain(uint256 chainId) external requiresAuth{
-        chainById[chainId].allowMessagesFrom = false;
+    /**
+     * @notice Remove a chain from the teller.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function removeChain(uint64 chainSelector) external requiresAuth {
+        delete selectorToChains[chainSelector];
+
+        emit ChainRemoved(chainSelector);
     }
 
-    function allowMessagesFromChain(uint256 chainId) external requiresAuth{
-        chainById[chainId].allowMessagesTo = false;
+    /**
+     * @notice Allow messages from a chain.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function allowMessagesFromChain(uint64 chainSelector, address targetTeller) external requiresAuth {
+        Chain storage chain = selectorToChains[chainSelector];
+        chain.allowMessagesFrom = true;
+        chain.targetTeller = targetTeller;
+
+        emit ChainAllowMessagesFrom(chainSelector, targetTeller);
     }
 
-    function setTargetTeller(uint256 chainId, address target) external requiresAuth{
-        chainById[chainId].targetTeller = target;
+    /**
+     * @notice Allow messages to a chain.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function allowMessagesToChain(uint64 chainSelector, address targetTeller, uint64 messageGasLimit)
+        external
+        requiresAuth
+    {
+        if (messageGasLimit == 0) {
+            revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+        }
+        Chain storage chain = selectorToChains[chainSelector];
+        chain.allowMessagesTo = true;
+        chain.targetTeller = targetTeller;
+        chain.messageGasLimit = messageGasLimit;
+
+        emit ChainAllowMessagesTo(chainSelector, targetTeller);
     }
+
+    /**
+     * @notice Stop messages from a chain.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function stopMessagesFromChain(uint64 chainSelector) external requiresAuth {
+        Chain storage chain = selectorToChains[chainSelector];
+        chain.allowMessagesFrom = false;
+
+        emit ChainStopMessagesFrom(chainSelector);
+    }
+
+    /**
+     * @notice Stop messages to a chain.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function stopMessagesToChain(uint64 chainSelector) external requiresAuth {
+        Chain storage chain = selectorToChains[chainSelector];
+        chain.allowMessagesTo = false;
+
+        emit ChainStopMessagesTo(chainSelector);
+    }
+
+    /**
+     * @notice Set the gas limit for messages to a chain.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function setChainGasLimit(uint64 chainSelector, uint64 messageGasLimit) external requiresAuth {
+        if (messageGasLimit == 0) {
+            revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+        }
+        Chain storage chain = selectorToChains[chainSelector];
+        chain.messageGasLimit = messageGasLimit;
+
+        emit ChainSetGasLimit(chainSelector, messageGasLimit);
+    }
+
     
 
     /**
@@ -64,7 +150,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      */
     function _beforeBridge(uint256 shareAmount, BridgeData calldata data) internal virtual{
         if(isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if(!chainById[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
+        if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
         
         // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
         beforeTransfer(msg.sender);

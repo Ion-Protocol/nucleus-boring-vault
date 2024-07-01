@@ -4,12 +4,13 @@ pragma solidity 0.8.21;
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
 error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
-error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidSource();
-error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidDestination();
+error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint64 chainSelector);
+error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
+error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(uint256 chainSelector);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
-
+    
 struct BridgeData{
-    uint256 chainId;
+    uint64 chainId;
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint256 maxBridgeFee;
@@ -17,10 +18,10 @@ struct BridgeData{
 }
 
 struct Chain{
-    address targetTeller;
     bool allowMessagesFrom;
     bool allowMessagesTo;
-    uint256 gasLimit;
+    address targetTeller;
+    uint64 messageGasLimit;
 }
 
 interface ICrosschainTeller {
@@ -28,6 +29,19 @@ interface ICrosschainTeller {
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
     event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
+    event ChainAdded(
+        uint256 chainSelector,
+        bool allowMessagesFrom,
+        bool allowMessagesTo,
+        address targetTeller,
+        uint64 messageGasLimit
+    );
+    event ChainRemoved(uint256 chainSelector);
+    event ChainAllowMessagesFrom(uint256 chainSelector, address targetTeller);
+    event ChainAllowMessagesTo(uint256 chainSelector, address targetTeller);
+    event ChainStopMessagesFrom(uint256 chainSelector);
+    event ChainStopMessagesTo(uint256 chainSelector);
+    event ChainSetGasLimit(uint256 chainSelector, uint64 messageGasLimit);
 
 
     /**
@@ -48,29 +62,55 @@ interface ICrosschainTeller {
 
     /**
      * @dev adds an acceptable chain to bridge to
-     * @param chainId of chain
+     * @param chainSelector chainId of chain
      * @param allowMessagesFrom allow messages from this chain
      * @param allowMessagesTo allow messages to the chain
-     * @param target address of the target teller on this chain
-     * @param gasLimit to pass to bridge
+     * @param targetTeller address of the target teller on this chain
+     * @param messageGasLimit to pass to bridge
      */
-    function addChain(uint chainId, bool allowMessagesFrom, bool allowMessagesTo, address target, uint gasLimit) external;
+    function addChain(
+        uint64 chainSelector,
+        bool allowMessagesFrom,
+        bool allowMessagesTo,
+        address targetTeller,
+        uint64 messageGasLimit
+    ) external;
 
     /**
      * @dev block messages from a particular chain
      * @param chainId of chain
      */
-    function stopMessagesFromChain(uint chainId) external;
+    function stopMessagesFromChain(uint64 chainId) external;
 
     /**
      * @dev allow messages from a particular chain
      * @param chainId of chain
      */
-    function allowMessagesFromChain(uint chainId) external;
+    function allowMessagesFromChain(uint64 chainId, address targetTeller) external;
 
     /**
-     * @dev set the target teller to receive messages
-     * @param target address
+     * @notice Remove a chain from the teller.
+     * @dev Callable by MULTISIG_ROLE.
      */
-    function setTargetTeller(uint256 chainId, address target) external;
+    function removeChain(uint64 chainSelector) external;
+
+    /**
+     * @notice Allow messages to a chain.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function allowMessagesToChain(uint64 chainSelector, address targetTeller, uint64 messageGasLimit)
+        external;
+
+    /**
+     * @notice Stop messages to a chain.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function stopMessagesToChain(uint64 chainSelector) external;
+
+    /**
+     * @notice Set the gas limit for messages to a chain.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function setChainGasLimit(uint64 chainSelector, uint64 messageGasLimit) external;
+
 }

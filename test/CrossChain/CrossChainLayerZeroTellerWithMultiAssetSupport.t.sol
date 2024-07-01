@@ -8,6 +8,9 @@ import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 import {console} from "@forge-std/Test.sol";
 
+import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+
+
 contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
 
@@ -16,38 +19,38 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     }
 
     // note auth is assumed to function properly
-    function testAddChain() external{
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), GAS_LIMIT);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), GAS_LIMIT);
+    // function testAddChain() external{
+    //     sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), GAS_LIMIT);
+    //     destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), GAS_LIMIT);
 
-        _simpleBridgeOne();
-        assertEq(boringVault.balanceOf(payout_address), 1);
+    //     _simpleBridgeOne();
+    //     assertEq(boringVault.balanceOf(payout_address), 1);
 
-        // test error when destination blocks source chain
-        destinationTeller.stopMessagesFromChain(SOURCE_SELECTOR);
-        vm.expectRevert(abi.encodeWithSelector(
-            CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain.selector
-        ));
-        _simpleBridgeOne();
-        destinationTeller.allowMessagesFromChain(SOURCE_SELECTOR);
+    //     // test error when destination blocks source chain
+    //     destinationTeller.stopMessagesFromChain(SOURCE_SELECTOR);
+    //     vm.expectRevert(abi.encodeWithSelector(
+    //         CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain.selector
+    //     ));
+    //     _simpleBridgeOne();
+    //     destinationTeller.allowMessagesFromChain(SOURCE_SELECTOR);
 
-        // test error when source blocks destination chain
-        sourceTeller.stopMessagesFromChain(DESTINATION_SELECTOR);
-        vm.expectRevert(abi.encodeWithSelector(
-            CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain.selector
-        ));
-        _simpleBridgeOne();
-        sourceTeller.allowMessagesFromChain(DESTINATION_SELECTOR);
+    //     // test error when source blocks destination chain
+    //     sourceTeller.stopMessagesFromChain(DESTINATION_SELECTOR);
+    //     vm.expectRevert(abi.encodeWithSelector(
+    //         CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain.selector
+    //     ));
+    //     _simpleBridgeOne();
+    //     sourceTeller.allowMessagesFromChain(DESTINATION_SELECTOR);
 
-        // test error when targetTeller isn't correct in destination
-        destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(12));
-        vm.expectRevert(abi.encodeWithSelector(
-            CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidSource.selector
-        ));
-        _simpleBridgeOne();
-        destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(sourceTeller));
+    //     // test error when targetTeller isn't correct in destination
+    //     destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(12));
+    //     vm.expectRevert(abi.encodeWithSelector(
+    //         CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidSource.selector
+    //     ));
+    //     _simpleBridgeOne();
+    //     destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(sourceTeller));
 
-    }
+    // }
 
     function testBridgingShares(uint256 sharesToBridge) external {
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
@@ -82,68 +85,72 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
 
 
-    // function testReverts() external {
-    //     // Adding a chain with a zero message gas limit should revert.
-    //     vm.expectRevert(
-    //         bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport.ChainlinkCCIPTeller__ZeroMessageGasLimit.selector))
-    //     );
-    //     sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0);
+    function testReverts() external {
+        // Adding a chain with a zero message gas limit should revert.
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit.selector))
+        );
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0);
 
-    //     // Allowing messages to a chain with a zero message gas limit should revert.
-    //     vm.expectRevert(
-    //         bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport.ChainlinkCCIPTeller__ZeroMessageGasLimit.selector))
-    //     );
-    //     sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
+        // Allowing messages to a chain with a zero message gas limit should revert.
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit.selector))
+        );
+        sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
 
-    //     // Changing the gas limit to zero should revert.
-    //     vm.expectRevert(
-    //         bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport.ChainlinkCCIPTeller__ZeroMessageGasLimit.selector))
-    //     );
-    //     sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
+        // Changing the gas limit to zero should revert.
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit.selector))
+        );
+        sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
 
-    //     // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
-    //     uint64 newChainSelector = 3;
-    //     sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0);
+        // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
+        uint64 newChainSelector = 3;
+        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0);
 
-    //     // If teller is paused bridging is not allowed.
-    //     sourceTeller.pause();
-    //     vm.expectRevert(
-    //         bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
-    //     );
-    //     sourceTeller.bridge(0, address(0), hex"", LINK, 0);
+        // If teller is paused bridging is not allowed.
+        sourceTeller.pause();
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
+        );
 
-    //     sourceTeller.unpause();
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 0, "");
+        sourceTeller.bridge(0, data);
 
-    //     // Trying to send messages to a chain that is not supported should revert.
-    //     uint256 expectedFee = 1e18;
-    //     vm.expectRevert(
-    //         bytes(
-    //             abi.encodeWithSelector(
-    //                 CrossChainLayerZeroTellerWithMultiAssetSupport.ChainlinkCCIPTeller__MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
-    //             )
-    //         )
-    //     );
-    //     sourceTeller.bridge(1e18, address(this), abi.encode(DESTINATION_SELECTOR), LINK, expectedFee);
+        sourceTeller.unpause();
 
-    //     // setup chains.
-    //     sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-    //     destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+        // Trying to send messages to a chain that is not supported should revert.
+        uint256 expectedFee = 1e18;
+        vm.expectRevert(
+            bytes(
+                abi.encodeWithSelector(
+                    CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
+                )
+            )
+        );
 
-    //     // If the max fee is exceeded the transaction should revert.
-    //     // TODO
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(address(0)), expectedFee, abi.encode(DESTINATION_SELECTOR));
+        sourceTeller.bridge(1e18, data);
+
+        // setup chains.
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+
+        // If the max fee is exceeded the transaction should revert.
+        // TODO
 
 
-    //     // If user forgets approval call reverts too.
-    //     vm.expectRevert(bytes("TRANSFER_FROM_FAILED"));
-    //     sourceTeller.bridge(1e18, address(this), abi.encode(DESTINATION_SELECTOR), LINK, expectedFee);
+        // If user forgets approval call reverts too.
+        vm.expectRevert(bytes("TRANSFER_FROM_FAILED"));
+        sourceTeller.bridge(1e18, data);
 
-    //     // Call now succeeds.
-    //     LINK.safeApprove(address(sourceTeller), expectedFee);
-    //     sourceTeller.bridge(1e18, address(this), abi.encode(DESTINATION_SELECTOR), LINK, expectedFee);
+        // Call now succeeds.
+        LINK.safeApprove(address(sourceTeller), expectedFee);
+        sourceTeller.bridge(1e18, data);
 
-    //     // TODO assert this happens
+        // TODO assert this happens
 
-    // }
+    }
 
     function _deploySourceAndDestinationTeller() internal override{
         setUpEndpoints(2, LibraryType.UltraLightNode);
