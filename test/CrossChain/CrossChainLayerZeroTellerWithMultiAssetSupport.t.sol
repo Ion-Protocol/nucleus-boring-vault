@@ -16,7 +16,10 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint;
 
+    ERC20 constant LZO = ERC20(0x2273aD9b3161fC4b8080f09b6b5E688CDEa90D30);
+
     uint constant MAX_BRIDGE_FEE = 100_000;
+    uint constant MAX_BRIDGE_FEE_LZO = 1e9;
 
     function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
         CrossChainBaseTest.setUp();
@@ -43,7 +46,47 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
             data: ""
         });
 
-        bytes32 id = sourceTeller.bridge{value:sourceTeller.previewFee(sharesToBridge, data)}(sharesToBridge, data);
+        uint quote = sourceTeller.previewFee(sharesToBridge, data);
+        bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
+
+        verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
+
+        assertEq(
+            boringVault.balanceOf(address(this)), startingShareBalance - sharesToBridge, "Should have burned shares."
+        );
+
+        assertEq(
+            boringVault.balanceOf(to), sharesToBridge
+        );
+    }
+
+    function testBridgingSharesLZO(uint256 sharesToBridge) external {
+        sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
+        uint256 startingShareBalance = boringVault.balanceOf(address(this));
+        // Setup chains on bridge.
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+
+
+        // get some LZO for fees and approve
+        deal(address(this), address(LZO), 1e18);
+        // LZO.approve(address(sourceTeller), 1e18);
+
+        // Bridge 100 shares.
+        address to = vm.addr(1);
+
+        // TODO 
+        // - fee token must be WETH (or LZO?)
+        BridgeData memory data = BridgeData({
+            chainId: DESTINATION_SELECTOR,
+            destinationChainReceiver: to,
+            bridgeFeeToken: LZO,
+            maxBridgeFee: MAX_BRIDGE_FEE_LZO,
+            data: ""
+        });
+
+        uint quote = sourceTeller.previewFee(sharesToBridge, data);
+        bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
 
