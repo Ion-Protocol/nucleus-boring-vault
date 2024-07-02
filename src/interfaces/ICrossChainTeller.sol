@@ -7,6 +7,8 @@ error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(uint256 chainSelector);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+error CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee(uint64 maxFee, uint64 quote);
+error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
     
 struct BridgeData{
     uint32 chainId;
