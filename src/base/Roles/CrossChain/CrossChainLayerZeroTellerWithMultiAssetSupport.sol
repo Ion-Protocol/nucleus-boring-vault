@@ -8,12 +8,15 @@ import {Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import {Auth} from "@solmate/auth/Auth.sol";
 
 import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
-import {console} from "@forge-std/Test.sol";
 
+/**
+ * @title CrossChainLayerZeroTellerWithMultiAssetSupport
+ * @notice LayerZero implementation of CrossChainTeller 
+ */
 contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase, OAppAuth{
-    
     using OptionsBuilder for bytes;
 
+    // Gas to be used for tx
     uint128 constant GAS = 80000;
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
@@ -23,10 +26,15 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
 
     }
 
+    /**
+     * @dev function override to return the fee quote
+     * @param shareAmount to be sent as a message
+     * @param data Bridge data
+     */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
         bytes memory _message = abi.encode(shareAmount,data.destinationChainReceiver);
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(GAS, 0);
-        MessagingFee memory fee = _quote(uint32(data.chainId), _message, _options, false);
+        MessagingFee memory fee = _quote(data.chainId, _message, _options, false);
         return fee.nativeFee;
     }
 
@@ -44,19 +52,22 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
         address,  // Executor address as specified by the OApp.
         bytes calldata  // Any extra data or options to trigger on receipt.
     ) internal override {
-        console.log("RECEIVE");
-        console.log(uint(_guid));
         // Decode the payload to get the message
         (uint256 shareAmount, address receiver) = abi.decode(payload, (uint256,address));
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
     }
     
+    /**
+     * @dev bridge override to allow bridge logic to be done for bridge() and depositAndBridge()
+     * @param shareAmount to be moved accross chain
+     * @param data BridgeData
+     */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
         bytes memory _payload = abi.encode(shareAmount,data.destinationChainReceiver);
 
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(GAS, 0);
         MessagingReceipt memory receipt = _lzSend(
-            uint32(data.chainId),
+            data.chainId,
             _payload,
             _options,
             // Fee in native gas and ZRO token.

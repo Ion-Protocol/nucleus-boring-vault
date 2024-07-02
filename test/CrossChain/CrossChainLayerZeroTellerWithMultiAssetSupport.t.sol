@@ -39,8 +39,6 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         bytes32 id = sourceTeller.bridge{value:sourceTeller.previewFee(sharesToBridge, data)}(sharesToBridge, data);
 
-        console.log(uint(id));
-
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
 
         assertEq(
@@ -74,7 +72,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
 
         // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
-        uint64 newChainSelector = 3;
+        uint32 newChainSelector = 3;
         sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0);
 
         // If teller is paused bridging is not allowed.
@@ -111,8 +109,6 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         // Call now succeeds.
         sourceTeller.bridge{value:expectedFee}(1e18, data);
 
-        // TODO assert this happens
-
     }
 
     function _deploySourceAndDestinationTeller() internal override{
@@ -138,15 +134,4 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
     }
 
-    function _simpleBridgeOne() internal{
-        BridgeData memory data = BridgeData({
-            chainId: DESTINATION_SELECTOR,
-            destinationChainReceiver: payout_address,
-            bridgeFeeToken: ERC20(address(0)),
-            maxBridgeFee: 0,
-            data: ""
-        });
-
-        sourceTeller.bridge(1,data);
-    }
 }

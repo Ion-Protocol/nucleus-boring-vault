@@ -3,13 +3,13 @@ pragma solidity 0.8.21;
 
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
-error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint64 chainSelector);
+error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint32 chainSelector);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(uint256 chainSelector);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
     
 struct BridgeData{
-    uint64 chainId;
+    uint32 chainId;
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint256 maxBridgeFee;
@@ -23,7 +23,11 @@ struct Chain{
     uint64 messageGasLimit;
 }
 
-interface ICrosschainTeller {
+/**
+ * @title ICrossChainTeller
+ * @notice Interface for CrossChainTeller contracts
+ */
+interface ICrossChainTeller {
 
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
     event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
@@ -68,7 +72,7 @@ interface ICrosschainTeller {
      * @param messageGasLimit to pass to bridge
      */
     function addChain(
-        uint64 chainSelector,
+        uint32 chainSelector,
         bool allowMessagesFrom,
         bool allowMessagesTo,
         address targetTeller,
@@ -79,37 +83,37 @@ interface ICrosschainTeller {
      * @dev block messages from a particular chain
      * @param chainId of chain
      */
-    function stopMessagesFromChain(uint64 chainId) external;
+    function stopMessagesFromChain(uint32 chainId) external;
 
     /**
      * @dev allow messages from a particular chain
      * @param chainId of chain
      */
-    function allowMessagesFromChain(uint64 chainId, address targetTeller) external;
+    function allowMessagesFromChain(uint32 chainId, address targetTeller) external;
 
     /**
      * @notice Remove a chain from the teller.
      * @dev Callable by MULTISIG_ROLE.
      */
-    function removeChain(uint64 chainSelector) external;
+    function removeChain(uint32 chainSelector) external;
 
     /**
      * @notice Allow messages to a chain.
      * @dev Callable by OWNER_ROLE.
      */
-    function allowMessagesToChain(uint64 chainSelector, address targetTeller, uint64 messageGasLimit)
+    function allowMessagesToChain(uint32 chainSelector, address targetTeller, uint64 messageGasLimit)
         external;
 
     /**
      * @notice Stop messages to a chain.
      * @dev Callable by MULTISIG_ROLE.
      */
-    function stopMessagesToChain(uint64 chainSelector) external;
+    function stopMessagesToChain(uint32 chainSelector) external;
 
     /**
      * @notice Set the gas limit for messages to a chain.
      * @dev Callable by OWNER_ROLE.
      */
-    function setChainGasLimit(uint64 chainSelector, uint64 messageGasLimit) external;
+    function setChainGasLimit(uint32 chainSelector, uint64 messageGasLimit) external;
 
 }

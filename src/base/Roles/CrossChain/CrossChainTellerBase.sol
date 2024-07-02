@@ -4,9 +4,13 @@ pragma solidity 0.8.21;
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 import "../../../interfaces/ICrossChainTeller.sol";
 
-abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAssetSupport{
+/**
+ * @title CrossChainTellerBase
+ * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
+ */
+abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAssetSupport{
     
-    mapping(uint64 => Chain) public selectorToChains;
+    mapping(uint32 => Chain) public selectorToChains;
 
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
@@ -25,7 +29,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @param messageGasLimit The gas limit for messages to this chain.
      */
     function addChain(
-        uint64 chainSelector,
+        uint32 chainSelector,
         bool allowMessagesFrom,
         bool allowMessagesTo,
         address targetTeller,
@@ -43,7 +47,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @notice Remove a chain from the teller.
      * @dev Callable by MULTISIG_ROLE.
      */
-    function removeChain(uint64 chainSelector) external requiresAuth {
+    function removeChain(uint32 chainSelector) external requiresAuth {
         delete selectorToChains[chainSelector];
 
         emit ChainRemoved(chainSelector);
@@ -53,7 +57,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @notice Allow messages from a chain.
      * @dev Callable by OWNER_ROLE.
      */
-    function allowMessagesFromChain(uint64 chainSelector, address targetTeller) external requiresAuth {
+    function allowMessagesFromChain(uint32 chainSelector, address targetTeller) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesFrom = true;
         chain.targetTeller = targetTeller;
@@ -65,7 +69,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @notice Allow messages to a chain.
      * @dev Callable by OWNER_ROLE.
      */
-    function allowMessagesToChain(uint64 chainSelector, address targetTeller, uint64 messageGasLimit)
+    function allowMessagesToChain(uint32 chainSelector, address targetTeller, uint64 messageGasLimit)
         external
         requiresAuth
     {
@@ -84,7 +88,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @notice Stop messages from a chain.
      * @dev Callable by MULTISIG_ROLE.
      */
-    function stopMessagesFromChain(uint64 chainSelector) external requiresAuth {
+    function stopMessagesFromChain(uint32 chainSelector) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesFrom = false;
 
@@ -95,7 +99,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @notice Stop messages to a chain.
      * @dev Callable by MULTISIG_ROLE.
      */
-    function stopMessagesToChain(uint64 chainSelector) external requiresAuth {
+    function stopMessagesToChain(uint32 chainSelector) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesTo = false;
 
@@ -106,7 +110,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @notice Set the gas limit for messages to a chain.
      * @dev Callable by OWNER_ROLE.
      */
-    function setChainGasLimit(uint64 chainSelector, uint64 messageGasLimit) external requiresAuth {
+    function setChainGasLimit(uint32 chainSelector, uint64 messageGasLimit) external requiresAuth {
         if (messageGasLimit == 0) {
             revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
         }
