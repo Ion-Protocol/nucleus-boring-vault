@@ -9,48 +9,15 @@ import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contract
 import {console} from "@forge-std/Test.sol";
 
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-
+import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol";
 
 contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
 
     function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
         CrossChainBaseTest.setUp();
+        TestHelperOz5.setUp();
     }
-
-    // note auth is assumed to function properly
-    // function testAddChain() external{
-    //     sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), GAS_LIMIT);
-    //     destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), GAS_LIMIT);
-
-    //     _simpleBridgeOne();
-    //     assertEq(boringVault.balanceOf(payout_address), 1);
-
-    //     // test error when destination blocks source chain
-    //     destinationTeller.stopMessagesFromChain(SOURCE_SELECTOR);
-    //     vm.expectRevert(abi.encodeWithSelector(
-    //         CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain.selector
-    //     ));
-    //     _simpleBridgeOne();
-    //     destinationTeller.allowMessagesFromChain(SOURCE_SELECTOR);
-
-    //     // test error when source blocks destination chain
-    //     sourceTeller.stopMessagesFromChain(DESTINATION_SELECTOR);
-    //     vm.expectRevert(abi.encodeWithSelector(
-    //         CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain.selector
-    //     ));
-    //     _simpleBridgeOne();
-    //     sourceTeller.allowMessagesFromChain(DESTINATION_SELECTOR);
-
-    //     // test error when targetTeller isn't correct in destination
-    //     destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(12));
-    //     vm.expectRevert(abi.encodeWithSelector(
-    //         CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidSource.selector
-    //     ));
-    //     _simpleBridgeOne();
-    //     destinationTeller.setTargetTeller(SOURCE_SELECTOR, address(sourceTeller));
-
-    // }
 
     function testBridgingShares(uint256 sharesToBridge) external {
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
@@ -61,18 +28,20 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         // Bridge 100 shares.
         address to = vm.addr(1);
-        uint256 expectedFee = 1e18;
-        LINK.safeApprove(address(sourceTeller), expectedFee);
 
         BridgeData memory data = BridgeData({
             chainId: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
-            bridgeFeeToken: LINK,
+            bridgeFeeToken: WETH,
             maxBridgeFee: 0,
             data: ""
         });
 
-        sourceTeller.bridge(sharesToBridge, data);
+        bytes32 id = sourceTeller.bridge{value:sourceTeller.previewFee(sharesToBridge, data)}(sharesToBridge, data);
+
+        console.log(uint(id));
+
+        verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
 
         assertEq(
             boringVault.balanceOf(address(this)), startingShareBalance - sharesToBridge, "Should have burned shares."
@@ -139,37 +108,34 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         // If the max fee is exceeded the transaction should revert.
         // TODO
 
-
-        // If user forgets approval call reverts too.
-        vm.expectRevert(bytes("TRANSFER_FROM_FAILED"));
-        sourceTeller.bridge(1e18, data);
-
         // Call now succeeds.
-        LINK.safeApprove(address(sourceTeller), expectedFee);
-        sourceTeller.bridge(1e18, data);
+        sourceTeller.bridge{value:expectedFee}(1e18, data);
 
         // TODO assert this happens
 
     }
 
     function _deploySourceAndDestinationTeller() internal override{
+
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
-        console.log("deploying source");
         sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(
             _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(SOURCE_SELECTOR)]))
         );
 
-        console.log("deploying destination");
         destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(
             _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(DESTINATION_SELECTOR)]))
         );
 
-        // config and wire the ofts
-        address[] memory ofts = new address[](2);
-        ofts[0] = address(sourceTeller);
-        ofts[1] = address(destinationTeller);
-        this.wireOApps(ofts);
+        // config and wire the oapps
+        address[] memory oapps = new address[](2);
+        oapps[0] = address(sourceTeller);
+        oapps[1] = address(destinationTeller);
+        this.wireOApps(oapps);
+
+        bytes32 peer1 = OAppAuthCore(address(sourceTeller)).peers(uint32(DESTINATION_SELECTOR));
+        bytes32 peer2 = OAppAuthCore(address(destinationTeller)).peers(uint32(SOURCE_SELECTOR));
+
     }
 
     function _simpleBridgeOne() internal{

@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
-error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint64 chainSelector);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(uint256 chainSelector);
@@ -51,14 +50,14 @@ interface ICrosschainTeller {
      * @param minimumMint minimum required shares to receive
      * @param data Bridge Data
      */
-    function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external;
+    function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable;
 
     /**
      * @dev only code for bridging for users who already deposited
      * @param shareAmount to bridge
      * @param data bridge data
      */
-    function bridge(uint256 shareAmount, BridgeData calldata data) external;
+    function bridge(uint256 shareAmount, BridgeData calldata data) external payable returns(bytes32);
 
     /**
      * @dev adds an acceptable chain to bridge to

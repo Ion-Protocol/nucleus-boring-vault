@@ -125,7 +125,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @param minimumMint minimum required shares to receive
      * @param data Bridge Data
      */
-    function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external{
+    function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable{
         uint256 shareAmount = deposit(depositAsset, depositAmount, minimumMint);
         bridge(shareAmount, data);
     }
@@ -135,10 +135,21 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @param shareAmount to bridge
      * @param data bridge data
      */
-    function bridge(uint256 shareAmount, BridgeData calldata data) public{
+    function bridge(uint256 shareAmount, BridgeData calldata data) public payable returns(bytes32 messageId){
         _beforeBridge(shareAmount, data);
-        bytes32 messageId = _bridge(data);
+        messageId = _bridge(shareAmount, data);
         _afterBridge(shareAmount, data, messageId);
+    }
+
+    /**
+     * @notice Preview fee required to bridge shares in a given feeToken.
+     */
+    function previewFee(uint256 shareAmount, BridgeData calldata data)
+        external
+        view
+        returns (uint256 fee)
+    {
+        return _quote(shareAmount, data);
     }
 
     /**
@@ -150,7 +161,7 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      */
     function _beforeBridge(uint256 shareAmount, BridgeData calldata data) internal virtual{
         if(isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidChain();
+        if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(data.chainId);
         
         // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
         beforeTransfer(msg.sender);
@@ -164,7 +175,16 @@ abstract contract CrossChainTellerBase is ICrosschainTeller, TellerWithMultiAsse
      * @param data bridge data
      * @return messageId
      */
-    function _bridge(BridgeData calldata data) internal virtual returns(bytes32){
+    function _bridge(uint256 shareAmount, BridgeData calldata data) internal virtual returns(bytes32){
+        return 0;
+    }
+
+    /**
+     * @dev the virtual function to override to get bridge fees
+     * @param shareAmount to send
+     * @param data bridge data
+     */
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view virtual returns(uint256){
         return 0;
     }
 
