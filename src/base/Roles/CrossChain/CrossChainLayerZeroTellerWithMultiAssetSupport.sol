@@ -15,9 +15,14 @@ import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/lib
  */
 contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase, OAppAuth{
     using OptionsBuilder for bytes;
-
+    
     // Gas to be used for tx
     uint128 constant GAS = 80000;
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant LZO = 0x2273aD9b3161fC4b8080f09b6b5E688CDEa90D30;
+
+    error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+    error CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee(uint64 maxFee, uint256 quote);
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
         CrossChainTellerBase(_owner, _vault, _accountant, _weth)
@@ -34,8 +39,24 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
         bytes memory _message = abi.encode(shareAmount,data.destinationChainReceiver);
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(GAS, 0);
-        MessagingFee memory fee = _quote(data.chainId, _message, _options, false);
-        return fee.nativeFee;
+        address bridgeToken = address(data.bridgeFeeToken);
+
+        MessagingFee memory fee = _quote(data.chainId, _message, _options, bridgeToken==LZO);
+
+        if(bridgeToken == WETH){
+            if(data.maxBridgeFee < fee.nativeFee){
+                revert CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee(data.maxBridgeFee, fee.nativeFee);
+            }
+            return fee.nativeFee;
+        }else if(bridgeToken == LZO){
+            if(data.maxBridgeFee < fee.lzTokenFee){
+                revert CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee(data.maxBridgeFee, fee.lzTokenFee);
+            }
+            return fee.lzTokenFee;
+        }else{
+            revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+        }
+        
     }
 
     /**
@@ -63,15 +84,34 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
      * @param data BridgeData
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
-        bytes memory _payload = abi.encode(shareAmount,data.destinationChainReceiver);
+        address bridgeToken = address(data.bridgeFeeToken);
+        (uint naitiveGas, uint zro) = address(bridgeToken) == WETH ? (msg.value, 0) : (uint(0), abi.decode(data.data, (uint)));
 
+        console.log(naitiveGas, zro);
+        console.log(data.maxBridgeFee);
+        // do we need a max fee? If the user sends the quote in?
+        if(bridgeToken == WETH){
+            if(data.maxBridgeFee < naitiveGas){
+                revert CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee(data.maxBridgeFee, naitiveGas);
+            }
+        }else if(bridgeToken == LZO){
+            if(data.maxBridgeFee < zro){
+                revert CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee(data.maxBridgeFee, zro);
+            }
+        }else{
+            revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+        }
+
+        bytes memory _payload = abi.encode(shareAmount,data.destinationChainReceiver);
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(GAS, 0);
+        
+        
         MessagingReceipt memory receipt = _lzSend(
             data.chainId,
             _payload,
             _options,
             // Fee in native gas and ZRO token.
-            MessagingFee(msg.value, 0),
+            MessagingFee(naitiveGas, zro),
             // Refund address in case of failed source message.
             payable(msg.sender)
         );

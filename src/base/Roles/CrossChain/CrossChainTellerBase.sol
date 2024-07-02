@@ -4,6 +4,9 @@ pragma solidity 0.8.21;
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 import "../../../interfaces/ICrossChainTeller.sol";
 
+import {console} from "@forge-std/Test.sol";
+import {console2} from "@forge-std/console2.sol";
+
 /**
  * @title CrossChainTellerBase
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
@@ -130,7 +133,10 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param data Bridge Data
      */
     function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable{
-        uint256 shareAmount = deposit(depositAsset, depositAmount, minimumMint);
+        console.log('before deposit');
+        uint shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+        // to do this I have to skip the _afterPublicDeposit....
+        console.log('after deposit');
         bridge(shareAmount, data);
     }
 

@@ -67,6 +67,33 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(MINTER_ROLE, address(boringVault), BoringVault.enter.selector, true);
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
 
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.addAsset.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.removeAsset.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkDeposit.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.refundDeposit.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            SOLVER_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+        );
+        rolesAuthority.setPublicCapability(address(sourceTeller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(
+            address(sourceTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+        );
+        rolesAuthority.setPublicCapability(address(destinationTeller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(
+            address(destinationTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+        );
+
         rolesAuthority.setUserRole(address(sourceTeller), MINTER_ROLE, true);
         rolesAuthority.setUserRole(address(sourceTeller), BURNER_ROLE, true);
         rolesAuthority.setUserRole(address(destinationTeller), MINTER_ROLE, true);

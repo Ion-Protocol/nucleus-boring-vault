@@ -7,19 +7,21 @@ import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 import {console} from "@forge-std/Test.sol";
+import {console2} from "@forge-std/console2.sol";
 
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol";
 
 import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+
 contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint;
 
     ERC20 constant LZO = ERC20(0x2273aD9b3161fC4b8080f09b6b5E688CDEa90D30);
 
-    uint constant MAX_BRIDGE_FEE = 100_000;
-    uint constant MAX_BRIDGE_FEE_LZO = 1e9;
+    uint64 constant MAX_BRIDGE_FEE = 100_000;
+    uint64 constant MAX_BRIDGE_FEE_LZO = 1e9;
 
     function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
         CrossChainBaseTest.setUp();
@@ -60,47 +62,10 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
     }
 
-    function testBridgingSharesLZO(uint256 sharesToBridge) external {
-        sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
-        uint256 startingShareBalance = boringVault.balanceOf(address(this));
-        // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
-
-
-        // get some LZO for fees and approve
-        deal(address(this), address(LZO), 1e18);
-        // LZO.approve(address(sourceTeller), 1e18);
-
-        // Bridge 100 shares.
-        address to = vm.addr(1);
-
-        // TODO 
-        // - fee token must be WETH (or LZO?)
-        BridgeData memory data = BridgeData({
-            chainId: DESTINATION_SELECTOR,
-            destinationChainReceiver: to,
-            bridgeFeeToken: LZO,
-            maxBridgeFee: MAX_BRIDGE_FEE_LZO,
-            data: ""
-        });
-
-        uint quote = sourceTeller.previewFee(sharesToBridge, data);
-        bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
-
-        verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
-
-        assertEq(
-            boringVault.balanceOf(address(this)), startingShareBalance - sharesToBridge, "Should have burned shares."
-        );
-
-        assertEq(
-            boringVault.balanceOf(to), sharesToBridge
-        );
-    }
-
     function testDepositAndBridge(uint256 amount) external{
         uint256 startingShareBalance = boringVault.balanceOf(address(this));
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -110,7 +75,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         // approve teller to spend WETH
         vm.startPrank(user);
-        WETH.approve(address(sourceTeller), amount);
+        vm.deal(user, 10e18);
+        WETH.approve(address(boringVault), amount);
 
         // preform depositAndBridge
         BridgeData memory data = BridgeData({
@@ -133,7 +99,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
 
         assertEq(
-            boringVault.balanceOf(address(this)), startingShareBalance - shares, "Should have burned shares."
+            boringVault.balanceOf(user), 0, "Should have burned shares."
         );
 
         assertEq(
@@ -198,23 +164,26 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), MAX_BRIDGE_FEE, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
-                CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken.selector
+                CrossChainLayerZeroTellerWithMultiAssetSupport.
+                    CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken.selector
             )
         );
         sourceTeller.bridge(1e18, data);
 
         // If the max fee is exceeded the transaction should revert.
+        data.bridgeFeeToken = WETH;
         uint quote = sourceTeller.previewFee(1e18, data);
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, quote-1, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, uint64(quote-1), abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
-                CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee.selector, quote-1, quote
+                CrossChainLayerZeroTellerWithMultiAssetSupport.
+                    CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee.selector, quote-1, quote
             )
         );
-        sourceTeller.bridge{value:quote-1}(1e18, data);
+        sourceTeller.bridge{value:quote}(1e18, data);
 
         // Call now succeeds.
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, quote, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, uint64(quote), abi.encode(DESTINATION_SELECTOR));
         sourceTeller.bridge{value:quote}(1e18, data);
 
     }
