@@ -7,7 +7,7 @@ import {EthPerWstEthRateProvider} from "./../../src/oracles/EthPerWstEthRateProv
 import {ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS} from "@ion-protocol/Constants.sol";
 
 import {BaseScript} from "./../Base.s.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 /// NOTE This script must change based on the supported assets of each vault deployment.
 contract DeployRateProviders is BaseScript {

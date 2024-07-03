@@ -4,8 +4,8 @@ pragma solidity >=0.8.19 <=0.9.0;
 import {ICreateX} from "./../src/interfaces/ICreateX.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-import {Script, stdJson} from "forge-std/Script.sol";
-import {console2} from "forge-std/console2.sol";
+import {Script, stdJson} from "@forge-std/Script.sol";
+import {console2} from "@forge-std/console2.sol";
 
 abstract contract BaseScript is Script {
     using stdJson for string;

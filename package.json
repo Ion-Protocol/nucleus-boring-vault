@@ -51,8 +51,7 @@
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",
     "@layerzerolabs/lz-evm-messagelib-v2": "^2.3.25",
-    "@layerzerolabs/lz-evm-oapp-v2": "^2.3.25",
-    "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
+    "@layerzerolabs/test-devtools-evm-foundry": "^0.2.7",
     "@layerzerolabs/toolbox-foundry": "^0.1.6",
     "@openzeppelin/contracts": "^5.0.2",
     "@types/bun": "latest"
@@ -61,6 +60,11 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25"
+    "@layerzerolabs/lz-evm-oapp-v2": "^2.3.25",
+    "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
+    "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
+    "forge-std": "^1.1.2",
+    "prettier": "^3.3.2",
+    "solhint": "^5.0.1"
   }
 }

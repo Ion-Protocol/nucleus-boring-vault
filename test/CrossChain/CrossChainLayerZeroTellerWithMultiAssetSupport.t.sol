@@ -5,9 +5,7 @@ import {CrossChainBaseTest, CrossChainTellerBase} from "./CrossChainBase.t.sol";
 import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
 import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
-import {console} from "@forge-std/Test.sol";
-import {console2} from "@forge-std/console2.sol";
+import { TestHelperOz5 } from "./@layerzerolabs-custom/test-evm-foundry-custom/TestHelperOz5.sol";
 
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol";
@@ -18,10 +16,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint;
 
-    ERC20 constant LZO = ERC20(0x2273aD9b3161fC4b8080f09b6b5E688CDEa90D30);
-
-    uint64 constant MAX_BRIDGE_FEE = 100_000;
-    uint64 constant MAX_BRIDGE_FEE_LZO = 1e9;
+    uint64 constant CHAIN_MESSAGE_GAS_LIMIT = 100_000;
 
     function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
         CrossChainBaseTest.setUp();
@@ -32,19 +27,17 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
         uint256 startingShareBalance = boringVault.balanceOf(address(this));
         // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT);
 
-        // Bridge 100 shares.
+        // Bridge shares.
         address to = vm.addr(1);
 
-        // TODO 
-        // - fee token must be WETH (or LZO?)
         BridgeData memory data = BridgeData({
             chainId: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
             bridgeFeeToken: WETH,
-            maxBridgeFee: MAX_BRIDGE_FEE,
+            messageGas: 80_000,
             data: ""
         });
 
@@ -58,12 +51,12 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
 
         assertEq(
-            boringVault.balanceOf(to), sharesToBridge
+            boringVault.balanceOf(to), sharesToBridge, "to address should have shares"
         );
     }
 
     function testDepositAndBridge(uint256 amount) external{
-        uint256 startingShareBalance = boringVault.balanceOf(address(this));
+
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
 
@@ -83,7 +76,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
             chainId: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
             bridgeFeeToken: WETH,
-            maxBridgeFee: MAX_BRIDGE_FEE,
+            messageGas: 80_000,
             data: ""
         });
 
@@ -137,7 +130,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
             bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
         );
 
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), MAX_BRIDGE_FEE, "");
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, "");
         sourceTeller.bridge(0, data);
 
         sourceTeller.unpause();
@@ -151,7 +144,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
             )
         );
 
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, MAX_BRIDGE_FEE, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
         sourceTeller.bridge(1e18, data);
 
         // setup chains.
@@ -161,7 +154,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         // if the token is not WETH, should revert
         address NOT_WETH = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), MAX_BRIDGE_FEE, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), 80_000, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
                 CrossChainLayerZeroTellerWithMultiAssetSupport.
@@ -170,20 +163,20 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
         sourceTeller.bridge(1e18, data);
 
-        // If the max fee is exceeded the transaction should revert.
-        data.bridgeFeeToken = WETH;
-        uint quote = sourceTeller.previewFee(1e18, data);
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, uint64(quote-1), abi.encode(DESTINATION_SELECTOR));
+        // if too much gas is used, revert
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
-                CrossChainLayerZeroTellerWithMultiAssetSupport.
-                    CrossChainLayerZeroTellerWithMultiAssetSupport_TxExceedsMaxBridgeFee.selector, quote-1, quote
+                    CrossChainLayerZeroTellerWithMultiAssetSupport_GasLimitExceeded.selector
             )
         );
-        sourceTeller.bridge{value:quote}(1e18, data);
+        sourceTeller.bridge(1e18, data);
+
 
         // Call now succeeds.
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, uint64(quote), abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
+        uint quote = sourceTeller.previewFee(1e18, data);
+
         sourceTeller.bridge{value:quote}(1e18, data);
 
     }

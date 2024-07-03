@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {BoringVault} from "./../../src/base/BoringVault.sol";
 import {BaseScript} from "./../Base.s.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 contract DeployIonBoringVaultScript is BaseScript {
     using StdJson for string;

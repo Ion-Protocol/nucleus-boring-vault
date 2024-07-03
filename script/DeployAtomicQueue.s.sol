@@ -10,8 +10,8 @@ import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV3} from "src/atomic-queue/AtomicSolverV3.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 
-import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
+import "@forge-std/Script.sol";
+import "@forge-std/StdJson.sol";
 
 /**
  *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 8000000000 --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify

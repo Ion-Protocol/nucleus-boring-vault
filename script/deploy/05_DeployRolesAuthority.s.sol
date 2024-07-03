@@ -8,7 +8,7 @@ import {TellerWithMultiAssetSupport} from "./../../src/base/Roles/TellerWithMult
 import {AccountantWithRateProviders} from "./../../src/base/Roles/AccountantWithRateProviders.sol";
 import {BaseScript} from "../Base.s.sol";
 
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 /**
  * NOTE Deploys with `Authority` set to zero bytes.

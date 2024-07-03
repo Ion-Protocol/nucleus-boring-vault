@@ -13,8 +13,8 @@ import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthorit
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
 
-import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
+import "@forge-std/Script.sol";
+import "@forge-std/StdJson.sol";
 
 /**
  *  source .env && forge script script/DeployTestBoringVault.s.sol:DeployTestBoringVaultScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify

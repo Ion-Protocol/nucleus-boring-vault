@@ -4,9 +4,6 @@ pragma solidity 0.8.21;
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 import "../../../interfaces/ICrossChainTeller.sol";
 
-import {console} from "@forge-std/Test.sol";
-import {console2} from "@forge-std/console2.sol";
-
 /**
  * @title CrossChainTellerBase
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
@@ -124,7 +121,6 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     }
 
     
-
     /**
      * @dev function to deposit into the vault AND bridge cosschain in 1 call
      * @param depositAsset ERC20 to deposit
@@ -133,11 +129,20 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param data Bridge Data
      */
     function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable{
-        console.log('before deposit');
         uint shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-        // to do this I have to skip the _afterPublicDeposit....
-        console.log('after deposit');
         bridge(shareAmount, data);
+    }
+
+
+    /**
+     * @notice Preview fee required to bridge shares in a given feeToken.
+     */
+    function previewFee(uint256 shareAmount, BridgeData calldata data)
+        external
+        view
+        returns (uint256 fee)
+    {
+        return _quote(shareAmount, data);
     }
 
     /**
@@ -152,27 +157,20 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     }
 
     /**
-     * @notice Preview fee required to bridge shares in a given feeToken.
-     */
-    function previewFee(uint256 shareAmount, BridgeData calldata data)
-        external
-        view
-        returns (uint256 fee)
-    {
-        return _quote(shareAmount, data);
-    }
-
-    /**
      * @dev code to run before bridging, includes checks and a burn of shares
      * @dev in the CrossChainTellerWithGenericBridge implementation this is inspired by, some data processing is done beforehand,
      * here that is not done in case other implementations need more flexibility. But I will check to see if it should be done here.
      * @param shareAmount to burn
      * @param data unused but potentially needed in an override
      */
-    function _beforeBridge(uint256 shareAmount, BridgeData calldata data) internal virtual{
+    function _beforeBridge(uint256 shareAmount, BridgeData calldata data) internal{
         if(isPaused) revert TellerWithMultiAssetSupport__Paused();
         if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(data.chainId);
         
+        if(data.messageGas > selectorToChains[data.chainId].messageGasLimit){
+            revert CrossChainLayerZeroTellerWithMultiAssetSupport_GasLimitExceeded();
+        }
+
         // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
         beforeTransfer(msg.sender);
 
@@ -185,18 +183,14 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param data bridge data
      * @return messageId
      */
-    function _bridge(uint256 shareAmount, BridgeData calldata data) internal virtual returns(bytes32){
-        return 0;
-    }
+    function _bridge(uint256 shareAmount, BridgeData calldata data) internal virtual returns(bytes32);
 
     /**
      * @dev the virtual function to override to get bridge fees
      * @param shareAmount to send
      * @param data bridge data
      */
-    function _quote(uint256 shareAmount, BridgeData calldata data) internal view virtual returns(uint256){
-        return 0;
-    }
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view virtual returns(uint256);
 
     /**
      * @dev after bridge code, just an emit but can be overriden

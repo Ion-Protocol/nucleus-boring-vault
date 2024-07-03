@@ -6,8 +6,8 @@ import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthorit
 import {ContractNames} from "resources/ContractNames.sol";
 import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
 
-import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
+import "@forge-std/Script.sol";
+import "@forge-std/StdJson.sol";
 
 /**
  *  source .env && forge script script/DeployDeployer.s.sol:DeployDeployerScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify

@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {IonPoolDecoderAndSanitizer} from "./../../src/base/DecodersAndSanitizers/IonPoolDecoderAndSanitizer.sol";
 import {BaseScript} from "./../Base.s.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 contract DeployDecoderAndSanitizer is BaseScript {
     using StdJson for string;

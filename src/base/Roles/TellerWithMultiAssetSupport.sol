@@ -239,7 +239,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @dev Publicly callable.
      */
     function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint)
-        public
+        external
         payable
         requiresAuth
         nonReentrant

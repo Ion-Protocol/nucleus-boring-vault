@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {AccountantWithRateProviders} from "./../../src/base/Roles/AccountantWithRateProviders.sol";
 import {BaseScript} from "./../Base.s.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 contract DeployAccountantWithRateProviders is BaseScript {
     using StdJson for string;

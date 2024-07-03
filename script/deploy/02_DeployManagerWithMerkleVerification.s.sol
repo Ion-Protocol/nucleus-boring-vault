@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {ManagerWithMerkleVerification} from "./../../src/base/Roles/ManagerWithMerkleVerification.sol";
 import {BaseScript} from "./../Base.s.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 contract DeployManagerWithMerkleVerification is BaseScript {
     using StdJson for string;

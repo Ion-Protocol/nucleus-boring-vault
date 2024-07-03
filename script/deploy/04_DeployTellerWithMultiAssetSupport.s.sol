@@ -5,7 +5,7 @@ import {AccountantWithRateProviders} from "./../../src/base/Roles/AccountantWith
 import {TellerWithMultiAssetSupport} from "./../../src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {MainnetAddresses} from "./../../test/resources/MainnetAddresses.sol";
 import {BaseScript} from "./../Base.s.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 contract DeployTellerWithMultiAssetSupport is BaseScript, MainnetAddresses {
     using StdJson for string;

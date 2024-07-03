@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {BaseScript} from "./../Base.s.sol";
-import {stdJson as StdJson} from "forge-std/StdJson.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 interface IAuthority {
     function setAuthority(address newAuthority) external;

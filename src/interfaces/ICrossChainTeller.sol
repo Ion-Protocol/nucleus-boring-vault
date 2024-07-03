@@ -7,12 +7,13 @@ error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(uint256 chainSelector);
 error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
-    
+error CrossChainLayerZeroTellerWithMultiAssetSupport_GasLimitExceeded();
+
 struct BridgeData{
     uint32 chainId;
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
-    uint64 maxBridgeFee;
+    uint64 messageGas;
     bytes data;
 }
 
