@@ -2,7 +2,7 @@
     "accountantSalt": "0x6a184dbea6f3cc0318679f000000000000000000000000000000000000000000",
     "boringVault": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC",   
     "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-    "base": "",
+    "base": "0x5f207d42F869fd1c71d7f0f81a2A67Fc20FF7323",
     "allowedExchangeRateChangeUpper": "10003",
     "allowedExchangeRateChangeLower": "9950",
     "minimumUpdateDelayInSeconds": "3600",
