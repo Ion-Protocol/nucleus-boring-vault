@@ -10,7 +10,7 @@ error CrossChainTellerBase_ZeroMessageGasLimit();
 error CrossChainTellerBase_GasLimitExceeded();
 
 struct BridgeData{
-    uint32 chainId;
+    uint32 chainSelector;
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint64 messageGas;
@@ -66,7 +66,7 @@ interface ICrossChainTeller {
 
     /**
      * @dev adds an acceptable chain to bridge to
-     * @param chainSelector chainId of chain
+     * @param chainSelector chainSelector of chain
      * @param allowMessagesFrom allow messages from this chain
      * @param allowMessagesTo allow messages to the chain
      * @param targetTeller address of the target teller on this chain
@@ -82,15 +82,15 @@ interface ICrossChainTeller {
 
     /**
      * @dev block messages from a particular chain
-     * @param chainId of chain
+     * @param chainSelector of chain
      */
-    function stopMessagesFromChain(uint32 chainId) external;
+    function stopMessagesFromChain(uint32 chainSelector) external;
 
     /**
      * @dev allow messages from a particular chain
-     * @param chainId of chain
+     * @param chainSelector of chain
      */
-    function allowMessagesFromChain(uint32 chainId, address targetTeller) external;
+    function allowMessagesFromChain(uint32 chainSelector, address targetTeller) external;
 
     /**
      * @notice Remove a chain from the teller.

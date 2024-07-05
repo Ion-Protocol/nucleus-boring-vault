@@ -189,9 +189,9 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      */
     function _beforeBridge(uint256 shareAmount, BridgeData calldata data) private{
         if(isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainTellerBase_MessagesNotAllowedTo(data.chainId);
+        if(!selectorToChains[data.chainSelector].allowMessagesTo) revert CrossChainTellerBase_MessagesNotAllowedTo(data.chainSelector);
         
-        if(data.messageGas > selectorToChains[data.chainId].messageGasLimit){
+        if(data.messageGas > selectorToChains[data.chainSelector].messageGasLimit){
             revert CrossChainTellerBase_GasLimitExceeded();
         }
 

@@ -18,6 +18,33 @@ import {ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS} from "@ion-protocol/Constants.s
 import {IRateProvider} from "../../../src/interfaces/IRateProvider.sol";
 import {RolesAuthority} from "@solmate/auth/authorities/RolesAuthority.sol";
 
+
+
+struct AccountantConfig{
+        bytes32 accountantSalt;
+        address payoutAddress;
+        address base;
+        uint16 allowedExchangeRateChangeUpper;
+        uint16 allowedExchangeRateChangeLower;
+        uint32 minimumUpdateDelayInSeconds;
+        uint16 managementFee;
+
+        uint256 startingExchangeRate;
+}
+
+struct AccountantReturn{
+        address _payoutAddress;
+        uint128 _feesOwedInBase;
+        uint128 _totalSharesLastUpdate;
+        uint96 _exchangeRate;
+        uint16 _allowedExchangeRateChangeUpper;
+        uint16 _allowedExchangeRateChangeLower;
+        uint64 _lastUpdateTimestamp;
+        bool _isPaused;
+        uint32 _minimumUpdateDelayInSeconds;
+        uint16 _managementFee;
+}
+
 abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
     using StdJson for string;
 
@@ -26,309 +53,32 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
     uint8 public constant TELLER_ROLE = 3;
     uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 4;
 
-    function fullDeployForChain(string memory rpc, address lzEndpoint) internal broadcast returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller){
-        vm.rpcUrl(rpc);
+    mapping(string => mapping(string => address)) public addressesByRpc;
 
+    modifier broadcastChain(string memory rpc) {
+        vm.createSelectFork(vm.rpcUrl(rpc));
+        vm.startBroadcast();
+        _;
+        vm.stopBroadcast();
+    }
 
+    function fullDeployForChain(string memory rpc, address lzEndpoint) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller){
         // 01 ===========================================================================================================================================
-
-        string memory path = "./deployment-config/01_DeployIonBoringVault.json";
-        string memory config = vm.readFile(path);
-        BoringVault boringVault;
-        {
-            bytes32 boringVaultSalt = config.readBytes32(".boringVaultSalt");
-            string memory boringVaultName = config.readString(".boringVaultName");
-            string memory boringVaultSymbol = config.readString(".boringVaultSymbol");
-
-            require(boringVaultSalt != bytes32(0));
-            require(keccak256(bytes(boringVaultName)) != keccak256(bytes("")));
-            require(keccak256(bytes(boringVaultSymbol)) != keccak256(bytes("")));
-
-            bytes memory creationCode = type(BoringVault).creationCode;
-
-            boringVault = BoringVault(
-                payable(
-                    CREATEX.deployCreate3(
-                        boringVaultSalt,
-                        abi.encodePacked(
-                            creationCode,
-                            abi.encode(
-                                broadcaster,
-                                boringVaultName,
-                                boringVaultSymbol,
-                                18 // decimals
-                            )
-                        )
-                    )
-                )
-            );
-        }
-        require(boringVault.owner() == broadcaster, "owner should be the deployer");
-        require(address(boringVault.hook()) == address(0), "before transfer hook should be zero");
-
+        BoringVault boringVault = _deployBoringVault();
 
         // 02 ===========================================================================================================================================
-        ManagerWithMerkleVerification manager;
-        {
-            path = "./deployment-config/02_DeployIonBoringVault.json";
-            config = vm.readFile(path);
-            bytes32 managerSalt = config.readBytes32(".managerSalt");
-
-            require(managerSalt != bytes32(0), "manager salt must not be zero");
-            require(address(boringVault) != address(0), "boring vault address must not be zero");
-
-            require(address(boringVault).code.length != 0, "boring vault must have code");
-            require(address(BALANCER_VAULT).code.length != 0, "balancer vault must have code");
-
-            bytes memory creationCode = type(ManagerWithMerkleVerification).creationCode;
-
-            manager = ManagerWithMerkleVerification(
-                CREATEX.deployCreate3(
-                    managerSalt,
-                    abi.encodePacked(
-                        creationCode,
-                        abi.encode(
-                            broadcaster,
-                            boringVault,
-                            BALANCER_VAULT,
-                            18 // decimals
-                        )
-                    )
-                )
-            );
-
-        }        
-        require(manager.isPaused() == false, "the manager must not be paused");
-        require(address(manager.vault()) == address(boringVault), "the manager vault must be the boring vault");
-        require(address(manager.balancerVault()) == BALANCER_VAULT, "the manager balancer vault must be the balancer vault");
-
+        ManagerWithMerkleVerification manager = _deployManager(boringVault);
 
         // 03 ===========================================================================================================================================
+        AccountantWithRateProviders accountant = _deployAccountant(boringVault, rpc);
         
-        AccountantWithRateProviders accountant;
-        {        
-            path = "./deployment-config/03_DeployAccountantWithRateProviders.json";
-            config = vm.readFile(path);
-
-            bytes32 accountantSalt = config.readBytes32(".accountantSalt");
-            address payoutAddress = config.readAddress(".payoutAddress");
-            address base = config.readAddress(".base");
-            uint16 allowedExchangeRateChangeUpper = uint16(config.readUint(".allowedExchangeRateChangeUpper"));
-            uint16 allowedExchangeRateChangeLower = uint16(config.readUint(".allowedExchangeRateChangeLower"));
-            uint32 minimumUpdateDelayInSeconds = uint32(config.readUint(".minimumUpdateDelayInSeconds"));
-            uint16 managementFee = uint16(config.readUint(".managementFee"));
-
-            uint256 startingExchangeRate = 10 ** ERC20(base).decimals();
-
-            require(address(boringVault).code.length != 0, "boringVault must have code");
-            require(base.code.length != 0, "base must have code");
-
-            require(accountantSalt != bytes32(0), "accountant salt must not be zero");
-            require(address(boringVault) != address(0), "boring vault address must not be zero");
-            require(payoutAddress != address(0), "payout address must not be zero");
-            require(base != address(0), "base address must not be zero");
-
-            require(allowedExchangeRateChangeUpper > 1e4, "allowedExchangeRateChangeUpper");
-            require(allowedExchangeRateChangeUpper <= 1.0003e4, "allowedExchangeRateChangeUpper upper bound");
-
-            require(allowedExchangeRateChangeLower < 1e4, "allowedExchangeRateChangeLower");
-            require(allowedExchangeRateChangeLower >= 0.9997e4, "allowedExchangeRateChangeLower lower bound");
-
-            require(minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
-
-            require(managementFee < 1e4, "managementFee");
-
-            require(startingExchangeRate == 1e18, "starting exchange rate must be 1e18");
-
-            bytes memory creationCode = type(AccountantWithRateProviders).creationCode;
-
-            accountant = AccountantWithRateProviders(
-                CREATEX.deployCreate3(
-                    accountantSalt,
-                    abi.encodePacked(
-                        creationCode,
-                        abi.encode(
-                            broadcaster,
-                            boringVault,
-                            payoutAddress,
-                            startingExchangeRate,
-                            base,
-                            allowedExchangeRateChangeUpper,
-                            allowedExchangeRateChangeLower,
-                            minimumUpdateDelayInSeconds,
-                            managementFee
-                        )
-                    )
-                )
-            );
-
-            (
-                address _payoutAddress,
-                uint128 _feesOwedInBase,
-                uint128 _totalSharesLastUpdate,
-                uint96 _exchangeRate,
-                uint16 _allowedExchangeRateChangeUpper,
-                uint16 _allowedExchangeRateChangeLower,
-                uint64 _lastUpdateTimestamp,
-                bool _isPaused,
-                uint32 _minimumUpdateDelayInSeconds,
-                uint16 _managementFee
-            ) = accountant.accountantState();
-
-            require(_payoutAddress == payoutAddress, "payout address");
-            require(_feesOwedInBase == 0, "fees owed in base");
-            require(_totalSharesLastUpdate == 0, "total shares last update");
-            require(_exchangeRate == startingExchangeRate, "exchange rate");
-            require(_allowedExchangeRateChangeUpper == allowedExchangeRateChangeUpper, "allowed exchange rate change upper");
-            require(_allowedExchangeRateChangeLower == allowedExchangeRateChangeLower, "allowed exchange rate change lower");
-            require(_lastUpdateTimestamp == uint64(block.timestamp), "last update timestamp");
-            require(_isPaused == false, "is paused");
-            require(_minimumUpdateDelayInSeconds == minimumUpdateDelayInSeconds, "minimum update delay in seconds");
-            require(_managementFee == managementFee, "management fee");
-
-            require(address(accountant.vault()) == address(boringVault), "vault");
-            require(address(accountant.base()) == base, "base");
-            require(accountant.decimals() == ERC20(base).decimals(), "decimals");
-
-        }
         // 04 ===========================================================================================================================================
-        {        
-            path = "./deployment-config/04_DeployTellerWithMultiAssetSupport.json";
-            config = vm.readFile(path);
-
-            bytes32 tellerSalt = config.readBytes32(".tellerSalt");
-
-            require(address(boringVault).code.length != 0, "boringVault must have code");
-            require(address(accountant).code.length != 0, "accountant must have code");
-            
-            require(tellerSalt != bytes32(0), "tellerSalt");
-            require(address(boringVault) != address(0), "boringVault");
-            require(address(accountant) != address(0), "accountant");
-
-            bytes memory creationCode = type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode;
-
-            // address _owner, address _vault, address _accountant, address _weth, address _endpoint
-            teller = CrossChainLayerZeroTellerWithMultiAssetSupport(
-                CREATEX.deployCreate3(
-                    tellerSalt,
-                    abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, address(WETH), lzEndpoint))
-                )
-            );
-
-            require(teller.shareLockPeriod() == 0, "share lock period must be zero");
-            require(teller.isPaused() == false, "the teller must not be paused");
-            require(
-                AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
-                "the accountant vault must be the teller vault"
-            );
-        }
+        teller = _deployTeller(boringVault, accountant, lzEndpoint, rpc);        
 
         // 05 ===========================================================================================================================================
-        RolesAuthority rolesAuthority;
-        {        
-            path = "./deployment-config/05_DeployRolesAuthority.json";
-            config = vm.readFile(path);
+        RolesAuthority rolesAuthority = _deployRolesAuthority(boringVault, manager, teller, accountant);
 
-            bytes32 rolesAuthoritySalt = config.readBytes32(".rolesAuthoritySalt");
-
-            address strategist = config.readAddress(".strategist");
-            address exchangeRateBot = config.readAddress(".exchangeRateBot");
-
-            require(address(boringVault).code.length != 0, "boringVault must have code");
-            require(address(manager).code.length != 0, "manager must have code");
-            require(address(teller).code.length != 0, "teller must have code");
-            require(address(accountant).code.length != 0, "accountant must have code");
-            
-            require(address(boringVault) != address(0), "boringVault");
-            require(address(manager) != address(0), "manager");
-            require(address(teller) != address(0), "teller");
-            require(address(accountant) != address(0), "accountant");
-            require(strategist != address(0), "strategist");
-            
-            
-            bytes memory creationCode = type(RolesAuthority).creationCode;
-
-            rolesAuthority = RolesAuthority(
-                CREATEX.deployCreate3(
-                    rolesAuthoritySalt,
-                    abi.encodePacked(
-                        creationCode,
-                        abi.encode(
-                            broadcaster,
-                            address(0) // `Authority`
-                        )
-                    )
-                )
-            );
-
-            // Setup initial roles configurations
-            // --- Users ---
-            // 1. VAULT_STRATEGIST (BOT EOA)
-            // 2. MANAGER (CONTRACT)
-            // 3. TELLER (CONTRACT)
-            // --- Roles ---
-            // 1. STRATEGIST_ROLE
-            //     - manager.manageVaultWithMerkleVerification
-            //     - assigned to VAULT_STRATEGIST
-            // 2. MANAGER_ROLE
-            //     - boringVault.manage()
-            //     - assigned to MANAGER
-            // 3. TELLER_ROLE
-            //     - boringVault.enter()
-            //     - boringVault.exit()
-            //     - assigned to TELLER
-            // --- Public ---
-            // 1. teller.deposit
-
-            rolesAuthority.setRoleCapability(
-                STRATEGIST_ROLE, address(manager), ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector, true
-            );
-
-            rolesAuthority.setRoleCapability(
-                MANAGER_ROLE, address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)"))), true
-            );
-
-            rolesAuthority.setRoleCapability(
-                MANAGER_ROLE, address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])"))), true
-            );
-
-            rolesAuthority.setRoleCapability(TELLER_ROLE, address(boringVault), BoringVault.enter.selector, true);
-
-            rolesAuthority.setRoleCapability(TELLER_ROLE, address(boringVault), BoringVault.exit.selector, true);
-
-            rolesAuthority.setPublicCapability(address(teller), TellerWithMultiAssetSupport.deposit.selector, true);
-
-            rolesAuthority.setRoleCapability(
-                UPDATE_EXCHANGE_RATE_ROLE, address(accountant), AccountantWithRateProviders.updateExchangeRate.selector, true
-            );
-
-            // --- Assign roles to users ---
-
-            rolesAuthority.setUserRole(strategist, STRATEGIST_ROLE, true);
-
-            rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
-
-            rolesAuthority.setUserRole(address(teller), TELLER_ROLE, true);
-
-            rolesAuthority.setUserRole(exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE, true);
-
-            require(rolesAuthority.doesUserHaveRole(strategist, STRATEGIST_ROLE), "strategist should have STRATEGIST_ROLE");
-            require(rolesAuthority.doesUserHaveRole(address(manager), MANAGER_ROLE), "manager should have MANAGER_ROLE");
-            require(rolesAuthority.doesUserHaveRole(address(teller), TELLER_ROLE), "teller should have TELLER_ROLE");
-            require(rolesAuthority.doesUserHaveRole(exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE), "exchangeRateBot should have UPDATE_EXCHANGE_RATE_ROLE");
-            
-            require(rolesAuthority.canCall(strategist, address(manager), ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector), "strategist should be able to call manageVaultWithMerkleVerification");
-            require(rolesAuthority.canCall(address(manager), address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)")))), "manager should be able to call boringVault.manage");
-            require(rolesAuthority.canCall(address(manager), address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])")))), "manager should be able to call boringVault.manage");
-            require(rolesAuthority.canCall(address(teller), address(boringVault), BoringVault.enter.selector), "teller should be able to call boringVault.enter");
-            require(rolesAuthority.canCall(address(teller), address(boringVault), BoringVault.exit.selector), "teller should be able to call boringVault.exit");
-            require(rolesAuthority.canCall(exchangeRateBot, address(accountant), AccountantWithRateProviders.updateExchangeRate.selector), "exchangeRateBot should be able to call accountant.updateExchangeRate");
-
-            require(rolesAuthority.canCall(address(1), address(teller), TellerWithMultiAssetSupport.deposit.selector), "anyone should be able to call teller.deposit");
-
-        }
         // 06 ===========================================================================================================================================
-        
         {        
             require(address(boringVault).code.length != 0, "boringVault must have code");
             require(address(manager).code.length != 0, "manager must have code");
@@ -359,32 +109,332 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
             require(manager.owner() == protocolAdmin, "manager");
             require(accountant.owner() == protocolAdmin, "accountant");
             require(teller.owner() == protocolAdmin, "teller");
-
         }
+
         // 07 ===========================================================================================================================================
-        IonPoolDecoderAndSanitizer decoder;
-        {        
-            path = "./deployment-config/07_DeployDecoderAndSanitizer.json";
-            config = vm.readFile(path);
+        // IonPoolDecoderAndSanitizer decoder = _deployDecoder(boringVault);
 
-            bytes32 decoderSalt = config.readBytes32(".decoderSalt");    
-            require(address(boringVault).code.length != 0, "boringVault must have code");
-            require(decoderSalt != bytes32(0), "decoder salt must not be zero");
-            require(address(boringVault) != address(0), "boring vault must be set");
+        // 08 ===========================================================================================================================================
+        // string memory path = "./deployment-config/08_DeployRateProviders.json";
+        // string memory config = vm.readFile(path);
 
-            bytes memory creationCode = type(IonPoolDecoderAndSanitizer).creationCode;
+        // uint256 maxTimeFromLastUpdate = config.readUint(".maxTimeFromLastUpdate");
+        // IRateProvider rateProvider = new EthPerWstEthRateProvider{salt: ZERO_SALT}(
+        //     address(ETH_PER_STETH_CHAINLINK), address(WSTETH_ADDRESS), maxTimeFromLastUpdate
+        // );
+    }
 
-            decoder = IonPoolDecoderAndSanitizer(
-                CREATEX.deployCreate3(decoderSalt, abi.encodePacked(creationCode, abi.encode(boringVault)))
+    function _deployBoringVault() internal returns(BoringVault boringVault){
+        string memory path = "./deployment-config/01_DeployIonBoringVault.json";
+        string memory config = vm.readFile(path);
+        {
+            bytes32 boringVaultSalt = config.readBytes32(".boringVaultSalt");
+            string memory boringVaultName = config.readString(".boringVaultName");
+            string memory boringVaultSymbol = config.readString(".boringVaultSymbol");
+
+            require(boringVaultSalt != bytes32(0));
+            require(keccak256(bytes(boringVaultName)) != keccak256(bytes("")));
+            require(keccak256(bytes(boringVaultSymbol)) != keccak256(bytes("")));
+
+            bytes memory creationCode = type(BoringVault).creationCode;
+            boringVault = BoringVault(
+                payable(
+                    CREATEX.deployCreate3(
+                        boringVaultSalt,
+                        abi.encodePacked(
+                            creationCode,
+                            abi.encode(
+                                broadcaster,
+                                boringVaultName,
+                                boringVaultSymbol,
+                                18 // decimals
+                            )
+                        )
+                    )
+                )
             );
         }
-        // 08 ===========================================================================================================================================
-        path = "./deployment-config/08_DeployRateProviders.json";
-        config = vm.readFile(path);
+        require(boringVault.owner() == broadcaster, "owner should be the deployer");
+        require(address(boringVault.hook()) == address(0), "before transfer hook should be zero");
+    }
 
-        uint256 maxTimeFromLastUpdate = config.readUint(".maxTimeFromLastUpdate");
-        IRateProvider rateProvider = new EthPerWstEthRateProvider{salt: ZERO_SALT}(
-            address(ETH_PER_STETH_CHAINLINK), address(WSTETH_ADDRESS), maxTimeFromLastUpdate
+    function _deployManager(BoringVault boringVault) internal returns(ManagerWithMerkleVerification manager){
+        {
+            string memory path = "./deployment-config/02_DeployManagerWithMerkleVerification.json";
+            string memory config = vm.readFile(path);
+            bytes32 managerSalt = config.readBytes32(".managerSalt");
+
+            require(managerSalt != bytes32(0), "manager salt must not be zero");
+            require(address(boringVault) != address(0), "boring vault address must not be zero");
+
+            require(address(boringVault).code.length != 0, "boring vault must have code");
+
+            // On some chains like Optimism Sepolia, there isn't a BALANCER_VAULT
+            // so this is commented out to test out functionality that could worth without engaging balancer
+            // require(address(BALANCER_VAULT).code.length != 0, "balancer vault must have code");
+
+            bytes memory creationCode = type(ManagerWithMerkleVerification).creationCode;
+
+            manager = ManagerWithMerkleVerification(
+                CREATEX.deployCreate3(
+                    managerSalt,
+                    abi.encodePacked(
+                        creationCode,
+                        abi.encode(
+                            broadcaster,
+                            boringVault,
+                            BALANCER_VAULT,
+                            18 // decimals
+                        )
+                    )
+                )
+            );
+
+        }        
+        require(manager.isPaused() == false, "the manager must not be paused");
+        require(address(manager.vault()) == address(boringVault), "the manager vault must be the boring vault");
+        require(address(manager.balancerVault()) == BALANCER_VAULT, "the manager balancer vault must be the balancer vault");
+
+    }
+
+    function _deployAccountant(BoringVault boringVault, string memory rpc) internal returns(AccountantWithRateProviders accountant){
+        {
+            string memory path = "./deployment-config/03_DeployAccountantWithRateProviders.json";
+            string memory config = vm.readFile(path);
+
+            AccountantConfig memory accConfig;
+            // AccountantReturn memory returnData;
+
+            accConfig.accountantSalt = config.readBytes32(".accountantSalt");
+            accConfig.payoutAddress = config.readAddress(".payoutAddress");
+            accConfig.base = addressesByRpc[rpc]["WETH"];
+            accConfig.allowedExchangeRateChangeUpper = accConfig.allowedExchangeRateChangeUpper = uint16(config.readUint(".allowedExchangeRateChangeUpper"));
+            accConfig.allowedExchangeRateChangeLower = uint16(config.readUint(".allowedExchangeRateChangeLower"));
+            accConfig.minimumUpdateDelayInSeconds = uint32(config.readUint(".minimumUpdateDelayInSeconds"));
+            accConfig.managementFee = uint16(config.readUint(".managementFee"));
+            accConfig.startingExchangeRate = 10 ** ERC20(accConfig.base).decimals();
+
+            require(address(boringVault).code.length != 0, "boringVault must have code");
+            require(accConfig.base.code.length != 0, "base must have code");
+
+            require(accConfig.accountantSalt != bytes32(0), "accountant salt must not be zero");
+            require(address(boringVault) != address(0), "boring vault address must not be zero");
+            require(accConfig.payoutAddress != address(0), "payout address must not be zero");
+            require(accConfig.base != address(0), "base address must not be zero");
+
+            require(accConfig.allowedExchangeRateChangeUpper > 1e4, "allowedExchangeRateChangeUpper");
+            require(accConfig.allowedExchangeRateChangeUpper <= 1.0003e4, "allowedExchangeRateChangeUpper upper bound");
+
+            require(accConfig.allowedExchangeRateChangeLower < 1e4, "allowedExchangeRateChangeLower");
+            require(accConfig.allowedExchangeRateChangeLower >= 0.9997e4, "allowedExchangeRateChangeLower lower bound");
+
+            require(accConfig.minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
+
+            require(accConfig.managementFee < 1e4, "managementFee");
+
+            require(accConfig.startingExchangeRate == 1e18, "starting exchange rate must be 1e18");
+
+            bytes memory creationCode = type(AccountantWithRateProviders).creationCode;
+
+            accountant = AccountantWithRateProviders(
+                CREATEX.deployCreate3(
+                    accConfig.accountantSalt,
+                    abi.encodePacked(
+                        creationCode,
+                        abi.encode(
+                            broadcaster,
+                            boringVault,
+                            accConfig.payoutAddress,
+                            accConfig.startingExchangeRate,
+                            accConfig.base,
+                            accConfig.allowedExchangeRateChangeUpper,
+                            accConfig.allowedExchangeRateChangeLower,
+                            accConfig.minimumUpdateDelayInSeconds,
+                            accConfig.managementFee
+                        )
+                    )
+                )
+            );
+
+            // (
+            //     returnData._payoutAddress,
+            //     returnData._feesOwedInBase,
+            //     returnData._totalSharesLastUpdate,
+            //     returnData._exchangeRate,
+            //     returnData._allowedExchangeRateChangeUpper,
+            //     returnData._allowedExchangeRateChangeLower,
+            //     returnData._lastUpdateTimestamp,
+            //     returnData._isPaused,
+            //     returnData._minimumUpdateDelayInSeconds,
+            //     returnData._managementFee
+            // ) = accountant.accountantState();
+
+            // require(returnData._payoutAddress == accConfig.payoutAddress, "payout address");
+            // require(returnData._feesOwedInBase == 0, "fees owed in base");
+            // require(returnData._totalSharesLastUpdate == 0, "total shares last update");
+            // require(returnData._exchangeRate == accConfig.startingExchangeRate, "exchange rate");
+            // require(returnData._allowedExchangeRateChangeUpper == accConfig.allowedExchangeRateChangeUpper, "allowed exchange rate change upper");
+            // require(returnData._allowedExchangeRateChangeLower == accConfig.allowedExchangeRateChangeLower, "allowed exchange rate change lower");
+            // require(returnData._lastUpdateTimestamp == uint64(block.timestamp), "last update timestamp");
+            // require(returnData._isPaused == false, "is paused");
+            // require(returnData._minimumUpdateDelayInSeconds == accConfig.minimumUpdateDelayInSeconds, "minimum update delay in seconds");
+            // require(returnData._managementFee == accConfig.managementFee, "management fee");
+
+            require(address(accountant.vault()) == address(boringVault), "vault");
+            require(address(accountant.base()) == accConfig.base, "base");
+            require(accountant.decimals() == ERC20(accConfig.base).decimals(), "decimals");
+        }
+    }
+
+    function _deployTeller(BoringVault boringVault, AccountantWithRateProviders accountant, address lzEndpoint, string memory rpc) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller) {
+        string memory path = "./deployment-config/04_DeployTellerWithMultiAssetSupport.json";
+        string memory config = vm.readFile(path);
+
+        bytes32 tellerSalt = config.readBytes32(".tellerSalt");
+
+        require(address(boringVault).code.length != 0, "boringVault must have code");
+        require(address(accountant).code.length != 0, "accountant must have code");
+        
+        require(tellerSalt != bytes32(0), "tellerSalt");
+        require(address(boringVault) != address(0), "boringVault");
+        require(address(accountant) != address(0), "accountant");
+
+        bytes memory creationCode = type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode;
+
+        // address _owner, address _vault, address _accountant, address _weth, address _endpoint
+        teller = CrossChainLayerZeroTellerWithMultiAssetSupport(
+            CREATEX.deployCreate3(
+                tellerSalt,
+                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, addressesByRpc[rpc]["WETH"], lzEndpoint))
+            )
+        );
+
+        require(teller.shareLockPeriod() == 0, "share lock period must be zero");
+        require(teller.isPaused() == false, "the teller must not be paused");
+        require(
+            AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
+            "the accountant vault must be the teller vault"
+        );
+    }
+
+    function _deployRolesAuthority(
+        BoringVault boringVault, 
+        ManagerWithMerkleVerification manager, 
+        TellerWithMultiAssetSupport teller, 
+        AccountantWithRateProviders accountant
+        ) 
+        internal 
+    returns(RolesAuthority rolesAuthority){   
+
+        string memory path = "./deployment-config/05_DeployRolesAuthority.json";
+        string memory config = vm.readFile(path);
+
+        bytes32 rolesAuthoritySalt = config.readBytes32(".rolesAuthoritySalt");
+
+        address strategist = config.readAddress(".strategist");
+
+        require(address(boringVault).code.length != 0, "boringVault must have code");
+        require(address(manager).code.length != 0, "manager must have code");
+        require(address(teller).code.length != 0, "teller must have code");
+        require(address(accountant).code.length != 0, "accountant must have code");
+        
+        require(address(boringVault) != address(0), "boringVault");
+        require(address(manager) != address(0), "manager");
+        require(address(teller) != address(0), "teller");
+        require(address(accountant) != address(0), "accountant");
+        require(strategist != address(0), "strategist");
+        
+        
+        bytes memory creationCode = type(RolesAuthority).creationCode;
+
+        rolesAuthority = RolesAuthority(
+            CREATEX.deployCreate3(
+                rolesAuthoritySalt,
+                abi.encodePacked(
+                    creationCode,
+                    abi.encode(
+                        broadcaster,
+                        address(0) // `Authority`
+                    )
+                )
+            )
+        );
+
+        // Setup initial roles configurations
+        // --- Users ---
+        // 1. VAULT_STRATEGIST (BOT EOA)
+        // 2. MANAGER (CONTRACT)
+        // 3. TELLER (CONTRACT)
+        // --- Roles ---
+        // 1. STRATEGIST_ROLE
+        //     - manager.manageVaultWithMerkleVerification
+        //     - assigned to VAULT_STRATEGIST
+        // 2. MANAGER_ROLE
+        //     - boringVault.manage()
+        //     - assigned to MANAGER
+        // 3. TELLER_ROLE
+        //     - boringVault.enter()
+        //     - boringVault.exit()
+        //     - assigned to TELLER
+        // --- Public ---
+        // 1. teller.deposit
+
+        rolesAuthority.setRoleCapability(
+            STRATEGIST_ROLE, address(manager), ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector, true
+        );
+
+        rolesAuthority.setRoleCapability(
+            MANAGER_ROLE, address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)"))), true
+        );
+
+        rolesAuthority.setRoleCapability(
+            MANAGER_ROLE, address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])"))), true
+        );
+
+        rolesAuthority.setRoleCapability(TELLER_ROLE, address(boringVault), BoringVault.enter.selector, true);
+
+        rolesAuthority.setRoleCapability(TELLER_ROLE, address(boringVault), BoringVault.exit.selector, true);
+
+        rolesAuthority.setPublicCapability(address(teller), TellerWithMultiAssetSupport.deposit.selector, true);
+
+        rolesAuthority.setRoleCapability(
+            UPDATE_EXCHANGE_RATE_ROLE, address(accountant), AccountantWithRateProviders.updateExchangeRate.selector, true
+        );
+
+        // --- Assign roles to users ---
+
+        rolesAuthority.setUserRole(strategist, STRATEGIST_ROLE, true);
+
+        rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
+
+        rolesAuthority.setUserRole(address(teller), TELLER_ROLE, true);
+
+        require(rolesAuthority.doesUserHaveRole(strategist, STRATEGIST_ROLE), "strategist should have STRATEGIST_ROLE");
+        require(rolesAuthority.doesUserHaveRole(address(manager), MANAGER_ROLE), "manager should have MANAGER_ROLE");
+        require(rolesAuthority.doesUserHaveRole(address(teller), TELLER_ROLE), "teller should have TELLER_ROLE");
+        
+        require(rolesAuthority.canCall(strategist, address(manager), ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector), "strategist should be able to call manageVaultWithMerkleVerification");
+        require(rolesAuthority.canCall(address(manager), address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)")))), "manager should be able to call boringVault.manage");
+        require(rolesAuthority.canCall(address(manager), address(boringVault), bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])")))), "manager should be able to call boringVault.manage");
+        require(rolesAuthority.canCall(address(teller), address(boringVault), BoringVault.enter.selector), "teller should be able to call boringVault.enter");
+        require(rolesAuthority.canCall(address(teller), address(boringVault), BoringVault.exit.selector), "teller should be able to call boringVault.exit");
+
+        require(rolesAuthority.canCall(address(1), address(teller), TellerWithMultiAssetSupport.deposit.selector), "anyone should be able to call teller.deposit");
+    }
+
+    function _deployDecoder(BoringVault boringVault) internal returns(IonPoolDecoderAndSanitizer decoder){
+        string memory path = "./deployment-config/07_DeployDecoderAndSanitizer.json";
+        string memory config = vm.readFile(path);
+
+        bytes32 decoderSalt = config.readBytes32(".decoderSalt");    
+        require(address(boringVault).code.length != 0, "boringVault must have code");
+        require(decoderSalt != bytes32(0), "decoder salt must not be zero");
+        require(address(boringVault) != address(0), "boring vault must be set");
+
+        bytes memory creationCode = type(IonPoolDecoderAndSanitizer).creationCode;
+
+        decoder = IonPoolDecoderAndSanitizer(
+            CREATEX.deployCreate3(decoderSalt, abi.encodePacked(creationCode, abi.encode(boringVault)))
         );
     }
 }

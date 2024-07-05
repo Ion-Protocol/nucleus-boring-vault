@@ -15,8 +15,6 @@ import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/lib
 contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase, OAppAuth{
     using OptionsBuilder for bytes;
 
-    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
@@ -36,11 +34,11 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
         address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != WETH){
+        if(bridgeToken != address(nativeWrapper)){
             revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
-        MessagingFee memory fee = _quote(data.chainId, _message, _options, false);
+        MessagingFee memory fee = _quote(data.chainSelector, _message, _options, false);
 
 
         return fee.nativeFee;
@@ -74,7 +72,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
         address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != WETH){
+        if(bridgeToken != address(nativeWrapper)){
             revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
@@ -82,7 +80,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
         
         MessagingReceipt memory receipt = _lzSend(
-            data.chainId,
+            data.chainSelector,
             _payload,
             _options,
             // Fee in native gas and ZRO token.

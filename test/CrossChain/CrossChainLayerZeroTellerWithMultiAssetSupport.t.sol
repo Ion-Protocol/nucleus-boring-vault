@@ -34,7 +34,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         address to = vm.addr(1);
 
         BridgeData memory data = BridgeData({
-            chainId: DESTINATION_SELECTOR,
+            chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
             bridgeFeeToken: WETH,
             messageGas: 80_000,
@@ -73,7 +73,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         // preform depositAndBridge
         BridgeData memory data = BridgeData({
-            chainId: DESTINATION_SELECTOR,
+            chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
             bridgeFeeToken: WETH,
             messageGas: 80_000,
