@@ -3,11 +3,11 @@ pragma solidity 0.8.21;
 
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
-error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFrom(uint32 chainSelector);
-error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
-error CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(uint256 chainSelector);
-error CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
-error CrossChainLayerZeroTellerWithMultiAssetSupport_GasLimitExceeded();
+error CrossChainTellerBase_MessagesNotAllowedFrom(uint32 chainSelector);
+error CrossChainTellerBase_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
+error CrossChainTellerBase_MessagesNotAllowedTo(uint256 chainSelector);
+error CrossChainTellerBase_ZeroMessageGasLimit();
+error CrossChainTellerBase_GasLimitExceeded();
 
 struct BridgeData{
     uint32 chainId;

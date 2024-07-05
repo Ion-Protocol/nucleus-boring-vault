@@ -22,7 +22,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     /**
      * @notice Add a chain to the teller.
      * @dev Callable by OWNER_ROLE.
-     * @param chainSelector The CCIP chain selector to add.
+     * @param chainSelector The chain selector to add.
      * @param allowMessagesFrom Whether to allow messages from this chain.
      * @param allowMessagesTo Whether to allow messages to this chain.
      * @param targetTeller The address of the target teller on the other chain.
@@ -36,7 +36,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
         uint64 messageGasLimit
     ) external requiresAuth {
         if (allowMessagesTo && messageGasLimit == 0) {
-            revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+            revert CrossChainTellerBase_ZeroMessageGasLimit();
         }
         selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
 
@@ -74,7 +74,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
         requiresAuth
     {
         if (messageGasLimit == 0) {
-            revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+            revert CrossChainTellerBase_ZeroMessageGasLimit();
         }
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesTo = true;
@@ -112,7 +112,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      */
     function setChainGasLimit(uint32 chainSelector, uint64 messageGasLimit) external requiresAuth {
         if (messageGasLimit == 0) {
-            revert CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit();
+            revert CrossChainTellerBase_ZeroMessageGasLimit();
         }
         Chain storage chain = selectorToChains[chainSelector];
         chain.messageGasLimit = messageGasLimit;
@@ -122,7 +122,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
 
     
     /**
-     * @dev function to deposit into the vault AND bridge cosschain in 1 call
+     * @dev function to deposit into the vault AND bridge crosschain in 1 call
      * @param depositAsset ERC20 to deposit
      * @param depositAmount amount of deposit asset to deposit
      * @param minimumMint minimum required shares to receive
@@ -157,29 +157,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     }
 
     /**
-     * @dev code to run before bridging, includes checks and a burn of shares
-     * @dev in the CrossChainTellerWithGenericBridge implementation this is inspired by, some data processing is done beforehand,
-     * here that is not done in case other implementations need more flexibility. But I will check to see if it should be done here.
-     * @param shareAmount to burn
-     * @param data unused but potentially needed in an override
-     */
-    function _beforeBridge(uint256 shareAmount, BridgeData calldata data) internal{
-        if(isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo(data.chainId);
-        
-        if(data.messageGas > selectorToChains[data.chainId].messageGasLimit){
-            revert CrossChainLayerZeroTellerWithMultiAssetSupport_GasLimitExceeded();
-        }
-
-        // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
-        beforeTransfer(msg.sender);
-
-        // Burn shares from sender
-        vault.exit(address(0), ERC20(address(0)), 0, msg.sender, shareAmount);
-    }
-
-    /**
-     * @dev the virtual bridge function to be overriden
+     * @dev the virtual bridge function to be overridden
      * @param data bridge data
      * @return messageId
      */
@@ -200,5 +178,27 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      */
     function _afterBridge(uint256 shareAmount, BridgeData calldata data, bytes32 messageId) internal virtual{
         emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
+    }
+
+    /**
+     * @dev code to run before bridging, includes checks and a burn of shares
+     * @dev in the CrossChainTellerWithGenericBridge implementation this is inspired by, some data processing is done beforehand,
+     * here that is not done in case other implementations need more flexibility. But I will check to see if it should be done here.
+     * @param shareAmount to burn
+     * @param data unused but potentially needed in an override
+     */
+    function _beforeBridge(uint256 shareAmount, BridgeData calldata data) private{
+        if(isPaused) revert TellerWithMultiAssetSupport__Paused();
+        if(!selectorToChains[data.chainId].allowMessagesTo) revert CrossChainTellerBase_MessagesNotAllowedTo(data.chainId);
+        
+        if(data.messageGas > selectorToChains[data.chainId].messageGasLimit){
+            revert CrossChainTellerBase_GasLimitExceeded();
+        }
+
+        // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
+        beforeTransfer(msg.sender);
+
+        // Burn shares from sender
+        vault.exit(address(0), ERC20(address(0)), 0, msg.sender, shareAmount);
     }
 }

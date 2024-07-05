@@ -104,19 +104,19 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     function testReverts() external {
         // Adding a chain with a zero message gas limit should revert.
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit.selector))
+            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
         );
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0);        
 
         // Allowing messages to a chain with a zero message gas limit should revert.
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit.selector))
+            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
         );
         sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
 
         // Changing the gas limit to zero should revert.
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainLayerZeroTellerWithMultiAssetSupport_ZeroMessageGasLimit.selector))
+            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
         );
         sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
 
@@ -139,7 +139,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         vm.expectRevert(
             bytes(
                 abi.encodeWithSelector(
-                    CrossChainLayerZeroTellerWithMultiAssetSupport_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
+                    CrossChainTellerBase_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
                 )
             )
         );
@@ -167,7 +167,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
-                    CrossChainLayerZeroTellerWithMultiAssetSupport_GasLimitExceeded.selector
+                    CrossChainTellerBase_GasLimitExceeded.selector
             )
         );
         sourceTeller.bridge(1e18, data);
