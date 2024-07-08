@@ -24,7 +24,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
     }
 
     /**
-     * @dev function override to return the fee quote
+     * @notice function override to return the fee quote
      * @param shareAmount to be sent as a message
      * @param data Bridge data
      */
@@ -39,13 +39,12 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
 
         MessagingFee memory fee = _quote(data.chainSelector, _message, _options, false);
 
-
         return fee.nativeFee;
         
     }
 
     /**
-     * @dev Called when data is received from the protocol. It overrides the equivalent function in the parent contract.
+     * @notice Called when data is received from the protocol. It overrides the equivalent function in the parent contract.
      * Protocol messages are defined as packets, comprised of the following parameters.
      * @param _origin A struct containing information about where the packet came from.
      * @param _guid A global unique identifier for tracking the packet.
@@ -64,7 +63,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
     }
     
     /**
-     * @dev bridge override to allow bridge logic to be done for bridge() and depositAndBridge()
+     * @notice bridge override to allow bridge logic to be done for bridge() and depositAndBridge()
      * @param shareAmount to be moved accross chain
      * @param data BridgeData
      */

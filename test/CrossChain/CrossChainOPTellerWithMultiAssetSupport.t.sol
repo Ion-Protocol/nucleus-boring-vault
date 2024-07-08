@@ -70,7 +70,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             data: ""
         });
 
-        uint quote = sourceTeller.previewFee(sharesToBridge, data);
+        uint quote = 0;
 
         bytes memory expectedData = "";
         vm.expectEmit();
@@ -113,7 +113,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         uint ONE_SHARE = 10 ** boringVault.decimals();
 
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
-        uint quote = sourceTeller.previewFee(shares, data);
+        uint quote = 0;
 
         vm.expectEmit();
         emit SentMessageExtension1(address(sourceTeller), 0);
@@ -173,16 +173,13 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
 
 
-        // if the token is not WETH, should revert
-        // address NOT_WETH = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
-        // data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), 80_000, abi.encode(DESTINATION_SELECTOR));
-        // vm.expectRevert(
-        //     abi.encodeWithSelector(
-        //         CrossChainOPTellerWithMultiAssetSupport.
-        //             CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken.selector
-        //     )
-        // );
-        // sourceTeller.bridge(1e18, data);
+        // should revert on attempt to quote
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_NoFee.selector
+            )
+        );
+        sourceTeller.previewFee(0, data);
 
         // if too much gas is used, revert
         data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
@@ -196,7 +193,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
         // Call now succeeds.
         data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
-        uint quote = sourceTeller.previewFee(1e18, data);
+        uint quote = 0;
 
         sourceTeller.bridge{value:quote}(1e18, data);
 

@@ -4,6 +4,7 @@
 pragma solidity 0.8.21;
 
 import {CrossChainTellerBase, BridgeData, ERC20} from "./CrossChainTellerBase.sol";
+import { Auth } from "@solmate/auth/Auth.sol";
 
 interface ICrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
@@ -21,15 +22,21 @@ interface ICrossDomainMessenger {
 contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
 
     ICrossDomainMessenger public messenger;
+    address public peer;
+
+    error CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
+    error CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
+    error CrossChainOPTellerWithMultiAssetSupport_NoFee();
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _messenger)
         CrossChainTellerBase(_owner, _vault, _accountant, _weth)
     {
         messenger = ICrossDomainMessenger(_messenger);
+        peer = address(this);
     }
 
     /**
-     * @dev the virtual bridge function to be overridden
+     * @notice the virtual bridge function to execute Optimism messenger sendMessage()
      * @param data bridge data
      * @return messageId
      */
@@ -45,36 +52,43 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
             ),
             uint32(data.messageGas)
         );
+        return bytes32(0);
     }
 
-    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
-        // TODO
-        // Clean this up
-        require(
-            msg.sender == address(messenger),
-            "Greeter: Direct sender must be the CrossDomainMessenger"
-        );
+    /**
+     * @notice function for owner to set the peer, which is by default this address (as usually we use CREATEX to create contracts with the same address)
+     * This is because we need to be sure only the peer teller accross chain can mint shares
+     * @dev Callable by OWNER_ROLE.
+     */
+    function setPeer(address _newPeer) external requiresAuth{
+        peer = _newPeer;
+    }
 
-        // NOTE
-        // this is a duct tape thing for me to get this out quick. 
-        // This assumes we deploy this teller and it's peer at the same address
-        // What I will need to do (but don't want to right now) is set up an auth
-        // And let the owner set the peer as the other address
-        require(
-            messenger.xDomainMessageSender() == address(this),
-            "Greeter: Remote sender must be the other Greeter contract"
-        );
+    /**
+     * @notice Function for OP Messenger to call to receive a message and mint the shares on this chain
+     * @param receiver to receive the shares
+     * @param shareMintAmount amount of shares to mint
+     */
+    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
+
+        if(msg.sender != address(messenger)){
+            revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
+        }
+
+        if(messenger.xDomainMessageSender() != peer){
+            revert CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
+        }
 
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareMintAmount);
     }
 
     /**
-     * @dev the virtual function to override to get bridge fees
+     * @notice the virtual function to override to get bridge fees
      * @param shareAmount to send
      * @param data bridge data
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
-
+        revert CrossChainOPTellerWithMultiAssetSupport_NoFee();
     }
 
 }

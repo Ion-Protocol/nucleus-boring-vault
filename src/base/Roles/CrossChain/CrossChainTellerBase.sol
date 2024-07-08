@@ -45,7 +45,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
 
     /**
      * @notice Remove a chain from the teller.
-     * @dev Callable by MULTISIG_ROLE.
+     * @dev Callable by OWNER_ROLE.
      */
     function removeChain(uint32 chainSelector) external requiresAuth {
         delete selectorToChains[chainSelector];
@@ -86,7 +86,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
 
     /**
      * @notice Stop messages from a chain.
-     * @dev Callable by MULTISIG_ROLE.
+     * @dev Callable by OWNER_ROLE.
      */
     function stopMessagesFromChain(uint32 chainSelector) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
@@ -97,7 +97,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
 
     /**
      * @notice Stop messages to a chain.
-     * @dev Callable by MULTISIG_ROLE.
+     * @dev Callable by OWNER_ROLE.
      */
     function stopMessagesToChain(uint32 chainSelector) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
@@ -122,7 +122,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
 
     
     /**
-     * @dev function to deposit into the vault AND bridge crosschain in 1 call
+     * @notice function to deposit into the vault AND bridge crosschain in 1 call
      * @param depositAsset ERC20 to deposit
      * @param depositAmount amount of deposit asset to deposit
      * @param minimumMint minimum required shares to receive
@@ -146,48 +146,11 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     }
 
     /**
-     * @dev bridging code to be done without deposit, for users who already have vault tokens
+     * @notice bridging code to be done without deposit, for users who already have vault tokens
      * @param shareAmount to bridge
      * @param data bridge data
      */
     function bridge(uint256 shareAmount, BridgeData calldata data) public payable returns(bytes32 messageId){
-        _beforeBridge(shareAmount, data);
-        messageId = _bridge(shareAmount, data);
-        _afterBridge(shareAmount, data, messageId);
-    }
-
-    /**
-     * @dev the virtual bridge function to be overridden
-     * @param data bridge data
-     * @return messageId
-     */
-    function _bridge(uint256 shareAmount, BridgeData calldata data) internal virtual returns(bytes32);
-
-    /**
-     * @dev the virtual function to override to get bridge fees
-     * @param shareAmount to send
-     * @param data bridge data
-     */
-    function _quote(uint256 shareAmount, BridgeData calldata data) internal view virtual returns(uint256);
-
-    /**
-     * @dev after bridge code, just an emit but can be overriden
-     * @param shareAmount share amount burned
-     * @param data bridge data
-     * @param messageId message id returned when bridged
-     */
-    function _afterBridge(uint256 shareAmount, BridgeData calldata data, bytes32 messageId) internal virtual{
-        emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
-    }
-
-    /**
-     * @dev code to run before bridging, includes checks and a burn of shares
-     * @dev in the CrossChainTellerWithGenericBridge implementation this is inspired by, some data processing is done beforehand,
-     * here that is not done in case other implementations need more flexibility. But I will check to see if it should be done here.
-     * @param shareAmount to burn
-     * @param data unused but potentially needed in an override
-     */
-    function _beforeBridge(uint256 shareAmount, BridgeData calldata data) private{
         if(isPaused) revert TellerWithMultiAssetSupport__Paused();
         if(!selectorToChains[data.chainSelector].allowMessagesTo) revert CrossChainTellerBase_MessagesNotAllowedTo(data.chainSelector);
         
@@ -200,5 +163,33 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
 
         // Burn shares from sender
         vault.exit(address(0), ERC20(address(0)), 0, msg.sender, shareAmount);
+        
+        messageId = _bridge(shareAmount, data);
+        _afterBridge(shareAmount, data, messageId);
     }
+
+    /**
+     * @notice the virtual bridge function to be overridden
+     * @param data bridge data
+     * @return messageId
+     */
+    function _bridge(uint256 shareAmount, BridgeData calldata data) internal virtual returns(bytes32);
+
+    /**
+     * @notice the virtual function to override to get bridge fees
+     * @param shareAmount to send
+     * @param data bridge data
+     */
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view virtual returns(uint256);
+
+    /**
+     * @notice after bridge code, just an emit but can be overriden
+     * @param shareAmount share amount burned
+     * @param data bridge data
+     * @param messageId message id returned when bridged
+     */
+    function _afterBridge(uint256 shareAmount, BridgeData calldata data, bytes32 messageId) internal virtual{
+        emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
+    }
+
 }
