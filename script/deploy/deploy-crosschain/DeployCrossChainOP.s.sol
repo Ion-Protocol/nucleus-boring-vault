@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {DeployCrossChainBase, CrossChainLayerZeroTellerWithMultiAssetSupport} from "./DeployCrossChainBase.s.sol";
+import {DeployCrossChainBase, CrossChainOPTellerWithMultiAssetSupport} from "./DeployCrossChainBase.s.sol";
 import {console} from "forge-std/Test.sol";
 // import {console2} from "";
-contract DeployCrossChainLZ is DeployCrossChainBase {
+contract DeployCrossChainOP is DeployCrossChainBase {
 
-    address constant SEPOLIA_OPT = 0x6EDCE65403992e310A62460808c4b910D972f10f;
-    uint32 constant SEPOLIA_OPT_EID = 40232;
+    address constant SEPOLIA_OPT_MESSENGER = 0x4200000000000000000000000000000000000007;
+    uint32 constant SEPOLIA_OPT_CHAIN_ID = 11155420;
 
     // address constant SEI_DEVNET = 0x6EDCE65403992e310A62460808c4b910D972f10f; 
     // uint32 constant SEI_DEVNET_SELECTOR = 713715;
 
-    address constant SEPOLIA_MAIN = 0x6EDCE65403992e310A62460808c4b910D972f10f;
-    uint32 constant SEPOLIA_MAIN_EID = 40161;
+    address constant SEPOLIA_MAIN_MESSENGER = 0x58Cc85b8D04EA49cC6DBd3CbFFd00B4B8D6cb3ef;
+    uint32 constant SEPOLIA_MAIN_CHAIN_ID = 11155111;
 
     function run() external{
         addressesByRpc["sepolia_main"]["WETH"] = 0x5f207d42F869fd1c71d7f0f81a2A67Fc20FF7323;
@@ -23,19 +23,17 @@ contract DeployCrossChainLZ is DeployCrossChainBase {
         // address opTellerAddress = CREATEX.deployCreate2(salt, initCode);
         vm.createSelectFork(vm.rpcUrl("sepolia_main"));
         vm.startBroadcast();
-        CrossChainLayerZeroTellerWithMultiAssetSupport main = fullDeployForChainLZ("sepolia_main", SEPOLIA_MAIN);
+        CrossChainOPTellerWithMultiAssetSupport main = fullDeployForChainOP("sepolia_main", SEPOLIA_MAIN_MESSENGER);
         // we use the main address here, because main and op actually will be deployed with the same address
         // this needs to be done here, and not later because foundry will wipe the state when broadcast is stopped.
-        main.setPeer(SEPOLIA_OPT_EID, addressToBytes32(address(main)));
-        main.addChain(SEPOLIA_OPT_EID, true, true, address(main), 100_000);
+        main.addChain(SEPOLIA_OPT_CHAIN_ID, true, true, address(main), 100_000);
 
         vm.stopBroadcast();
 
         vm.createSelectFork(vm.rpcUrl("op_sepolia"));
         vm.startBroadcast();
-        CrossChainLayerZeroTellerWithMultiAssetSupport op = fullDeployForChainLZ("op_sepolia", SEPOLIA_OPT);
-        op.setPeer(SEPOLIA_MAIN_EID, addressToBytes32(address(main)));
-        op.addChain(SEPOLIA_MAIN_EID, true, true, address(main), 100_000);
+        CrossChainOPTellerWithMultiAssetSupport op = fullDeployForChainOP("op_sepolia", SEPOLIA_OPT_MESSENGER);
+        op.addChain(SEPOLIA_MAIN_CHAIN_ID, true, true, address(main), 100_000);
         vm.stopBroadcast();
     }
 

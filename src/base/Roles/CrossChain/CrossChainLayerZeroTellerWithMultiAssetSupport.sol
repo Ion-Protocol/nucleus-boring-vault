@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import {CrossChainTellerBase, BridgeData, ERC20} from "./CrossChainTellerBase.sol";
 import {OAppAuth, MessagingFee, Origin, MessagingReceipt} from "./OAppAuth/OAppAuth.sol";
-import {Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import {Auth} from "@solmate/auth/Auth.sol";
 
 import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";

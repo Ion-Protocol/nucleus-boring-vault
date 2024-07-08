@@ -9,7 +9,10 @@ import {MainnetAddresses} from "../../../test/resources/MainnetAddresses.sol";
 
 import {ManagerWithMerkleVerification} from "../../../src/base/Roles/ManagerWithMerkleVerification.sol";
 import {AccountantWithRateProviders} from "../../../src/base/Roles/AccountantWithRateProviders.sol";
+
 import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "../../../src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
+import {CrossChainOPTellerWithMultiAssetSupport} from "../../../src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
+
 import {TellerWithMultiAssetSupport} from "../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {IonPoolDecoderAndSanitizer} from "../../../src/base/DecodersAndSanitizers/IonPoolDecoderAndSanitizer.sol";
 import {EthPerWstEthRateProvider} from "../../../src/oracles/EthPerWstEthRateProvider.sol";
@@ -62,7 +65,7 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         vm.stopBroadcast();
     }
 
-    function fullDeployForChain(string memory rpc, address lzEndpoint) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller){
+    function fullDeployForChainOP(string memory rpc, address messenger) internal returns(CrossChainOPTellerWithMultiAssetSupport teller){
         // 01 ===========================================================================================================================================
         BoringVault boringVault = _deployBoringVault();
 
@@ -73,7 +76,58 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         AccountantWithRateProviders accountant = _deployAccountant(boringVault, rpc);
         
         // 04 ===========================================================================================================================================
-        teller = _deployTeller(boringVault, accountant, lzEndpoint, rpc);        
+        teller = _deployTellerOP(boringVault, accountant, messenger, rpc);        
+
+        // 05 ===========================================================================================================================================
+        RolesAuthority rolesAuthority = _deployRolesAuthority(boringVault, manager, teller, accountant);
+
+        // 06 ===========================================================================================================================================
+        {        
+            require(address(boringVault).code.length != 0, "boringVault must have code");
+            require(address(manager).code.length != 0, "manager must have code");
+            require(address(teller).code.length != 0, "teller must have code");
+            require(address(accountant).code.length != 0, "accountant must have code");
+            
+            require(address(boringVault) != address(0), "boringVault");
+            require(address(manager) != address(0), "manager");
+            require(address(accountant) != address(0), "accountant");
+            require(address(teller) != address(0), "teller");
+            require(address(rolesAuthority) != address(0), "rolesAuthority");
+
+            require(protocolAdmin != address(0), "protocolAdmin");
+
+            boringVault.setAuthority(rolesAuthority);
+            manager.setAuthority(rolesAuthority);
+            accountant.setAuthority(rolesAuthority);
+            teller.setAuthority(rolesAuthority);
+
+            boringVault.transferOwnership(protocolAdmin);
+            manager.transferOwnership(protocolAdmin);
+            accountant.transferOwnership(protocolAdmin);
+            teller.transferOwnership(protocolAdmin);
+
+            rolesAuthority.transferOwnership(protocolAdmin);
+
+            require(boringVault.owner() == protocolAdmin, "boringVault");
+            require(manager.owner() == protocolAdmin, "manager");
+            require(accountant.owner() == protocolAdmin, "accountant");
+            require(teller.owner() == protocolAdmin, "teller");
+        }
+
+    }
+
+    function fullDeployForChainLZ(string memory rpc, address lzEndpoint) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller){
+        // 01 ===========================================================================================================================================
+        BoringVault boringVault = _deployBoringVault();
+
+        // 02 ===========================================================================================================================================
+        ManagerWithMerkleVerification manager = _deployManager(boringVault);
+
+        // 03 ===========================================================================================================================================
+        AccountantWithRateProviders accountant = _deployAccountant(boringVault, rpc);
+        
+        // 04 ===========================================================================================================================================
+        teller = _deployTellerLZ(boringVault, accountant, lzEndpoint, rpc);        
 
         // 05 ===========================================================================================================================================
         RolesAuthority rolesAuthority = _deployRolesAuthority(boringVault, manager, teller, accountant);
@@ -286,7 +340,38 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         }
     }
 
-    function _deployTeller(BoringVault boringVault, AccountantWithRateProviders accountant, address lzEndpoint, string memory rpc) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller) {
+    function _deployTellerOP(BoringVault boringVault, AccountantWithRateProviders accountant, address opMessenger, string memory rpc) internal returns(CrossChainOPTellerWithMultiAssetSupport teller) {
+        string memory path = "./deployment-config/04_DeployTellerWithMultiAssetSupport.json";
+        string memory config = vm.readFile(path);
+
+        bytes32 tellerSalt = config.readBytes32(".tellerSalt");
+
+        require(address(boringVault).code.length != 0, "boringVault must have code");
+        require(address(accountant).code.length != 0, "accountant must have code");
+        
+        require(tellerSalt != bytes32(0), "tellerSalt");
+        require(address(boringVault) != address(0), "boringVault");
+        require(address(accountant) != address(0), "accountant");
+
+        bytes memory creationCode = type(CrossChainOPTellerWithMultiAssetSupport).creationCode;
+
+        // address _owner, address _vault, address _accountant, address _weth, address _endpoint
+        teller = CrossChainOPTellerWithMultiAssetSupport(
+            CREATEX.deployCreate3(
+                tellerSalt,
+                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, addressesByRpc[rpc]["WETH"], opMessenger))
+            )
+        );
+
+        require(teller.shareLockPeriod() == 0, "share lock period must be zero");
+        require(teller.isPaused() == false, "the teller must not be paused");
+        require(
+            AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
+            "the accountant vault must be the teller vault"
+        );
+    }
+
+    function _deployTellerLZ(BoringVault boringVault, AccountantWithRateProviders accountant, address lzEndpoint, string memory rpc) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller) {
         string memory path = "./deployment-config/04_DeployTellerWithMultiAssetSupport.json";
         string memory config = vm.readFile(path);
 
