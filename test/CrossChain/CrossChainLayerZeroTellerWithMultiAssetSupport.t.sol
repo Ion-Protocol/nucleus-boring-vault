@@ -96,7 +96,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     function testDepositAndBridge(uint256 amount) external{
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
-
+        
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
         address user = makeAddr("A user");
@@ -134,6 +134,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         assertEq(
             boringVault.balanceOf(userChain2), shares
         );
+        vm.stopPrank();
     }
 
 
