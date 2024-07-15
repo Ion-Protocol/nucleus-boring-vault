@@ -11,6 +11,7 @@ import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSu
 import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol";
 
 import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+import {console} from "forge-std/Test.sol";
 
 contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
@@ -55,8 +56,44 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
     }
 
-    function testDepositAndBridge(uint256 amount) external{
+    function testDepositAndBridgeFailsWithShareLockTime(uint amount) external{
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+        sourceTeller.setShareLockPeriod(60);
 
+        amount = bound(amount, 0.0001e18, 10_000e18);
+        // make a user and give them WETH
+        address user = makeAddr("A user");
+        address userChain2 = makeAddr("A user on chain 2");
+        deal(address(WETH), user, amount);
+
+        // approve teller to spend WETH
+        vm.startPrank(user);
+        vm.deal(user, 10e18);
+        WETH.approve(address(boringVault), amount);
+
+        // preform depositAndBridge
+        BridgeData memory data = BridgeData({
+            chainSelector: DESTINATION_SELECTOR,
+            destinationChainReceiver: userChain2,
+            bridgeFeeToken: WETH,
+            messageGas: 80_000,
+            data: ""
+        });
+
+        uint ONE_SHARE = 10 ** boringVault.decimals();
+
+        // so you don't really need to know exact shares in reality
+        // just need to pass in a number roughly the same size to get quote
+        // I still get the real number here for testing
+        uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint quote = sourceTeller.previewFee(shares, data);
+
+        vm.expectRevert(bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__SharesAreLocked.selector)));
+        sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
+    }
+
+    function testDepositAndBridge(uint256 amount) external{
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
 
@@ -88,7 +125,6 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
         uint quote = sourceTeller.previewFee(shares, data);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
-
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
 
         assertEq(
