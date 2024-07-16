@@ -33,14 +33,15 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
         bool allowMessagesFrom,
         bool allowMessagesTo,
         address targetTeller,
-        uint64 messageGasLimit
+        uint64 messageGasLimit,
+        uint64 messageGasMin
     ) external requiresAuth {
         if (allowMessagesTo && messageGasLimit == 0) {
             revert CrossChainTellerBase_ZeroMessageGasLimit();
         }
-        selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
+        selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
 
-        emit ChainAdded(chainSelector, allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
+        emit ChainAdded(chainSelector, allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
     }
 
     /**
@@ -156,6 +157,10 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
         
         if(data.messageGas > selectorToChains[data.chainSelector].messageGasLimit){
             revert CrossChainTellerBase_GasLimitExceeded();
+        }
+
+        if(data.messageGas < selectorToChains[data.chainSelector].minimumMessageGas){
+            revert CrossChainTellerBase_GasTooLow();
         }
 
         // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.
