@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 import "../../../interfaces/ICrossChainTeller.sol";
-
 /**
  * @title CrossChainTellerBase
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
@@ -15,7 +14,6 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
     {
-
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -131,7 +129,11 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param data Bridge Data
      */
     function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable{
+        if(!isSupported[depositAsset]){
+            revert TellerWithMultiAssetSupport__AssetNotSupported();
+        }
         uint shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shareAmount, shareLockPeriod);
         bridge(shareAmount, data);
     }
 
