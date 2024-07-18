@@ -33,7 +33,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
         address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != address(nativeWrapper)){
+        if(bridgeToken != NATIVE){
             revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
@@ -69,7 +69,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
         address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != address(nativeWrapper)){
+        if(bridgeToken != NATIVE){
             revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 

@@ -37,7 +37,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
-            bridgeFeeToken: WETH,
+            bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
             data: ""
         });
@@ -77,7 +77,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
-            bridgeFeeToken: WETH,
+            bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
             data: ""
         });
@@ -182,7 +182,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
             )
         );
 
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
         sourceTeller.bridge(1e18, data);
 
         // setup chains.
@@ -190,9 +190,9 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
 
 
-        // if the token is not WETH, should revert
-        address NOT_WETH = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), 80_000, abi.encode(DESTINATION_SELECTOR));
+        // if the token is not NATIVE, should revert
+        address NOT_NATIVE = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
                 CrossChainLayerZeroTellerWithMultiAssetSupport.
@@ -202,7 +202,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sourceTeller.bridge(1e18, data);
 
         // if too much gas is used, revert
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_WETH), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(
             abi.encodeWithSelector(
                     CrossChainTellerBase_GasLimitExceeded.selector
@@ -221,6 +221,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sourceTeller.bridge(1e18, data);
 
         // Call now succeeds.
+
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
         data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
         uint quote = sourceTeller.previewFee(1e18, data);
