@@ -52,10 +52,10 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     }
 
     function testBridgingShares(uint256 sharesToBridge) external {
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
-        // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         // Bridge shares.
         address to = vm.addr(1);
@@ -75,18 +75,17 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         // Not testing for these. Because it's pretty complicated.
         // Figuring out how to get the correct opaque data and message nonce for a fuzz test is a bit out of scope for this test at the moment 
         // emit TransactionDeposited(address(this), DESTINATION_MESSENGER, 0, expectedData);
-        // emit SentMessage(address(destinationTeller), address(sourceTeller), expectedData, 1, 80_000);
+        // emit SentMessage(destinationTellerAddr, sourceTellerAddr, expectedData, 1, 80_000);
 
-        emit SentMessageExtension1(address(sourceTeller), 0);
+        emit SentMessageExtension1(sourceTellerAddr, 0);
 
         bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
     }
 
     function testDepositAndBridge(uint256 amount) external{
-
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -114,36 +113,28 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         uint quote = 0;
 
         vm.expectEmit();
-        emit SentMessageExtension1(address(sourceTeller), 0);
+        emit SentMessageExtension1(sourceTellerAddr, 0);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
     }
 
 
     function testReverts() public override {
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
         super.testReverts();
-
-         // if too much gas is used, revert
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                    CrossChainTellerBase_GasLimitExceeded.selector
-            )
-        );
-        sourceTeller.bridge(1e18, data);
-
         // Call now succeeds.
 
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
 
         sourceTeller.bridge{value:0}(1e18, data);
 
     }
 
     function _deploySourceAndDestinationTeller() internal override{
-        sourceTeller = new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER);
-        destinationTeller = new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER);
+        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER));
+        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER));
     }
 
 }

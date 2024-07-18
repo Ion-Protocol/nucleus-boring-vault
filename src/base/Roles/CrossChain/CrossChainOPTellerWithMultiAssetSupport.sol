@@ -42,7 +42,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
         messenger.sendMessage(
-            address(selectorToChains[data.chainSelector].targetTeller),
+            peer,
             abi.encodeCall(
                 this.receiveBridgeMessage,
                 (

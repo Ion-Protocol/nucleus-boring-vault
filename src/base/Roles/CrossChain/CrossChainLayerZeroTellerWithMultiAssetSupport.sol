@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {CrossChainTellerBase, BridgeData, ERC20} from "./CrossChainTellerBase.sol";
+import {MultiChainTellerBase, BridgeData, ERC20} from "./MultiChainTellerBase.sol";
 import {OAppAuth, MessagingFee, Origin, MessagingReceipt} from "./OAppAuth/OAppAuth.sol";
 import {Auth} from "@solmate/auth/Auth.sol";
 
@@ -11,13 +11,13 @@ import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/lib
  * @title CrossChainLayerZeroTellerWithMultiAssetSupport
  * @notice LayerZero implementation of CrossChainTeller 
  */
-contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase, OAppAuth{
+contract CrossChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase, OAppAuth{
     using OptionsBuilder for bytes;
 
     error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
-        CrossChainTellerBase(_owner, _vault, _accountant, _weth)
+        MultiChainTellerBase(_owner, _vault, _accountant, _weth)
         OAppAuth(_endpoint, _owner) 
     {
 

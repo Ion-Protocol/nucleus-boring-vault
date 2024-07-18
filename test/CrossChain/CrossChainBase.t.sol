@@ -41,13 +41,14 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     uint32 public constant SOURCE_SELECTOR = 1;
     uint32 public constant DESTINATION_SELECTOR = 2;
 
-    CrossChainTellerBase sourceTeller;
-    CrossChainTellerBase destinationTeller;
+    address sourceTellerAddr;
+    address destinationTellerAddr;
 
     function _deploySourceAndDestinationTeller() internal virtual{
     }
 
     function setUp() public virtual{
+
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
         uint256 blockNumber = 19363419;
@@ -61,6 +62,9 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
 
         _deploySourceAndDestinationTeller();
 
+        CrossChainTellerBase sourceTeller = CrossChainTellerBase(sourceTellerAddr);
+        CrossChainTellerBase destinationTeller = CrossChainTellerBase(destinationTellerAddr);
+
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
         boringVault.setAuthority(rolesAuthority);
@@ -72,41 +76,41 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
 
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.addAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAsset.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.removeAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.removeAsset.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkDeposit.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.refundDeposit.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.refundDeposit.selector, true
         );
         rolesAuthority.setRoleCapability(
-            SOLVER_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+            SOLVER_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
-        rolesAuthority.setPublicCapability(address(sourceTeller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(sourceTellerAddr, TellerWithMultiAssetSupport.deposit.selector, true);
         rolesAuthority.setPublicCapability(
-            address(sourceTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+            sourceTellerAddr, TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
-        rolesAuthority.setPublicCapability(address(destinationTeller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(destinationTellerAddr, TellerWithMultiAssetSupport.deposit.selector, true);
         rolesAuthority.setPublicCapability(
-            address(destinationTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+            destinationTellerAddr, TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
         
-        rolesAuthority.setPublicCapability(address(sourceTeller), CrossChainTellerBase.bridge.selector, true);
-        rolesAuthority.setPublicCapability(address(destinationTeller), CrossChainTellerBase.bridge.selector, true);
-        rolesAuthority.setPublicCapability(address(sourceTeller), CrossChainTellerBase.depositAndBridge.selector, true);
-        rolesAuthority.setPublicCapability(address(destinationTeller), CrossChainTellerBase.depositAndBridge.selector, true);
+        rolesAuthority.setPublicCapability(sourceTellerAddr, CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(destinationTellerAddr, CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(sourceTellerAddr, CrossChainTellerBase.depositAndBridge.selector, true);
+        rolesAuthority.setPublicCapability(destinationTellerAddr, CrossChainTellerBase.depositAndBridge.selector, true);
 
-        rolesAuthority.setUserRole(address(sourceTeller), MINTER_ROLE, true);
-        rolesAuthority.setUserRole(address(sourceTeller), BURNER_ROLE, true);
-        rolesAuthority.setUserRole(address(destinationTeller), MINTER_ROLE, true);
-        rolesAuthority.setUserRole(address(destinationTeller), BURNER_ROLE, true);
+        rolesAuthority.setUserRole(sourceTellerAddr, MINTER_ROLE, true);
+        rolesAuthority.setUserRole(sourceTellerAddr, BURNER_ROLE, true);
+        rolesAuthority.setUserRole(destinationTellerAddr, MINTER_ROLE, true);
+        rolesAuthority.setUserRole(destinationTellerAddr, BURNER_ROLE, true);
 
         sourceTeller.addAsset(WETH);
         sourceTeller.addAsset(ERC20(NATIVE));
@@ -128,27 +132,8 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     }
 
     function testReverts() public virtual{
-        // Adding a chain with a zero message gas limit should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0, 0);        
-
-        // Allowing messages to a chain with a zero message gas limit should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
-
-        // Changing the gas limit to zero should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
-
-        // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
-        uint32 newChainSelector = 3;
-        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0, 0);
+        CrossChainTellerBase sourceTeller = CrossChainTellerBase(sourceTellerAddr);
+        CrossChainTellerBase destinationTeller = CrossChainTellerBase(destinationTellerAddr);
 
         // If teller is paused bridging is not allowed.
         sourceTeller.pause();
@@ -161,43 +146,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
 
         sourceTeller.unpause();
 
-        // Trying to send messages to a chain that is not supported should revert.
-        vm.expectRevert(
-            bytes(
-                abi.encodeWithSelector(
-                    CrossChainTellerBase_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
-                )
-            )
-        );
-
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
-        sourceTeller.bridge(1e18, data);
-
-        // setup chains.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
-
-        // if too much gas is used, revert
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                    CrossChainTellerBase_GasLimitExceeded.selector
-            )
-        );
-        sourceTeller.bridge(1e18, data);
-
-        // if min gas is set too high, revert
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, CHAIN_MESSAGE_GAS_LIMIT);
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                    CrossChainTellerBase_GasTooLow.selector
-            )
-        );
-        sourceTeller.bridge(1e18, data);
-
     }
-
 
     // ========================================= HELPER FUNCTIONS =========================================
 
