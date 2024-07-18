@@ -75,7 +75,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__MinimumAssetsNotMet();
     error TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
     error TellerWithMultiAssetSupport__ZeroShares();
-    error TellerWithMultiAssetSupport__DualDeposit();
     error TellerWithMultiAssetSupport__Paused();
 
     //============================== EVENTS ===============================
@@ -187,7 +186,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @notice Implement beforeTransfer hook to check if shares are locked.
      */
     function beforeTransfer(address from) public view {
-        if (shareUnlockTime[from] >= block.timestamp) revert TellerWithMultiAssetSupport__SharesAreLocked();
+        if (shareUnlockTime[from] > block.timestamp) revert TellerWithMultiAssetSupport__SharesAreLocked();
     }
 
     // ========================================= REVERT DEPOSIT FUNCTIONS =========================================
@@ -240,7 +239,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint)
         external
-        payable
         requiresAuth
         nonReentrant
         returns (uint256 shares)
@@ -248,19 +246,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
-        if (address(depositAsset) == NATIVE) {
-            if (msg.value == 0) revert TellerWithMultiAssetSupport__ZeroAssets();
-            nativeWrapper.deposit{value: msg.value}();
-            depositAmount = msg.value;
-            shares = depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(nativeWrapper));
-            if (shares < minimumMint) revert TellerWithMultiAssetSupport__MinimumMintNotMet();
-            // `from` is address(this) since user already sent value.
-            nativeWrapper.safeApprove(address(vault), depositAmount);
-            vault.enter(address(this), nativeWrapper, depositAmount, msg.sender, shares);
-        } else {
-            if (msg.value > 0) revert TellerWithMultiAssetSupport__DualDeposit();
-            shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-        }
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
 
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
     }

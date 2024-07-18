@@ -27,7 +27,7 @@ contract DeployCrossChainLZ is DeployCrossChainBase {
         // we use the main address here, because main and op actually will be deployed with the same address
         // this needs to be done here, and not later because foundry will wipe the state when broadcast is stopped.
         main.setPeer(SEPOLIA_OPT_EID, addressToBytes32(address(main)));
-        main.addChain(SEPOLIA_OPT_EID, true, true, address(main), 100_000);
+        main.addChain(SEPOLIA_OPT_EID, true, true, address(main), 100_000, 0);
 
         vm.stopBroadcast();
 
@@ -35,7 +35,7 @@ contract DeployCrossChainLZ is DeployCrossChainBase {
         vm.startBroadcast();
         CrossChainLayerZeroTellerWithMultiAssetSupport op = fullDeployForChainLZ("op_sepolia", SEPOLIA_OPT);
         op.setPeer(SEPOLIA_MAIN_EID, addressToBytes32(address(main)));
-        op.addChain(SEPOLIA_MAIN_EID, true, true, address(main), 100_000);
+        op.addChain(SEPOLIA_MAIN_EID, true, true, address(main), 100_000, 0);
         vm.stopBroadcast();
     }
 
