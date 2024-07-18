@@ -17,8 +17,6 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint;
 
-    uint64 constant CHAIN_MESSAGE_GAS_LIMIT = 100_000;
-
     function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
         CrossChainBaseTest.setUp();
         TestHelperOz5.setUp();
@@ -139,60 +137,14 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     }
 
 
-    function testReverts() external {
-        // Adding a chain with a zero message gas limit should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0, 0);        
-
-        // Allowing messages to a chain with a zero message gas limit should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
-
-        // Changing the gas limit to zero should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
-
-        // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
-        uint32 newChainSelector = 3;
-        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0, 0);
-
-        // If teller is paused bridging is not allowed.
-        sourceTeller.pause();
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
-        );
-
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, "");
-        sourceTeller.bridge(0, data);
-
-        sourceTeller.unpause();
-
-        // Trying to send messages to a chain that is not supported should revert.
-        vm.expectRevert(
-            bytes(
-                abi.encodeWithSelector(
-                    CrossChainTellerBase_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
-                )
-            )
-        );
-
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
-        sourceTeller.bridge(1e18, data);
-
-        // setup chains.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
-
+    function testReverts() public override{
+        super.testReverts();
 
         // if the token is not NATIVE, should revert
         address NOT_NATIVE = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 CrossChainLayerZeroTellerWithMultiAssetSupport.
@@ -201,28 +153,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
         sourceTeller.bridge(1e18, data);
 
-        // if too much gas is used, revert
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                    CrossChainTellerBase_GasLimitExceeded.selector
-            )
-        );
-        sourceTeller.bridge(1e18, data);
-
-        // if min gas is set too high, revert
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, CHAIN_MESSAGE_GAS_LIMIT);
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                    CrossChainTellerBase_GasTooLow.selector
-            )
-        );
-        sourceTeller.bridge(1e18, data);
-
         // Call now succeeds.
-
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
         data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
         uint quote = sourceTeller.previewFee(1e18, data);
 

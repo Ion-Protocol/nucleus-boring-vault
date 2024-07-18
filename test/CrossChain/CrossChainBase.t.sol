@@ -10,7 +10,9 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {IRateProvider} from "src/interfaces/IRateProvider.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {CrossChainTellerBase} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import {CrossChainTellerBase, BridgeData} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+
+import "src/interfaces/ICrossChainTeller.sol";
 
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
 
@@ -27,6 +29,8 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     uint8 public constant SOLVER_ROLE = 9;
     uint8 public constant QUEUE_ROLE = 10;
     uint8 public constant CAN_SOLVE_ROLE = 11;
+
+    uint64 constant CHAIN_MESSAGE_GAS_LIMIT = 100_000;
 
     AccountantWithRateProviders public accountant;
     address public payout_address = vm.addr(7777777);
@@ -122,6 +126,78 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         deal(address(boringVault), address(this), 1_000e18, true);
         deal(address(LINK), address(this), 1_000e18);
     }
+
+    function testReverts() public virtual{
+        // Adding a chain with a zero message gas limit should revert.
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
+        );
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0, 0);        
+
+        // Allowing messages to a chain with a zero message gas limit should revert.
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
+        );
+        sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
+
+        // Changing the gas limit to zero should revert.
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
+        );
+        sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
+
+        // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
+        uint32 newChainSelector = 3;
+        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0, 0);
+
+        // If teller is paused bridging is not allowed.
+        sourceTeller.pause();
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
+        );
+
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, "");
+        sourceTeller.bridge(0, data);
+
+        sourceTeller.unpause();
+
+        // Trying to send messages to a chain that is not supported should revert.
+        vm.expectRevert(
+            bytes(
+                abi.encodeWithSelector(
+                    CrossChainTellerBase_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
+                )
+            )
+        );
+
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        sourceTeller.bridge(1e18, data);
+
+        // setup chains.
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
+
+        // if too much gas is used, revert
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                    CrossChainTellerBase_GasLimitExceeded.selector
+            )
+        );
+        sourceTeller.bridge(1e18, data);
+
+        // if min gas is set too high, revert
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, CHAIN_MESSAGE_GAS_LIMIT);
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                    CrossChainTellerBase_GasTooLow.selector
+            )
+        );
+        sourceTeller.bridge(1e18, data);
+
+    }
+
 
     // ========================================= HELPER FUNCTIONS =========================================
 
