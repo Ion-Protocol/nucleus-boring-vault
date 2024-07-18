@@ -27,6 +27,7 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param allowMessagesTo Whether to allow messages to this chain.
      * @param targetTeller The address of the target teller on the other chain.
      * @param messageGasLimit The gas limit for messages to this chain.
+     * @param messageGasMin The minimum gas required to be sent for this chain
      */
     function addChain(
         uint32 chainSelector,
