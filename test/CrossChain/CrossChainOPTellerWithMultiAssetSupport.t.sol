@@ -56,8 +56,8 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     function testBridgingShares(uint256 sharesToBridge) external {
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
         // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         // Bridge shares.
         address to = vm.addr(1);
@@ -87,8 +87,8 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     function testDepositAndBridge(uint256 amount) external{
 
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -127,7 +127,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         vm.expectRevert(
             bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
         );
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0);        
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0, 0);        
 
         // Allowing messages to a chain with a zero message gas limit should revert.
         vm.expectRevert(
@@ -143,7 +143,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
         // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
         uint32 newChainSelector = 3;
-        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0);
+        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0, 0);
 
         // If teller is paused bridging is not allowed.
         sourceTeller.pause();
@@ -169,8 +169,8 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         sourceTeller.bridge(1e18, data);
 
         // setup chains.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
 
 
         // should revert on attempt to quote

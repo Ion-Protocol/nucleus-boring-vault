@@ -11,6 +11,7 @@ import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSu
 import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol";
 
 import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+import {console} from "forge-std/Test.sol";
 
 contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
@@ -27,8 +28,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
         uint256 startingShareBalance = boringVault.balanceOf(address(this));
         // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         // Bridge shares.
         address to = vm.addr(1);
@@ -55,10 +56,11 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
     }
 
-    function testDepositAndBridge(uint256 amount) external{
 
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+    function testDepositAndBridgeFailsWithShareLockTime(uint amount) external{
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        sourceTeller.setShareLockPeriod(60);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -87,8 +89,43 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         // I still get the real number here for testing
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
         uint quote = sourceTeller.previewFee(shares, data);
-        sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
+        vm.expectRevert(bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__SharesAreLocked.selector)));
+        sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
+    }
+
+    function testDepositAndBridge(uint256 amount) external{
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        
+        amount = bound(amount, 0.0001e18, 10_000e18);
+        // make a user and give them WETH
+        address user = makeAddr("A user");
+        address userChain2 = makeAddr("A user on chain 2");
+        deal(address(WETH), user, amount);
+
+        // approve teller to spend WETH
+        vm.startPrank(user);
+        vm.deal(user, 10e18);
+        WETH.approve(address(boringVault), amount);
+
+        // preform depositAndBridge
+        BridgeData memory data = BridgeData({
+            chainSelector: DESTINATION_SELECTOR,
+            destinationChainReceiver: userChain2,
+            bridgeFeeToken: WETH,
+            messageGas: 80_000,
+            data: ""
+        });
+
+        uint ONE_SHARE = 10 ** boringVault.decimals();
+
+        // so you don't really need to know exact shares in reality
+        // just need to pass in a number roughly the same size to get quote
+        // I still get the real number here for testing
+        uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint quote = sourceTeller.previewFee(shares, data);
+        sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(address(destinationTeller)));
 
         assertEq(
@@ -98,6 +135,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         assertEq(
             boringVault.balanceOf(userChain2), shares
         );
+        vm.stopPrank();
     }
 
 
@@ -106,7 +144,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         vm.expectRevert(
             bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
         );
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0);        
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0, 0);        
 
         // Allowing messages to a chain with a zero message gas limit should revert.
         vm.expectRevert(
@@ -122,7 +160,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
         uint32 newChainSelector = 3;
-        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0);
+        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0, 0);
 
         // If teller is paused bridging is not allowed.
         sourceTeller.pause();
@@ -148,8 +186,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         sourceTeller.bridge(1e18, data);
 
         // setup chains.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
 
 
         // if the token is not NATIVE, should revert
@@ -172,9 +210,20 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
         );
         sourceTeller.bridge(1e18, data);
 
+        // if min gas is set too high, revert
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, CHAIN_MESSAGE_GAS_LIMIT);
+        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                    CrossChainTellerBase_GasTooLow.selector
+            )
+        );
+        sourceTeller.bridge(1e18, data);
 
         // Call now succeeds.
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
         uint quote = sourceTeller.previewFee(1e18, data);
 
         sourceTeller.bridge{value:quote}(1e18, data);
