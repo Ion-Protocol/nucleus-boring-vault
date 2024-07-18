@@ -127,6 +127,9 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param data Bridge Data
      */
     function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable{
+        if(!isSupported[depositAsset]){
+            revert TellerWithMultiAssetSupport__AssetNotSupported();
+        }
         uint shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shareAmount, shareLockPeriod);
         bridge(shareAmount, data);
