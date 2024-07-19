@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {CrossChainTellerBase} from "./CrossChainTellerBase.sol";
-import "../../../interfaces/ICrossChainTeller.sol";
+import {CrossChainTellerBase, BridgeData} from "./CrossChainTellerBase.sol";
 
 struct Chain{
     bool allowMessagesFrom;
@@ -24,7 +23,7 @@ error MultiChainTellerBase_GasTooLow();
  * @notice Base contract for the MultiChainTellers,
  * We've noticed that many bridge options are L1 -> L2 only, which are quite simple IE Optimism Messenger
  * While others like LZ that can contact many bridges, contain lots of additional complexity to manage the configuration for these chains
- * To keep this seperated we are using this MultiChain sytanx for the > 2 chain messenging while only CrossChain for 2 chain messengers like OP
+ * To keep this seperated we are using this MultiChain syntax for the > 2 chain messenging while only CrossChain for 2 chain messengers like OP
  */
 abstract contract MultiChainTellerBase is CrossChainTellerBase{
 

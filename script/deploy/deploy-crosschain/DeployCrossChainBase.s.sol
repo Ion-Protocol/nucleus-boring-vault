@@ -10,7 +10,7 @@ import {MainnetAddresses} from "../../../test/resources/MainnetAddresses.sol";
 import {ManagerWithMerkleVerification} from "../../../src/base/Roles/ManagerWithMerkleVerification.sol";
 import {AccountantWithRateProviders} from "../../../src/base/Roles/AccountantWithRateProviders.sol";
 
-import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "../../../src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
+import {MultiChainLayerZeroTellerWithMultiAssetSupport} from "../../../src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 import {CrossChainOPTellerWithMultiAssetSupport} from "../../../src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
 
 import {TellerWithMultiAssetSupport} from "../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
@@ -117,7 +117,7 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
 
     }
 
-    function fullDeployForChainLZ(string memory rpc, address lzEndpoint) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller){
+    function fullDeployForChainLZ(string memory rpc, address lzEndpoint) internal returns(MultiChainLayerZeroTellerWithMultiAssetSupport teller){
         // 01 ===========================================================================================================================================
         BoringVault boringVault = _deployBoringVault();
 
@@ -372,7 +372,7 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         );
     }
 
-    function _deployTellerLZ(BoringVault boringVault, AccountantWithRateProviders accountant, address lzEndpoint, string memory rpc) internal returns(CrossChainLayerZeroTellerWithMultiAssetSupport teller) {
+    function _deployTellerLZ(BoringVault boringVault, AccountantWithRateProviders accountant, address lzEndpoint, string memory rpc) internal returns(MultiChainLayerZeroTellerWithMultiAssetSupport teller) {
         string memory path = "./deployment-config/04_DeployTellerWithMultiAssetSupport.json";
         string memory config = vm.readFile(path);
 
@@ -385,10 +385,10 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         require(address(boringVault) != address(0), "boringVault");
         require(address(accountant) != address(0), "accountant");
 
-        bytes memory creationCode = type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode;
+        bytes memory creationCode = type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode;
 
         // address _owner, address _vault, address _accountant, address _weth, address _endpoint
-        teller = CrossChainLayerZeroTellerWithMultiAssetSupport(
+        teller = MultiChainLayerZeroTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 tellerSalt,
                 abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, addressesByRpc[rpc]["WETH"], lzEndpoint))

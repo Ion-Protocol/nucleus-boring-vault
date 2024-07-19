@@ -2,12 +2,24 @@
 pragma solidity 0.8.21;
 
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
-import "../../../interfaces/ICrossChainTeller.sol";
+import {ERC20} from "@solmate/tokens/ERC20.sol";
+
+struct BridgeData{
+    uint32 chainSelector;
+    address destinationChainReceiver;
+    ERC20 bridgeFeeToken;
+    uint64 messageGas;
+    bytes data;
+}
+
 /**
  * @title CrossChainTellerBase
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
  */
-abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAssetSupport{
+abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport{
+
+    event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
+    event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
@@ -65,11 +77,10 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     }
 
     /**
-     * @notice the before bridge hook to preform additional checks
+     * @notice the before bridge hook to perform additional checks
      * @param data bridge data
      */
-    function _beforeBridge(BridgeData calldata data) internal virtual{
-    }
+    function _beforeBridge(BridgeData calldata data) internal virtual;
 
     /**
      * @notice the virtual bridge function to be overridden

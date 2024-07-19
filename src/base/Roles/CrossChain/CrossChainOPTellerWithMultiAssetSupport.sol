@@ -21,18 +21,58 @@ interface ICrossDomainMessenger {
  */
 contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
 
-    ICrossDomainMessenger public messenger;
+    ICrossDomainMessenger public immutable messenger;
     address public peer;
+
+    uint32 public maxMessageGas;
+    uint32 public minMessageGas;
 
     error CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
     error CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
     error CrossChainOPTellerWithMultiAssetSupport_NoFee();
+    error CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(uint32);
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _messenger)
         CrossChainTellerBase(_owner, _vault, _accountant, _weth)
     {
         messenger = ICrossDomainMessenger(_messenger);
         peer = address(this);
+    }
+
+    /**
+     * Callable by OWNER_ROLE.
+     * @param _peer new peer to set
+     */
+    function setPeer(address _peer) external requiresAuth{
+        peer = _peer;
+    }
+
+    /**
+     * @dev Callable by OWNER_ROLE.
+     * @param newMinMessageGas the new minMessageGas bound
+     * @param newMaxMessageGas the new maxMessageGas bound
+     */
+    function setGasBound(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
+        minMessageGas = newMinMessageGas;
+        maxMessageGas = newMaxMessageGas;
+    }
+
+    /**
+     * @notice Function for OP Messenger to call to receive a message and mint the shares on this chain
+     * @param receiver to receive the shares
+     * @param shareMintAmount amount of shares to mint
+     */
+    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
+
+        if(msg.sender != address(messenger)){
+            revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
+        }
+
+        if(messenger.xDomainMessageSender() != peer){
+            revert CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
+        }
+
+        vault.enter(address(0), ERC20(address(0)), 0, receiver, shareMintAmount);
     }
 
     /**
@@ -56,31 +96,16 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     }
 
     /**
-     * @notice function for owner to set the peer, which is by default this address (as usually we use CREATEX to create contracts with the same address)
-     * This is because we need to be sure only the peer teller accross chain can mint shares
-     * @dev Callable by OWNER_ROLE.
+     * @notice before bridge hook to check gas bound
+     * @param data bridge data
      */
-    function setPeer(address _newPeer) external requiresAuth{
-        peer = _newPeer;
+    function _beforeBridge(BridgeData calldata data) internal override{
+        uint32 messageGas = uint32(data.messageGas);
+        if(messageGas > maxMessageGas || messageGas < minMessageGas){
+            revert CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(messageGas);
+        }
     }
 
-    /**
-     * @notice Function for OP Messenger to call to receive a message and mint the shares on this chain
-     * @param receiver to receive the shares
-     * @param shareMintAmount amount of shares to mint
-     */
-    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
-
-        if(msg.sender != address(messenger)){
-            revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
-        }
-
-        if(messenger.xDomainMessageSender() != peer){
-            revert CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
-        }
-
-        vault.enter(address(0), ERC20(address(0)), 0, receiver, shareMintAmount);
-    }
 
     /**
      * @notice the virtual function to override to get bridge fees

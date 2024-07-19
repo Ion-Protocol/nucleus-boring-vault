@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {CrossChainBaseTest, CrossChainTellerBase} from "./CrossChainBase.t.sol";
+import {CrossChainBaseTest, CrossChainTellerBase, ERC20, BridgeData} from "./CrossChainBase.t.sol";
 import {CrossChainOPTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
-import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
@@ -49,6 +48,8 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     function setUp() public virtual override(CrossChainBaseTest){
         CrossChainBaseTest.setUp();
+        CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr).setGasBound(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr).setGasBound(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
     }
 
     function testBridgingShares(uint256 sharesToBridge) external {
@@ -124,15 +125,32 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
         super.testReverts();
-        // Call now succeeds.
 
         BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
 
+        // reverts with gas too low
+        sourceTeller.setGasBound(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
+        );
+        sourceTeller.bridge{value:0}(1e18, data);
+
+        // reverts with gas too high
+        sourceTeller.setGasBound(uint32(0), uint32(79_999));
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
+        );
+        sourceTeller.bridge{value:0}(1e18, data);
+
+        sourceTeller.setGasBound(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
+
+        // Call now succeeds.
         sourceTeller.bridge{value:0}(1e18, data);
 
     }
 
     function _deploySourceAndDestinationTeller() internal override{
+
         sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER));
         destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER));
     }

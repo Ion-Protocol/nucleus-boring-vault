@@ -12,8 +12,6 @@ import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthorit
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {CrossChainTellerBase, BridgeData} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
-import "src/interfaces/ICrossChainTeller.sol";
-
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
 
 abstract contract CrossChainBaseTest is Test, MainnetAddresses {

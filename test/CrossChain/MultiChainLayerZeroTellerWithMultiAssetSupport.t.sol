@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {CrossChainBaseTest, CrossChainTellerBase} from "./CrossChainBase.t.sol";
-import {CrossChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
-import "src/interfaces/ICrossChainTeller.sol";
+import {MultiChainBaseTest, MultiChainTellerBase, ERC20, BridgeData} from "./MultiChainBase.t.sol";
+import {MultiChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import { TestHelperOz5 } from "./@layerzerolabs-custom/test-evm-foundry-custom/TestHelperOz5.sol";
 
@@ -13,18 +12,18 @@ import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol"
 import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
 import {console} from "forge-std/Test.sol";
 
-contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTest, TestHelperOz5{
+contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTest, TestHelperOz5{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint;
 
-    function setUp() public virtual override(CrossChainBaseTest, TestHelperOz5){
-        CrossChainBaseTest.setUp();
+    function setUp() public virtual override(MultiChainBaseTest, TestHelperOz5){
+        MultiChainBaseTest.setUp();
         TestHelperOz5.setUp();
     }
 
     function testBridgingShares(uint256 sharesToBridge) external {
-        CrossChainLayerZeroTellerWithMultiAssetSupport sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainLayerZeroTellerWithMultiAssetSupport destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
         uint256 startingShareBalance = boringVault.balanceOf(address(this));
@@ -59,8 +58,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
 
     function testDepositAndBridgeFailsWithShareLockTime(uint amount) external{
-        CrossChainLayerZeroTellerWithMultiAssetSupport sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainLayerZeroTellerWithMultiAssetSupport destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, sourceTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
@@ -99,8 +98,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     }
 
     function testDepositAndBridge(uint256 amount) external{
-        CrossChainLayerZeroTellerWithMultiAssetSupport sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainLayerZeroTellerWithMultiAssetSupport destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
         destinationTeller.addChain(SOURCE_SELECTOR, true, true, sourceTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
@@ -147,8 +146,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
 
     function testReverts() public override{
-        CrossChainLayerZeroTellerWithMultiAssetSupport sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainLayerZeroTellerWithMultiAssetSupport destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         super.testReverts();
 
@@ -159,8 +158,8 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                CrossChainLayerZeroTellerWithMultiAssetSupport.
-                    CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken.selector
+                MultiChainLayerZeroTellerWithMultiAssetSupport.
+                    MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken.selector
             )
         );
         sourceTeller.bridge(1e18, data);
@@ -174,17 +173,17 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupportTest is CrossChainBaseTes
     }
 
     function _deploySourceAndDestinationTeller() internal override{
-        CrossChainLayerZeroTellerWithMultiAssetSupport sourceTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainLayerZeroTellerWithMultiAssetSupport destinationTeller = CrossChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
         sourceTellerAddr =
-            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(SOURCE_SELECTOR)]))
+            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(SOURCE_SELECTOR)]))
         ;
 
         destinationTellerAddr = 
-            _deployOApp(type(CrossChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(DESTINATION_SELECTOR)]))
+            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(DESTINATION_SELECTOR)]))
         ;
 
         // config and wire the oapps

@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {MultiChainTellerBase, BridgeData, ERC20} from "./MultiChainTellerBase.sol";
+import {MultiChainTellerBase} from "./MultiChainTellerBase.sol";
+import {BridgeData, ERC20} from "./CrossChainTellerBase.sol";
 import {OAppAuth, MessagingFee, Origin, MessagingReceipt} from "./OAppAuth/OAppAuth.sol";
 import {Auth} from "@solmate/auth/Auth.sol";
 
 import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
 
 /**
- * @title CrossChainLayerZeroTellerWithMultiAssetSupport
- * @notice LayerZero implementation of CrossChainTeller 
+ * @title MultiChainLayerZeroTellerWithMultiAssetSupport
+ * @notice LayerZero implementation of MultiChainTeller 
  */
-contract CrossChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase, OAppAuth{
+contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase, OAppAuth{
     using OptionsBuilder for bytes;
 
-    error CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+    error MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
 
     constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
         MultiChainTellerBase(_owner, _vault, _accountant, _weth)
@@ -34,7 +35,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         address bridgeToken = address(data.bridgeFeeToken);
 
         if(bridgeToken != NATIVE){
-            revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+            revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
         MessagingFee memory fee = _quote(data.chainSelector, _message, _options, false);
@@ -70,7 +71,7 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         address bridgeToken = address(data.bridgeFeeToken);
 
         if(bridgeToken != NATIVE){
-            revert CrossChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+            revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
         bytes memory _payload = abi.encode(shareAmount,data.destinationChainReceiver);
