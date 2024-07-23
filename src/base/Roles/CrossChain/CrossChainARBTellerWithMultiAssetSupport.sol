@@ -82,6 +82,15 @@ abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBa
         }
     }
 
+}
+
+contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMultiAssetSupport{
+    IInbox public inbox;
+    constructor(address _owner, address _vault, address _accountant, address _weth, address _inbox)
+    CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth){
+        inbox = IInbox(_inbox);
+    }
+
     function calculateRetryableSubmissionFee(uint256 dataLength, uint256 baseFee)
         public
         view
@@ -101,15 +110,6 @@ abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBa
 
         uint submissionFee = calculateRetryableSubmissionFee(b.length, block.basefee);
         return (submissionFee + 0 + maxMessageGas * data.messageGas);
-    }
-
-}
-
-contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMultiAssetSupport{
-    IInbox public inbox;
-    constructor(address _owner, address _vault, address _accountant, address _weth, address _inbox)
-    CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth){
-        inbox = IInbox(_inbox);
     }
 
     /**
@@ -148,11 +148,21 @@ contract CrossChainARBTellerWithMultiAssetSupportL2 is CrossChainARBTellerWithMu
     }
 
     /**
+     * @notice the virtual function to override to get bridge fees
+     * @param shareAmount to send
+     * @param data bridge data
+     */
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
+        return 0;
+    }
+
+    /**
      * @notice the virtual bridge function to execute Optimism messenger sendMessage()
      * @param data bridge data
      * @return messageId
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
-
+        // bytes memory data = abi.encodeWithSelector(L1Contract.handleMessageFromL2.selector, number);
+        // arbsys.sendTxToL1(l1Target, data);
     }
 }

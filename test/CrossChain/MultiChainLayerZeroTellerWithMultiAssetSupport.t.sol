@@ -166,6 +166,8 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         // Call now succeeds.
         data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+
         uint quote = sourceTeller.previewFee(1e18, data);
 
         sourceTeller.bridge{value:quote}(1e18, data);
