@@ -21,6 +21,7 @@ import {ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS} from "@ion-protocol/Constants.s
 import {IRateProvider} from "../../../src/interfaces/IRateProvider.sol";
 import {RolesAuthority} from "@solmate/auth/authorities/RolesAuthority.sol";
 
+import {CrossChainTellerBase} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
 
 struct AccountantConfig{
@@ -485,6 +486,9 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         rolesAuthority.setRoleCapability(
             UPDATE_EXCHANGE_RATE_ROLE, address(accountant), AccountantWithRateProviders.updateExchangeRate.selector, true
         );
+
+        rolesAuthority.setPublicCapability(address(teller), CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(address(teller), CrossChainTellerBase.depositAndBridge.selector, true);
 
         // --- Assign roles to users ---
 

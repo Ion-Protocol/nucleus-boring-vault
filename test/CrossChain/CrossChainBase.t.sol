@@ -93,6 +93,11 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setPublicCapability(
             address(destinationTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
+        
+        rolesAuthority.setPublicCapability(address(sourceTeller), CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(address(destinationTeller), CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(address(sourceTeller), CrossChainTellerBase.depositAndBridge.selector, true);
+        rolesAuthority.setPublicCapability(address(destinationTeller), CrossChainTellerBase.depositAndBridge.selector, true);
 
         rolesAuthority.setUserRole(address(sourceTeller), MINTER_ROLE, true);
         rolesAuthority.setUserRole(address(sourceTeller), BURNER_ROLE, true);
