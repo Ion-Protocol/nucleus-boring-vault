@@ -40,7 +40,6 @@ contract CrossChainLayerZeroTellerWithMultiAssetSupport is CrossChainTellerBase,
         MessagingFee memory fee = _quote(data.chainSelector, _message, _options, false);
 
         return fee.nativeFee;
-        
     }
 
     /**
