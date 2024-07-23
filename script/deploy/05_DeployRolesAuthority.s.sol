@@ -33,7 +33,7 @@ contract DeployRolesAuthority is BaseScript {
     uint8 public constant TELLER_ROLE = 3;
     uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 4;
 
-    function run() public broadcast returns (RolesAuthority rolesAuthority) {
+    function run() public virtual broadcast returns (RolesAuthority rolesAuthority) {
         require(boringVault.code.length != 0, "boringVault must have code");
         require(manager.code.length != 0, "manager must have code");
         require(teller.code.length != 0, "teller must have code");

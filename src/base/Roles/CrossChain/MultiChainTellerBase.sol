@@ -48,7 +48,8 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
         CrossChainTellerBase(_owner, _vault, _accountant, _weth){}
 
     /**
-     * @dev adds an acceptable chain to bridge to
+     * @dev Callable by OWNER_ROLE.
+     * @notice adds an acceptable chain to bridge to
      * @param chainSelector chainSelector of chain
      * @param allowMessagesFrom allow messages from this chain
      * @param allowMessagesTo allow messages to the chain
@@ -73,7 +74,8 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     }
 
     /**
-     * @dev block messages from a particular chain
+     * @dev Callable by OWNER_ROLE.
+     * @notice block messages from a particular chain
      * @param chainSelector of chain
      */
     function stopMessagesFromChain(uint32 chainSelector) external requiresAuth{
@@ -84,7 +86,8 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     }
 
     /**
-     * @dev allow messages from a particular chain
+     * @dev Callable by OWNER_ROLE.
+     * @notice allow messages from a particular chain
      * @param chainSelector of chain
      */
     function allowMessagesFromChain(uint32 chainSelector, address targetTeller) external requiresAuth{
@@ -96,8 +99,9 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     }
 
     /**
+     * @dev Callable by OWNER_ROLE.
      * @notice Remove a chain from the teller.
-     * @dev Callable by MULTISIG_ROLE.
+     * @dev Callable by OWNER_ROLE.
      */
     function removeChain(uint32 chainSelector) external requiresAuth{
         delete selectorToChains[chainSelector];
@@ -106,8 +110,8 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     }
 
     /**
-     * @notice Allow messages to a chain.
      * @dev Callable by OWNER_ROLE.
+     * @notice Allow messages to a chain.
      */
     function allowMessagesToChain(uint32 chainSelector, address targetTeller, uint64 messageGasLimit)
         external requiresAuth{
@@ -124,8 +128,8 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     }
 
     /**
+     * @dev Callable by OWNER_ROLE.
      * @notice Stop messages to a chain.
-     * @dev Callable by MULTISIG_ROLE.
      */
     function stopMessagesToChain(uint32 chainSelector) external requiresAuth{
         Chain storage chain = selectorToChains[chainSelector];
@@ -135,8 +139,8 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     }
 
     /**
-     * @notice Set the gas limit for messages to a chain.
      * @dev Callable by OWNER_ROLE.
+     * @notice Set the gas limit for messages to a chain.
      */
     function setChainGasLimit(uint32 chainSelector, uint64 messageGasLimit) external requiresAuth{
         if (messageGasLimit == 0) {
