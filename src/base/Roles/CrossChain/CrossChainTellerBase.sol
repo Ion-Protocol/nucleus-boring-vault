@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import {TellerWithMultiAssetSupport} from "../TellerWithMultiAssetSupport.sol";
 import "../../../interfaces/ICrossChainTeller.sol";
-
 /**
  * @title CrossChainTellerBase
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
@@ -15,7 +14,6 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
     constructor(address _owner, address _vault, address _accountant, address _weth)
         TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
     {
-
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -27,20 +25,22 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param allowMessagesTo Whether to allow messages to this chain.
      * @param targetTeller The address of the target teller on the other chain.
      * @param messageGasLimit The gas limit for messages to this chain.
+     * @param messageGasMin The minimum gas required to be sent for this chain
      */
     function addChain(
         uint32 chainSelector,
         bool allowMessagesFrom,
         bool allowMessagesTo,
         address targetTeller,
-        uint64 messageGasLimit
+        uint64 messageGasLimit,
+        uint64 messageGasMin
     ) external requiresAuth {
         if (allowMessagesTo && messageGasLimit == 0) {
             revert CrossChainTellerBase_ZeroMessageGasLimit();
         }
-        selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
+        selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
 
-        emit ChainAdded(chainSelector, allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit);
+        emit ChainAdded(chainSelector, allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
     }
 
     /**
@@ -129,7 +129,11 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
      * @param data Bridge Data
      */
     function depositAndBridge(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, BridgeData calldata data) external payable{
+        if(!isSupported[depositAsset]){
+            revert TellerWithMultiAssetSupport__AssetNotSupported();
+        }
         uint shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shareAmount, shareLockPeriod);
         bridge(shareAmount, data);
     }
 
@@ -156,6 +160,10 @@ abstract contract CrossChainTellerBase is ICrossChainTeller, TellerWithMultiAsse
         
         if(data.messageGas > selectorToChains[data.chainSelector].messageGasLimit){
             revert CrossChainTellerBase_GasLimitExceeded();
+        }
+
+        if(data.messageGas < selectorToChains[data.chainSelector].minimumMessageGas){
+            revert CrossChainTellerBase_GasTooLow();
         }
 
         // Since shares are directly burned, call `beforeTransfer` to enforce before transfer hooks.

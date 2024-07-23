@@ -26,14 +26,14 @@ contract DeployCrossChainOP is DeployCrossChainBase {
         CrossChainOPTellerWithMultiAssetSupport main = fullDeployForChainOP("sepolia_main", SEPOLIA_MAIN_MESSENGER);
         // we use the main address here, because main and op actually will be deployed with the same address
         // this needs to be done here, and not later because foundry will wipe the state when broadcast is stopped.
-        main.addChain(SEPOLIA_OPT_CHAIN_ID, true, true, address(main), 100_000);
+        main.addChain(SEPOLIA_OPT_CHAIN_ID, true, true, address(main), 100_000, 0);
 
         vm.stopBroadcast();
 
         vm.createSelectFork(vm.rpcUrl("op_sepolia"));
         vm.startBroadcast();
         CrossChainOPTellerWithMultiAssetSupport op = fullDeployForChainOP("op_sepolia", SEPOLIA_OPT_MESSENGER);
-        op.addChain(SEPOLIA_MAIN_CHAIN_ID, true, true, address(main), 100_000);
+        op.addChain(SEPOLIA_MAIN_CHAIN_ID, true, true, address(main), 100_000, 0);
         vm.stopBroadcast();
     }
 
