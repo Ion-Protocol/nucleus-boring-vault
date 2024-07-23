@@ -6,4 +6,5 @@ ds-test/=lib/forge-std/lib/ds-test/src/
 @openzeppelin/=lib/openzeppelin-contracts/
 @ion-protocol/=lib/ion-protocol/src/
 
+@arbitrum/nitro-contracts/=node_modules/@arbitrum/nitro-contracts/src/
 @layerzerolabs/=node_modules/@layerzerolabs/
