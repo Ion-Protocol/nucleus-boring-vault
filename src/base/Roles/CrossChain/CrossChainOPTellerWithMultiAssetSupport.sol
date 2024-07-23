@@ -52,7 +52,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param newMinMessageGas the new minMessageGas bound
      * @param newMaxMessageGas the new maxMessageGas bound
      */
-    function setGasBound(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
+    function setGasBounds(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
         minMessageGas = newMinMessageGas;
         maxMessageGas = newMaxMessageGas;
     }

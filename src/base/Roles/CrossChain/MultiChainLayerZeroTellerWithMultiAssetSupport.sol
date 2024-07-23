@@ -68,9 +68,8 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
      * @param data BridgeData
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
-        address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != NATIVE){
+        if(address(data.bridgeFeeToken) != NATIVE){
             revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
