@@ -8,6 +8,7 @@ error CrossChainTellerBase_MessagesNotAllowedFromSender(uint256 chainSelector, a
 error CrossChainTellerBase_MessagesNotAllowedTo(uint256 chainSelector);
 error CrossChainTellerBase_ZeroMessageGasLimit();
 error CrossChainTellerBase_GasLimitExceeded();
+error CrossChainTellerBase_GasTooLow();
 
 struct BridgeData{
     uint32 chainSelector;
@@ -22,6 +23,7 @@ struct Chain{
     bool allowMessagesTo;
     address targetTeller;
     uint64 messageGasLimit;
+    uint64 minimumMessageGas;
 }
 
 /**
@@ -38,7 +40,8 @@ interface ICrossChainTeller {
         bool allowMessagesFrom,
         bool allowMessagesTo,
         address targetTeller,
-        uint64 messageGasLimit
+        uint64 messageGasLimit,
+        uint64 messageGasMin
     );
     event ChainRemoved(uint256 chainSelector);
     event ChainAllowMessagesFrom(uint256 chainSelector, address targetTeller);
@@ -77,7 +80,8 @@ interface ICrossChainTeller {
         bool allowMessagesFrom,
         bool allowMessagesTo,
         address targetTeller,
-        uint64 messageGasLimit
+        uint64 messageGasLimit,
+        uint64 messageGasMin
     ) external;
 
     /**
