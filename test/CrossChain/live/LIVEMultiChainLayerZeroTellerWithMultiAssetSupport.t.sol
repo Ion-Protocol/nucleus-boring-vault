@@ -16,8 +16,6 @@ contract LIVEMultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainLay
 
     string constant RPC_KEY = "SEPOLIA_RPC_URL";
 
-
-
     function setUp() public virtual override {
         uint forkId = vm.createFork(vm.envString(RPC_KEY));
         vm.selectFork(forkId);

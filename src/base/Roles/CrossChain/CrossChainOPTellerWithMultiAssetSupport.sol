@@ -63,6 +63,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param shareMintAmount amount of shares to mint
      */
     function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
+        _beforeReceive();
 
         if(msg.sender != address(messenger)){
             revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();

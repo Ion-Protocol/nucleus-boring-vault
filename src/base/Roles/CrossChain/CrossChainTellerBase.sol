@@ -106,4 +106,11 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport{
         emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
     }
 
+    /**
+     * @notice a before receive hook to call some logic before a receive is processed
+     */
+    function _beforeReceive() internal virtual{
+        if (isPaused) revert TellerWithMultiAssetSupport__Paused();
+    }
+
 }
