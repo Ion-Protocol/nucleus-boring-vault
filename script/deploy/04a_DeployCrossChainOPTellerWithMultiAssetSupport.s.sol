@@ -17,6 +17,8 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
     address accountant = config.readAddress(".accountant");
     address messenger = config.readAddress(".messenger");
     address weth = config.readAddress(".weth");
+    uint256 maxGasForPeer = config.readUint(".maxGasForPeer");
+    uint256 minGasForPeer = config.readUint(".minGasForPeer");
 
     function run() public broadcast returns (CrossChainOPTellerWithMultiAssetSupport teller) {
         require(boringVault.code.length != 0, "boringVault must have code");
@@ -34,6 +36,9 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
                 abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, weth, messenger))
             )
         );
+
+        // configure the crosschain functionality
+        teller.setGasBounds(uint32(minGasForPeer), uint32(maxGasForPeer));
 
         require(teller.shareLockPeriod() == 0, "share lock period must be zero");
         require(teller.isPaused() == false, "the teller must not be paused");

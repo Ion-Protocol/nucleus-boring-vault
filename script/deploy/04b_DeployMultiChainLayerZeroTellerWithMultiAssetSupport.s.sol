@@ -18,6 +18,9 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
     address accountant = config.readAddress(".accountant");
     address endpoint = config.readAddress(".endpoint");
     address weth = config.readAddress(".weth");
+    uint256 peerEid = config.readUint(".peerEid");
+    uint256 maxGasForPeer = config.readUint(".maxGasForPeer");
+    uint256 minGasForPeer = config.readUint(".minGasForPeer");
 
     function run() public broadcast returns (MultiChainLayerZeroTellerWithMultiAssetSupport teller) {
         require(boringVault.code.length != 0, "boringVault must have code");
@@ -36,6 +39,11 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
             )
         );
 
+        // configure the crosschain functionality
+        address peerAddress = address(teller);
+        teller.setPeer(uint32(peerEid), bytes32(bytes20(peerAddress)));
+        teller.addChain(uint32(peerEid), true, true, peerAddress, 100_000, 0);
+
         require(teller.shareLockPeriod() == 0, "share lock period must be zero");
         require(teller.isPaused() == false, "the teller must not be paused");
         require(
@@ -43,5 +51,7 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
             "the accountant vault must be the teller vault"
         );
         require(address(teller.endpoint()) == endpoint, "OP Teller must have messenger set");
+
+
     }
 }
