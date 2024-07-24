@@ -52,7 +52,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
     }
 
-    function testBridgingShares(uint256 sharesToBridge) external {
+    function testBridgingShares(uint256 sharesToBridge) public virtual{
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
         CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
@@ -120,7 +120,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     }
 
 
-    function testReverts() public override {
+    function testReverts() public virtual override {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
         CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
@@ -149,8 +149,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     }
 
-    function _deploySourceAndDestinationTeller() internal override{
-
+    function _deploySourceAndDestinationTeller() internal virtual override{
         sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER));
         destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER));
     }

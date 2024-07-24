@@ -1,35 +1,47 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MultiChainBaseTest, MultiChainTellerBase, ERC20, BridgeData} from "./MultiChainBase.t.sol";
-import {MultiChainLayerZeroTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import { TestHelperOz5 } from "./@layerzerolabs-custom/test-evm-foundry-custom/TestHelperOz5.sol";
-
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {OAppAuthCore} from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.sol";
-
+import {MultiChainLayerZeroTellerWithMultiAssetSupport, BridgeData, ERC20, TellerWithMultiAssetSupport,MultiChainLayerZeroTellerWithMultiAssetSupportTest} from "../MultiChainLayerZeroTellerWithMultiAssetSupport.t.sol";
 import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {console} from "forge-std/Test.sol";
 
-contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTest, TestHelperOz5{
-    using SafeTransferLib for ERC20;
+/**
+ * @notice LayerZero normally is tested with a foundry testing framework that includes mocks for the crosschain ability,
+ * Testing this live is not an option so most functions must be overriden and simplified to test only on the local chain
+ */
+contract LIVEMultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainLayerZeroTellerWithMultiAssetSupportTest{
     using FixedPointMathLib for uint;
 
-    function setUp() public virtual override(MultiChainBaseTest, TestHelperOz5){
-        MultiChainBaseTest.setUp();
-        TestHelperOz5.setUp();
+    address constant SOURCE_TELLER = 0xfFEa4FB47AC7FA102648770304605920CE35660c;
+    address constant DESTINATION_TELLER = 0xfFEa4FB47AC7FA102648770304605920CE35660c;
+
+    string constant RPC_KEY = "SEPOLIA_RPC_URL";
+
+
+
+    function setUp() public virtual override {
+        uint forkId = vm.createFork(vm.envString(RPC_KEY));
+        vm.selectFork(forkId);
+        address from = vm.envOr({name: "ETH_FROM", defaultValue: address(0)});
+        vm.startPrank(from);
+
+
+        sourceTellerAddr = SOURCE_TELLER;
+        destinationTellerAddr = DESTINATION_TELLER;
+        boringVault = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr).vault();
+        WETH = MultiChainLayerZeroTellerWithMultiAssetSupport(SOURCE_TELLER).nativeWrapper();
+
+        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(boringVault), from, 1_000e18, true);
     }
 
-    function testBridgingShares(uint256 sharesToBridge) external virtual {
+    // function adjusted to only have source chain calls
+    function testBridgingShares(uint256 sharesToBridge) external virtual override {
         MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
         uint256 startingShareBalance = boringVault.balanceOf(address(this));
         // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, sourceTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         // Bridge shares.
         address to = vm.addr(1);
@@ -45,24 +57,17 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         uint quote = sourceTeller.previewFee(sharesToBridge, data);
         bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
-        verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(destinationTellerAddr));
-
         assertEq(
             boringVault.balanceOf(address(this)), startingShareBalance - sharesToBridge, "Should have burned shares."
         );
 
-        assertEq(
-            boringVault.balanceOf(to), sharesToBridge, "to address should have shares"
-        );
     }
 
-
-    function testDepositAndBridgeFailsWithShareLockTime(uint amount) external virtual{
+    // function adjusted to only have source chain calls
+    function testDepositAndBridgeFailsWithShareLockTime(uint amount) external virtual override{
         MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, sourceTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
         sourceTeller.setShareLockPeriod(60);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
@@ -97,12 +102,11 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
     }
 
-    function testDepositAndBridge(uint256 amount) external virtual{
+    // function adjusted to only have source chain calls
+    function testDepositAndBridge(uint256 amount) external virtual override{
         MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, sourceTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
         
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -132,22 +136,17 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
         uint quote = sourceTeller.previewFee(shares, data);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
-        verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(destinationTellerAddr));
 
         assertEq(
             boringVault.balanceOf(user), 0, "Should have burned shares."
         );
 
-        assertEq(
-            boringVault.balanceOf(userChain2), shares
-        );
         vm.stopPrank();
     }
 
 
     function testReverts() public virtual override{
         MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
 
         super.testReverts();
 
@@ -169,31 +168,6 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         uint quote = sourceTeller.previewFee(1e18, data);
 
         sourceTeller.bridge{value:quote}(1e18, data);
-
-    }
-
-    function _deploySourceAndDestinationTeller() internal virtual override{
-        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
-        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller = MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
-
-        setUpEndpoints(2, LibraryType.UltraLightNode);
-
-        sourceTellerAddr =
-            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(SOURCE_SELECTOR)]))
-        ;
-
-        destinationTellerAddr = 
-            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(DESTINATION_SELECTOR)]))
-        ;
-
-        // config and wire the oapps
-        address[] memory oapps = new address[](2);
-        oapps[0] = sourceTellerAddr;
-        oapps[1] = destinationTellerAddr;
-        this.wireOApps(oapps);
-
-        bytes32 peer1 = OAppAuthCore(sourceTellerAddr).peers(uint32(DESTINATION_SELECTOR));
-        bytes32 peer2 = OAppAuthCore(destinationTellerAddr).peers(uint32(SOURCE_SELECTOR));
 
     }
 

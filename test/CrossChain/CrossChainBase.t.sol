@@ -148,7 +148,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
 
     // ========================================= HELPER FUNCTIONS =========================================
 
-    function _startFork(string memory rpcKey, uint256 blockNumber) internal returns (uint256 forkId) {
+    function _startFork(string memory rpcKey, uint256 blockNumber) internal virtual returns (uint256 forkId) {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
