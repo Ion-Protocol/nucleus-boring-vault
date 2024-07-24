@@ -97,7 +97,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     }
 
     /**
-     * @notice before bridge hook to check gas bound
+     * @notice before bridge hook to check gas bound and revert if someone's paying a fee
      * @param data bridge data
      */
     function _beforeBridge(BridgeData calldata data) internal override{
@@ -105,16 +105,19 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
         if(messageGas > maxMessageGas || messageGas < minMessageGas){
             revert CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(messageGas);
         }
+        if(msg.value > 0){
+            revert CrossChainOPTellerWithMultiAssetSupport_NoFee();
+        }
     }
 
 
     /**
-     * @notice the virtual function to override to get bridge fees
+     * @notice the virtual function to override to get bridge fees, allways zero for OP
      * @param shareAmount to send
      * @param data bridge data
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
-        revert CrossChainOPTellerWithMultiAssetSupport_NoFee();
+        return 0;
     }
 
 }

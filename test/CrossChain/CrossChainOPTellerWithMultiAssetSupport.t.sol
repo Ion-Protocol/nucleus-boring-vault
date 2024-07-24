@@ -142,7 +142,13 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         );
         sourceTeller.bridge{value:0}(1e18, data);
 
+        // reverts with a fee provided
         sourceTeller.setGasBounds(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_NoFee.selector))
+        );
+        sourceTeller.bridge{value:1}(1e18, data);
+
 
         // Call now succeeds.
         sourceTeller.bridge{value:0}(1e18, data);
