@@ -54,13 +54,13 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         CrossChainARBTellerWithMultiAssetSupportL1 sourceTeller = CrossChainARBTellerWithMultiAssetSupportL1(sourceTellerAddr);
         CrossChainARBTellerWithMultiAssetSupportL2 destinationTeller = CrossChainARBTellerWithMultiAssetSupportL2(destinationTellerAddr);
 
+        // L1 Bridge
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
-
         address user = makeAddr("A user");
         deal(address(boringVault), user, sharesToBridge);
         vm.deal(user, 1e18);
         vm.startPrank(user);
-        // Bridge shares.
+        // Get the bridge data set up
         address to = vm.addr(1);
 
         BridgeData memory data = BridgeData({
@@ -71,10 +71,11 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             data: ""
         });
 
+        // calculate quote
         uint quote = sourceTeller.previewFee(sharesToBridge, data);
 
+        // get event data
         uint count = SOURCE_BRIDGE.delayedMessageCount();
-
         bytes memory encodedShares = abi.encode(sharesToBridge);
         bytes memory expectedData = 
         abi.encodePacked(
@@ -90,10 +91,50 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             encodedShares
         );
 
+        // expect L1 deposit emit
         vm.expectEmit();
         emit InboxMessageDelivered(count, expectedData);
         bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
         
+        vm.stopPrank();
+        // L2 Bridge
+
+        // set up L2 fork
+        _startFork("ARBITRUM_MAINNET");
+        vm.startPrank(user);
+
+        // Get the bridge data set up
+        data = BridgeData({
+            chainSelector: SOURCE_SELECTOR,
+            destinationChainReceiver: to,
+            bridgeFeeToken: ERC20(NATIVE),
+            messageGas: 80_000,
+            data: ""
+        });
+
+        // calculate quote
+        quote = sourceTeller.previewFee(sharesToBridge, data);
+
+        // get event data
+        count = SOURCE_BRIDGE.delayedMessageCount();
+        encodedShares = abi.encode(sharesToBridge);
+        expectedData = 
+        abi.encodePacked(
+            uint256(uint160(to)),
+            uint256(0),
+            quote,
+            sourceTeller.calculateRetryableSubmissionFee(encodedShares.length, block.basefee),
+            uint256(uint160(user)),
+            uint256(uint160(user)),
+            uint256(CHAIN_MESSAGE_GAS_LIMIT),
+            uint256(data.messageGas),
+            encodedShares.length,
+            encodedShares
+        );
+        // expect L2 deposit emit
+        vm.expectEmit();
+        emit InboxMessageDelivered(count, expectedData);
+
         vm.stopPrank();
     }
 
@@ -151,7 +192,6 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
     }
-
 
     function testReverts() public override {
         CrossChainARBTellerWithMultiAssetSupportL1 sourceTeller = CrossChainARBTellerWithMultiAssetSupportL1(sourceTellerAddr);
