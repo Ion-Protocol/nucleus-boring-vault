@@ -82,7 +82,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
             multisig, address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0.01e4
         );
 
-        teller = new TellerWithMultiAssetSupport(multisig, address(boringVault), address(accountant), address(WETH));
+        teller = new TellerWithMultiAssetSupport(multisig, address(boringVault), address(accountant));
 
         migrationAdaptor = new CellarMigrationAdaptor(address(boringVault), address(accountant), address(teller));
 

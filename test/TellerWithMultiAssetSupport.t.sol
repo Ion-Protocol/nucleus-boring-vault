@@ -53,7 +53,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         );
 
         teller =
-            new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH));
+            new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 

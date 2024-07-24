@@ -156,8 +156,8 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     }
 
     function _deploySourceAndDestinationTeller() internal virtual override{
-        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER));
-        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER));
+        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), SOURCE_MESSENGER));
+        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), DESTINATION_MESSENGER));
     }
 
 }

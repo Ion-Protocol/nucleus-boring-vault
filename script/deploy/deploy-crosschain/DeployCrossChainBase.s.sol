@@ -360,7 +360,7 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
         teller = CrossChainOPTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, addressesByRpc[rpc]["WETH"], opMessenger))
+                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, opMessenger))
             )
         );
 
@@ -387,11 +387,11 @@ abstract contract DeployCrossChainBase is BaseScript, MainnetAddresses {
 
         bytes memory creationCode = type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode;
 
-        // address _owner, address _vault, address _accountant, address _weth, address _endpoint
+        // address _owner, address _vault, address _accountant, address _endpoint
         teller = MultiChainLayerZeroTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, addressesByRpc[rpc]["WETH"], lzEndpoint))
+                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, lzEndpoint))
             )
         );
 

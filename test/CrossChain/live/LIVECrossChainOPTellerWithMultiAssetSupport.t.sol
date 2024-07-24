@@ -19,7 +19,6 @@ contract LIVECrossChainOPTTellerWithMultiAssetSupportTest is CrossChainOPTellerW
         vm.selectFork(forkId);
         from = vm.envOr({name: "ETH_FROM", defaultValue: address(0)});
         vm.startPrank(from);
-        WETH = CrossChainOPTellerWithMultiAssetSupport(SOURCE_TELLER).nativeWrapper();
 
         sourceTellerAddr = SOURCE_TELLER;
         destinationTellerAddr = DESTINATION_TELLER;
@@ -28,7 +27,7 @@ contract LIVECrossChainOPTTellerWithMultiAssetSupportTest is CrossChainOPTellerW
 
         CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
 
-        deal(address(WETH), address(boringVault), 1_000e18);
+        // deal(address(WETH), address(boringVault), 1_000e18);
         deal(address(boringVault), from, 1_000e18, true);
         // deal(address(LINK), address(this), 1_000e18);
     }

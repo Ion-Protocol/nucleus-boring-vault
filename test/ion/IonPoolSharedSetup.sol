@@ -83,8 +83,7 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
         teller = new TellerWithMultiAssetSupport(
             TELLER_OWNER,
             address(boringVault),
-            address(accountant),
-            address(WETH) // NOTE NOT THE BASE ASSET, ALWAYS WETH FOR WRAPPER
+            address(accountant)
         );
 
         manager = new ManagerWithMerkleVerification(MANAGER_OWNER, address(boringVault), balancerVault);

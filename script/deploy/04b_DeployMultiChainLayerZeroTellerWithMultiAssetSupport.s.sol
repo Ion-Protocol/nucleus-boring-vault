@@ -35,7 +35,7 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
         teller = MultiChainLayerZeroTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, weth, endpoint))
+                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, endpoint))
             )
         );
 

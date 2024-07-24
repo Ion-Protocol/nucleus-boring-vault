@@ -21,8 +21,8 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport{
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
     event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
-    constructor(address _owner, address _vault, address _accountant, address _weth)
-        TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
+    constructor(address _owner, address _vault, address _accountant)
+        TellerWithMultiAssetSupport(_owner, _vault, _accountant)
     {
     }
     

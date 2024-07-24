@@ -121,7 +121,7 @@ contract DeployBoringVaultArcticScript is Script, ContractNames, MainnetAddresse
         );
 
         creationCode = type(TellerWithMultiAssetSupport).creationCode;
-        constructorArgs = abi.encode(owner, address(boringVault), address(accountant), WETH);
+        constructorArgs = abi.encode(owner, address(boringVault), address(accountant));
         teller = TellerWithMultiAssetSupport(
             payable(deployer.deployContract(EtherFiLiquidEthTellerName, creationCode, constructorArgs, 0))
         );

@@ -26,9 +26,8 @@ contract LIVEMultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainLay
         sourceTellerAddr = SOURCE_TELLER;
         destinationTellerAddr = DESTINATION_TELLER;
         boringVault = MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr).vault();
-        WETH = MultiChainLayerZeroTellerWithMultiAssetSupport(SOURCE_TELLER).nativeWrapper();
 
-        deal(address(WETH), address(boringVault), 1_000e18);
+        // deal(address(WETH), address(boringVault), 1_000e18);
         deal(address(boringVault), from, 1_000e18, true);
     }
 

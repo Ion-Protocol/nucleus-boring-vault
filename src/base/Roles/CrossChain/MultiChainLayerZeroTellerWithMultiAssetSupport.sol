@@ -17,8 +17,8 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
 
     error MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
 
-    constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
-        MultiChainTellerBase(_owner, _vault, _accountant, _weth)
+    constructor(address _owner, address _vault, address _accountant, address _endpoint)
+        MultiChainTellerBase(_owner, _vault, _accountant)
         OAppAuth(_endpoint, _owner) 
     {
 

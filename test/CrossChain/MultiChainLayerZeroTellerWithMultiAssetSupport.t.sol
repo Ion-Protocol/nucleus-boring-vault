@@ -179,11 +179,11 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
         sourceTellerAddr =
-            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(SOURCE_SELECTOR)]))
+            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), endpoints[uint32(SOURCE_SELECTOR)]))
         ;
 
         destinationTellerAddr = 
-            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), address(WETH), endpoints[uint32(DESTINATION_SELECTOR)]))
+            _deployOApp(type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode, abi.encode(address(this), address(boringVault), address(accountant), endpoints[uint32(DESTINATION_SELECTOR)]))
         ;
 
         // config and wire the oapps

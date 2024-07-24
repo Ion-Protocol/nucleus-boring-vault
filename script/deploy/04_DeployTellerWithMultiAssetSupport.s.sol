@@ -30,7 +30,7 @@ contract DeployTellerWithMultiAssetSupport is BaseScript, MainnetAddresses {
         teller = TellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant, address(WETH)))
+                abi.encodePacked(creationCode, abi.encode(broadcaster, boringVault, accountant))
             )
         );
 
