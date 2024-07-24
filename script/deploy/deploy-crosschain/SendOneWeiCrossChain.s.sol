@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 import {console} from "forge-std/Test.sol";
 import {BaseScript} from "../../Base.s.sol";
-import {CrossChainLayerZeroTellerWithMultiAssetSupport, BridgeData} from "../../../src/base/Roles/CrossChain/CrossChainLayerZeroTellerWithMultiAssetSupport.sol";
+import {MultiChainLayerZeroTellerWithMultiAssetSupport, BridgeData} from "../../../src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 import {CrossChainOPTellerWithMultiAssetSupport} from "../../../src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 

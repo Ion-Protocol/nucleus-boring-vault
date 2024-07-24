@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {DeployCrossChainBase, CrossChainLayerZeroTellerWithMultiAssetSupport} from "./DeployCrossChainBase.s.sol";
+import {DeployCrossChainBase, MultiChainLayerZeroTellerWithMultiAssetSupport} from "./DeployCrossChainBase.s.sol";
 import {console} from "forge-std/Test.sol";
 // import {console2} from "";
 contract DeployCrossChainLZ is DeployCrossChainBase {
@@ -23,7 +23,7 @@ contract DeployCrossChainLZ is DeployCrossChainBase {
         // address opTellerAddress = CREATEX.deployCreate2(salt, initCode);
         vm.createSelectFork(vm.rpcUrl("sepolia_main"));
         vm.startBroadcast();
-        CrossChainLayerZeroTellerWithMultiAssetSupport main = fullDeployForChainLZ("sepolia_main", SEPOLIA_MAIN);
+        MultiChainLayerZeroTellerWithMultiAssetSupport main = fullDeployForChainLZ("sepolia_main", SEPOLIA_MAIN);
         // we use the main address here, because main and op actually will be deployed with the same address
         // this needs to be done here, and not later because foundry will wipe the state when broadcast is stopped.
         main.setPeer(SEPOLIA_OPT_EID, addressToBytes32(address(main)));
@@ -33,7 +33,7 @@ contract DeployCrossChainLZ is DeployCrossChainBase {
 
         vm.createSelectFork(vm.rpcUrl("op_sepolia"));
         vm.startBroadcast();
-        CrossChainLayerZeroTellerWithMultiAssetSupport op = fullDeployForChainLZ("op_sepolia", SEPOLIA_OPT);
+        MultiChainLayerZeroTellerWithMultiAssetSupport op = fullDeployForChainLZ("op_sepolia", SEPOLIA_OPT);
         op.setPeer(SEPOLIA_MAIN_EID, addressToBytes32(address(main)));
         op.addChain(SEPOLIA_MAIN_EID, true, true, address(main), 100_000, 0);
         vm.stopBroadcast();

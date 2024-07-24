@@ -10,7 +10,7 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {IRateProvider} from "src/interfaces/IRateProvider.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {CrossChainTellerBase} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import {CrossChainTellerBase, BridgeData} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
 
@@ -28,6 +28,8 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     uint8 public constant QUEUE_ROLE = 10;
     uint8 public constant CAN_SOLVE_ROLE = 11;
 
+    uint64 constant CHAIN_MESSAGE_GAS_LIMIT = 100_000;
+
     AccountantWithRateProviders public accountant;
     address public payout_address = vm.addr(7777777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -37,13 +39,14 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     uint32 public constant SOURCE_SELECTOR = 1;
     uint32 public constant DESTINATION_SELECTOR = 2;
 
-    CrossChainTellerBase sourceTeller;
-    CrossChainTellerBase destinationTeller;
+    address sourceTellerAddr;
+    address destinationTellerAddr;
 
     function _deploySourceAndDestinationTeller() internal virtual{
     }
 
     function setUp() public virtual{
+
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
         uint256 blockNumber = 19363419;
@@ -57,6 +60,9 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
 
         _deploySourceAndDestinationTeller();
 
+        CrossChainTellerBase sourceTeller = CrossChainTellerBase(sourceTellerAddr);
+        CrossChainTellerBase destinationTeller = CrossChainTellerBase(destinationTellerAddr);
+
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
         boringVault.setAuthority(rolesAuthority);
@@ -68,41 +74,41 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
 
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.addAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAsset.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.removeAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.removeAsset.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkDeposit.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.refundDeposit.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.refundDeposit.selector, true
         );
         rolesAuthority.setRoleCapability(
-            SOLVER_ROLE, address(sourceTeller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+            SOLVER_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
-        rolesAuthority.setPublicCapability(address(sourceTeller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(sourceTellerAddr, TellerWithMultiAssetSupport.deposit.selector, true);
         rolesAuthority.setPublicCapability(
-            address(sourceTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+            sourceTellerAddr, TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
-        rolesAuthority.setPublicCapability(address(destinationTeller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(destinationTellerAddr, TellerWithMultiAssetSupport.deposit.selector, true);
         rolesAuthority.setPublicCapability(
-            address(destinationTeller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+            destinationTellerAddr, TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
         
-        rolesAuthority.setPublicCapability(address(sourceTeller), CrossChainTellerBase.bridge.selector, true);
-        rolesAuthority.setPublicCapability(address(destinationTeller), CrossChainTellerBase.bridge.selector, true);
-        rolesAuthority.setPublicCapability(address(sourceTeller), CrossChainTellerBase.depositAndBridge.selector, true);
-        rolesAuthority.setPublicCapability(address(destinationTeller), CrossChainTellerBase.depositAndBridge.selector, true);
+        rolesAuthority.setPublicCapability(sourceTellerAddr, CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(destinationTellerAddr, CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(sourceTellerAddr, CrossChainTellerBase.depositAndBridge.selector, true);
+        rolesAuthority.setPublicCapability(destinationTellerAddr, CrossChainTellerBase.depositAndBridge.selector, true);
 
-        rolesAuthority.setUserRole(address(sourceTeller), MINTER_ROLE, true);
-        rolesAuthority.setUserRole(address(sourceTeller), BURNER_ROLE, true);
-        rolesAuthority.setUserRole(address(destinationTeller), MINTER_ROLE, true);
-        rolesAuthority.setUserRole(address(destinationTeller), BURNER_ROLE, true);
+        rolesAuthority.setUserRole(sourceTellerAddr, MINTER_ROLE, true);
+        rolesAuthority.setUserRole(sourceTellerAddr, BURNER_ROLE, true);
+        rolesAuthority.setUserRole(destinationTellerAddr, MINTER_ROLE, true);
+        rolesAuthority.setUserRole(destinationTellerAddr, BURNER_ROLE, true);
 
         sourceTeller.addAsset(WETH);
         sourceTeller.addAsset(ERC20(NATIVE));
@@ -121,6 +127,23 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         deal(address(WETH), address(boringVault), 1_000e18);
         deal(address(boringVault), address(this), 1_000e18, true);
         deal(address(LINK), address(this), 1_000e18);
+    }
+
+    function testReverts() public virtual{
+        CrossChainTellerBase sourceTeller = CrossChainTellerBase(sourceTellerAddr);
+        CrossChainTellerBase destinationTeller = CrossChainTellerBase(destinationTellerAddr);
+
+        // If teller is paused bridging is not allowed.
+        sourceTeller.pause();
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
+        );
+
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, "");
+        sourceTeller.bridge(0, data);
+
+        sourceTeller.unpause();
+
     }
 
     // ========================================= HELPER FUNCTIONS =========================================

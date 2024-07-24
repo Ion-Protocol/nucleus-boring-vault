@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {CrossChainBaseTest, CrossChainTellerBase} from "./CrossChainBase.t.sol";
+import {CrossChainBaseTest, CrossChainTellerBase, ERC20, BridgeData} from "./CrossChainBase.t.sol";
 import {CrossChainOPTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
-import "src/interfaces/ICrossChainTeller.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
@@ -41,8 +40,6 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     /// @param value  ETH value sent along with the message to the recipient.
     event SentMessageExtension1(address indexed sender, uint256 value);
 
-    uint64 constant CHAIN_MESSAGE_GAS_LIMIT = 100_000;
-
     // op sepolia
     address constant DESTINATION_MESSENGER = 0x4200000000000000000000000000000000000007;
 
@@ -51,13 +48,15 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     function setUp() public virtual override(CrossChainBaseTest){
         CrossChainBaseTest.setUp();
+        CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
     }
 
     function testBridgingShares(uint256 sharesToBridge) external {
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
-        // Setup chains on bridge.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         // Bridge shares.
         address to = vm.addr(1);
@@ -77,18 +76,17 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         // Not testing for these. Because it's pretty complicated.
         // Figuring out how to get the correct opaque data and message nonce for a fuzz test is a bit out of scope for this test at the moment 
         // emit TransactionDeposited(address(this), DESTINATION_MESSENGER, 0, expectedData);
-        // emit SentMessage(address(destinationTeller), address(sourceTeller), expectedData, 1, 80_000);
+        // emit SentMessage(destinationTellerAddr, sourceTellerAddr, expectedData, 1, 80_000);
 
-        emit SentMessageExtension1(address(sourceTeller), 0);
+        emit SentMessageExtension1(sourceTellerAddr, 0);
 
         bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
     }
 
     function testDepositAndBridge(uint256 amount) external{
-
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -116,92 +114,45 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         uint quote = 0;
 
         vm.expectEmit();
-        emit SentMessageExtension1(address(sourceTeller), 0);
+        emit SentMessageExtension1(sourceTellerAddr, 0);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
     }
 
 
-    function testReverts() external {
-        // Adding a chain with a zero message gas limit should revert.
+    function testReverts() public override {
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
+        super.testReverts();
+
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+
+        // reverts with gas too low
+        sourceTeller.setGasBounds(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
+            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
         );
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 0, 0);        
+        sourceTeller.bridge{value:0}(1e18, data);
 
-        // Allowing messages to a chain with a zero message gas limit should revert.
+        // reverts with gas too high
+        sourceTeller.setGasBounds(uint32(0), uint32(79_999));
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
+            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
         );
-        sourceTeller.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationTeller), 0);
+        sourceTeller.bridge{value:0}(1e18, data);
 
-        // Changing the gas limit to zero should revert.
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainTellerBase_ZeroMessageGasLimit.selector))
-        );
-        sourceTeller.setChainGasLimit(DESTINATION_SELECTOR, 0);
-
-        // But you can add a chain with a non-zero message gas limit, if messages to are not supported.
-        uint32 newChainSelector = 3;
-        sourceTeller.addChain(newChainSelector, true, false, address(destinationTeller), 0, 0);
-
-        // If teller is paused bridging is not allowed.
-        sourceTeller.pause();
-        vm.expectRevert(
-            bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
-        );
-
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, "");
-        sourceTeller.bridge(0, data);
-
-        sourceTeller.unpause();
-
-        // Trying to send messages to a chain that is not supported should revert.
-        vm.expectRevert(
-            bytes(
-                abi.encodeWithSelector(
-                    CrossChainTellerBase_MessagesNotAllowedTo.selector, DESTINATION_SELECTOR
-                )
-            )
-        );
-
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
-        sourceTeller.bridge(1e18, data);
-
-        // setup chains.
-        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), 100_000, 0);
-        destinationTeller.addChain(SOURCE_SELECTOR, true, true, address(sourceTeller), 100_000, 0);
-
-
-        // should revert on attempt to quote
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_NoFee.selector
-            )
-        );
-        sourceTeller.previewFee(0, data);
-
-        // if too much gas is used, revert
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, CHAIN_MESSAGE_GAS_LIMIT+1, abi.encode(DESTINATION_SELECTOR));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                    CrossChainTellerBase_GasLimitExceeded.selector
-            )
-        );
-        sourceTeller.bridge(1e18, data);
-
+        sourceTeller.setGasBounds(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
 
         // Call now succeeds.
-        data = BridgeData(DESTINATION_SELECTOR, address(this), WETH, 80_000, abi.encode(DESTINATION_SELECTOR));
-        uint quote = 0;
-
-        sourceTeller.bridge{value:quote}(1e18, data);
+        sourceTeller.bridge{value:0}(1e18, data);
 
     }
 
     function _deploySourceAndDestinationTeller() internal override{
-        sourceTeller = new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER);
-        destinationTeller = new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER);
+
+        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER));
+        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER));
     }
 
 }
