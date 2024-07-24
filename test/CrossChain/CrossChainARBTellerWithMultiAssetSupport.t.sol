@@ -124,11 +124,30 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         uint ONE_SHARE = 10 ** boringVault.decimals();
 
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+
         uint quote = sourceTeller.previewFee(shares, data);
         uint count = SOURCE_BRIDGE.delayedMessageCount();
 
+        // get the event data expected
+        bytes memory encodedShares = abi.encode(shares);
+        bytes memory expectedData = 
+        abi.encodePacked(
+            uint256(uint160(userChain2)),
+            uint256(0),
+            quote,
+            sourceTeller.calculateRetryableSubmissionFee(encodedShares.length, block.basefee),
+            uint256(uint160(user)),
+            uint256(uint160(user)),
+            uint256(CHAIN_MESSAGE_GAS_LIMIT),
+            uint256(data.messageGas),
+            encodedShares.length,
+            encodedShares
+        );
+
+
+
         vm.expectEmit();
-        emit InboxMessageDelivered(count, bytes("Hi"));
+        emit InboxMessageDelivered(count, expectedData);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
     }
@@ -140,26 +159,29 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
         super.testReverts();
 
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        uint sharesToBridge = 1e18;
 
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        uint quote = sourceTeller.previewFee(sharesToBridge, data);
+        
         // reverts with gas too low
         sourceTeller.setGasBound(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
         vm.expectRevert(
             bytes(abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.CrossChainARBTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
         );
-        sourceTeller.bridge{value:0}(1e18, data);
+        sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
         // reverts with gas too high
         sourceTeller.setGasBound(uint32(0), uint32(79_999));
         vm.expectRevert(
             bytes(abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.CrossChainARBTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
         );
-        sourceTeller.bridge{value:0}(1e18, data);
+        sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
         sourceTeller.setGasBound(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
 
         // Call now succeeds.
-        sourceTeller.bridge{value:0}(1e18, data);
+        sourceTeller.bridge{value:quote}(sharesToBridge, data);
 
     }
 
