@@ -1,55 +1,61 @@
 {
     "protocolAdmin": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
 
-
-    "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000a",
-    "boringVaultName": "Ion Vault", 
-    "boringVaultSymbol": "IVT",
-
-    "boringVault": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC",    
-
-
-    "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000000a",
-
-    "manager": "0x0000000000fAd6Db23abdC1a85621B97bd1Dc82f",
+    "boringVault":{
+        "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000a",
+        "boringVaultName": "Ion Vault", 
+        "boringVaultSymbol": "IVT",
     
+        "address": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC"    
+    },
 
-    "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000000a",
-    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-    "base": "0x5f207d42F869fd1c71d7f0f81a2A67Fc20FF7323",
-    "allowedExchangeRateChangeUpper": "10003",
-    "allowedExchangeRateChangeLower": "9998",
-    "minimumUpdateDelayInSeconds": "3600",
-    "managementFee": "2000",
+    "manager":{
+        "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000000a",
 
-    "accountant": "0x00000000004F96C07B83e86600D86F9479bB43fa",
-
-
-    "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000a",
-    "maxGasForPeer": 100000,
-    "minGasForPeer": 0,
-    "peerEid": 0,
-    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
-    "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
-    "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
-
-    "teller": "0x00000000004F96C07B83e86600D86F0000000000",
-
-
-    "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000000a",
-    "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
-
-    "rolesAuthority": "0x00000000004F96C07B83e86600D86F0000000000",
-
-
-    "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000000a",
+        "address": "0x0000000000fAd6Db23abdC1a85621B97bd1Dc82f"
+    },
     
-    "decoder": "0x00000000004F96C07B83e86600D86F0000000000",
+    "accountant":{
+        "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000000a",
+        "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+        "base": "0x5f207d42F869fd1c71d7f0f81a2A67Fc20FF7323",
+        "allowedExchangeRateChangeUpper": "10003",
+        "allowedExchangeRateChangeLower": "9998",
+        "minimumUpdateDelayInSeconds": "3600",
+        "managementFee": "2000",
 
+        "address": "0x00000000004F96C07B83e86600D86F9479bB43fa"
+    },
 
-    "maxTimeFromLastUpdate": "86400",
+    "teller": {
+        "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000a",
+        "maxGasForPeer": 100000,
+        "minGasForPeer": 0,
+        "peerEid": 0,
+        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
+        "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
 
-    "rateProvider": "0x00000000004F96C07B83e86600D86F0000000000",
+        "address": "0x00000000004F96C07B83e86600D86F0000000000"
+    },
 
-    "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000"
+    "rolesAuthority": {
+        "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000000a",
+        "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
+        "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000",
+
+        "address": "0x00000000004F96C07B83e86600D86F0000000000"
+    },
+
+    "decoder": {
+        "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000000a",
+    
+        "address": "0x00000000004F96C07B83e86600D86F0000000000" 
+    },
+
+    "rateProvider": {
+        "maxTimeFromLastUpdate": "86400",
+
+        "address": "0x00000000004F96C07B83e86600D86F0000000000"
+    }
 }

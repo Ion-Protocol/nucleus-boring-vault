@@ -40,40 +40,65 @@ library ConfigReader {
         address exchangeRateBot;
         address rolesAuthority;
         bytes32 decoderSalt;
+        address decoder;
+        address rateProvider;
         uint256 maxTimeFromLastUpdate;
 
         address base;
     }
 
-    function toConfig(string memory _config, string memory _chainConfig) internal returns(Config memory config){
-        config.protocolAdmin = _config.readAddress(".protocolAdmin");
-        config.accountantSalt = _config.readBytes32(".accountantSalt");
-        config.boringVault = _config.readAddress(".boringVault");
-        config.payoutAddress = _config.readAddress(".payoutAddress");
-        config.allowedExchangeRateChangeUpper = uint16(_config.readUint(".allowedExchangeRateChangeUpper"));
-        config.allowedExchangeRateChangeLower = uint16(_config.readUint(".allowedExchangeRateChangeLower"));
-        config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".minimumUpdateDelayInSeconds"));
-        config.managementFee = uint16(_config.readUint(".managementFee"));
-        config.boringVaultSalt = _config.readBytes32(".boringVaultSalt");
-        config.boringVaultName = _config.readString(".boringVaultName");
-        config.boringVaultSymbol = _config.readString(".boringVaultSymbol");
-        config.managerSalt = _config.readBytes32(".managerSalt");
-        config.tellerSalt = _config.readBytes32(".tellerSalt");
-        config.accountant = _config.readAddress(".accountant");
-        config.opMessenger = _config.readAddress(".opMessenger");
-        config.maxGasForPeer = _config.readUint(".maxGasForPeer");
-        config.minGasForPeer = _config.readUint(".minGasForPeer");
-        config.lzEndpoint = _config.readAddress(".lzEndpoint");
-        config.rolesAuthoritySalt = _config.readBytes32(".rolesAuthoritySalt");
-        config.manager = _config.readAddress(".manager");
-        config.teller = _config.readAddress(".teller");
-        config.tellerContractName = _config.readString(".tellerContractName");
-        config.strategist = _config.readAddress(".strategist");
-        config.exchangeRateBot = _config.readAddress(".exchangeRateBot");
-        config.rolesAuthority = _config.readAddress(".rolesAuthority");
-        config.decoderSalt = _config.readBytes32(".decoderSalt");
+function toConfig(string memory _config, string memory _chainConfig) internal returns(Config memory config){
 
-        config.base = _chainConfig.readAddress(".base");
-        config.balancerVault = _chainConfig.readAddress(".balancerVault");
-    }
+    // Reading the 'protocolAdmin'
+    config.protocolAdmin = _config.readAddress(".protocolAdmin");
+
+    // Reading from the 'accountant' section
+    config.accountant = _config.readAddress(".accountant.address");
+    config.accountantSalt = _config.readBytes32(".accountant.accountantSalt");
+    config.payoutAddress = _config.readAddress(".accountant.payoutAddress");
+    config.base = _config.readAddress(".accountant.base");
+    config.allowedExchangeRateChangeUpper = uint16(_config.readUint(".accountant.allowedExchangeRateChangeUpper"));
+    config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
+    config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
+    config.managementFee = uint16(_config.readUint(".accountant.managementFee"));
+
+    // Reading from the 'boringVault' section
+    config.boringVault = _config.readAddress(".boringVault.address");
+    config.boringVaultSalt = _config.readBytes32(".boringVault.boringVaultSalt");
+    config.boringVaultName = _config.readString(".boringVault.boringVaultName");
+    config.boringVaultSymbol = _config.readString(".boringVault.boringVaultSymbol");
+
+    // Reading from the 'manager' section
+    config.manager = _config.readAddress(".manager.address");
+    config.managerSalt = _config.readBytes32(".manager.managerSalt");
+
+    // Reading from the 'teller' section
+    config.teller = _config.readAddress(".teller.address");
+    config.tellerSalt = _config.readBytes32(".teller.tellerSalt");
+    config.maxGasForPeer = _config.readUint(".teller.maxGasForPeer");
+    config.minGasForPeer = _config.readUint(".teller.minGasForPeer");
+    config.tellerContractName = _config.readString(".teller.tellerContractName");
+    config.opMessenger = _config.readAddress(".teller.opMessenger");
+    config.lzEndpoint = _config.readAddress(".teller.lzEndpoint");
+
+    // Reading from the 'rolesAuthority' section
+    config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
+    config.rolesAuthoritySalt = _config.readBytes32(".rolesAuthority.rolesAuthoritySalt");
+    config.strategist = _config.readAddress(".rolesAuthority.strategist");
+    config.exchangeRateBot = _config.readAddress(".rolesAuthority.exchangeRateBot");
+
+    // Reading from the 'decoder' section
+    config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
+    config.decoder = _config.readAddress(".decoder.address");
+
+    // Reading from the 'rateProvider' section
+    config.rateProvider = _config.readAddress(".rateProvider.address");
+    config.maxTimeFromLastUpdate = uint32(_config.readUint(".rateProvider.maxTimeFromLastUpdate"));
+    // Reading from the 'chainConfig' section
+    config.base = _chainConfig.readAddress(".base");
+    config.balancerVault = _chainConfig.readAddress(".balancerVault");
+
+    return config;
+}
+
 }
