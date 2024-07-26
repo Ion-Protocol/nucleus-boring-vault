@@ -45,7 +45,9 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
     mapping(uint32 => Chain) public selectorToChains;
 
     constructor(address _owner, address _vault, address _accountant) 
-        CrossChainTellerBase(_owner, _vault, _accountant){}
+        CrossChainTellerBase(_owner, _vault, _accountant){
+            
+        }
 
     /**
      * @dev Callable by OWNER_ROLE.
