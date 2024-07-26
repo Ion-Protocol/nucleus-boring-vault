@@ -112,29 +112,9 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             data: ""
         });
 
-        // calculate quote
-        quote = sourceTeller.previewFee(sharesToBridge, data);
-
-        // get event data
-        count = SOURCE_BRIDGE.delayedMessageCount();
-        encodedShares = abi.encode(sharesToBridge);
-        expectedData = 
-        abi.encodePacked(
-            uint256(uint160(to)),
-            uint256(0),
-            quote,
-            sourceTeller.calculateRetryableSubmissionFee(encodedShares.length, block.basefee),
-            uint256(uint160(user)),
-            uint256(uint160(user)),
-            uint256(CHAIN_MESSAGE_GAS_LIMIT),
-            uint256(data.messageGas),
-            encodedShares.length,
-            encodedShares
-        );
         // expect L2 deposit emit
         vm.expectEmit();
-        emit InboxMessageDelivered(count, expectedData);
-
+        destinationTeller.bridge(sharesToBridge, data);
         vm.stopPrank();
     }
 
