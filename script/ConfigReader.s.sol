@@ -58,7 +58,6 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
     config.accountant = _config.readAddress(".accountant.address");
     config.accountantSalt = _config.readBytes32(".accountant.accountantSalt");
     config.payoutAddress = _config.readAddress(".accountant.payoutAddress");
-    config.base = _config.readAddress(".accountant.base");
     config.allowedExchangeRateChangeUpper = uint16(_config.readUint(".accountant.allowedExchangeRateChangeUpper"));
     config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
     config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
@@ -80,8 +79,6 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
     config.maxGasForPeer = _config.readUint(".teller.maxGasForPeer");
     config.minGasForPeer = _config.readUint(".teller.minGasForPeer");
     config.tellerContractName = _config.readString(".teller.tellerContractName");
-    config.opMessenger = _config.readAddress(".teller.opMessenger");
-    config.lzEndpoint = _config.readAddress(".teller.lzEndpoint");
 
     // Reading from the 'rolesAuthority' section
     config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
@@ -96,9 +93,14 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
     // Reading from the 'rateProvider' section
     config.rateProvider = _config.readAddress(".rateProvider.address");
     config.maxTimeFromLastUpdate = uint32(_config.readUint(".rateProvider.maxTimeFromLastUpdate"));
+
     // Reading from the 'chainConfig' section
     config.base = _chainConfig.readAddress(".base");
     config.balancerVault = _chainConfig.readAddress(".balancerVault");
+    config.opMessenger = _chainConfig.readAddress(".opMessenger");
+    config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
+    config.arbInbox = _chainConfig.readAddress(".arbInbox");
+    config.arbBridge = _chainConfig.readAddress(".arbBridge");
 
     return config;
 }
