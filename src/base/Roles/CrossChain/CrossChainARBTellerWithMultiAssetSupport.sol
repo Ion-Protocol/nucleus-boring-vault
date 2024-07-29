@@ -127,9 +127,9 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
     /**
      * @notice the virtual bridge function to execute Optimism messenger sendMessage()
      * @param data bridge data
-     * @return messageId
+     * @return msgNum
      */
-    function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
+    function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32 msgNum){
         uint maxSubmissionCost = calculateRetryableSubmissionFee(abi.encode(shareAmount).length, block.basefee);
 
         /*
@@ -143,18 +143,18 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
             uint256 maxFeePerGas,
             bytes calldata data
         */
-        uint256 msgNum = inbox.createRetryableTicket{value: msg.value}(
-            data.destinationChainReceiver, 
+        msgNum = bytes32(
+        inbox.createRetryableTicket{value: msg.value}(
+            peer, 
             0, 
             maxSubmissionCost, 
             msg.sender, 
             msg.sender, 
             maxMessageGas, 
             data.messageGas, 
-            abi.encode(shareAmount)
+            abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, shareAmount)
+            )
         );
-
-        return bytes32(msgNum);
 
     }
     

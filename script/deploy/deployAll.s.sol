@@ -86,7 +86,7 @@ contract DeployAll is BaseScript{
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
         }else if (compareStrings(config.tellerContractName, "CrossChainARBTellerWithMultiAssetSupportL1")){
             teller = new DeployCrossChainARBTellerWithMultiAssetSupportL1().deploy(config);
-        }else if(compareStrings(config.tellerContractName, "DeployCrossChainARBTellerWithMultiAssetSupportL2")){
+        }else if(compareStrings(config.tellerContractName, "CrossChainARBTellerWithMultiAssetSupportL2")){
             teller = new DeployCrossChainARBTellerWithMultiAssetSupportL2().deploy(config);
         }else{
             revert INVALID_TELLER_CONTRACT_NAME();

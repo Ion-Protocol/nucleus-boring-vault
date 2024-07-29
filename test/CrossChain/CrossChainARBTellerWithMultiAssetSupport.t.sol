@@ -207,7 +207,7 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     function _deploySourceAndDestinationTeller() internal override{
         sourceTellerAddr = address(new CrossChainARBTellerWithMultiAssetSupportL1(address(this), address(boringVault), address(accountant), address(SOURCE_INBOX)));
-        destinationTellerAddr = address(new CrossChainARBTellerWithMultiAssetSupportL2(address(this), address(boringVault), address(accountant), address(DESTINATION_BRIDGE)));
+        destinationTellerAddr = address(new CrossChainARBTellerWithMultiAssetSupportL2(address(this), address(boringVault), address(accountant)));
     }
 
 }

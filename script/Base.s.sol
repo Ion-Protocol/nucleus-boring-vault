@@ -24,7 +24,7 @@ abstract contract BaseScript is Script {
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
     /// @dev Needed for the deterministic deployments.
-    bytes32 internal constant ZERO_SALT = bytes32(0);
+    bytes32 internal constant ZERO_SALT = bytes32(0xdc02df99a2a3f9baf15789c687fc660deb1e0d4962e405c223db5943bf03c31d);
 
     /// @dev The address of the transaction broadcaster.
     address internal broadcaster;

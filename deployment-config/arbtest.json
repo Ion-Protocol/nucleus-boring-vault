@@ -2,7 +2,7 @@
     "protocolAdmin": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
 
     "boringVault":{
-        "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000a",
+        "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000005b",
         "boringVaultName": "Ion Vault", 
         "boringVaultSymbol": "IVT",
     
@@ -10,13 +10,13 @@
     },
 
     "manager":{
-        "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000000a",
+        "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000002b",
 
         "address": "0x0000000000000000000000000000000000000000"
     },
     
     "accountant":{
-        "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000000a",
+        "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000002b",
         "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
         "allowedExchangeRateChangeUpper": "10003",
         "allowedExchangeRateChangeLower": "9998",
@@ -27,16 +27,16 @@
     },
 
     "teller": {
-        "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000a",
+        "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000002b",
         "maxGasForPeer": 100000,
         "minGasForPeer": 0,
         "peerEid": 0,
-        "tellerContractName": "CrossChainARBTellerWithMultiAssetSupportL1",
+        "tellerContractName": "CrossChainARBTellerWithMultiAssetSupportL2",
         
         "address": "0x0000000000000000000000000000000000000000"
     },
     "rolesAuthority": {
-        "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000000a",
+        "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000002b",
         "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
         "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000",
 
@@ -44,7 +44,7 @@
     },
 
     "decoder": {
-        "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000000a",
+        "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000002b",
     
         "address": "0x0000000000000000000000000000000000000000" 
     },
