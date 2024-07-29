@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {MultiChainTellerBase} from "./MultiChainTellerBase.sol";
+import {MultiChainTellerBase, MultiChainTellerBase_MessagesNotAllowedFrom} from "./MultiChainTellerBase.sol";
 import {BridgeData, ERC20} from "./CrossChainTellerBase.sol";
 import {OAppAuth, MessagingFee, Origin, MessagingReceipt} from "./OAppAuth/OAppAuth.sol";
 import {Auth} from "@solmate/auth/Auth.sol";
@@ -17,8 +17,8 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
 
     error MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
 
-    constructor(address _owner, address _vault, address _accountant, address _weth, address _endpoint)
-        MultiChainTellerBase(_owner, _vault, _accountant, _weth)
+    constructor(address _owner, address _vault, address _accountant, address _endpoint)
+        MultiChainTellerBase(_owner, _vault, _accountant)
         OAppAuth(_endpoint, _owner) 
     {
 
@@ -32,9 +32,8 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
         bytes memory _message = abi.encode(shareAmount,data.destinationChainReceiver);
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
-        address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != NATIVE){
+        if(address(data.bridgeFeeToken) != NATIVE){
             revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
@@ -57,6 +56,12 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         address,  // Executor address as specified by the OApp.
         bytes calldata  // Any extra data or options to trigger on receipt.
     ) internal override {
+        _beforeReceive();
+
+        if(!selectorToChains[_origin.srcEid].allowMessagesFrom){
+            revert MultiChainTellerBase_MessagesNotAllowedFrom(_origin.srcEid);
+        }
+        
         // Decode the payload to get the message
         (uint256 shareAmount, address receiver) = abi.decode(payload, (uint256,address));
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
@@ -68,9 +73,8 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
      * @param data BridgeData
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
-        address bridgeToken = address(data.bridgeFeeToken);
 
-        if(bridgeToken != NATIVE){
+        if(address(data.bridgeFeeToken) != NATIVE){
             revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 

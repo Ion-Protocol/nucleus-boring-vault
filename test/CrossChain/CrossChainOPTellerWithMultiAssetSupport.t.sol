@@ -48,11 +48,11 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     function setUp() public virtual override(CrossChainBaseTest){
         CrossChainBaseTest.setUp();
-        CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr).setGasBound(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
-        CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr).setGasBound(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
     }
 
-    function testBridgingShares(uint256 sharesToBridge) external {
+    function testBridgingShares(uint256 sharesToBridge) public virtual{
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
         CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
@@ -120,7 +120,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     }
 
 
-    function testReverts() public override {
+    function testReverts() public virtual override {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
         CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
@@ -129,30 +129,35 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
 
         // reverts with gas too low
-        sourceTeller.setGasBound(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        sourceTeller.setGasBounds(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
         vm.expectRevert(
             bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
         );
         sourceTeller.bridge{value:0}(1e18, data);
 
         // reverts with gas too high
-        sourceTeller.setGasBound(uint32(0), uint32(79_999));
+        sourceTeller.setGasBounds(uint32(0), uint32(79_999));
         vm.expectRevert(
             bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
         );
         sourceTeller.bridge{value:0}(1e18, data);
 
-        sourceTeller.setGasBound(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        // reverts with a fee provided
+        sourceTeller.setGasBounds(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
+        vm.expectRevert(
+            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_NoFee.selector))
+        );
+        sourceTeller.bridge{value:1}(1e18, data);
+
 
         // Call now succeeds.
         sourceTeller.bridge{value:0}(1e18, data);
 
     }
 
-    function _deploySourceAndDestinationTeller() internal override{
-
-        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), SOURCE_MESSENGER));
-        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH), DESTINATION_MESSENGER));
+    function _deploySourceAndDestinationTeller() internal virtual override{
+        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), SOURCE_MESSENGER));
+        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), DESTINATION_MESSENGER));
     }
 
 }

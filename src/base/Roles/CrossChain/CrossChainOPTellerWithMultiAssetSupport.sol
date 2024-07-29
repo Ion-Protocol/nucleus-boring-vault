@@ -32,8 +32,8 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     error CrossChainOPTellerWithMultiAssetSupport_NoFee();
     error CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(uint32);
 
-    constructor(address _owner, address _vault, address _accountant, address _weth, address _messenger)
-        CrossChainTellerBase(_owner, _vault, _accountant, _weth)
+    constructor(address _owner, address _vault, address _accountant, address _messenger)
+        CrossChainTellerBase(_owner, _vault, _accountant)
     {
         messenger = ICrossDomainMessenger(_messenger);
         peer = address(this);
@@ -52,7 +52,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param newMinMessageGas the new minMessageGas bound
      * @param newMaxMessageGas the new maxMessageGas bound
      */
-    function setGasBound(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
+    function setGasBounds(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
         minMessageGas = newMinMessageGas;
         maxMessageGas = newMaxMessageGas;
     }
@@ -63,6 +63,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param shareMintAmount amount of shares to mint
      */
     function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
+        _beforeReceive();
 
         if(msg.sender != address(messenger)){
             revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
@@ -96,7 +97,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     }
 
     /**
-     * @notice before bridge hook to check gas bound
+     * @notice before bridge hook to check gas bound and revert if someone's paying a fee
      * @param data bridge data
      */
     function _beforeBridge(BridgeData calldata data) internal override{
@@ -104,16 +105,19 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
         if(messageGas > maxMessageGas || messageGas < minMessageGas){
             revert CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(messageGas);
         }
+        if(msg.value > 0){
+            revert CrossChainOPTellerWithMultiAssetSupport_NoFee();
+        }
     }
 
 
     /**
-     * @notice the virtual function to override to get bridge fees
+     * @notice the virtual function to override to get bridge fees, allways zero for OP
      * @param shareAmount to send
      * @param data bridge data
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
-        revert CrossChainOPTellerWithMultiAssetSupport_NoFee();
+        return 0;
     }
 
 }

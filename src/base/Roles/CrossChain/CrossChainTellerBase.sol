@@ -21,8 +21,8 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport{
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
     event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
-    constructor(address _owner, address _vault, address _accountant, address _weth)
-        TellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth)
+    constructor(address _owner, address _vault, address _accountant)
+        TellerWithMultiAssetSupport(_owner, _vault, _accountant)
     {
     }
     
@@ -104,6 +104,13 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport{
      */
     function _afterBridge(uint256 shareAmount, BridgeData calldata data, bytes32 messageId) internal virtual{
         emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
+    }
+
+    /**
+     * @notice a before receive hook to call some logic before a receive is processed
+     */
+    function _beforeReceive() internal virtual{
+        if (isPaused) revert TellerWithMultiAssetSupport__Paused();
     }
 
 }

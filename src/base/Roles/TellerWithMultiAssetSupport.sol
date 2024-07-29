@@ -113,18 +113,12 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     uint256 internal immutable ONE_SHARE;
 
-    /**
-     * @notice The native wrapper contract.
-     */
-    WETH public immutable nativeWrapper;
-
-    constructor(address _owner, address _vault, address _accountant, address _weth)
+    constructor(address _owner, address _vault, address _accountant)
         Auth(_owner, Authority(address(0)))
     {
         vault = BoringVault(payable(_vault));
         ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
-        nativeWrapper = WETH(payable(_weth));
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -223,8 +217,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         // Delete hash to prevent refund gas.
         delete publicDepositHistory[nonce];
 
-        // If deposit used native asset, send user back wrapped native asset.
-        depositAsset = depositAsset == NATIVE ? address(nativeWrapper) : depositAsset;
         // Burn shares and refund assets to receiver.
         vault.exit(receiver, ERC20(depositAsset), depositAmount, receiver, shareAmount);
 

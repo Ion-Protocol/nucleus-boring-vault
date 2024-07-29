@@ -50,7 +50,7 @@ contract DeployTestBoringVaultScript is Script {
         accountant = new AccountantWithRateProviders(
             owner, address(boring_vault), owner, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
         );
-        teller = new TellerWithMultiAssetSupport(owner, address(boring_vault), address(accountant), WETH);
+        teller = new TellerWithMultiAssetSupport(owner, address(boring_vault), address(accountant));
 
         rawDataDecoderAndSanitizer = address(
             new EtherFiLiquidDecoderAndSanitizer(address(boring_vault), 0xC36442b4a4522E871399CD717aBDD847Ab11FE88)

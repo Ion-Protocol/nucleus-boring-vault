@@ -33,8 +33,8 @@ abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBa
     error CrossChainARBTellerWithMultiAssetSupport_NoFee();
     error CrossChainARBTellerWithMultiAssetSupport_GasOutOfBounds(uint32);
 
-    constructor(address _owner, address _vault, address _accountant, address _weth)
-        CrossChainTellerBase(_owner, _vault, _accountant, _weth)
+    constructor(address _owner, address _vault, address _accountant)
+        CrossChainTellerBase(_owner, _vault, _accountant)
     {
         peer = address(this);
     }
@@ -52,7 +52,7 @@ abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBa
      * @param newMinMessageGas the new minMessageGas bound
      * @param newMaxMessageGas the new maxMessageGas bound
      */
-    function setGasBound(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
+    function setGasBounds(uint32 newMinMessageGas, uint32 newMaxMessageGas) external requiresAuth {
         minMessageGas = newMinMessageGas;
         maxMessageGas = newMaxMessageGas;
     }
@@ -83,8 +83,8 @@ abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBa
  */
 contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMultiAssetSupport{
     IInbox public inbox;
-    constructor(address _owner, address _vault, address _accountant, address _weth, address _inbox)
-    CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth){
+    constructor(address _owner, address _vault, address _accountant, address _inbox)
+    CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant){
         inbox = IInbox(_inbox);
     }
 
@@ -130,8 +130,10 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
      * @return messageId
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
-        
+        uint maxSubmissionCost = calculateRetryableSubmissionFee(abi.encode(shareAmount).length, block.basefee);
+
         /*
+        createRetryableTicket() parameters:
             address to,
             uint256 l2CallValue,
             uint256 maxSubmissionCost,
@@ -141,7 +143,6 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
             uint256 maxFeePerGas,
             bytes calldata data
         */
-        uint maxSubmissionCost = calculateRetryableSubmissionFee(abi.encode(shareAmount).length, block.basefee);
         uint256 msgNum = inbox.createRetryableTicket{value: msg.value}(
             data.destinationChainReceiver, 
             0, 
@@ -166,8 +167,8 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
 contract CrossChainARBTellerWithMultiAssetSupportL2 is CrossChainARBTellerWithMultiAssetSupport{
     IBridge arbBridge;
 
-    constructor(address _owner, address _vault, address _accountant, address _weth, address _arbBridge)
-    CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant, _weth){
+    constructor(address _owner, address _vault, address _accountant, address _arbBridge)
+    CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant){
         arbBridge = IBridge(_arbBridge);
     }
 
