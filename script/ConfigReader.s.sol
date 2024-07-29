@@ -42,6 +42,7 @@ library ConfigReader {
         bytes32 decoderSalt;
         address decoder;
         address rateProvider;
+        bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
 
         address base;
@@ -90,6 +91,7 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
 
     // Reading from the 'rateProvider' section
     config.rateProvider = _config.readAddress(".rateProvider.address");
+    config.rateProviderSalt = _config.readBytes32(".rateProvider.rateProviderSalt");
     config.maxTimeFromLastUpdate = uint32(_config.readUint(".rateProvider.maxTimeFromLastUpdate"));
 
     // Reading from the 'chainConfig' section

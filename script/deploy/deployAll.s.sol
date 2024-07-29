@@ -6,16 +6,17 @@ import {console} from "forge-std/console.sol";
 import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-import {DeployIonBoringVaultScript} from "./single/01_DeployBoringVault.s.sol";
-import {DeployManagerWithMerkleVerification} from "./single/02_DeployManagerWithMerkleVerification.s.sol";
-import {DeployAccountantWithRateProviders} from "./single/03_DeployAccountantWithRateProviders.s.sol";
-import {DeployTellerWithMultiAssetSupport} from "./single/04_DeployTellerWithMultiAssetSupport.s.sol";
-import {DeployCrossChainOPTellerWithMultiAssetSupport} from "./single/04a_DeployCrossChainOPTellerWithMultiAssetSupport.s.sol";
-import {DeployMultiChainLayerZeroTellerWithMultiAssetSupport} from "./single/04b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
-import {DeployRolesAuthority} from "./single/05_DeployRolesAuthority.s.sol";
-import {SetAuthorityAndTransferOwnerships} from "./single/06_SetAuthorityAndTransferOwnerships.s.sol";
-import {DeployDecoderAndSanitizer} from "./single/07_DeployDecoderAndSanitizer.s.sol";
-import {DeployRateProviders} from "./single/08_DeployRateProviders.s.sol";
+import {DeployRateProviders} from "./single/01_DeployRateProviders.s.sol";
+import {DeployIonBoringVaultScript} from "./single/02_DeployBoringVault.s.sol";
+import {DeployManagerWithMerkleVerification} from "./single/03_DeployManagerWithMerkleVerification.s.sol";
+import {DeployAccountantWithRateProviders} from "./single/04_DeployAccountantWithRateProviders.s.sol";
+import {DeployTellerWithMultiAssetSupport} from "./single/05_DeployTellerWithMultiAssetSupport.s.sol";
+import {DeployCrossChainOPTellerWithMultiAssetSupport} from "./single/05a_DeployCrossChainOPTellerWithMultiAssetSupport.s.sol";
+import {DeployMultiChainLayerZeroTellerWithMultiAssetSupport} from "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
+import {DeployRolesAuthority} from "./single/06_DeployRolesAuthority.s.sol";
+import {TellerSetup} from "./single/07_TellerSetup.s.sol";
+import {SetAuthorityAndTransferOwnerships} from "./single/08_SetAuthorityAndTransferOwnerships.s.sol";
+import {DeployDecoderAndSanitizer} from "./single/09_DeployDecoderAndSanitizer.s.sol";
 
 import {ConfigReader, IAuthority} from "../ConfigReader.s.sol";
 import {console} from "forge-std/console.sol";
@@ -53,6 +54,9 @@ contract DeployAll is BaseScript{
     }
 
     function deploy(ConfigReader.Config memory config) public override returns(address){
+        address rateProvider = new DeployRateProviders().deploy(config);
+        config.rateProvider = rateProvider;
+        
         address boringVault = new DeployIonBoringVaultScript().deploy(config);
         config.boringVault = boringVault;
 
@@ -66,6 +70,8 @@ contract DeployAll is BaseScript{
         // we use an if statement to determine the teller type and which one to deploy
         config.teller = _deployTeller(config);
 
+        new TellerSetup().deploy(config);
+        
         address rolesAuthority = new DeployRolesAuthority().deploy(config);
         config.rolesAuthority = rolesAuthority;
 
@@ -73,7 +79,6 @@ contract DeployAll is BaseScript{
 
         new DeployDecoderAndSanitizer().deploy(config);
         
-        new DeployRateProviders().deploy(config);
 
     }
 
