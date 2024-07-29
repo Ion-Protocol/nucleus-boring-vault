@@ -100,7 +100,6 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
     config.opMessenger = _chainConfig.readAddress(".opMessenger");
     config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
     config.arbInbox = _chainConfig.readAddress(".arbInbox");
-    config.arbBridge = _chainConfig.readAddress(".arbBridge");
 
     return config;
 }

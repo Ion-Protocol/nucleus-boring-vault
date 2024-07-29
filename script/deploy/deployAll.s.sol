@@ -16,6 +16,8 @@ import {DeployRolesAuthority} from "./single/05_DeployRolesAuthority.s.sol";
 import {SetAuthorityAndTransferOwnerships} from "./single/06_SetAuthorityAndTransferOwnerships.s.sol";
 import {DeployDecoderAndSanitizer} from "./single/07_DeployDecoderAndSanitizer.s.sol";
 import {DeployRateProviders} from "./single/08_DeployRateProviders.s.sol";
+import {DeployCrossChainARBTellerWithMultiAssetSupportL1} from "./single/04c_L1_DeployCrossChainARBTellerWithMultiAssetSupport.s.sol";
+import {DeployCrossChainARBTellerWithMultiAssetSupportL2} from "./single/04c_L2_DeployCrossChainARBTellerWithMultiAssetSupport.s.sol";
 
 import {ConfigReader, IAuthority} from "../ConfigReader.s.sol";
 import {console} from "forge-std/console.sol";
@@ -82,9 +84,13 @@ contract DeployAll is BaseScript{
             teller = new DeployCrossChainOPTellerWithMultiAssetSupport().deploy(config);
         }else if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")){
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
+        }else if (compareStrings(config.tellerContractName, "CrossChainARBTellerWithMultiAssetSupportL1")){
+            teller = new DeployCrossChainARBTellerWithMultiAssetSupportL1().deploy(config);
+        }else if(compareStrings(config.tellerContractName, "DeployCrossChainARBTellerWithMultiAssetSupportL2")){
+            teller = new DeployCrossChainARBTellerWithMultiAssetSupportL2().deploy(config);
         }else{
             revert INVALID_TELLER_CONTRACT_NAME();
-        }    
+        }
     }
 
     function compareStrings(string memory a, string memory b) private returns(bool){

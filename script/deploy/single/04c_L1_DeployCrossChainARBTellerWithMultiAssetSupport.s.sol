@@ -7,9 +7,10 @@ import {console} from "forge-std/Test.sol";
 import {ConfigReader} from "../../ConfigReader.s.sol";
 import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
 
-contract DeployCrossChainARBTellerWithMultiAssetSupport is BaseScript {
+contract DeployCrossChainARBTellerWithMultiAssetSupportL1 is BaseScript {
 
-    function run() external{
+    function run() external returns(address){
+        return deploy(getConfig());
     }
 
     function deploy(ConfigReader.Config memory config) public broadcast override returns(address){

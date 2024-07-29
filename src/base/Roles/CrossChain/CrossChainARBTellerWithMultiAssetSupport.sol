@@ -165,11 +165,9 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
  * @notice This is the version of the Arbitrum teller to be deployed on L2 
  */
 contract CrossChainARBTellerWithMultiAssetSupportL2 is CrossChainARBTellerWithMultiAssetSupport{
-    IBridge arbBridge;
 
-    constructor(address _owner, address _vault, address _accountant, address _arbBridge)
+    constructor(address _owner, address _vault, address _accountant)
     CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant){
-        arbBridge = IBridge(_arbBridge);
     }
 
     function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external override{

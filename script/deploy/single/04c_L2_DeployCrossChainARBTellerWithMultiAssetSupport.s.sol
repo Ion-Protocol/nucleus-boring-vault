@@ -7,9 +7,10 @@ import {console} from "forge-std/Test.sol";
 import {ConfigReader} from "../../ConfigReader.s.sol";
 import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
 
-contract DeployCrossChainARBTellerWithMultiAssetSupport is BaseScript {
+contract DeployCrossChainARBTellerWithMultiAssetSupportL2 is BaseScript {
 
-    function run() external{
+    function run() external returns(address){
+        return deploy(getConfig());
     }
 
     function deploy(ConfigReader.Config memory config) public broadcast override returns(address){
@@ -25,7 +26,7 @@ contract DeployCrossChainARBTellerWithMultiAssetSupport is BaseScript {
         CrossChainARBTellerWithMultiAssetSupportL2 teller = CrossChainARBTellerWithMultiAssetSupportL2(
             CREATEX.deployCreate3(
                 config.tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.arbBridge))
+                abi.encodePacked(creationCode, abi.encode(broadcaster, config.boringVault, config.accountant))
             )
         );
 
