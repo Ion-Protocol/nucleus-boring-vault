@@ -56,7 +56,6 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
     config.accountant = _config.readAddress(".accountant.address");
     config.accountantSalt = _config.readBytes32(".accountant.accountantSalt");
     config.payoutAddress = _config.readAddress(".accountant.payoutAddress");
-    config.base = _config.readAddress(".accountant.base");
     config.allowedExchangeRateChangeUpper = uint16(_config.readUint(".accountant.allowedExchangeRateChangeUpper"));
     config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
     config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
