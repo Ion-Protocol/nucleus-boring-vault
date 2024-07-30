@@ -10,8 +10,12 @@ import {BaseScript} from "../../Base.s.sol";
 import {ConfigReader} from "../../ConfigReader.s.sol";
 import {CrossChainTellerBase} from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {stdJson as StdJson} from "@forge-std/StdJson.sol";
 
 contract TellerSetup is BaseScript {
+    using Strings for address;
+    using StdJson for string;
 
     function run() public virtual {
         deploy(getConfig());
@@ -25,10 +29,13 @@ contract TellerSetup is BaseScript {
 
         // add the remaining assets specified in the assets array of config
         for(uint i; i < config.assets.length; ++i){
+            // add asset
             teller.addAsset(ERC20(config.assets[i]));
-        }
 
-        // set up the rate provider
-        AccountantWithRateProviders(teller.accountant()).setRateProviderData(ERC20(config.base), true, config.rateProvider);
+            // set the cooresponding rate provider
+            string memory key = string(abi.encodePacked(".assetToRateProviderAndPriceFeed.",config.assets[i].toHexString(),".rateProvider"));
+            address rateProvider = getChainConfigFile().readAddress(key);
+            AccountantWithRateProviders(teller.accountant()).setRateProviderData(ERC20(config.base), true, rateProvider);
+        }
     }
 }

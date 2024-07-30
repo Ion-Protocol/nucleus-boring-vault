@@ -79,7 +79,6 @@ contract DeployAll is BaseScript{
 
         new DeployDecoderAndSanitizer().deploy(config);
         
-
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns(address teller){
@@ -89,7 +88,7 @@ contract DeployAll is BaseScript{
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
         }else{
             revert INVALID_TELLER_CONTRACT_NAME();
-        }    
+        }
     }
 
     function compareStrings(string memory a, string memory b) private returns(bool){
