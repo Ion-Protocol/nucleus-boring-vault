@@ -44,11 +44,14 @@ library ConfigReader {
         address rateProvider;
         bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
+        address[] assets;
+        address[] rateProviders;
+        address[] priceFeeds;
 
         address base;
     }
 
-function toConfig(string memory _config, string memory _chainConfig) internal returns(Config memory config){
+function toConfig(string memory _config, string memory _chainConfig) internal pure returns(Config memory config){
 
     // Reading the 'protocolAdmin'
     config.protocolAdmin = _config.readAddress(".protocolAdmin");
@@ -78,6 +81,7 @@ function toConfig(string memory _config, string memory _chainConfig) internal re
     config.maxGasForPeer = _config.readUint(".teller.maxGasForPeer");
     config.minGasForPeer = _config.readUint(".teller.minGasForPeer");
     config.tellerContractName = _config.readString(".teller.tellerContractName");
+    config.assets = _config.readAddressArray(".teller.assets");
 
     // Reading from the 'rolesAuthority' section
     config.rolesAuthority = _config.readAddress(".rolesAuthority.address");

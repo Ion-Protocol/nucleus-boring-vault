@@ -2,5 +2,17 @@
     "base": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
     "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
     "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
-    "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c"
+    "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
+    "assetToRateProviderAndPriceFeed":{
+
+        "NOTE_THESE_KEYS_MUST_NOT_BE_CHECKSUMMED":0,
+        "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee": {
+            "rateProvider": "0x0000000000000000000000000000000000000000",
+            "priceFeed": "0x5c9C449BbC9a6075A2c061dF312a35fd1E05fF22"
+        },
+        "0xbf5495efe5db9ce00f80364c8b423567e58d2110": {
+            "rateProvider": "0x0000000000000000000000000000000000000000",
+            "priceFeed": "0x636A000262F6aA9e1F094ABF0aD8f645C44f641C"
+        }
+    }
 }

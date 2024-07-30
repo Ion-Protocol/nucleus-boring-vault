@@ -20,7 +20,15 @@ contract TellerSetup is BaseScript {
     function deploy(ConfigReader.Config memory config) public virtual override broadcast returns(address){
         TellerWithMultiAssetSupport teller = TellerWithMultiAssetSupport(config.teller);
 
+        // add the base asset by default for all configurations
         teller.addAsset(ERC20(config.base));
+
+        // add the remaining assets specified in the assets array of config
+        for(uint i; i < config.assets.length; ++i){
+            teller.addAsset(ERC20(config.assets[i]));
+        }
+
+        // set up the rate provider
         AccountantWithRateProviders(teller.accountant()).setRateProviderData(ERC20(config.base), true, config.rateProvider);
     }
 }
