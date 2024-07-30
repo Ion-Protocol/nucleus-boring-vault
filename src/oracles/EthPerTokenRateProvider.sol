@@ -7,7 +7,8 @@ import {IPriceFeed} from "./../interfaces/IPriceFeed.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
- * @notice Reports the price of a token in terms of ETH.
+ * @notice Reports the price of a token in terms of ETH. The underlying price
+ * feed must be compatible with the Chainlink interface.
  *
  * @custom:security-contact security@molecularlabs.io
  */
@@ -21,7 +22,6 @@ contract EthPerTokenRateProvider is IRateProvider {
      * @notice The underlying price feed that this rate provider reads from.
      */
     IPriceFeed public immutable PRICE_FEED;
-
 
     /**
      * @notice Number of seconds since last update to determine whether the
@@ -60,6 +60,8 @@ contract EthPerTokenRateProvider is IRateProvider {
      * @return ethPerToken price of token in ETH.
      */
     function getRate() public view returns (uint256 ethPerToken) {
+        _validityCheck();
+        
         (, int256 _ethPerToken,, uint256 lastUpdatedAt,) = PRICE_FEED.latestRoundData();
 
         if (block.timestamp - lastUpdatedAt > MAX_TIME_FROM_LAST_UPDATE) {
@@ -68,4 +70,9 @@ contract EthPerTokenRateProvider is IRateProvider {
 
         ethPerToken = _ethPerToken.toUint256() * 10**DECIMALS_OFFSET;
     }
+
+    /**
+     * @dev To revert upon custom checks such as sequencer liveness.
+     */
+    function _validityCheck() internal view virtual {}
 }
