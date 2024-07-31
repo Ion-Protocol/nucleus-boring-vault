@@ -17,6 +17,23 @@ contract EthPerTokenRateProvider is IRateProvider {
 
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
     error InvalidPriceFeedDecimals(uint8 rateDecimals, uint8 priceFeedDecimals);
+    error InvalidDescription();
+    error InvalidPriceFeedType();
+
+    enum PriceFeedType {
+        CHAINLINK,
+        REDSTONE
+    }
+
+    /**
+     * @notice The type of price feed providers.
+     */
+    PriceFeedType public immutable PRICE_FEED_TYPE;
+
+    /**
+     * @notice The asset pair the rate provider queries.
+     */
+    string public DESCRIPTION; 
 
     /**
      * @notice The underlying price feed that this rate provider reads from.
@@ -37,22 +54,37 @@ contract EthPerTokenRateProvider is IRateProvider {
     /**
      * @notice The offset between the intended return decimals and the price
      * feed decimals.
+     * @dev Based on the `PriceFeedType`, the price feed's asset pair label is
+     * retrieved differently.
      */
     uint8 public immutable DECIMALS_OFFSET;
 
-    constructor(IPriceFeed _priceFeed, uint256 _maxTimeFromLastUpdate, uint8 _rateDecimals) {
-        PRICE_FEED = _priceFeed;
-        MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
-        
-        RATE_DECIMALS = _rateDecimals;
+    /**
+     * @param _description The asset pair. ex) stETH/ETH
+     */
+    constructor(string memory _description, IPriceFeed _priceFeed, uint256 _maxTimeFromLastUpdate, uint8 _rateDecimals, PriceFeedType _priceFeedType) {
 
-        if (_rateDecimals < _priceFeed.decimals()) {
-            revert InvalidPriceFeedDecimals(_rateDecimals, _priceFeed.decimals());
+        if (_priceFeedType == PriceFeedType.CHAINLINK) {
+            if (!_isEqual(_description, _priceFeed.description())) revert InvalidDescription();
+        } else if (_priceFeedType == PriceFeedType.REDSTONE) {
+            if (!_isEqual(_description, _priceFeed.getDataFeedId())) revert InvalidDescription();
+        } else revert InvalidPriceFeedType();
+
+        uint8 _priceFeedDecimals = _priceFeed.decimals();
+
+        if (_rateDecimals < _priceFeedDecimals) {
+            revert InvalidPriceFeedDecimals(_rateDecimals, _priceFeedDecimals);
         }
         
         unchecked {
-            DECIMALS_OFFSET = _rateDecimals - _priceFeed.decimals();
+            DECIMALS_OFFSET = _rateDecimals - _priceFeedDecimals;
         }
+       
+        DESCRIPTION = _description;
+        PRICE_FEED = _priceFeed;
+        MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
+        RATE_DECIMALS = _rateDecimals;
+        PRICE_FEED_TYPE = _priceFeedType;
     }
 
     /**
@@ -75,4 +107,12 @@ contract EthPerTokenRateProvider is IRateProvider {
      * @dev To revert upon custom checks such as sequencer liveness.
      */
     function _validityCheck() internal view virtual {}
+
+    function _isEqual(string memory a, string memory b) internal pure returns (bool) {
+        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
+    }
+
+    function _isEqual(string memory a, bytes32 b) internal pure returns (bool) {
+        return bytes32(bytes(a)) == b;
+    }
 }
