@@ -70,12 +70,14 @@ contract EthPerTokenRateProvider is IRateProvider {
             if (!_isEqual(_description, _priceFeed.getDataFeedId())) revert InvalidDescription();
         } else revert InvalidPriceFeedType();
 
-        if (_rateDecimals < _priceFeed.decimals()) {
-            revert InvalidPriceFeedDecimals(_rateDecimals, _priceFeed.decimals());
+        uint8 _priceFeedDecimals = _priceFeed.decimals();
+
+        if (_rateDecimals < _priceFeedDecimals) {
+            revert InvalidPriceFeedDecimals(_rateDecimals, _priceFeedDecimals);
         }
         
         unchecked {
-            DECIMALS_OFFSET = _rateDecimals - _priceFeed.decimals();
+            DECIMALS_OFFSET = _rateDecimals - _priceFeedDecimals;
         }
        
         DESCRIPTION = _description;
