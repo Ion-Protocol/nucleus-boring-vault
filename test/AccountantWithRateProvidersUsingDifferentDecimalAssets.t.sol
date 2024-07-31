@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 
-import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -19,7 +19,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
-    address public payoutAddress = vm.addr(7777777);
+    address public payoutAddress = vm.addr(7_777_777);
     RolesAuthority public rolesAuthority;
 
     address public usdcWhale = 0x28C6c06298d514Db089934071355E5743bf21d60;
@@ -32,7 +32,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
-        uint256 blockNumber = 19618964;
+        uint256 blockNumber = 19_618_964;
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 6);

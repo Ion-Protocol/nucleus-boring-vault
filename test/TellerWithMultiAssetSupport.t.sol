@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {ILiquidityPool} from "src/interfaces/IStaking.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {AtomicSolverV3, AtomicQueue} from "src/atomic-queue/AtomicSolverV3.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { ILiquidityPool } from "src/interfaces/IStaking.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { AtomicSolverV3, AtomicQueue } from "src/atomic-queue/AtomicSolverV3.sol";
 
-import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -31,7 +31,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
     TellerWithMultiAssetSupport public teller;
     AccountantWithRateProviders public accountant;
-    address public payout_address = vm.addr(7777777);
+    address public payout_address = vm.addr(7_777_777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
@@ -43,7 +43,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
-        uint256 blockNumber = 19363419;
+        uint256 blockNumber = 19_363_419;
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
@@ -52,8 +52,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
             address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
         );
 
-        teller =
-            new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));
+        teller = new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
@@ -120,7 +119,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), address(this), wETH_amount);
         uint256 eETH_amount = amount;
         deal(address(this), eETH_amount + 1);
-        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{value: eETH_amount + 1}();
+        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{ value: eETH_amount + 1 }();
 
         WETH.safeApprove(address(boringVault), wETH_amount);
         EETH.safeApprove(address(boringVault), eETH_amount);
@@ -157,7 +156,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), address(this), wETH_amount);
         uint256 eETH_amount = amount;
         deal(address(this), eETH_amount + 1);
-        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{value: eETH_amount + 1}();
+        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{ value: eETH_amount + 1 }();
 
         WETH.safeApprove(address(boringVault), wETH_amount);
         EETH.safeApprove(address(boringVault), eETH_amount);
@@ -295,7 +294,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), address(this), wETH_amount);
         uint256 eETH_amount = amount;
         deal(address(this), eETH_amount + 1);
-        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{value: eETH_amount + 1}();
+        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{ value: eETH_amount + 1 }();
         uint256 weETH_amount = amount.mulDivDown(1e18, IRateProvider(WEETH_RATE_PROVIDER).getRate());
         deal(address(WEETH), address(this), weETH_amount);
 
@@ -321,7 +320,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), address(this), wETH_amount);
         uint256 eETH_amount = amount;
         deal(address(this), eETH_amount + 1);
-        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{value: eETH_amount + 1}();
+        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{ value: eETH_amount + 1 }();
         uint256 weETH_amount = amount.mulDivDown(1e18, IRateProvider(WEETH_RATE_PROVIDER).getRate());
         deal(address(WEETH), address(this), weETH_amount);
 

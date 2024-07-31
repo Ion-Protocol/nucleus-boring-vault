@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {ManagerWithMerkleVerification} from "./../../../src/base/Roles/ManagerWithMerkleVerification.sol";
-import {BaseScript} from "./../../Base.s.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
+import { ManagerWithMerkleVerification } from "./../../../src/base/Roles/ManagerWithMerkleVerification.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployManagerWithMerkleVerification is BaseScript {
     using StdJson for string;
@@ -13,8 +13,7 @@ contract DeployManagerWithMerkleVerification is BaseScript {
         manager = deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns(address){
-
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require config Values
         require(config.managerSalt != bytes32(0), "manager salt must not be zero");
         require(config.boringVault != address(0), "boring vault address must not be zero");
@@ -41,7 +40,10 @@ contract DeployManagerWithMerkleVerification is BaseScript {
         // Post Deploy Checks
         require(manager.isPaused() == false, "the manager must not be paused");
         require(address(manager.vault()) == config.boringVault, "the manager vault must be the boring vault");
-        require(address(manager.balancerVault()) == config.balancerVault, "the manager balancer vault must be the balancer vault");
+        require(
+            address(manager.balancerVault()) == config.balancerVault,
+            "the manager balancer vault must be the balancer vault"
+        );
 
         return address(manager);
     }

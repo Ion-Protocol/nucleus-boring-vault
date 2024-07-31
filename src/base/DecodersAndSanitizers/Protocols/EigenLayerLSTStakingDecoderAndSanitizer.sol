@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
@@ -10,7 +10,11 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
 
     //============================== EIGEN LAYER ===============================
 
-    function depositIntoStrategy(address strategy, address token, uint256 /*amount*/ )
+    function depositIntoStrategy(
+        address strategy,
+        address token,
+        uint256 /*amount*/
+    )
         external
         pure
         virtual
@@ -38,7 +42,12 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
         address[][] calldata tokens,
         uint256[] calldata, /*middlewareTimesIndexes*/
         bool[] calldata receiveAsTokens
-    ) external pure virtual returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
         for (uint256 i = 0; i < withdrawals.length; i++) {
             if (!receiveAsTokens[i]) revert EigenLayerLSTStakingDecoderAndSanitizer__CanOnlyReceiveAsTokens();
 

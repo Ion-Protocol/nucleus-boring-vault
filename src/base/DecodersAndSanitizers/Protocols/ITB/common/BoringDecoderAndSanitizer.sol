@@ -13,7 +13,7 @@ contract BoringDecoderAndSanitizer {
         boringVault = _boringVault;
     }
 
-    function approve(address spender, uint) external pure returns (bytes memory addressesFound) {
+    function approve(address spender, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(spender);
     }
 }

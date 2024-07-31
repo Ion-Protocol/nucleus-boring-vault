@@ -7,16 +7,17 @@ pragma solidity ^0.8.20;
 import { MessagingFee, MessagingReceipt } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OAppSender.sol";
 // @dev Import the 'Origin' so it's exposed to OApp implementers
 // solhint-disable-next-line no-unused-import
-import {Origin} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OAppReceiver.sol";
+import { Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OAppReceiver.sol";
 
-import {OAppAuthCore} from "./OAppAuthCore.sol";
-import {OAppAuthReceiver} from "./OAppAuthReceiver.sol";
-import {OAppAuthSender} from "./OAppAuthSender.sol";
+import { OAppAuthCore } from "./OAppAuthCore.sol";
+import { OAppAuthReceiver } from "./OAppAuthReceiver.sol";
+import { OAppAuthSender } from "./OAppAuthSender.sol";
 
 /**
  * @title OAppAuth
- * @dev Abstract contract serving as the base for OApp implementation, combining OAppSender and OAppReceiver functionality.
- * 
+ * @dev Abstract contract serving as the base for OApp implementation, combining OAppSender and OAppReceiver
+ * functionality.
+ *
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
  */
 abstract contract OAppAuth is OAppAuthSender, OAppAuthReceiver {
@@ -25,7 +26,7 @@ abstract contract OAppAuth is OAppAuthSender, OAppAuthReceiver {
      * @param _endpoint The address of the LOCAL LayerZero endpoint.
      * @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
      */
-    constructor(address _endpoint, address _delegate) OAppAuthCore(_endpoint, _delegate) {}
+    constructor(address _endpoint, address _delegate) OAppAuthCore(_endpoint, _delegate) { }
 
     /**
      * @notice Retrieves the OApp version information.

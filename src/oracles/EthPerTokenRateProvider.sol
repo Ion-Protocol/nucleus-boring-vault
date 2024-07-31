@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IRateProvider} from "./../interfaces/IRateProvider.sol";
-import {IPriceFeed} from "./../interfaces/IPriceFeed.sol";
+import { IRateProvider } from "./../interfaces/IRateProvider.sol";
+import { IPriceFeed } from "./../interfaces/IPriceFeed.sol";
 
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @notice Reports the price of a token in terms of ETH. The underlying price
@@ -33,7 +33,7 @@ contract EthPerTokenRateProvider is IRateProvider {
     /**
      * @notice The asset pair the rate provider queries.
      */
-    string public DESCRIPTION; 
+    string public DESCRIPTION;
 
     /**
      * @notice The underlying price feed that this rate provider reads from.
@@ -47,8 +47,8 @@ contract EthPerTokenRateProvider is IRateProvider {
     uint256 public immutable MAX_TIME_FROM_LAST_UPDATE;
 
     /**
-     * @notice The preicision of the rate returned by this contract. 
-     */     
+     * @notice The preicision of the rate returned by this contract.
+     */
     uint8 public immutable RATE_DECIMALS;
 
     /**
@@ -62,24 +62,31 @@ contract EthPerTokenRateProvider is IRateProvider {
     /**
      * @param _description The asset pair. ex) stETH/ETH
      */
-    constructor(string memory _description, IPriceFeed _priceFeed, uint256 _maxTimeFromLastUpdate, uint8 _rateDecimals, PriceFeedType _priceFeedType) {
-
+    constructor(
+        string memory _description,
+        IPriceFeed _priceFeed,
+        uint256 _maxTimeFromLastUpdate,
+        uint8 _rateDecimals,
+        PriceFeedType _priceFeedType
+    ) {
         if (_priceFeedType == PriceFeedType.CHAINLINK) {
             if (!_isEqual(_description, _priceFeed.description())) revert InvalidDescription();
         } else if (_priceFeedType == PriceFeedType.REDSTONE) {
             if (!_isEqual(_description, _priceFeed.getDataFeedId())) revert InvalidDescription();
-        } else revert InvalidPriceFeedType();
+        } else {
+            revert InvalidPriceFeedType();
+        }
 
         uint8 _priceFeedDecimals = _priceFeed.decimals();
 
         if (_rateDecimals < _priceFeedDecimals) {
             revert InvalidPriceFeedDecimals(_rateDecimals, _priceFeedDecimals);
         }
-        
+
         unchecked {
             DECIMALS_OFFSET = _rateDecimals - _priceFeedDecimals;
         }
-       
+
         DESCRIPTION = _description;
         PRICE_FEED = _priceFeed;
         MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
@@ -93,20 +100,20 @@ contract EthPerTokenRateProvider is IRateProvider {
      */
     function getRate() public view returns (uint256 ethPerToken) {
         _validityCheck();
-        
+
         (, int256 _ethPerToken,, uint256 lastUpdatedAt,) = PRICE_FEED.latestRoundData();
 
         if (block.timestamp - lastUpdatedAt > MAX_TIME_FROM_LAST_UPDATE) {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAt);
         }
 
-        ethPerToken = _ethPerToken.toUint256() * 10**DECIMALS_OFFSET;
+        ethPerToken = _ethPerToken.toUint256() * 10 ** DECIMALS_OFFSET;
     }
 
     /**
      * @dev To revert upon custom checks such as sequencer liveness.
      */
-    function _validityCheck() internal view virtual {}
+    function _validityCheck() internal view virtual { }
 
     function _isEqual(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));

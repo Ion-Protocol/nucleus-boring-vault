@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {BaseScript} from "./../../Base.s.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader, IAuthority} from "../../ConfigReader.s.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader, IAuthority } from "../../ConfigReader.s.sol";
 
 /**
  * Update `rolesAuthority` and transfer ownership from deployer EOA to the
@@ -16,7 +16,7 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns(address){
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require config Values
         require(address(config.boringVault).code.length != 0, "boringVault must have code");
         require(address(config.manager).code.length != 0, "manager must have code");

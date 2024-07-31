@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
-import {CREATE3} from "@solmate/utils/CREATE3.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { CREATE3 } from "@solmate/utils/CREATE3.sol";
 
 contract Deployer is Auth {
     mapping(address => bool) public isDeployer;
@@ -18,7 +18,7 @@ contract Deployer is Auth {
      */
     event ContractDeployed(string name, address contractAddress, bytes32 creationCodeHash);
 
-    constructor(address _owner, Authority _auth) Auth(_owner, _auth) {}
+    constructor(address _owner, Authority _auth) Auth(_owner, _auth) { }
 
     /**
      * @notice Deploy some contract to a deterministic address.
@@ -37,7 +37,11 @@ contract Deployer is Auth {
         bytes memory creationCode,
         bytes calldata constructorArgs,
         uint256 value
-    ) external requiresAuth returns (address) {
+    )
+        external
+        requiresAuth
+        returns (address)
+    {
         bytes32 creationCodeHash = keccak256(creationCode);
 
         if (constructorArgs.length > 0) {

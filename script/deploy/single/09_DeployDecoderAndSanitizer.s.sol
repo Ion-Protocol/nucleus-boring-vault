@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {IonPoolDecoderAndSanitizer} from "./../../../src/base/DecodersAndSanitizers/IonPoolDecoderAndSanitizer.sol";
-import {BaseScript} from "./../../Base.s.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
+import { IonPoolDecoderAndSanitizer } from "./../../../src/base/DecodersAndSanitizers/IonPoolDecoderAndSanitizer.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployDecoderAndSanitizer is BaseScript {
     using StdJson for string;
@@ -13,7 +13,7 @@ contract DeployDecoderAndSanitizer is BaseScript {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns(address){
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require config Values
         require(config.boringVault.code.length != 0, "boringVault must have code");
         require(config.decoderSalt != bytes32(0), "decoder salt must not be zero");

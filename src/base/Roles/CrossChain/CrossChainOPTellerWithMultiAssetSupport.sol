@@ -1,26 +1,19 @@
-
-
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {CrossChainTellerBase, BridgeData, ERC20} from "./CrossChainTellerBase.sol";
+import { CrossChainTellerBase, BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
 import { Auth } from "@solmate/auth/Auth.sol";
 
 interface ICrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
-    function sendMessage(
-        address _target,
-        bytes calldata _message,
-        uint32 _gasLimit
-    ) external;
+    function sendMessage(address _target, bytes calldata _message, uint32 _gasLimit) external;
 }
 
 /**
  * @title CrossChainLayerZeroTellerWithMultiAssetSupport
- * @notice LayerZero implementation of CrossChainTeller 
+ * @notice LayerZero implementation of CrossChainTeller
  */
 contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
-
     ICrossDomainMessenger public immutable messenger;
     address public peer;
 
@@ -32,7 +25,12 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     error CrossChainOPTellerWithMultiAssetSupport_NoFee();
     error CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(uint32);
 
-    constructor(address _owner, address _vault, address _accountant, address _messenger)
+    constructor(
+        address _owner,
+        address _vault,
+        address _accountant,
+        address _messenger
+    )
         CrossChainTellerBase(_owner, _vault, _accountant)
     {
         messenger = ICrossDomainMessenger(_messenger);
@@ -43,7 +41,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * Callable by OWNER_ROLE.
      * @param _peer new peer to set
      */
-    function setPeer(address _peer) external requiresAuth{
+    function setPeer(address _peer) external requiresAuth {
         peer = _peer;
     }
 
@@ -62,14 +60,14 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param receiver to receive the shares
      * @param shareMintAmount amount of shares to mint
      */
-    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external{
+    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external {
         _beforeReceive();
 
-        if(msg.sender != address(messenger)){
+        if (msg.sender != address(messenger)) {
             revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
         }
 
-        if(messenger.xDomainMessageSender() != peer){
+        if (messenger.xDomainMessageSender() != peer) {
             revert CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
         }
 
@@ -81,16 +79,10 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param data bridge data
      * @return messageId
      */
-    function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32){
+    function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns (bytes32) {
         messenger.sendMessage(
             peer,
-            abi.encodeCall(
-                this.receiveBridgeMessage,
-                (
-                    data.destinationChainReceiver,
-                    shareAmount
-                )
-            ),
+            abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount)),
             uint32(data.messageGas)
         );
         return bytes32(0);
@@ -100,24 +92,22 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @notice before bridge hook to check gas bound and revert if someone's paying a fee
      * @param data bridge data
      */
-    function _beforeBridge(BridgeData calldata data) internal override{
+    function _beforeBridge(BridgeData calldata data) internal override {
         uint32 messageGas = uint32(data.messageGas);
-        if(messageGas > maxMessageGas || messageGas < minMessageGas){
+        if (messageGas > maxMessageGas || messageGas < minMessageGas) {
             revert CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds(messageGas);
         }
-        if(msg.value > 0){
+        if (msg.value > 0) {
             revert CrossChainOPTellerWithMultiAssetSupport_NoFee();
         }
     }
-
 
     /**
      * @notice the virtual function to override to get bridge fees, allways zero for OP
      * @param shareAmount to send
      * @param data bridge data
      */
-    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
         return 0;
     }
-
 }

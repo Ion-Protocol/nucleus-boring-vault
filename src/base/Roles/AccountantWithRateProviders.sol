@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 /**
  * @title AccountantWithRateProviders
@@ -121,7 +121,9 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint16 allowedExchangeRateChangeLower,
         uint32 minimumUpdateDelayInSeconds,
         uint16 managementFee
-    ) Auth(_owner, Authority(address(0))) {
+    )
+        Auth(_owner, Authority(address(0)))
+    {
         base = ERC20(_base);
         decimals = ERC20(_base).decimals();
         vault = BoringVault(payable(_vault));
@@ -226,11 +228,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      */
     function setRateProviderData(ERC20 asset, bool isPeggedToBase, address rateProvider) external requiresAuth {
         rateProviderData[asset] =
-            RateProviderData({isPeggedToBase: isPeggedToBase, rateProvider: IRateProvider(rateProvider)});
+            RateProviderData({ isPeggedToBase: isPeggedToBase, rateProvider: IRateProvider(rateProvider) });
         emit RateProviderUpdated(address(asset), isPeggedToBase, rateProvider);
     }
 
-    // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS =========================================
+    // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS
+    // =========================================
 
     /**
      * @notice Updates this contract exchangeRate.
@@ -249,7 +252,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 || newExchangeRate > currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeUpper, 1e4)
                 || newExchangeRate < currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeLower, 1e4)
         ) {
-            // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the exchange rate
+            // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
+            // exchange rate
             // to a better value, and pause it.
             state.isPaused = true;
         } else {

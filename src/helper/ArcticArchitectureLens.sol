@@ -1,9 +1,9 @@
 pragma solidity 0.8.21;
 
-import {BoringVault, ERC20} from "src/base/BoringVault.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+import { BoringVault, ERC20 } from "src/base/BoringVault.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 contract ArcticArchitectureLens {
     using FixedPointMathLib for uint256;
@@ -15,7 +15,10 @@ contract ArcticArchitectureLens {
      * @return asset The ERC20 asset, `assets` is given in terms of.
      * @return assets The total assets held in the vault.
      */
-    function totalAssets(BoringVault boringVault, AccountantWithRateProviders accountant)
+    function totalAssets(
+        BoringVault boringVault,
+        AccountantWithRateProviders accountant
+    )
         external
         view
         returns (ERC20 asset, uint256 assets)
@@ -41,7 +44,11 @@ contract ArcticArchitectureLens {
         uint256 depositAmount,
         BoringVault boringVault,
         AccountantWithRateProviders accountant
-    ) external view returns (uint256 shares) {
+    )
+        external
+        view
+        returns (uint256 shares)
+    {
         uint8 shareDecimals = boringVault.decimals();
 
         shares = depositAmount.mulDivDown(10 ** shareDecimals, accountant.getRateInQuote(depositAsset));
@@ -64,7 +71,11 @@ contract ArcticArchitectureLens {
      * @param accountant The AccountantWithRateProviders contract.
      * @return assets The balance of assets for the account.
      */
-    function balanceOfInAssets(address account, BoringVault boringVault, AccountantWithRateProviders accountant)
+    function balanceOfInAssets(
+        address account,
+        BoringVault boringVault,
+        AccountantWithRateProviders accountant
+    )
         external
         view
         returns (uint256 assets)
@@ -100,7 +111,11 @@ contract ArcticArchitectureLens {
         uint256 depositAmount,
         BoringVault boringVault,
         TellerWithMultiAssetSupport teller
-    ) external view returns (bool) {
+    )
+        external
+        view
+        returns (bool)
+    {
         if (depositAsset.balanceOf(account) < depositAmount) return false;
         if (depositAsset.allowance(account, address(boringVault)) < depositAmount) return false;
         if (teller.isPaused()) return false;
@@ -121,7 +136,11 @@ contract ArcticArchitectureLens {
         ERC20 depositAsset,
         uint256 depositAmount,
         TellerWithMultiAssetSupport teller
-    ) external view returns (bool) {
+    )
+        external
+        view
+        returns (bool)
+    {
         if (depositAsset.balanceOf(account) < depositAmount) return false;
         if (teller.isPaused()) return false;
         if (!teller.isSupported(depositAsset)) return false;

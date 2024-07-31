@@ -1,29 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {ManagerWithMerkleVerification} from "src/base/Roles/ManagerWithMerkleVerification.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {BalancerVault} from "src/interfaces/BalancerVault.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
-import {AtomicSolver} from "src/atomic-queue/AtomicSolver.sol";
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {IWEETH} from "src/interfaces/IStaking.sol";
-import {ILiquidityPool} from "src/interfaces/IStaking.sol";
-import {WETH} from "@solmate/tokens/WETH.sol";
-import {EtherFiLiquidDecoderAndSanitizer} from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
-import {DecoderCustomTypes} from "src/interfaces/DecoderCustomTypes.sol";
-import {EtherFiLiquid1} from "src/interfaces/EtherFiLiquid1.sol";
-import {CellarMigrationAdaptor} from "src/migration/CellarMigrationAdaptor.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {GenericRateProvider} from "src/helper/GenericRateProvider.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { AtomicQueue } from "src/atomic-queue/AtomicQueue.sol";
+import { AtomicSolver } from "src/atomic-queue/AtomicSolver.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { IWEETH } from "src/interfaces/IStaking.sol";
+import { ILiquidityPool } from "src/interfaces/IStaking.sol";
+import { WETH } from "@solmate/tokens/WETH.sol";
+import { EtherFiLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
+import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
+import { EtherFiLiquid1 } from "src/interfaces/EtherFiLiquid1.sol";
+import { CellarMigrationAdaptor } from "src/migration/CellarMigrationAdaptor.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
 
-import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -54,8 +54,8 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
     uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 9;
     uint8 public constant SOLVER_ROLE = 10;
 
-    address public multisig = vm.addr(123456789);
-    address public strategist = vm.addr(987654321);
+    address public multisig = vm.addr(123_456_789);
+    address public strategist = vm.addr(987_654_321);
     address public payout_address = vm.addr(777);
     address public weth_user = vm.addr(11);
     address public eeth_user = vm.addr(111);
@@ -69,7 +69,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
         // uint256 blockNumber = 19466630; // from before first rebalance
-        uint256 blockNumber = 19862477;
+        uint256 blockNumber = 19_862_477;
         _startFork(rpcKey, blockNumber);
 
         etherFiLiquid1 = EtherFiLiquid1(0xeA1A6307D9b18F8d1cbf1c3Dd6aad8416C06a221);
@@ -230,13 +230,13 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
         teller.addAsset(ERC20(pendleEethYt));
         vm.stopPrank();
 
-        uint256 wETH_amount = 1_500e18;
+        uint256 wETH_amount = 1500e18;
         deal(address(WETH), weth_user, wETH_amount);
         uint256 eETH_amount = 500e18;
         deal(eeth_user, eETH_amount + 1);
         vm.prank(eeth_user);
-        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{value: eETH_amount + 1}();
-        uint256 weETH_amount = uint256(1_000e18).mulDivDown(1e18, IRateProvider(WEETH_RATE_PROVIDER).getRate());
+        ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{ value: eETH_amount + 1 }();
+        uint256 weETH_amount = uint256(1000e18).mulDivDown(1e18, IRateProvider(WEETH_RATE_PROVIDER).getRate());
         deal(address(WEETH), weeth_user, weETH_amount);
 
         vm.startPrank(weth_user);
@@ -257,7 +257,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
 
     function testMigration() external {
         // Setup Cellar to use migration adaptor.
-        uint32 migrationPosition = 77777777;
+        uint32 migrationPosition = 77_777_777;
         address cellarOwner = etherFiLiquid1.owner();
         Registry registry = Registry(etherFiLiquid1.registry());
         address registryOwner = registry.owner();
@@ -285,7 +285,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
             abi.encodeWithSignature("deposit(address,uint256,uint256)", ERC20(pendleEethPt), type(uint256).max, 0);
         adaptorCalls[4] =
             abi.encodeWithSignature("deposit(address,uint256,uint256)", ERC20(pendleEethYt), type(uint256).max, 0);
-        data[0] = EtherFiLiquid1.AdaptorCall({adaptor: address(migrationAdaptor), callData: adaptorCalls});
+        data[0] = EtherFiLiquid1.AdaptorCall({ adaptor: address(migrationAdaptor), callData: adaptorCalls });
         vm.startPrank(cellarOwner);
         etherFiLiquid1.callOnAdaptor(data);
         vm.stopPrank();
@@ -329,7 +329,10 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
         }
     }
 
-    function _getProofsUsingTree(ManageLeaf[] memory manageLeafs, bytes32[][] memory tree)
+    function _getProofsUsingTree(
+        ManageLeaf[] memory manageLeafs,
+        bytes32[][] memory tree
+    )
         internal
         pure
         returns (bytes32[][] memory proofs)

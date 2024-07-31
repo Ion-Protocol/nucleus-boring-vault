@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {GenericRateProvider} from "src/helper/GenericRateProvider.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
 
-import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -20,7 +20,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
-    address public payout_address = vm.addr(7777777);
+    address public payout_address = vm.addr(7_777_777);
     RolesAuthority public rolesAuthority;
     GenericRateProvider public mETHRateProvider;
     GenericRateProvider public ptRateProvider;
@@ -33,7 +33,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
-        uint256 blockNumber = 19827152;
+        uint256 blockNumber = 19_827_152;
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
@@ -89,9 +89,9 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(address(this), ADMIN_ROLE, true);
         rolesAuthority.setUserRole(address(this), UPDATE_EXCHANGE_RATE_ROLE, true);
         rolesAuthority.setUserRole(address(boringVault), BORING_VAULT_ROLE, true);
-        deal(address(WETH), address(this), 1_000e18);
-        WETH.safeApprove(address(boringVault), 1_000e18);
-        boringVault.enter(address(this), WETH, 1_000e18, address(address(this)), 1_000e18);
+        deal(address(WETH), address(this), 1000e18);
+        WETH.safeApprove(address(boringVault), 1000e18);
+        boringVault.enter(address(this), WETH, 1000e18, address(address(this)), 1000e18);
 
         accountant.setRateProviderData(EETH, true, address(0));
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
@@ -143,7 +143,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         (address payout,,,,,,,,,) = accountant.accountantState();
         assertEq(payout, payout_address, "Payout address should be the same");
 
-        address new_payout_address = vm.addr(8888888);
+        address new_payout_address = vm.addr(8_888_888);
         accountant.updatePayoutAddress(new_payout_address);
 
         (payout,,,,,,,,,) = accountant.accountantState();
@@ -176,7 +176,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             ,
         ) = accountant.accountantState();
         assertEq(fees_owed, 0, "Fees owed should be 0");
-        assertEq(total_shares, 1_000e18, "Total shares should be 1_000e18");
+        assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == false, "Accountant should not be paused");
@@ -187,12 +187,12 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         accountant.updateExchangeRate(new_exchange_rate);
 
         uint256 expected_fees_owed =
-            uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1_000.5e18, 365 days), 1e4);
+            uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
         (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
-        assertEq(total_shares, 1_000e18, "Total shares should be 1_000e18");
+        assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == false, "Accountant should not be paused");
@@ -202,12 +202,12 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         new_exchange_rate = uint96(1.0005e18);
         accountant.updateExchangeRate(new_exchange_rate);
 
-        expected_fees_owed += uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1_000.5e18, 365 days), 1e4);
+        expected_fees_owed += uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
         (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
-        assertEq(total_shares, 1_000e18, "Total shares should be 1_000e18");
+        assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == false, "Accountant should not be paused");
@@ -219,7 +219,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
-        assertEq(total_shares, 1_000e18, "Total shares should be 1_000e18");
+        assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
@@ -234,7 +234,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
-        assertEq(total_shares, 1_000e18, "Total shares should be 1_000e18");
+        assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
@@ -257,7 +257,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         accountant.updateExchangeRate(new_exchange_rate);
 
         uint256 expected_fees_owed =
-            uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1_000.5e18, 365 days), 1e4);
+            uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
         (, fees_owed,,,,,,,,) = accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");

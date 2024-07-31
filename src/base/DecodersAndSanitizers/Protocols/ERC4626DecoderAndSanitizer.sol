@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERC4626 ===============================
@@ -14,7 +14,11 @@ abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(receiver);
     }
 
-    function withdraw(uint256, address receiver, address owner)
+    function withdraw(
+        uint256,
+        address receiver,
+        address owner
+    )
         external
         pure
         virtual
@@ -23,7 +27,11 @@ abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(receiver, owner);
     }
 
-    function redeem(uint256, address receiver, address owner)
+    function redeem(
+        uint256,
+        address receiver,
+        address owner
+    )
         external
         pure
         virtual

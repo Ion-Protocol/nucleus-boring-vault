@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {ERC20} from "@solmate/tokens/ERC20.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 interface AggregationRouterV5 {
     struct SwapDescription {
@@ -14,7 +14,12 @@ interface AggregationRouterV5 {
         uint256 flags;
     }
 
-    function swap(address executor, SwapDescription calldata desc, bytes calldata permit, bytes calldata data)
+    function swap(
+        address executor,
+        SwapDescription calldata desc,
+        bytes calldata permit,
+        bytes calldata data
+    )
         external
         payable
         returns (uint256 returnAmount, uint256 spentAmount);

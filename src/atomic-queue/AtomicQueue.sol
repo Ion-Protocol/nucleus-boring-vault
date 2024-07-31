@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
-import {IAtomicSolver} from "./IAtomicSolver.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
+import { IAtomicSolver } from "./IAtomicSolver.sol";
 
 /**
  * @title AtomicQueue
@@ -126,7 +126,11 @@ contract AtomicQueue is ReentrancyGuard {
      * @param user the address of the user making the request
      * @param userRequest the request struct to validate
      */
-    function isAtomicRequestValid(ERC20 offer, address user, AtomicRequest calldata userRequest)
+    function isAtomicRequestValid(
+        ERC20 offer,
+        address user,
+        AtomicRequest calldata userRequest
+    )
         external
         view
         returns (bool)
@@ -188,7 +192,13 @@ contract AtomicQueue is ReentrancyGuard {
      * @param runData extra data that is passed back to solver when `finishSolve` is called
      * @param solver the address to make `finishSolve` callback to
      */
-    function solve(ERC20 offer, ERC20 want, address[] calldata users, bytes calldata runData, address solver)
+    function solve(
+        ERC20 offer,
+        ERC20 want,
+        address[] calldata users,
+        bytes calldata runData,
+        address solver
+    )
         external
         nonReentrant
     {
@@ -220,7 +230,8 @@ contract AtomicQueue is ReentrancyGuard {
             AtomicRequest storage request = userAtomicRequest[users[i]][offer][want];
 
             if (request.inSolve) {
-                // We know that the minimum price and deadline arguments are satisfied since this can only be true if they were.
+                // We know that the minimum price and deadline arguments are satisfied since this can only be true if
+                // they were.
 
                 // Send user their share of assets.
                 uint256 assetsToUser = _calculateAssetAmount(request.offerAmount, request.atomicPrice, offerDecimals);
@@ -251,7 +262,11 @@ contract AtomicQueue is ReentrancyGuard {
      * @param want the ERC20 want token to check for solvability
      * @param users an array of user addresses to check for solvability
      */
-    function viewSolveMetaData(ERC20 offer, ERC20 want, address[] calldata users)
+    function viewSolveMetaData(
+        ERC20 offer,
+        ERC20 want,
+        address[] calldata users
+    )
         external
         view
         returns (SolveMetaData[] memory metaData, uint256 totalAssetsForWant, uint256 totalAssetsToOffer)
@@ -300,7 +315,11 @@ contract AtomicQueue is ReentrancyGuard {
      * @notice Helper function to calculate the amount of want assets a users wants in exchange for
      *         `offerAmount` of offer asset.
      */
-    function _calculateAssetAmount(uint256 offerAmount, uint256 atomicPrice, uint8 offerDecimals)
+    function _calculateAssetAmount(
+        uint256 offerAmount,
+        uint256 atomicPrice,
+        uint8 offerDecimals
+    )
         internal
         pure
         returns (uint256)

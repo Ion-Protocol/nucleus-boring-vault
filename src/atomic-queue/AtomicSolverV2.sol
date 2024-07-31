@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AtomicQueue, ERC20, SafeTransferLib} from "./AtomicQueue.sol";
-import {IAtomicSolver} from "./IAtomicSolver.sol";
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
-import {ERC4626} from "@solmate/tokens/ERC4626.sol";
-import {IWEETH} from "src/interfaces/IStaking.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+import { AtomicQueue, ERC20, SafeTransferLib } from "./AtomicQueue.sol";
+import { IAtomicSolver } from "./IAtomicSolver.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { ERC4626 } from "@solmate/tokens/ERC4626.sol";
+import { IWEETH } from "src/interfaces/IStaking.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 /**
  * @title AtomicSolverV2
@@ -45,7 +45,7 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
 
     //============================== IMMUTABLES ===============================
 
-    constructor(address _owner, Authority _authority) Auth(_owner, _authority) {}
+    constructor(address _owner, Authority _authority) Auth(_owner, _authority) { }
 
     //============================== SOLVE FUNCTIONS ===============================
     /**
@@ -59,7 +59,10 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         address[] calldata users,
         uint256 minOfferReceived,
         uint256 maxAssets
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         bytes memory runData = abi.encode(SolveType.P2P, msg.sender, minOfferReceived, maxAssets);
 
         // Solve for `users`.
@@ -77,7 +80,10 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         address[] calldata users,
         uint256 minAssetDelta,
         uint256 maxAssets
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minAssetDelta, maxAssets);
 
         // Solve for `users`.
@@ -95,7 +101,10 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         address[] calldata users,
         uint256 minAssetDelta,
         uint256 maxAssets
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         bytes memory runData = abi.encode(SolveType.REDEEM_LIQUID, msg.sender, minAssetDelta, maxAssets);
 
         // Solve for `users`.
@@ -119,7 +128,10 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         if (initiator != address(this)) revert AtomicSolverV2___WrongInitiator();
 
         address queue = msg.sender;
@@ -147,7 +159,9 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) internal {
+    )
+        internal
+    {
         (, address solver, uint256 minOfferReceived, uint256 maxAssets) =
             abi.decode(runData, (SolveType, address, uint256, uint256));
 
@@ -181,7 +195,9 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) internal {
+    )
+        internal
+    {
         (, address solver, uint256 minAssetDelta, uint256 maxAssets) =
             abi.decode(runData, (SolveType, address, uint256, uint256));
 
@@ -218,7 +234,9 @@ contract AtomicSolverV2 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) internal {
+    )
+        internal
+    {
         (, address solver, uint256 minAssetDelta, uint256 maxAssets) =
             abi.decode(runData, (SolveType, address, uint256, uint256));
 

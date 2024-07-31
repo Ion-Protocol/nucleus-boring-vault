@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {ManagerWithMerkleVerification} from "src/base/Roles/ManagerWithMerkleVerification.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {BalancerVault} from "src/interfaces/BalancerVault.sol";
-import {EtherFiLiquidDecoderAndSanitizer} from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
+import { EtherFiLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 
 import "@forge-std/Script.sol";
 import "@forge-std/StdJson.sol";
 
 /**
- *  source .env && forge script script/DeployTestBoringVault.s.sol:DeployTestBoringVaultScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
+ *  source .env && forge script script/DeployTestBoringVault.s.sol:DeployTestBoringVaultScript --with-gas-price
+ * 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
 contract DeployTestBoringVaultScript is Script {

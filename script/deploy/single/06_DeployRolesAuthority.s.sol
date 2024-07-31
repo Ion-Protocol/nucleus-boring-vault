@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {RolesAuthority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {ManagerWithMerkleVerification} from "./../../../src/base/Roles/ManagerWithMerkleVerification.sol";
-import {BoringVault} from "./../../../src/base/BoringVault.sol";
-import {TellerWithMultiAssetSupport} from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import {BaseScript} from "../../Base.s.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
-import {CrossChainTellerBase} from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
+import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { ManagerWithMerkleVerification } from "./../../../src/base/Roles/ManagerWithMerkleVerification.sol";
+import { BoringVault } from "./../../../src/base/BoringVault.sol";
+import { TellerWithMultiAssetSupport } from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import { BaseScript } from "../../Base.s.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
+import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 /**
  * NOTE Deploys with `Authority` set to zero bytes.
  */
 contract DeployRolesAuthority is BaseScript {
     using StdJson for string;
-
 
     uint8 public constant STRATEGIST_ROLE = 1;
     uint8 public constant MANAGER_ROLE = 2;
@@ -27,7 +26,7 @@ contract DeployRolesAuthority is BaseScript {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public virtual override broadcast returns(address){
+    function deploy(ConfigReader.Config memory config) public virtual override broadcast returns (address) {
         // Require config Values
         require(config.boringVault.code.length != 0, "boringVault must have code");
         require(config.manager.code.length != 0, "manager must have code");
@@ -38,7 +37,7 @@ contract DeployRolesAuthority is BaseScript {
         require(config.teller != address(0), "teller");
         require(config.accountant != address(0), "accountant");
         require(config.strategist != address(0), "strategist");
-        
+
         // Create Contract
         bytes memory creationCode = type(RolesAuthority).creationCode;
         RolesAuthority rolesAuthority = RolesAuthority(
@@ -73,7 +72,10 @@ contract DeployRolesAuthority is BaseScript {
         // --- Public ---
         // 1. teller.deposit
         rolesAuthority.setRoleCapability(
-            STRATEGIST_ROLE, config.manager, ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector, true
+            STRATEGIST_ROLE,
+            config.manager,
+            ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector,
+            true
         );
 
         rolesAuthority.setRoleCapability(
@@ -81,7 +83,10 @@ contract DeployRolesAuthority is BaseScript {
         );
 
         rolesAuthority.setRoleCapability(
-            MANAGER_ROLE, config.boringVault, bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])"))), true
+            MANAGER_ROLE,
+            config.boringVault,
+            bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])"))),
+            true
         );
 
         rolesAuthority.setRoleCapability(TELLER_ROLE, config.boringVault, BoringVault.enter.selector, true);
@@ -106,18 +111,57 @@ contract DeployRolesAuthority is BaseScript {
 
         rolesAuthority.setUserRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE, true);
 
-        // Post Deploy Checks 
-        require(rolesAuthority.doesUserHaveRole(config.strategist, STRATEGIST_ROLE), "strategist should have STRATEGIST_ROLE");
+        // Post Deploy Checks
+        require(
+            rolesAuthority.doesUserHaveRole(config.strategist, STRATEGIST_ROLE),
+            "strategist should have STRATEGIST_ROLE"
+        );
         require(rolesAuthority.doesUserHaveRole(config.manager, MANAGER_ROLE), "manager should have MANAGER_ROLE");
         require(rolesAuthority.doesUserHaveRole(config.teller, TELLER_ROLE), "teller should have TELLER_ROLE");
-        require(rolesAuthority.doesUserHaveRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE), "exchangeRateBot should have UPDATE_EXCHANGE_RATE_ROLE");
-        require(rolesAuthority.canCall(config.strategist, config.manager, ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector), "strategist should be able to call manageVaultWithMerkleVerification");
-        require(rolesAuthority.canCall(config.manager, config.boringVault, bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)")))), "manager should be able to call boringVault.manage");
-        require(rolesAuthority.canCall(config.manager, config.boringVault, bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])")))), "manager should be able to call boringVault.manage");
-        require(rolesAuthority.canCall(config.teller, config.boringVault, BoringVault.enter.selector), "teller should be able to call boringVault.enter");
-        require(rolesAuthority.canCall(config.teller, config.boringVault, BoringVault.exit.selector), "teller should be able to call boringVault.exit");
-        require(rolesAuthority.canCall(config.exchangeRateBot, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector), "exchangeRateBot should be able to call accountant.updateExchangeRate");
-        require(rolesAuthority.canCall(address(1), config.teller, TellerWithMultiAssetSupport.deposit.selector), "anyone should be able to call teller.deposit");
+        require(
+            rolesAuthority.doesUserHaveRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE),
+            "exchangeRateBot should have UPDATE_EXCHANGE_RATE_ROLE"
+        );
+        require(
+            rolesAuthority.canCall(
+                config.strategist,
+                config.manager,
+                ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector
+            ),
+            "strategist should be able to call manageVaultWithMerkleVerification"
+        );
+        require(
+            rolesAuthority.canCall(
+                config.manager, config.boringVault, bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)")))
+            ),
+            "manager should be able to call boringVault.manage"
+        );
+        require(
+            rolesAuthority.canCall(
+                config.manager,
+                config.boringVault,
+                bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])")))
+            ),
+            "manager should be able to call boringVault.manage"
+        );
+        require(
+            rolesAuthority.canCall(config.teller, config.boringVault, BoringVault.enter.selector),
+            "teller should be able to call boringVault.enter"
+        );
+        require(
+            rolesAuthority.canCall(config.teller, config.boringVault, BoringVault.exit.selector),
+            "teller should be able to call boringVault.exit"
+        );
+        require(
+            rolesAuthority.canCall(
+                config.exchangeRateBot, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector
+            ),
+            "exchangeRateBot should be able to call accountant.updateExchangeRate"
+        );
+        require(
+            rolesAuthority.canCall(address(1), config.teller, TellerWithMultiAssetSupport.deposit.selector),
+            "anyone should be able to call teller.deposit"
+        );
 
         return address(rolesAuthority);
     }

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {CrossChainTellerBase, BridgeData} from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
-import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -31,7 +31,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     uint64 constant CHAIN_MESSAGE_GAS_LIMIT = 100_000;
 
     AccountantWithRateProviders public accountant;
-    address public payout_address = vm.addr(7777777);
+    address public payout_address = vm.addr(7_777_777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
@@ -42,14 +42,12 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
     address sourceTellerAddr;
     address destinationTellerAddr;
 
-    function _deploySourceAndDestinationTeller() internal virtual{
-    }
+    function _deploySourceAndDestinationTeller() internal virtual { }
 
-    function setUp() public virtual{
-
+    function setUp() public virtual {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
-        uint256 blockNumber = 19363419;
+        uint256 blockNumber = 19_363_419;
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
@@ -99,7 +97,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setPublicCapability(
             destinationTellerAddr, TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
-        
+
         rolesAuthority.setPublicCapability(sourceTellerAddr, CrossChainTellerBase.bridge.selector, true);
         rolesAuthority.setPublicCapability(destinationTellerAddr, CrossChainTellerBase.bridge.selector, true);
         rolesAuthority.setPublicCapability(sourceTellerAddr, CrossChainTellerBase.depositAndBridge.selector, true);
@@ -124,12 +122,12 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
 
         // Give BoringVault some WETH, and this address some shares, and LINK.
-        deal(address(WETH), address(boringVault), 1_000e18);
-        deal(address(boringVault), address(this), 1_000e18, true);
-        deal(address(LINK), address(this), 1_000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
+        deal(address(boringVault), address(this), 1000e18, true);
+        deal(address(LINK), address(this), 1000e18);
     }
 
-    function testReverts() public virtual{
+    function testReverts() public virtual {
         CrossChainTellerBase sourceTeller = CrossChainTellerBase(sourceTellerAddr);
         CrossChainTellerBase destinationTeller = CrossChainTellerBase(destinationTellerAddr);
 
@@ -143,7 +141,6 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         sourceTeller.bridge(0, data);
 
         sourceTeller.unpause();
-
     }
 
     // ========================================= HELPER FUNCTIONS =========================================

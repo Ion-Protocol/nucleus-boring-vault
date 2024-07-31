@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== LIDO ===============================
@@ -20,7 +20,10 @@ abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
-    function requestWithdrawals(uint256[] calldata, address _owner)
+    function requestWithdrawals(
+        uint256[] calldata,
+        address _owner
+    )
         external
         pure
         virtual
@@ -34,7 +37,10 @@ abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
-    function claimWithdrawals(uint256[] calldata, uint256[] calldata)
+    function claimWithdrawals(
+        uint256[] calldata,
+        uint256[] calldata
+    )
         external
         pure
         virtual

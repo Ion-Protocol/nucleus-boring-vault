@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import {BaseScript} from "./../../Base.s.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
+import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployAccountantWithRateProviders is BaseScript {
     using StdJson for string;
@@ -14,7 +14,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns(address){
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require Config Values
         uint256 startingExchangeRate = 10 ** ERC20(config.base).decimals();
         {
@@ -48,7 +48,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 config.allowedExchangeRateChangeLower,
                 config.minimumUpdateDelayInSeconds,
                 config.managementFee
-            );    
+            );
         }
 
         bytes memory initCode;
@@ -57,19 +57,20 @@ contract DeployAccountantWithRateProviders is BaseScript {
         }
 
         {
-            accountant = AccountantWithRateProviders(
-                CREATEX.deployCreate3(
-                    config.accountantSalt,
-                    initCode
-                )
-            );
+            accountant = AccountantWithRateProviders(CREATEX.deployCreate3(config.accountantSalt, initCode));
         }
 
         _accountantStateCheck(accountant, config, startingExchangeRate);
         return address(accountant);
     }
 
-    function _accountantStateCheck(AccountantWithRateProviders accountant, ConfigReader.Config memory config, uint startingExchangeRate) internal{
+    function _accountantStateCheck(
+        AccountantWithRateProviders accountant,
+        ConfigReader.Config memory config,
+        uint256 startingExchangeRate
+    )
+        internal
+    {
         {
             (
                 address _payoutAddress,
@@ -89,11 +90,19 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(_feesOwedInBase == 0, "fees owed in base");
             require(_totalSharesLastUpdate == 0, "total shares last update");
             require(_exchangeRate == startingExchangeRate, "exchange rate");
-            require(_allowedExchangeRateChangeUpper == config.allowedExchangeRateChangeUpper, "allowed exchange rate change upper");
-            require(_allowedExchangeRateChangeLower == config.allowedExchangeRateChangeLower, "allowed exchange rate change lower");
+            require(
+                _allowedExchangeRateChangeUpper == config.allowedExchangeRateChangeUpper,
+                "allowed exchange rate change upper"
+            );
+            require(
+                _allowedExchangeRateChangeLower == config.allowedExchangeRateChangeLower,
+                "allowed exchange rate change lower"
+            );
             require(_lastUpdateTimestamp == uint64(block.timestamp), "last update timestamp");
             require(_isPaused == false, "is paused");
-            require(_minimumUpdateDelayInSeconds == config.minimumUpdateDelayInSeconds, "minimum update delay in seconds");
+            require(
+                _minimumUpdateDelayInSeconds == config.minimumUpdateDelayInSeconds, "minimum update delay in seconds"
+            );
             require(_managementFee == config.managementFee, "management fee");
             require(address(accountant.vault()) == config.boringVault, "vault");
             require(address(accountant.base()) == config.base, "base");

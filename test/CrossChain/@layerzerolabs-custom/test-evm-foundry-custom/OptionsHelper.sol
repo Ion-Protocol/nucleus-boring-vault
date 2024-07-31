@@ -8,9 +8,11 @@ import { UlnOptions } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/li
 contract UlnOptionsMock {
     using UlnOptions for bytes;
 
-    function decode(
-        bytes calldata _options
-    ) public pure returns (bytes memory executorOptions, bytes memory dvnOptions) {
+    function decode(bytes calldata _options)
+        public
+        pure
+        returns (bytes memory executorOptions, bytes memory dvnOptions)
+    {
         return UlnOptions.decode(_options);
     }
 }
@@ -18,37 +20,35 @@ contract UlnOptionsMock {
 contract OptionsHelper {
     UlnOptionsMock ulnOptions;
 
-    function setUp() public virtual{
+    function setUp() public virtual {
         ulnOptions = new UlnOptionsMock();
     }
 
     function _parseExecutorLzReceiveOption(bytes memory _options) internal view returns (uint256 gas, uint256 value) {
-        (bool exist, bytes memory option) = _getExecutorOptionByOptionType(
-            _options,
-            ExecutorOptions.OPTION_TYPE_LZRECEIVE
-        );
+        (bool exist, bytes memory option) =
+            _getExecutorOptionByOptionType(_options, ExecutorOptions.OPTION_TYPE_LZRECEIVE);
         require(exist, "OptionsHelper: lzReceive option not found");
         (gas, value) = this.decodeLzReceiveOption(option);
     }
 
-    function _parseExecutorNativeDropOption(
-        bytes memory _options
-    ) internal view returns (uint256 amount, bytes32 receiver) {
-        (bool exist, bytes memory option) = _getExecutorOptionByOptionType(
-            _options,
-            ExecutorOptions.OPTION_TYPE_NATIVE_DROP
-        );
+    function _parseExecutorNativeDropOption(bytes memory _options)
+        internal
+        view
+        returns (uint256 amount, bytes32 receiver)
+    {
+        (bool exist, bytes memory option) =
+            _getExecutorOptionByOptionType(_options, ExecutorOptions.OPTION_TYPE_NATIVE_DROP);
         require(exist, "OptionsHelper: nativeDrop option not found");
         (amount, receiver) = this.decodeNativeDropOption(option);
     }
 
-    function _parseExecutorLzComposeOption(
-        bytes memory _options
-    ) internal view returns (uint16 index, uint256 gas, uint256 value) {
-        (bool exist, bytes memory option) = _getExecutorOptionByOptionType(
-            _options,
-            ExecutorOptions.OPTION_TYPE_LZCOMPOSE
-        );
+    function _parseExecutorLzComposeOption(bytes memory _options)
+        internal
+        view
+        returns (uint16 index, uint256 gas, uint256 value)
+    {
+        (bool exist, bytes memory option) =
+            _getExecutorOptionByOptionType(_options, ExecutorOptions.OPTION_TYPE_LZCOMPOSE);
         require(exist, "OptionsHelper: lzCompose option not found");
         return this.decodeLzComposeOption(option);
     }
@@ -56,15 +56,23 @@ contract OptionsHelper {
     function _executorOptionExists(
         bytes memory _options,
         uint8 _executorOptionType
-    ) internal view returns (bool exist) {
-        (exist, ) = _getExecutorOptionByOptionType(_options, _executorOptionType);
+    )
+        internal
+        view
+        returns (bool exist)
+    {
+        (exist,) = _getExecutorOptionByOptionType(_options, _executorOptionType);
     }
 
     function _getExecutorOptionByOptionType(
         bytes memory _options,
         uint8 _executorOptionType
-    ) internal view returns (bool exist, bytes memory option) {
-        (bytes memory executorOpts, ) = ulnOptions.decode(_options);
+    )
+        internal
+        view
+        returns (bool exist, bytes memory option)
+    {
+        (bytes memory executorOpts,) = ulnOptions.decode(_options);
 
         uint256 cursor;
         while (cursor < executorOpts.length) {
@@ -79,7 +87,11 @@ contract OptionsHelper {
     function nextExecutorOption(
         bytes calldata _options,
         uint256 _cursor
-    ) external pure returns (uint8 optionType, bytes calldata option, uint256 cursor) {
+    )
+        external
+        pure
+        returns (uint8 optionType, bytes calldata option, uint256 cursor)
+    {
         return ExecutorOptions.nextExecutorOption(_options, _cursor);
     }
 
@@ -91,9 +103,11 @@ contract OptionsHelper {
         return ExecutorOptions.decodeNativeDropOption(_option);
     }
 
-    function decodeLzComposeOption(
-        bytes calldata _option
-    ) external pure returns (uint16 index, uint128 gas, uint128 value) {
+    function decodeLzComposeOption(bytes calldata _option)
+        external
+        pure
+        returns (uint16 index, uint128 gas, uint128 value)
+    {
         return ExecutorOptions.decodeLzComposeOption(_option);
     }
 }

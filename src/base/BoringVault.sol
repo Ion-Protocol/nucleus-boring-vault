@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 /**
  * @title BoringVault
@@ -33,10 +33,15 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
 
     //============================== CONSTRUCTOR ===============================
 
-    constructor(address _owner, string memory _name, string memory _symbol, uint8 _decimals)
+    constructor(
+        address _owner,
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals
+    )
         ERC20(_name, _symbol, _decimals)
         Auth(_owner, Authority(address(0)))
-    {}
+    { }
 
     //============================== MANAGE ===============================
 
@@ -44,7 +49,11 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
      * @notice Allows manager to make an arbitrary function call from this contract.
      * @dev Callable by MANAGER_ROLE.
      */
-    function manage(address target, bytes calldata data, uint256 value)
+    function manage(
+        address target,
+        bytes calldata data,
+        uint256 value
+    )
         external
         requiresAuth
         returns (bytes memory result)
@@ -56,7 +65,11 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
      * @notice Allows manager to make arbitrary function calls from this contract.
      * @dev Callable by MANAGER_ROLE.
      */
-    function manage(address[] calldata targets, bytes[] calldata data, uint256[] calldata values)
+    function manage(
+        address[] calldata targets,
+        bytes[] calldata data,
+        uint256[] calldata values
+    )
         external
         requiresAuth
         returns (bytes[] memory results)
@@ -75,7 +88,13 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
      * @dev If assetAmount is zero, no assets are transferred in.
      * @dev Callable by MINTER_ROLE.
      */
-    function enter(address from, ERC20 asset, uint256 assetAmount, address to, uint256 shareAmount)
+    function enter(
+        address from,
+        ERC20 asset,
+        uint256 assetAmount,
+        address to,
+        uint256 shareAmount
+    )
         external
         requiresAuth
     {
@@ -95,7 +114,13 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
      * @dev If assetAmount is zero, no assets are transferred out.
      * @dev Callable by BURNER_ROLE.
      */
-    function exit(address to, ERC20 asset, uint256 assetAmount, address from, uint256 shareAmount)
+    function exit(
+        address to,
+        ERC20 asset,
+        uint256 assetAmount,
+        address from,
+        uint256 shareAmount
+    )
         external
         requiresAuth
     {
@@ -137,5 +162,5 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
 
     //============================== RECEIVE ===============================
 
-    receive() external payable {}
+    receive() external payable { }
 }

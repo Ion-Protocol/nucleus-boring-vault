@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {WETH} from "@solmate/tokens/WETH.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
-import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { WETH } from "@solmate/tokens/WETH.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 
 /**
  * @title TellerWithMultiAssetSupport
@@ -58,7 +58,8 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     bool public isPaused;
 
     /**
-     * @dev Maps deposit nonce to keccak256(address receiver, address depositAsset, uint256 depositAmount, uint256 shareAmount, uint256 timestamp, uint256 shareLockPeriod).
+     * @dev Maps deposit nonce to keccak256(address receiver, address depositAsset, uint256 depositAmount, uint256
+     * shareAmount, uint256 timestamp, uint256 shareLockPeriod).
      */
     mapping(uint256 => bytes32) public publicDepositHistory;
 
@@ -117,9 +118,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     uint256 internal immutable ONE_SHARE;
 
-    constructor(address _owner, address _vault, address _accountant)
-        Auth(_owner, Authority(address(0)))
-    {
+    constructor(address _owner, address _vault, address _accountant) Auth(_owner, Authority(address(0))) {
         vault = BoringVault(payable(_vault));
         ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
@@ -166,10 +165,14 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
 
     /**
      * @notice Sets the share lock period.
-     * @dev This not only locks shares to the user address, but also serves as the pending deposit period, where deposits can be reverted.
-     * @dev If a new shorter share lock period is set, users with pending share locks could make a new deposit to receive 1 wei shares,
-     *      and have their shares unlock sooner than their original deposit allows. This state would allow for the user deposit to be refunded,
-     *      but only if they have not transferred their shares out of there wallet. This is an accepted limitation, and should be known when decreasing
+     * @dev This not only locks shares to the user address, but also serves as the pending deposit period, where
+     * deposits can be reverted.
+     * @dev If a new shorter share lock period is set, users with pending share locks could make a new deposit to
+     * receive 1 wei shares,
+     *      and have their shares unlock sooner than their original deposit allows. This state would allow for the user
+     * deposit to be refunded,
+     *      but only if they have not transferred their shares out of there wallet. This is an accepted limitation, and
+     * should be known when decreasing
      *      the share lock period.
      * @dev Callable by OWNER_ROLE.
      */
@@ -206,7 +209,10 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         uint256 shareAmount,
         uint256 depositTimestamp,
         uint256 shareLockUpPeriodAtTimeOfDeposit
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         if ((block.timestamp - depositTimestamp) > shareLockUpPeriodAtTimeOfDeposit) {
             // Shares are already unlocked, so we can not revert deposit.
             revert TellerWithMultiAssetSupport__SharesAreUnLocked();
@@ -233,7 +239,11 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @notice Allows users to deposit into the BoringVault, if this contract is not paused.
      * @dev Publicly callable.
      */
-    function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint)
+    function deposit(
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint
+    )
         external
         requiresAuth
         nonReentrant
@@ -259,11 +269,16 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external requiresAuth nonReentrant returns (uint256 shares) {
+    )
+        external
+        requiresAuth
+        nonReentrant
+        returns (uint256 shares)
+    {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
-        try depositAsset.permit(msg.sender, address(vault), depositAmount, deadline, v, r, s) {}
+        try depositAsset.permit(msg.sender, address(vault), depositAmount, deadline, v, r, s) { }
         catch {
             if (depositAsset.allowance(msg.sender, address(vault)) < depositAmount) {
                 revert TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
@@ -279,7 +294,12 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @dev Does NOT support native deposits.
      * @dev Callable by SOLVER_ROLE.
      */
-    function bulkDeposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, address to)
+    function bulkDeposit(
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint,
+        address to
+    )
         external
         requiresAuth
         nonReentrant
@@ -295,7 +315,12 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @notice Allows off ramp role to withdraw from this contract.
      * @dev Callable by SOLVER_ROLE.
      */
-    function bulkWithdraw(ERC20 withdrawAsset, uint256 shareAmount, uint256 minimumAssets, address to)
+    function bulkWithdraw(
+        ERC20 withdrawAsset,
+        uint256 shareAmount,
+        uint256 minimumAssets,
+        address to
+    )
         external
         requiresAuth
         returns (uint256 assetsOut)
@@ -314,7 +339,12 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     /**
      * @notice Implements a common ERC20 deposit into BoringVault.
      */
-    function _erc20Deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint, address to)
+    function _erc20Deposit(
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint,
+        address to
+    )
         internal
         returns (uint256 shares)
     {
@@ -333,7 +363,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         uint256 depositAmount,
         uint256 shares,
         uint256 currentShareLockPeriod
-    ) internal {
+    )
+        internal
+    {
         shareUnlockTime[user] = block.timestamp + currentShareLockPeriod;
 
         uint256 nonce = depositNonce;

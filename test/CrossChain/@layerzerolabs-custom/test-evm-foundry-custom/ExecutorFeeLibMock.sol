@@ -32,7 +32,10 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         FeeParams calldata _params,
         IExecutor.DstConfig calldata _dstConfig,
         bytes calldata _options
-    ) external returns (uint256 fee) {
+    )
+        external
+        returns (uint256 fee)
+    {
         if (_dstConfig.lzReceiveBaseGas == 0) revert Executor_EidNotSupported(_params.dstEid);
 
         (uint256 totalDstAmount, uint256 totalGas) = _decodeExecutorOptions(
@@ -44,12 +47,8 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         );
 
         // for future versions where priceFeed charges a fee
-        (
-            uint256 totalGasFee,
-            uint128 priceRatio,
-            uint128 priceRatioDenominator,
-            uint128 nativePriceUSD
-        ) = ILayerZeroPriceFeed(_params.priceFeed).estimateFeeOnSend(_params.dstEid, _params.calldataSize, totalGas);
+        (uint256 totalGasFee, uint128 priceRatio, uint128 priceRatioDenominator, uint128 nativePriceUSD) =
+            ILayerZeroPriceFeed(_params.priceFeed).estimateFeeOnSend(_params.dstEid, _params.calldataSize, totalGas);
 
         fee = _applyPremiumToGas(
             totalGasFee,
@@ -59,10 +58,7 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
             nativePriceUSD
         );
         fee += _convertAndApplyPremiumToValue(
-            totalDstAmount,
-            priceRatio,
-            priceRatioDenominator,
-            _params.defaultMultiplierBps
+            totalDstAmount, priceRatio, priceRatioDenominator, _params.defaultMultiplierBps
         );
     }
 
@@ -71,7 +67,11 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         FeeParams calldata _params,
         IExecutor.DstConfig calldata _dstConfig,
         bytes calldata _options
-    ) external view returns (uint256 fee) {
+    )
+        external
+        view
+        returns (uint256 fee)
+    {
         if (_dstConfig.lzReceiveBaseGas == 0) revert Executor_EidNotSupported(_params.dstEid);
 
         (uint256 totalDstAmount, uint256 totalGas) = _decodeExecutorOptions(
@@ -82,12 +82,8 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
             _options
         );
 
-        (
-            uint256 totalGasFee,
-            uint128 priceRatio,
-            uint128 priceRatioDenominator,
-            uint128 nativePriceUSD
-        ) = ILayerZeroPriceFeed(_params.priceFeed).estimateFeeByEid(_params.dstEid, _params.calldataSize, totalGas);
+        (uint256 totalGasFee, uint128 priceRatio, uint128 priceRatioDenominator, uint128 nativePriceUSD) =
+            ILayerZeroPriceFeed(_params.priceFeed).estimateFeeByEid(_params.dstEid, _params.calldataSize, totalGas);
 
         fee = _applyPremiumToGas(
             totalGasFee,
@@ -97,10 +93,7 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
             nativePriceUSD
         );
         fee += _convertAndApplyPremiumToValue(
-            totalDstAmount,
-            priceRatio,
-            priceRatioDenominator,
-            _params.defaultMultiplierBps
+            totalDstAmount, priceRatio, priceRatioDenominator, _params.defaultMultiplierBps
         );
     }
 
@@ -112,7 +105,11 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         uint64 _lzComposeBaseGas,
         uint128 _nativeCap,
         bytes calldata _options
-    ) internal pure returns (uint256 dstAmount, uint256 totalGas) {
+    )
+        internal
+        pure
+        returns (uint256 dstAmount, uint256 totalGas)
+    {
         if (_options.length == 0) {
             revert Executor_NoOptions();
         }
@@ -136,7 +133,7 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
                 dstAmount += value;
                 lzReceiveGas += gas;
             } else if (optionType == ExecutorOptions.OPTION_TYPE_NATIVE_DROP) {
-                (uint128 nativeDropAmount, ) = ExecutorOptions.decodeNativeDropOption(option);
+                (uint128 nativeDropAmount,) = ExecutorOptions.decodeNativeDropOption(option);
                 dstAmount += nativeDropAmount;
             } else if (optionType == ExecutorOptions.OPTION_TYPE_LZCOMPOSE) {
                 // endpoint v1 does not support lzCompose
@@ -172,10 +169,14 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         uint16 _defaultBps,
         uint128 _marginUSD,
         uint128 _nativePriceUSD
-    ) internal view returns (uint256) {
+    )
+        internal
+        view
+        returns (uint256)
+    {
         uint16 multiplierBps = _bps == 0 ? _defaultBps : _bps;
 
-        uint256 feeWithMultiplier = (_fee * multiplierBps) / 10000;
+        uint256 feeWithMultiplier = (_fee * multiplierBps) / 10_000;
 
         if (_nativePriceUSD == 0 || _marginUSD == 0) {
             return feeWithMultiplier;
@@ -190,13 +191,17 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         uint128 _ratio,
         uint128 _denom,
         uint16 _defaultBps
-    ) internal pure returns (uint256 fee) {
+    )
+        internal
+        pure
+        returns (uint256 fee)
+    {
         if (_value > 0) {
-            fee = (((_value * _ratio) / _denom) * _defaultBps) / 10000;
+            fee = (((_value * _ratio) / _denom) * _defaultBps) / 10_000;
         }
     }
 
-    function _isV1Eid(uint32 /*_eid*/) internal pure virtual returns (bool) {
+    function _isV1Eid(uint32 /*_eid*/ ) internal pure virtual returns (bool) {
         return false;
     }
 
@@ -206,5 +211,5 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
     //    }
 
     // send funds here to pay for price feed directly
-    receive() external payable {}
+    receive() external payable { }
 }

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >=0.8.19 <=0.9.0;
 
-import {ICreateX} from "lib/createx/src/ICreateX.sol";
+import { ICreateX } from "lib/createx/src/ICreateX.sol";
 
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
-import {Script, stdJson} from "@forge-std/Script.sol";
-import {console2} from "@forge-std/console2.sol";
+import { Script, stdJson } from "@forge-std/Script.sol";
+import { console2 } from "@forge-std/console2.sol";
 
-import {ConfigReader, IAuthority} from "./ConfigReader.s.sol";
-import {console} from "forge-std/Test.sol";
+import { ConfigReader, IAuthority } from "./ConfigReader.s.sol";
+import { console } from "forge-std/Test.sol";
 
 abstract contract BaseScript is Script {
     using stdJson for string;
@@ -36,7 +36,7 @@ abstract contract BaseScript is Script {
     bool internal deployCreate2;
 
     string path;
-    
+
     /// @dev Initializes the transaction broadcaster like this:
     ///
     /// - If $ETH_FROM is defined, use it.
@@ -45,20 +45,20 @@ abstract contract BaseScript is Script {
     ///
     /// The use case for $ETH_FROM is to specify the broadcaster key and its address via the command line.
     constructor() {
-        deployCreate2 = vm.envOr({name: "CREATE2", defaultValue: true});
-        address from = vm.envOr({name: "ETH_FROM", defaultValue: address(0)});
+        deployCreate2 = vm.envOr({ name: "CREATE2", defaultValue: true });
+        address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
             console.log("using env provided wallet");
             broadcaster = from;
         } else {
             console.log("Using default mnemonic wallet");
-            mnemonic = vm.envOr({name: "MNEMONIC", defaultValue: TEST_MNEMONIC});
-            (broadcaster,) = deriveRememberKey({mnemonic: mnemonic, index: 0});
+            mnemonic = vm.envOr({ name: "MNEMONIC", defaultValue: TEST_MNEMONIC });
+            (broadcaster,) = deriveRememberKey({ mnemonic: mnemonic, index: 0 });
         }
         console2.log("broadcaster", broadcaster);
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
-        if(address(CREATEX).code.length == 0){
+        if (address(CREATEX).code.length == 0) {
             revert("CREATEX Not Deployed on this chain. Use the Library to forge deploy it");
         }
     }
@@ -75,31 +75,19 @@ abstract contract BaseScript is Script {
         vm.stopBroadcast();
     }
 
-    function deploy(ConfigReader.Config memory config) public virtual returns(address);
+    function deploy(ConfigReader.Config memory config) public virtual returns (address);
 
-    function getConfig() public returns(ConfigReader.Config memory){
+    function getConfig() public returns (ConfigReader.Config memory) {
         return ConfigReader.toConfig(requestConfigFileFromUser(), getChainConfigFile());
     }
 
-    function getChainConfigFile() internal view returns(string memory){
+    function getChainConfigFile() internal view returns (string memory) {
         console2.log("Deployment Chain ID:", block.chainid);
-        return vm.readFile(
-            string.concat(
-                CONFIG_CHAIN_ROOT, 
-                Strings.toString(block.chainid),
-                ".json"
-                )
-            );
+        return vm.readFile(string.concat(CONFIG_CHAIN_ROOT, Strings.toString(block.chainid), ".json"));
     }
 
-    function requestConfigFileFromUser() internal returns(string memory){
-        path = string.concat(
-            CONFIG_PATH_ROOT, 
-                vm.prompt("Please Enter The Deployments Configuration File Name: "
-            )
-        );
-        return vm.readFile(
-            path
-        );
+    function requestConfigFileFromUser() internal returns (string memory) {
+        path = string.concat(CONFIG_PATH_ROOT, vm.prompt("Please Enter The Deployments Configuration File Name: "));
+        return vm.readFile(path);
     }
 }

@@ -8,7 +8,7 @@ import { IOAppCore, ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-oapp-v2/c
 /**
  * @title OAppAuthCore
  * @dev Abstract contract implementing the IOAppCore interface with basic OApp configurations.
- * 
+ *
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
  */
 abstract contract OAppAuthCore is IOAppCore, Auth {
@@ -41,7 +41,7 @@ abstract contract OAppAuthCore is IOAppCore, Auth {
      * @dev Indicates that the peer is trusted to send LayerZero messages to this OApp.
      * @dev Set this to bytes32(0) to remove the peer address.
      * @dev Peer is a bytes32 to accommodate non-evm chains.
-     * 
+     *
      * @notice this contract replaces the OZ Ownable onlyOwner with Solmate requiresAuth
      */
     function setPeer(uint32 _eid, bytes32 _peer) public virtual requiresAuth {
@@ -79,8 +79,9 @@ abstract contract OAppAuthCore is IOAppCore, Auth {
      * @param _delegate The address of the delegate to be set.
      *
      * @dev Only the owner/admin of the OApp can call this function.
-     * @dev Provides the ability for a delegate to set configs, on behalf of the OApp, directly on the Endpoint contract.
-     * 
+     * @dev Provides the ability for a delegate to set configs, on behalf of the OApp, directly on the Endpoint
+     * contract.
+     *
      * @notice this contract replaces the OZ Ownable onlyOwner with Solmate requiresAuth
      */
     function setDelegate(address _delegate) public requiresAuth {

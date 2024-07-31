@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {BaseMerkleRootGenerator} from "resources/BaseMerkleRootGenerator.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {Strings} from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
-import {ERC4626} from "@solmate/tokens/ERC4626.sol";
+import { BaseMerkleRootGenerator } from "resources/BaseMerkleRootGenerator.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { Strings } from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
+import { ERC4626 } from "@solmate/tokens/ERC4626.sol";
 
 /**
- *  source .env && forge script script/CreateLiquidEthMerkleRoot.s.sol:CreateLiquidEthMerkleRootScript --rpc-url $MAINNET_RPC_URL
+ *  source .env && forge script script/CreateLiquidEthMerkleRoot.s.sol:CreateLiquidEthMerkleRootScript --rpc-url
+ * $MAINNET_RPC_URL
  */
 contract CreateLiquidEthMerkleRootScript is BaseMerkleRootGenerator {
     using FixedPointMathLib for uint256;
@@ -18,7 +19,7 @@ contract CreateLiquidEthMerkleRootScript is BaseMerkleRootGenerator {
     address public managerAddress = 0x048a5002E57166a78Dd060B3B36DEd2f404D0a17;
     address public accountantAddress = 0xc6f89cc0551c944CEae872997A4060DC95622D8F;
 
-    function setUp() external {}
+    function setUp() external { }
 
     /**
      * @notice Uncomment which script you want to run.

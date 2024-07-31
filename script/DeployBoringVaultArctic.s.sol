@@ -1,32 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault, Auth} from "src/base/BoringVault.sol";
-import {ManagerWithMerkleVerification} from "src/base/Roles/ManagerWithMerkleVerification.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {BalancerVault} from "src/interfaces/BalancerVault.sol";
-import {EtherFiLiquidEthDecoderAndSanitizer} from
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault, Auth } from "src/base/BoringVault.sol";
+import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
+import { EtherFiLiquidEthDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/EtherFiLiquidEthDecoderAndSanitizer.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {Deployer} from "src/helper/Deployer.sol";
-import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
-import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
-import {AtomicSolverV2} from "src/atomic-queue/AtomicSolverV2.sol";
-import {ContractNames} from "resources/ContractNames.sol";
-import {EtherFiLiquid1} from "src/interfaces/EtherFiLiquid1.sol";
-import {GenericRateProvider} from "src/helper/GenericRateProvider.sol";
-import {CellarMigrationAdaptor} from "src/migration/CellarMigrationAdaptor.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { Deployer } from "src/helper/Deployer.sol";
+import { ArcticArchitectureLens } from "src/helper/ArcticArchitectureLens.sol";
+import { AtomicQueue } from "src/atomic-queue/AtomicQueue.sol";
+import { AtomicSolverV2 } from "src/atomic-queue/AtomicSolverV2.sol";
+import { ContractNames } from "resources/ContractNames.sol";
+import { EtherFiLiquid1 } from "src/interfaces/EtherFiLiquid1.sol";
+import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
+import { CellarMigrationAdaptor } from "src/migration/CellarMigrationAdaptor.sol";
 
 import "@forge-std/Script.sol";
 import "@forge-std/StdJson.sol";
 
 /**
- *  source .env && forge script script/DeployBoringVaultArctic.s.sol:DeployBoringVaultArcticScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
+ *  source .env && forge script script/DeployBoringVaultArctic.s.sol:DeployBoringVaultArcticScript --with-gas-price
+ * 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
 contract DeployBoringVaultArcticScript is Script, ContractNames, MainnetAddresses {
@@ -101,8 +102,8 @@ contract DeployBoringVaultArcticScript is Script, ContractNames, MainnetAddresse
         );
 
         // Set the exchange rate to match the current vaults share price. Use the larger of the two preview functions.
-        uint256 exchangeRate0 = etherFiLiquid1.previewMint(1e18); // deposit per shares 
-        uint256 exchangeRate1 = etherFiLiquid1.previewRedeem(1e18); // deposit per shares 
+        uint256 exchangeRate0 = etherFiLiquid1.previewMint(1e18); // deposit per shares
+        uint256 exchangeRate1 = etherFiLiquid1.previewRedeem(1e18); // deposit per shares
         uint256 exchangeRate = exchangeRate0 > exchangeRate1 ? exchangeRate0 : exchangeRate1;
         creationCode = type(AccountantWithRateProviders).creationCode;
         constructorArgs = abi.encode(

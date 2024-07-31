@@ -1,7 +1,7 @@
 pragma solidity 0.8.21;
 
-import {IRateProvider} from "src/interfaces/IRateProvider.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 contract GenericRateProvider is IRateProvider {
     using Address for address;
@@ -61,7 +61,8 @@ contract GenericRateProvider is IRateProvider {
 
     /**
      * @notice Get the rate of some generic asset.
-     * @dev This function only supports selectors that only contain static arguments, dynamic arguments will not be encoded correctly,
+     * @dev This function only supports selectors that only contain static arguments, dynamic arguments will not be
+     * encoded correctly,
      *      and calls will likely fail.
      * @dev If staticArgumentN is not used, it can be left as 0.
      */

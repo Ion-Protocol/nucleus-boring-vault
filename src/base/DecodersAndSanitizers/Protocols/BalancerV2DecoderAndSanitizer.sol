@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
@@ -11,7 +11,12 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== BALANCER V2 ===============================
 
-    function flashLoan(address recipient, address[] calldata tokens, uint256[] calldata, bytes calldata)
+    function flashLoan(
+        address recipient,
+        address[] calldata tokens,
+        uint256[] calldata,
+        bytes calldata
+    )
         external
         pure
         virtual
@@ -28,7 +33,12 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         DecoderCustomTypes.FundManagement calldata funds,
         uint256,
         uint256
-    ) external pure virtual returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
         // Sanitize raw data
         if (singleSwap.userData.length > 0) revert BalancerV2DecoderAndSanitizer__SingleSwapUserDataLengthNonZero();
         if (funds.fromInternalBalance) revert BalancerV2DecoderAndSanitizer__InternalBalancesNotSupported();
@@ -49,7 +59,12 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         address sender,
         address recipient,
         DecoderCustomTypes.JoinPoolRequest calldata req
-    ) external pure virtual returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
         // Sanitize raw data
         if (req.fromInternalBalance) revert BalancerV2DecoderAndSanitizer__InternalBalancesNotSupported();
         // Return addresses found
@@ -65,7 +80,12 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         address sender,
         address recipient,
         DecoderCustomTypes.ExitPoolRequest calldata req
-    ) external pure virtual returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
         // Sanitize raw data
         if (req.toInternalBalance) revert BalancerV2DecoderAndSanitizer__InternalBalancesNotSupported();
         // Return addresses found
