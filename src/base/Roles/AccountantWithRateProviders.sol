@@ -8,6 +8,10 @@ import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 
+/**
+ * @title AccountantWithRateProviders
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract AccountantWithRateProviders is Auth, IRateProvider {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;

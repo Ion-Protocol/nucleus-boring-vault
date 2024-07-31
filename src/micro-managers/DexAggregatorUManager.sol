@@ -9,6 +9,7 @@ import {PriceRouter} from "src/interfaces/PriceRouter.sol";
  * Required Merkle Root Leaves
  * - ERC20 approves with `router` spender.
  * - AggregationRouterV5.swap, with all desired addresses.
+ * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorUManager is UManager {
     using FixedPointMathLib for uint256;

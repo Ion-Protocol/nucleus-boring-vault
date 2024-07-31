@@ -3,6 +3,10 @@ pragma solidity 0.8.21;
 
 import {BaseDecoderAndSanitizer} from "./BaseDecoderAndSanitizer.sol";
 
+/**
+ * @title IonPoolDecoderAndSantitizer
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract IonPoolDecoderAndSanitizer is BaseDecoderAndSanitizer {
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) {}
 

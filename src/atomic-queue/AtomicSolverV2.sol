@@ -11,6 +11,7 @@ import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
 /**
  * @title AtomicSolverV2
  * @author crispymangoes
+ * @custom:security-contact security@molecularlabs.io
  */
 contract AtomicSolverV2 is IAtomicSolver, Auth {
     using SafeTransferLib for ERC20;

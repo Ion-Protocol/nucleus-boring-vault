@@ -11,6 +11,10 @@ import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
 
+/**
+ * @title TellerWithMultiAssetSupport
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
