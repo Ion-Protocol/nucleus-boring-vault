@@ -10,6 +10,10 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {BalancerVault} from "src/interfaces/BalancerVault.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 
+/**
+ * @title ManagerWithMerkleVerification
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract ManagerWithMerkleVerification is Auth {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;

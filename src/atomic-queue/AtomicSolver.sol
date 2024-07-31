@@ -9,6 +9,11 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 
+/**
+ * @title AtomicSolver
+ * @author 
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract AtomicSolver is IAtomicSolver, Owned, ERC721Holder {
     using Address for address;
     using SafeTransferLib for ERC20;

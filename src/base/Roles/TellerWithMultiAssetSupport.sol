@@ -11,6 +11,10 @@ import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
 
+/**
+ * @title TellerWithMultiAssetSupport
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
@@ -75,7 +79,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__MinimumAssetsNotMet();
     error TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
     error TellerWithMultiAssetSupport__ZeroShares();
-    error TellerWithMultiAssetSupport__DualDeposit();
     error TellerWithMultiAssetSupport__Paused();
 
     //============================== EVENTS ===============================
@@ -114,18 +117,12 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     uint256 internal immutable ONE_SHARE;
 
-    /**
-     * @notice The native wrapper contract.
-     */
-    WETH public immutable nativeWrapper;
-
-    constructor(address _owner, address _vault, address _accountant, address _weth)
+    constructor(address _owner, address _vault, address _accountant)
         Auth(_owner, Authority(address(0)))
     {
         vault = BoringVault(payable(_vault));
         ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
-        nativeWrapper = WETH(payable(_weth));
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -186,8 +183,8 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     /**
      * @notice Implement beforeTransfer hook to check if shares are locked.
      */
-    function beforeTransfer(address from) external view {
-        if (shareUnlockTime[from] >= block.timestamp) revert TellerWithMultiAssetSupport__SharesAreLocked();
+    function beforeTransfer(address from) public view {
+        if (shareUnlockTime[from] > block.timestamp) revert TellerWithMultiAssetSupport__SharesAreLocked();
     }
 
     // ========================================= REVERT DEPOSIT FUNCTIONS =========================================
@@ -224,8 +221,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         // Delete hash to prevent refund gas.
         delete publicDepositHistory[nonce];
 
-        // If deposit used native asset, send user back wrapped native asset.
-        depositAsset = depositAsset == NATIVE ? address(nativeWrapper) : depositAsset;
         // Burn shares and refund assets to receiver.
         vault.exit(receiver, ERC20(depositAsset), depositAmount, receiver, shareAmount);
 
@@ -240,7 +235,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint)
         external
-        payable
         requiresAuth
         nonReentrant
         returns (uint256 shares)
@@ -248,19 +242,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
-        if (address(depositAsset) == NATIVE) {
-            if (msg.value == 0) revert TellerWithMultiAssetSupport__ZeroAssets();
-            nativeWrapper.deposit{value: msg.value}();
-            depositAmount = msg.value;
-            shares = depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(nativeWrapper));
-            if (shares < minimumMint) revert TellerWithMultiAssetSupport__MinimumMintNotMet();
-            // `from` is address(this) since user already sent value.
-            nativeWrapper.safeApprove(address(vault), depositAmount);
-            vault.enter(address(this), nativeWrapper, depositAmount, msg.sender, shares);
-        } else {
-            if (msg.value > 0) revert TellerWithMultiAssetSupport__DualDeposit();
-            shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-        }
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
 
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
     }

@@ -12,6 +12,7 @@ import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSu
 /**
  * @title AtomicSolverV3
  * @author crispymangoes
+ * @custom:security-contact security@molecularlabs.io
  */
 contract AtomicSolverV3 is IAtomicSolver, Auth {
     using SafeTransferLib for ERC20;

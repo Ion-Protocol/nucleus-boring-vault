@@ -53,7 +53,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         );
 
         teller =
-            new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(WETH));
+            new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
@@ -185,16 +185,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         assertApproxEqRel(
             boringVault.balanceOf(address(this)), expected_shares, 0.000001e18, "Should have received expected shares"
         );
-    }
-
-    function testUserDepositNative(uint256 amount) external {
-        amount = bound(amount, 0.0001e18, 10_000e18);
-
-        deal(address(this), 2 * amount);
-
-        teller.deposit{value: amount}(ERC20(NATIVE), 0, 0);
-
-        assertEq(boringVault.balanceOf(address(this)), amount, "Should have received expected shares");
     }
 
     function testUserPermitDeposit(uint256 amount) external {
@@ -428,11 +418,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         teller.deposit(WETH, 0, 0);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DualDeposit.selector)
-        );
-        teller.deposit{value: 1}(WETH, 1, 0);
-
-        vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MinimumMintNotMet.selector)
         );
         teller.deposit(WETH, 1, type(uint256).max);
@@ -441,11 +426,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__ZeroAssets.selector)
         );
         teller.deposit(NATIVE_ERC20, 0, 0);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MinimumMintNotMet.selector)
-        );
-        teller.deposit{value: 1}(NATIVE_ERC20, 1, type(uint256).max);
 
         // bulkDeposit reverts
         vm.expectRevert(

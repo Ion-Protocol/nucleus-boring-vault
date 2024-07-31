@@ -7,8 +7,8 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 
-import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
+import "@forge-std/Script.sol";
+import "@forge-std/StdJson.sol";
 
 /**
  *  source .env && forge script script/DeployDecoderAndSanitizer.s.sol:DeployDecoderAndSanitizerScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify

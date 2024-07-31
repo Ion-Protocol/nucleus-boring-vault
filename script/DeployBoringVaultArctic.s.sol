@@ -22,8 +22,8 @@ import {EtherFiLiquid1} from "src/interfaces/EtherFiLiquid1.sol";
 import {GenericRateProvider} from "src/helper/GenericRateProvider.sol";
 import {CellarMigrationAdaptor} from "src/migration/CellarMigrationAdaptor.sol";
 
-import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
+import "@forge-std/Script.sol";
+import "@forge-std/StdJson.sol";
 
 /**
  *  source .env && forge script script/DeployBoringVaultArctic.s.sol:DeployBoringVaultArcticScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
@@ -121,7 +121,7 @@ contract DeployBoringVaultArcticScript is Script, ContractNames, MainnetAddresse
         );
 
         creationCode = type(TellerWithMultiAssetSupport).creationCode;
-        constructorArgs = abi.encode(owner, address(boringVault), address(accountant), WETH);
+        constructorArgs = abi.encode(owner, address(boringVault), address(accountant));
         teller = TellerWithMultiAssetSupport(
             payable(deployer.deployContract(EtherFiLiquidEthTellerName, creationCode, constructorArgs, 0))
         );
