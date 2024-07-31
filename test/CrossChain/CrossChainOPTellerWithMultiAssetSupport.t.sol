@@ -80,7 +80,12 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
         emit SentMessageExtension1(sourceTellerAddr, 0);
 
+        uint balBefore = boringVault.balanceOf(address(this));
         bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
+
+        assertEq(
+            boringVault.balanceOf(address(this)), balBefore - sharesToBridge, "Should have burned shares."
+        );
 
     }
 
@@ -117,6 +122,9 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         emit SentMessageExtension1(sourceTellerAddr, 0);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
+        assertEq(
+            boringVault.balanceOf(user), 0, "Should have burned shares."
+        );
     }
 
 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >=0.8.19 <=0.9.0;
 
-import {CreateX} from "lib/createx/src/CreateX.sol";
 import {ICreateX} from "lib/createx/src/ICreateX.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -60,7 +59,7 @@ abstract contract BaseScript is Script {
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
         if(address(CREATEX).code.length == 0){
-            revert("CREATEX Not Deployedv on this chain. Use the Library to forge deploy it");
+            revert("CREATEX Not Deployed on this chain. Use the Library to forge deploy it");
         }
     }
 
