@@ -118,12 +118,18 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
         uint quote = 0;
 
+        uint wethBefore = WETH.balanceOf(address(boringVault));
+
         vm.expectEmit();
         emit SentMessageExtension1(sourceTellerAddr, 0);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
 
         assertEq(
             boringVault.balanceOf(user), 0, "Should have burned shares."
+        );
+
+        assertEq(
+            WETH.balanceOf(address(boringVault)), wethBefore + shares
         );
     }
 

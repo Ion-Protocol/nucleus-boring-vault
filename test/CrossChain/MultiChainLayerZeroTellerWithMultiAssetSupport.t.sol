@@ -131,6 +131,9 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         // I still get the real number here for testing
         uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
         uint quote = sourceTeller.previewFee(shares, data);
+        uint wethBefore = WETH.balanceOf(address(boringVault));
+
+
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(destinationTellerAddr));
 
@@ -140,6 +143,10 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         assertEq(
             boringVault.balanceOf(userChain2), shares
+        );
+
+        assertEq(
+            WETH.balanceOf(address(boringVault)), wethBefore + shares
         );
         vm.stopPrank();
     }
