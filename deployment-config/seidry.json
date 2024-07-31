@@ -1,5 +1,5 @@
 {
-    "protocolAdmin": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
+    "protocolAdmin": "0xbcef4940d7000e94c0048f071e28bfe91bc5066d",
 
     "boringVault":{
         "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000a",
@@ -30,7 +30,7 @@
         "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000a",
         "maxGasForPeer": 100000,
         "minGasForPeer": 0,
-        "peerEid": 0,
+        "peerEid": 1,
         "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
         "assets": [
         ],
@@ -38,7 +38,7 @@
     },
     "rolesAuthority": {
         "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000000a",
-        "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
+        "strategist": "0xbcef4940d7000e94c0048f071e28bfe91bc5066d",
         "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000",
 
         "address": "0x0000000000000000000000000000000000000000"

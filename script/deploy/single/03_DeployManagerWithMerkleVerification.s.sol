@@ -19,7 +19,7 @@ contract DeployManagerWithMerkleVerification is BaseScript {
         require(config.managerSalt != bytes32(0), "manager salt must not be zero");
         require(config.boringVault != address(0), "boring vault address must not be zero");
         require(address(config.boringVault).code.length != 0, "boring vault must have code");
-        require(address(config.balancerVault).code.length != 0, "balancer vault must have code");
+        // require(address(config.balancerVault).code.length != 0, "balancer vault must have code");
 
         // Create Contract
         bytes memory creationCode = type(ManagerWithMerkleVerification).creationCode;

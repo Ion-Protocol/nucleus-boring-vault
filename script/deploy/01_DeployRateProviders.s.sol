@@ -34,7 +34,7 @@ contract DeployRateProviders is BaseScript {
                 // review with Jun/Jamie
                 rateProvider = deployRateProvider(priceFeed, maxTimeFromLastUpdate, 18);
                 string memory chainConfigFilePath = string.concat(
-                    CONFIG_CHAIN_ROOT, 
+                    CONFIG_CHAIN_ROOT,
                     Strings.toString(block.chainid),
                     ".json"
                 );
