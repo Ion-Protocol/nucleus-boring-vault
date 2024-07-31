@@ -60,7 +60,7 @@ abstract contract BaseScript is Script {
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
         if(address(CREATEX).code.length == 0){
-            CREATEX = ICreateX(address(new CreateX()));
+            revert("CREATEX Not Deployedv on this chain. Use the Library to forge deploy it");
         }
     }
 

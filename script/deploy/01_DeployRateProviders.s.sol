@@ -30,9 +30,10 @@ contract DeployRateProviders is BaseScript {
             // must deploy new rate provider and set the value
             if(rateProvider == address(0)){
                 address priceFeed  = chainConfig.readAddress(string(abi.encodePacked(".assetToRateProviderAndPriceFeed.",assets[i].toHexString(),".priceFeed")));
-                // TODO remove this hardcoded 18, and replace it with either config value OR something constant
-                // review with Jun/Jamie
-                rateProvider = deployRateProvider(priceFeed, maxTimeFromLastUpdate, 18);
+                uint8 decimals = uint8(chainConfig.readUint(string(abi.encodePacked(".assetToRateProviderAndPriceFeed.",assets[i].toHexString(),".decimals"))));
+                string memory description = chainConfig.readString(string(abi.encodePacked(".assetToRateProviderAndPriceFeed.",assets[i].toHexString(),".description")));
+                uint priceFeedType = chainConfig.readUint(string(abi.encodePacked(".assetToRateProviderAndPriceFeed.",assets[i].toHexString(),".priceFeedType")));
+                rateProvider = deployRateProvider(description, priceFeed, maxTimeFromLastUpdate, decimals, priceFeedType);
                 string memory chainConfigFilePath = string.concat(
                     CONFIG_CHAIN_ROOT,
                     Strings.toString(block.chainid),
@@ -45,16 +46,12 @@ contract DeployRateProviders is BaseScript {
 
     function deploy(ConfigReader.Config memory config) public override broadcast returns(address){}
 
-    function deployRateProvider(address priceFeed, uint maxTimeFromLastUpdate, uint8 decimals) public broadcast returns(address){
+    function deployRateProvider(string memory description, address priceFeed, uint maxTimeFromLastUpdate, uint8 decimals, uint priceFeedType) public broadcast returns(address){
         require(maxTimeFromLastUpdate > 0, "max time from last update = 0");
         require(priceFeed.code.length > 0, "price feed must have code");
 
-        // removed the salt...
-        // should this be CREATEX'd?
-        // or should we just avoid deterministic deployments here?
-        // leaning on that, but todo is confirm with team and remove salt if so
         EthPerTokenRateProvider rateProvider = new EthPerTokenRateProvider(
-            IPriceFeed(priceFeed), maxTimeFromLastUpdate, decimals
+            description, IPriceFeed(priceFeed), maxTimeFromLastUpdate, decimals, EthPerTokenRateProvider.PriceFeedType(priceFeedType)
         );
 
         return address(rateProvider);
