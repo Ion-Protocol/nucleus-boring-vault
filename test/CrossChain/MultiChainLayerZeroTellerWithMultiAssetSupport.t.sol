@@ -179,14 +179,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         // Call now succeeds.
         data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
-<<<<<<< HEAD
-
-        uint quote = sourceTeller.previewFee(1e18, data);
-
-        sourceTeller.bridge{value:quote}(1e18, data);
-=======
         uint256 quote = sourceTeller.previewFee(1e18, data);
->>>>>>> carson/crosschain-op
 
         sourceTeller.bridge{ value: quote }(1e18, data);
     }
