@@ -14,7 +14,7 @@ import { OAppAuthCore } from "./OAppAuthCore.sol";
  * @title OAppAuthSender
  * @dev Abstract contract implementing the OAppSender functionality for sending messages to a LayerZero endpoint.
  *
- * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
+ * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthSender is OAppAuthCore {
     using SafeERC20 for IERC20;
@@ -97,9 +97,8 @@ abstract contract OAppAuthSender is OAppAuthCore {
         uint256 messageValue = _payNative(_fee.nativeFee);
         if (_fee.lzTokenFee > 0) _payLzToken(_fee.lzTokenFee);
 
-        return endpoint
-            // solhint-disable-next-line check-send-result
-            .send{ value: messageValue }(
+        // solhint-disable-next-line check-send-result
+        return endpoint.send{ value: messageValue }(
             MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _fee.lzTokenFee > 0), _refundAddress
         );
     }

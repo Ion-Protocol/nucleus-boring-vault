@@ -4,7 +4,6 @@ pragma solidity 0.8.21;
 import { MultiChainTellerBase, MultiChainTellerBase_MessagesNotAllowedFrom } from "./MultiChainTellerBase.sol";
 import { BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
 import { OAppAuth, MessagingFee, Origin, MessagingReceipt } from "./OAppAuth/OAppAuth.sol";
-import { Auth } from "@solmate/auth/Auth.sol";
 
 import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
 
@@ -76,7 +75,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
 
     /**
      * @notice bridge override to allow bridge logic to be done for bridge() and depositAndBridge()
-     * @param shareAmount to be moved accross chain
+     * @param shareAmount to be moved across chain
      * @param data BridgeData
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns (bytes32) {

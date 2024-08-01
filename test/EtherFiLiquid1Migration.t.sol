@@ -292,7 +292,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
 
         uint256 totalAssetsAfter = etherFiLiquid1.totalAssets();
 
-        // There is a small change in total assets because the BoringVault prices weETH usinf the rate, but,
+        // There is a small change in total assets because the BoringVault prices weETH using the rate, but,
         // when the cellar prices weETH, there is some small rounding errors when getValue logic is used.
         assertApproxEqRel(
             totalAssetsAfter, totalAssetsBefore, 0.00000001e18, "Total assets should not change after migration."

@@ -27,7 +27,7 @@ contract ManagerWithMerkleVerification is Auth {
      * @dev Each leaf is composed of the keccak256 hash of abi.encodePacked {decodersAndSanitizer, target,
      * valueIsNonZero, selector, argumentAddress_0, ...., argumentAddress_N}
      *      Where:
-     *             - decodersAndSanitizer is the addres to call to extract packed address arguments from the calldata
+     *             - decodersAndSanitizer is the address to call to extract packed address arguments from the calldata
      *             - target is the address to make the call to
      *             - valueIsNonZero is a bool indicating whether or not the value is non-zero
      *             - selector is the function selector on target

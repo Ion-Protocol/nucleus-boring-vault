@@ -111,7 +111,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view virtual returns (uint256);
 
     /**
-     * @notice after bridge code, just an emit but can be overriden
+     * @notice after bridge code, just an emit but can be overridden
      * @param shareAmount share amount burned
      * @param data bridge data
      * @param messageId message id returned when bridged

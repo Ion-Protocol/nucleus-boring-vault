@@ -42,7 +42,7 @@ error INVALID_TELLER_CONTRACT_NAME();
  *
  *      /deployment-config/chain
  *
- * contains chain specific configurations (EX. WETH or BALANCER addresses) that are the same accross all deployments in
+ * contains chain specific configurations (EX. WETH or BALANCER addresses) that are the same across all deployments in
  * a chain
  *
  */
