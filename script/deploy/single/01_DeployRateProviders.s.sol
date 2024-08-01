@@ -20,7 +20,7 @@ contract DeployRateProviders is BaseScript {
 
     function deploy(ConfigReader.Config memory config) public override broadcast returns(address){
         // Create Contract
-        EthPerWstEthRateProvider rateProvider = new EthPerWstEthRateProvider{salt: config.rateProviderSalt}(
+        EthPerWstEthRateProvider rateProvider = new EthPerWstEthRateProvider(
             address(ETH_PER_STETH_CHAINLINK), address(WSTETH_ADDRESS), config.maxTimeFromLastUpdate
         );
 

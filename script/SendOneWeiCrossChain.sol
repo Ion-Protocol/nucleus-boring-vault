@@ -13,7 +13,7 @@ import {CrossChainARBTellerWithMultiAssetSupportL1, BridgeData} from "src/base/R
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
 contract SendOneWeiCrossChain is Script {
-    address constant SOURCE_TELLER = 0x11683E12e0BEbFcc0a47151C5C8d79457a4d6AC6;
+    address constant SOURCE_TELLER = 0x6c425b484Bbc8d0De6C3d411CdacDF2BeF57822f;
     uint32 constant DESTINATION_SELECTOR = 421614;
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     ERC20 constant WETH_SEPOLIA = ERC20(0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14);
