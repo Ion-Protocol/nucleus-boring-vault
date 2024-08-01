@@ -8,7 +8,11 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { IMessageLib, MessageLibType } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/IMessageLib.sol";
 import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
-import { ILayerZeroEndpointV2, MessagingFee, Origin } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {
+    ILayerZeroEndpointV2,
+    MessagingFee,
+    Origin
+} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { Errors } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/Errors.sol";
 import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
 import { Transfer } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/Transfer.sol";
@@ -78,7 +82,11 @@ contract SimpleMessageLibMock is Ownable, ERC165 {
         Packet calldata _packet,
         bytes memory _options,
         bool _payInLzToken
-    ) external onlyEndpoint returns (MessagingFee memory fee, bytes memory encodedPacket, bytes memory options) {
+    )
+        external
+        onlyEndpoint
+        returns (MessagingFee memory fee, bytes memory encodedPacket, bytes memory options)
+    {
         encodedPacket = PacketV1Codec.encode(_packet);
 
         options = _options.length == 0 ? defaultOption : _options;
@@ -125,10 +133,14 @@ contract SimpleMessageLibMock is Ownable, ERC165 {
 
     // ------------------ View ------------------
     function quote(
-        Packet calldata /*_packet*/,
-        bytes calldata /*_options*/,
+        Packet calldata, /*_packet*/
+        bytes calldata, /*_options*/
         bool _payInLzToken
-    ) external view returns (MessagingFee memory) {
+    )
+        external
+        view
+        returns (MessagingFee memory)
+    {
         return MessagingFee(nativeFee, _payInLzToken ? lzTokenFee : 0);
     }
 
@@ -155,5 +167,5 @@ contract SimpleMessageLibMock is Ownable, ERC165 {
         revert Errors.LZ_NotImplemented();
     }
 
-    receive() external payable {}
+    receive() external payable { }
 }

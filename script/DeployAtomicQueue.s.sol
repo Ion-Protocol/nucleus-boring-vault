@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {Deployer} from "src/helper/Deployer.sol";
-import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
-import {AtomicSolverV3} from "src/atomic-queue/AtomicSolverV3.sol";
-import {ContractNames} from "resources/ContractNames.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { Deployer } from "src/helper/Deployer.sol";
+import { AtomicQueue } from "src/atomic-queue/AtomicQueue.sol";
+import { AtomicSolverV3 } from "src/atomic-queue/AtomicSolverV3.sol";
+import { ContractNames } from "resources/ContractNames.sol";
 
 import "@forge-std/Script.sol";
 import "@forge-std/StdJson.sol";
 
 /**
- *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 8000000000 --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
+ *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 8000000000
+ * --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
 contract DeployAtomicQueueScript is Script, ContractNames, MainnetAddresses {

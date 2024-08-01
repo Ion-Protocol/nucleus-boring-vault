@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract CurveDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== CURVE ===============================
@@ -16,7 +16,10 @@ abstract contract CurveDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
-    function remove_liquidity(uint256, uint256[] calldata)
+    function remove_liquidity(
+        uint256,
+        uint256[] calldata
+    )
         external
         pure
         virtual

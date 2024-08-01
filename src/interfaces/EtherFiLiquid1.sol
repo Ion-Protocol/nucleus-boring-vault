@@ -110,7 +110,11 @@ interface EtherFiLiquid1 {
     function maxRedeem(address owner) external view returns (uint256);
     function maxWithdraw(address owner) external view returns (uint256);
     function mint(uint256 shares, address receiver) external returns (uint256 assets);
-    function multiAssetDeposit(address depositAsset, uint256 assets, address receiver)
+    function multiAssetDeposit(
+        address depositAsset,
+        uint256 assets,
+        address receiver
+    )
         external
         returns (uint256 shares);
     function multicall(bytes[] memory data) external;
@@ -118,7 +122,15 @@ interface EtherFiLiquid1 {
     function nonces(address) external view returns (uint256);
     function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4);
     function owner() external view returns (address);
-    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
         external;
     function previewDeposit(uint256 assets) external view returns (uint256 shares);
     function previewMint(uint256 shares) external view returns (uint256 assets);
@@ -131,7 +143,8 @@ interface EtherFiLiquid1 {
         uint256[] memory amounts,
         uint256[] memory feeAmounts,
         bytes memory userData
-    ) external;
+    )
+        external;
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
     function registry() external view returns (address);
     function removeAdaptorFromCatalogue(address adaptor) external;
@@ -141,7 +154,8 @@ interface EtherFiLiquid1 {
         address _alternativeAsset,
         uint32 _alternativeHoldingPosition,
         uint32 _alternativeAssetFee
-    ) external;
+    )
+        external;
     function setAuthority(address newAuthority) external;
     function setHoldingPosition(uint32 positionId) external;
     function setRebalanceDeviation(uint256 newDeviation) external;

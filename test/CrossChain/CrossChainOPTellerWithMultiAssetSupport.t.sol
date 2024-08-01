@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {CrossChainBaseTest, CrossChainTellerBase, ERC20, BridgeData} from "./CrossChainBase.t.sol";
-import {CrossChainOPTellerWithMultiAssetSupport} from "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
+import { CrossChainBaseTest, CrossChainTellerBase, ERC20, BridgeData } from "./CrossChainBase.t.sol";
+import { CrossChainOPTellerWithMultiAssetSupport } from
+    "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
-contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
+contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
     using SafeTransferLib for ERC20;
-    using FixedPointMathLib for uint;
-
+    using FixedPointMathLib for uint256;
 
     // we can't use any kind of testing framework for OP
     // so instead just check for these events coming up on bridge()
@@ -46,17 +46,18 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
     // mainnet sepolia
     address constant SOURCE_MESSENGER = 0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1;
 
-    function setUp() public virtual override(CrossChainBaseTest){
+    function setUp() public virtual override(CrossChainBaseTest) {
         CrossChainBaseTest.setUp();
         CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
         CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
     }
 
-    function testBridgingShares(uint256 sharesToBridge) public virtual{
+    function testBridgingShares(uint256 sharesToBridge) public virtual {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller =
+            CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
-        sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
+        sharesToBridge = uint96(bound(sharesToBridge, 1, 1000e18));
 
         // Bridge shares.
         address to = vm.addr(1);
@@ -69,24 +70,28 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             data: ""
         });
 
-        uint quote = 0;
+        uint256 quote = 0;
 
         bytes memory expectedData = "";
         vm.expectEmit();
         // Not testing for these. Because it's pretty complicated.
-        // Figuring out how to get the correct opaque data and message nonce for a fuzz test is a bit out of scope for this test at the moment 
+        // Figuring out how to get the correct opaque data and message nonce for a fuzz test is a bit out of scope for
+        // this test at the moment
         // emit TransactionDeposited(address(this), DESTINATION_MESSENGER, 0, expectedData);
         // emit SentMessage(destinationTellerAddr, sourceTellerAddr, expectedData, 1, 80_000);
 
         emit SentMessageExtension1(sourceTellerAddr, 0);
 
-        bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
+        uint256 balBefore = boringVault.balanceOf(address(this));
+        bytes32 id = sourceTeller.bridge{ value: quote }(sharesToBridge, data);
 
+        assertEq(boringVault.balanceOf(address(this)), balBefore - sharesToBridge, "Should have burned shares.");
     }
 
-    function testDepositAndBridge(uint256 amount) external{
+    function testDepositAndBridge(uint256 amount) external {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller =
+            CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
@@ -108,56 +113,85 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             data: ""
         });
 
-        uint ONE_SHARE = 10 ** boringVault.decimals();
+        uint256 ONE_SHARE = 10 ** boringVault.decimals();
 
-        uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
-        uint quote = 0;
+        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint256 quote = 0;
+
+        uint256 wethBefore = WETH.balanceOf(address(boringVault));
 
         vm.expectEmit();
         emit SentMessageExtension1(sourceTellerAddr, 0);
-        sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
+        sourceTeller.depositAndBridge{ value: quote }(WETH, amount, shares, data);
 
+        assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
+
+        assertEq(WETH.balanceOf(address(boringVault)), wethBefore + shares);
     }
-
 
     function testReverts() public virtual override {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
-        CrossChainOPTellerWithMultiAssetSupport destinationTeller = CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller =
+            CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
 
         super.testReverts();
 
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        BridgeData memory data =
+            BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
 
         // reverts with gas too low
         sourceTeller.setGasBounds(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
+            bytes(
+                abi.encodeWithSelector(
+                    CrossChainOPTellerWithMultiAssetSupport
+                        .CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds
+                        .selector,
+                    uint32(80_000)
+                )
+            )
         );
-        sourceTeller.bridge{value:0}(1e18, data);
+        sourceTeller.bridge{ value: 0 }(1e18, data);
 
         // reverts with gas too high
         sourceTeller.setGasBounds(uint32(0), uint32(79_999));
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds.selector, uint32(80_000)))
+            bytes(
+                abi.encodeWithSelector(
+                    CrossChainOPTellerWithMultiAssetSupport
+                        .CrossChainOPTellerWithMultiAssetSupport_GasOutOfBounds
+                        .selector,
+                    uint32(80_000)
+                )
+            )
         );
-        sourceTeller.bridge{value:0}(1e18, data);
+        sourceTeller.bridge{ value: 0 }(1e18, data);
 
         // reverts with a fee provided
         sourceTeller.setGasBounds(uint32(0), uint32(CHAIN_MESSAGE_GAS_LIMIT));
         vm.expectRevert(
-            bytes(abi.encodeWithSelector(CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_NoFee.selector))
+            bytes(
+                abi.encodeWithSelector(
+                    CrossChainOPTellerWithMultiAssetSupport.CrossChainOPTellerWithMultiAssetSupport_NoFee.selector
+                )
+            )
         );
-        sourceTeller.bridge{value:1}(1e18, data);
-
+        sourceTeller.bridge{ value: 1 }(1e18, data);
 
         // Call now succeeds.
-        sourceTeller.bridge{value:0}(1e18, data);
-
+        sourceTeller.bridge{ value: 0 }(1e18, data);
     }
 
-    function _deploySourceAndDestinationTeller() internal virtual override{
-        sourceTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), SOURCE_MESSENGER));
-        destinationTellerAddr = address(new CrossChainOPTellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), DESTINATION_MESSENGER));
+    function _deploySourceAndDestinationTeller() internal virtual override {
+        sourceTellerAddr = address(
+            new CrossChainOPTellerWithMultiAssetSupport(
+                address(this), address(boringVault), address(accountant), SOURCE_MESSENGER
+            )
+        );
+        destinationTellerAddr = address(
+            new CrossChainOPTellerWithMultiAssetSupport(
+                address(this), address(boringVault), address(accountant), DESTINATION_MESSENGER
+            )
+        );
     }
-
 }

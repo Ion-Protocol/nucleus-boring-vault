@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AtomicQueue, ERC20, SafeTransferLib} from "./AtomicQueue.sol";
-import {IAtomicSolver} from "./IAtomicSolver.sol";
+import { AtomicQueue, ERC20, SafeTransferLib } from "./AtomicQueue.sol";
+import { IAtomicSolver } from "./IAtomicSolver.sol";
 
-import {Owned} from "@solmate/auth/Owned.sol";
-import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
+import { Owned } from "@solmate/auth/Owned.sol";
+import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 
+/**
+ * @title AtomicSolver
+ * @author
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract AtomicSolver is IAtomicSolver, Owned, ERC721Holder {
     using Address for address;
     using SafeTransferLib for ERC20;
@@ -25,7 +30,14 @@ contract AtomicSolver is IAtomicSolver, Owned, ERC721Holder {
         approvedToCallFinishSolve[who] = state;
     }
 
-    function finishSolve(bytes calldata runData, address initiator, ERC20, ERC20 want, uint256, uint256 assetsForWant)
+    function finishSolve(
+        bytes calldata runData,
+        address initiator,
+        ERC20,
+        ERC20 want,
+        uint256,
+        uint256 assetsForWant
+    )
         external
     {
         require(initiator == owner);
@@ -41,7 +53,11 @@ contract AtomicSolver is IAtomicSolver, Owned, ERC721Holder {
     }
 
     // fn to make multiple external calls
-    function doStuff(address[] calldata targets, uint256[] calldata values, bytes[] calldata ammo)
+    function doStuff(
+        address[] calldata targets,
+        uint256[] calldata values,
+        bytes[] calldata ammo
+    )
         external
         payable
         onlyOwner
@@ -59,7 +75,9 @@ contract AtomicSolver is IAtomicSolver, Owned, ERC721Holder {
         uint256[] calldata amounts,
         uint256[] calldata feeAmounts,
         bytes calldata userData
-    ) external {
+    )
+        external
+    {
         require(msg.sender == _balancerVault);
         require(_solving);
         (address[] memory targets, uint256[] memory values, bytes[] memory ammo) =
@@ -77,5 +95,5 @@ contract AtomicSolver is IAtomicSolver, Owned, ERC721Holder {
         receiver.transfer(address(this).balance);
     }
 
-    receive() external payable {}
+    receive() external payable { }
 }

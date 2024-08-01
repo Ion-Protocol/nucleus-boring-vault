@@ -22,5 +22,6 @@ interface IAtomicSolver {
         ERC20 want,
         uint256 assetsToOffer,
         uint256 assetsForWant
-    ) external;
+    )
+        external;
 }

@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import {MultiChainLayerZeroTellerWithMultiAssetSupport} from "./../../../src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
-import {BaseScript} from "./../../Base.s.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
+import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
+    "./../../../src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
     using StdJson for string;
-
 
     function run() public returns (address teller) {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns(address){
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Get Config Values
 
         // Require config Values
@@ -30,7 +30,9 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         MultiChainLayerZeroTellerWithMultiAssetSupport teller = MultiChainLayerZeroTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 config.tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.lzEndpoint))
+                abi.encodePacked(
+                    creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.lzEndpoint)
+                )
             )
         );
 
@@ -48,6 +50,5 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         require(address(teller.endpoint()) == config.lzEndpoint, "OP Teller must have messenger set");
 
         return address(teller);
-
     }
 }

@@ -37,7 +37,7 @@ contract SendOneWeiCrossChain is Script {
 
         uint quote = teller.previewFee(1, data);
 
-        teller.depositAndBridge{value:quote}((WETH_SEPOLIA), 1, 1, data);
+        teller.depositAndBridge{value:quote*3}((WETH_SEPOLIA), 1, 1, data);
         vm.stopBroadcast();
     }
 }

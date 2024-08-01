@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== AAVEV3 ===============================
 
-    function supply(address asset, uint256, address onBehalfOf, uint16)
+    function supply(
+        address asset,
+        uint256,
+        address onBehalfOf,
+        uint16
+    )
         external
         pure
         virtual
@@ -19,7 +24,13 @@ abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(asset, to);
     }
 
-    function borrow(address asset, uint256, uint256, uint16, address onBehalfOf)
+    function borrow(
+        address asset,
+        uint256,
+        uint256,
+        uint16,
+        address onBehalfOf
+    )
         external
         pure
         virtual
@@ -28,7 +39,12 @@ abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(asset, onBehalfOf);
     }
 
-    function repay(address asset, uint256, uint256, address onBehalfOf)
+    function repay(
+        address asset,
+        uint256,
+        uint256,
+        address onBehalfOf
+    )
         external
         pure
         virtual
@@ -37,7 +53,10 @@ abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(asset, onBehalfOf);
     }
 
-    function setUserUseReserveAsCollateral(address asset, bool)
+    function setUserUseReserveAsCollateral(
+        address asset,
+        bool
+    )
         external
         pure
         virtual

@@ -3,13 +3,17 @@
 pragma solidity ^0.8.20;
 
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { MessagingParams, MessagingFee, MessagingReceipt } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {
+    MessagingParams,
+    MessagingFee,
+    MessagingReceipt
+} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { OAppAuthCore } from "./OAppAuthCore.sol";
 
 /**
  * @title OAppAuthSender
  * @dev Abstract contract implementing the OAppSender functionality for sending messages to a LayerZero endpoint.
- * 
+ *
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
  */
 abstract contract OAppAuthSender is OAppAuthCore {
@@ -30,7 +34,8 @@ abstract contract OAppAuthSender is OAppAuthCore {
      *
      * @dev Providing 0 as the default for OAppReceiver version. Indicates that the OAppReceiver is not implemented.
      * ie. this is a SEND only OApp.
-     * @dev If the OApp uses both OAppSender and OAppReceiver, then this needs to be override returning the correct versions
+     * @dev If the OApp uses both OAppSender and OAppReceiver, then this needs to be override returning the correct
+     * versions
      */
     function oAppVersion() public view virtual returns (uint64 senderVersion, uint64 receiverVersion) {
         return (SENDER_VERSION, 0);
@@ -51,12 +56,15 @@ abstract contract OAppAuthSender is OAppAuthCore {
         bytes memory _message,
         bytes memory _options,
         bool _payInLzToken
-    ) internal view virtual returns (MessagingFee memory fee) {
-        return
-            endpoint.quote(
-                MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _payInLzToken),
-                address(this)
-            );
+    )
+        internal
+        view
+        virtual
+        returns (MessagingFee memory fee)
+    {
+        return endpoint.quote(
+            MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _payInLzToken), address(this)
+        );
     }
 
     /**
@@ -79,17 +87,21 @@ abstract contract OAppAuthSender is OAppAuthCore {
         bytes memory _options,
         MessagingFee memory _fee,
         address _refundAddress
-    ) internal virtual returns (MessagingReceipt memory receipt) {
-        // @dev Push corresponding fees to the endpoint, any excess is sent back to the _refundAddress from the endpoint.
+    )
+        internal
+        virtual
+        returns (MessagingReceipt memory receipt)
+    {
+        // @dev Push corresponding fees to the endpoint, any excess is sent back to the _refundAddress from the
+        // endpoint.
         uint256 messageValue = _payNative(_fee.nativeFee);
         if (_fee.lzTokenFee > 0) _payLzToken(_fee.lzTokenFee);
 
-        return
+        return endpoint
             // solhint-disable-next-line check-send-result
-            endpoint.send{ value: messageValue }(
-                MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _fee.lzTokenFee > 0),
-                _refundAddress
-            );
+            .send{ value: messageValue }(
+            MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _fee.lzTokenFee > 0), _refundAddress
+        );
     }
 
     /**

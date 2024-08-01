@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import {TellerWithMultiAssetSupport} from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {MainnetAddresses} from "./../../../test/resources/MainnetAddresses.sol";
-import {BaseScript} from "./../../Base.s.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
+import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import { TellerWithMultiAssetSupport } from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { MainnetAddresses } from "./../../../test/resources/MainnetAddresses.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployTellerWithMultiAssetSupport is BaseScript, MainnetAddresses {
     using StdJson for string;
-
 
     function run() public returns (address) {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns(address){      
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require config Values
         require(config.boringVault.code.length != 0, "boringVault must have code");
         require(config.accountant.code.length != 0, "accountant must have code");

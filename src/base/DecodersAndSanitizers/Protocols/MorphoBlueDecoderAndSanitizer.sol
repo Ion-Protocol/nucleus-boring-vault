@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
@@ -16,7 +16,11 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256,
         address onBehalf,
         bytes calldata data
-    ) external pure returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         // Sanitize raw data
         if (data.length > 0) revert MorphoBlueDecoderAndSanitizer__CallbackNotSupported();
         // Return addresses found
@@ -29,7 +33,11 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256,
         address onBehalf,
         address receiver
-    ) external pure returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         // Nothing to sanitize
         // Return addresses found
         addressesFound =
@@ -42,7 +50,11 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256,
         address onBehalf,
         address receiver
-    ) external pure returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         addressesFound =
             abi.encodePacked(params.loanToken, params.collateralToken, params.oracle, params.irm, onBehalf, receiver);
     }
@@ -53,7 +65,11 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256,
         address onBehalf,
         bytes calldata data
-    ) external pure returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         // Sanitize raw data
         if (data.length > 0) revert MorphoBlueDecoderAndSanitizer__CallbackNotSupported();
 
@@ -66,7 +82,11 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256,
         address onBehalf,
         bytes calldata data
-    ) external pure returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         // Sanitize raw data
         if (data.length > 0) revert MorphoBlueDecoderAndSanitizer__CallbackNotSupported();
 
@@ -79,7 +99,11 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256,
         address onBehalf,
         address receiver
-    ) external pure returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         // Nothing to sanitize
         // Return addresses found
         addressesFound =

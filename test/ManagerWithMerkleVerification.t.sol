@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {ManagerWithMerkleVerification} from "src/base/Roles/ManagerWithMerkleVerification.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
+import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import {
     EtherFiLiquidDecoderAndSanitizer,
     MorphoBlueDecoderAndSanitizer,
@@ -14,18 +14,18 @@ import {
     BalancerV2DecoderAndSanitizer,
     PendleRouterDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
-import {EtherFiLiquidDecoderAndSanitizer} from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
-import {LidoLiquidDecoderAndSanitizer} from "src/base/DecodersAndSanitizers/LidoLiquidDecoderAndSanitizer.sol";
-import {BalancerVault} from "src/interfaces/BalancerVault.sol";
-import {IUniswapV3Router} from "src/interfaces/IUniswapV3Router.sol";
-import {DecoderCustomTypes} from "src/interfaces/DecoderCustomTypes.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
+import { EtherFiLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
+import { LidoLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/LidoLiquidDecoderAndSanitizer.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
+import { IUniswapV3Router } from "src/interfaces/IUniswapV3Router.sol";
+import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import {
     PointFarmingDecoderAndSanitizer,
     EigenLayerLSTStakingDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/PointFarmingDecoderAndSanitizer.sol";
 
-import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -51,7 +51,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
         // uint256 blockNumber = 19369928;
-        uint256 blockNumber = 19826676;
+        uint256 blockNumber = 19_826_676;
 
         _startFork(rpcKey, blockNumber);
 
@@ -223,7 +223,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testBalancerV2AndAuraIntegration() external {
-        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
         bytes32 poolId = 0x1e19cf2d73a72ef1332c882f20534b6519be0276000200000000000000000112;
         // Make sure the vault can
         // swap wETH -> rETH
@@ -338,7 +338,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.assets[1] = address(WETH);
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
-        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT, [100e18,100e18], 0
+        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
+            // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -347,12 +348,14 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             joinRequest
         );
         targetData[4] = abi.encodeWithSignature("approve(address,uint256)", rETH_wETH_gauge, type(uint256).max);
-        targetData[5] = abi.encodeWithSignature("deposit(uint256,address)", 203690537881715311640, address(boringVault));
-        targetData[6] = abi.encodeWithSignature("withdraw(uint256)", 203690537881715311640, address(boringVault));
+        targetData[5] =
+            abi.encodeWithSignature("deposit(uint256,address)", 203_690_537_881_715_311_640, address(boringVault));
+        targetData[6] = abi.encodeWithSignature("withdraw(uint256)", 203_690_537_881_715_311_640, address(boringVault));
         targetData[7] = abi.encodeWithSignature("approve(address,uint256)", aura_reth_weth, type(uint256).max);
-        targetData[8] = abi.encodeWithSignature("deposit(uint256,address)", 203690537881715311640, address(boringVault));
+        targetData[8] =
+            abi.encodeWithSignature("deposit(uint256,address)", 203_690_537_881_715_311_640, address(boringVault));
         targetData[9] = abi.encodeWithSignature(
-            "withdraw(uint256,address,address)", 203690537881715311640, address(boringVault), address(boringVault)
+            "withdraw(uint256,address,address)", 203_690_537_881_715_311_640, address(boringVault), address(boringVault)
         );
         DecoderCustomTypes.ExitPoolRequest memory exitRequest = DecoderCustomTypes.ExitPoolRequest({
             assets: new address[](2),
@@ -362,7 +365,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
-        exitRequest.userData = abi.encode(1, 203690537881715311640); // EXACT_BPT_IN_FOR_TOKENS_OUT, 203690537881715311640
+        exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
+            // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -517,13 +521,13 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[4] = abi.encodeWithSignature(
             "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))", mintParams
         );
-        uint256 expectedTokenId = 719588;
+        uint256 expectedTokenId = 719_588;
         DecoderCustomTypes.IncreaseLiquidityParams memory increaseLiquidityParams =
             DecoderCustomTypes.IncreaseLiquidityParams(expectedTokenId, 45e18, 45e18, 0, 0, block.timestamp);
         targetData[5] = abi.encodeWithSignature(
             "increaseLiquidity((uint256,uint256,uint256,uint256,uint256,uint256))", increaseLiquidityParams
         );
-        uint128 expectedLiquidity = 17435811346020121907400;
+        uint128 expectedLiquidity = 17_435_811_346_020_121_907_400;
         DecoderCustomTypes.DecreaseLiquidityParams memory decreaseLiquidityParams =
             DecoderCustomTypes.DecreaseLiquidityParams(expectedTokenId, expectedLiquidity, 0, 0, block.timestamp);
         targetData[6] = abi.encodeWithSignature(
@@ -639,10 +643,10 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[2] = abi.encodeWithSignature("approve(address,uint256)", weETH_wETH_Curve_LP, type(uint256).max);
         targetData[3] = abi.encodeWithSignature("approve(address,uint256)", weETH_wETH_Curve_LP, type(uint256).max);
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 48082277094560238132;
+        amounts[0] = 48_082_277_094_560_238_132;
         amounts[1] = 50e18;
         targetData[4] = abi.encodeWithSignature("add_liquidity(uint256[],uint256)", amounts, 0);
-        uint256 lpTokens = 98371392079353838711;
+        uint256 lpTokens = 98_371_392_079_353_838_711;
         targetData[5] = abi.encodeWithSignature("approve(address,uint256)", weETH_wETH_Curve_Gauge, type(uint256).max);
         targetData[6] = abi.encodeWithSignature("deposit(uint256,address)", lpTokens, address(boringVault));
         targetData[7] = abi.encodeWithSignature("withdraw(uint256)", lpTokens);
@@ -757,7 +761,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[1] = abi.encodeWithSignature("deposit()");
         targetData[2] = abi.encodeWithSignature("approve(address,uint256)", address(WEETH), type(uint256).max);
         targetData[3] = abi.encodeWithSignature("wrap(uint256)", 100e18 - 1);
-        uint256 weETHAmount = 96346539735660261219;
+        uint256 weETHAmount = 96_346_539_735_660_261_219;
         targetData[4] = abi.encodeWithSignature("unwrap(uint256)", weETHAmount);
         targetData[5] = abi.encodeWithSignature("approve(address,uint256)", EETH_LIQUIDITY_POOL, type(uint256).max);
         targetData[6] = abi.encodeWithSignature("requestWithdraw(address,uint256)", address(boringVault), 100e18 - 2);
@@ -773,7 +777,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         decodersAndSanitizers[6] = rawDataDecoderAndSanitizer;
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
-        uint256 withdrawRequestId = 17743;
+        uint256 withdrawRequestId = 17_743;
 
         _finalizeRequest(withdrawRequestId, 100e18 - 2);
 
@@ -970,7 +974,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testGearboxIntegration() external {
-        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
 
         // get dWETHV3
         // get sdWETHV3
@@ -1016,13 +1020,13 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         bytes[] memory targetData = new bytes[](7);
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", dWETHV3, type(uint256).max);
-        targetData[1] = abi.encodeWithSignature("deposit(uint256,address)", 1_000e18, address(boringVault));
+        targetData[1] = abi.encodeWithSignature("deposit(uint256,address)", 1000e18, address(boringVault));
         targetData[2] = abi.encodeWithSignature("approve(address,uint256)", sdWETHV3, type(uint256).max);
         targetData[3] = abi.encodeWithSignature("deposit(uint256)", 100e18);
         targetData[4] = abi.encodeWithSignature("claim()");
         targetData[5] = abi.encodeWithSignature("withdraw(uint256)", 100e18);
         targetData[6] = abi.encodeWithSignature(
-            "withdraw(uint256,address,address)", 1_000e18 - 1, address(boringVault), address(boringVault)
+            "withdraw(uint256,address,address)", 1000e18 - 1, address(boringVault), address(boringVault)
         );
 
         address[] memory decodersAndSanitizers = new address[](7);
@@ -1040,7 +1044,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testPendleRouterIntegration() external {
-        deal(address(WEETH), address(boringVault), 1_000e18);
+        deal(address(WEETH), address(boringVault), 1000e18);
 
         // Need 4 approvals all for router, WEETH, SY, PT, YT
         // WEETH -> SY
@@ -1163,7 +1167,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         DecoderCustomTypes.SwapData memory swapData =
             DecoderCustomTypes.SwapData(DecoderCustomTypes.SwapType.NONE, address(0), hex"", false);
         DecoderCustomTypes.TokenInput memory tokenInput =
-            DecoderCustomTypes.TokenInput(address(WEETH), 1_000e18, address(WEETH), address(0), swapData);
+            DecoderCustomTypes.TokenInput(address(WEETH), 1000e18, address(WEETH), address(0), swapData);
         targetData[5] = abi.encodeWithSignature(
             "mintSyFromToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
             address(boringVault),
@@ -1241,8 +1245,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testAaveV3Integration() external {
-        deal(address(WSTETH), address(boringVault), 1_000e18);
-        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(WSTETH), address(boringVault), 1000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
 
         // Approve WSTETH
         // Approve WETH
@@ -1302,7 +1306,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", v3Pool, type(uint256).max);
         targetData[1] = abi.encodeWithSignature("approve(address,uint256)", v3Pool, type(uint256).max);
         targetData[2] = abi.encodeWithSignature(
-            "supply(address,uint256,address,uint16)", address(WSTETH), 1_000e18, address(boringVault), 0
+            "supply(address,uint256,address,uint16)", address(WSTETH), 1000e18, address(boringVault), 0
         );
         targetData[3] = abi.encodeWithSignature(
             "borrow(address,uint256,uint256,uint16,address)", address(WETH), 100e18, 2, 0, address(boringVault)
@@ -1311,7 +1315,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             "repay(address,uint256,uint256,address)", address(WETH), type(uint256).max, 2, address(boringVault)
         );
         targetData[5] = abi.encodeWithSignature(
-            "withdraw(address,uint256,address)", address(WSTETH), 1_000e18 - 1, address(boringVault)
+            "withdraw(address,uint256,address)", address(WSTETH), 1000e18 - 1, address(boringVault)
         );
         targetData[6] = abi.encodeWithSignature("setUserUseReserveAsCollateral(address,bool)", address(WSTETH), true);
         targetData[7] = abi.encodeWithSignature("setUserEMode(uint8)", 0);
@@ -1331,7 +1335,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testLidoIntegration() external {
-        deal(address(boringVault), 1_000e18);
+        deal(address(boringVault), 1000e18);
 
         // update DecoderAndSanitizer
         rawDataDecoderAndSanitizer =
@@ -1399,7 +1403,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         decodersAndSanitizers[5] = rawDataDecoderAndSanitizer;
 
         uint256[] memory values = new uint256[](6);
-        values[0] = 1_000e18;
+        values[0] = 1000e18;
 
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
@@ -1407,9 +1411,9 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         address admin = IUNSTETH(unstETH).getRoleMember(IUNSTETH(unstETH).FINALIZE_ROLE(), 0);
         deal(admin, 300e18);
         vm.startPrank(admin);
-        IUNSTETH(unstETH).finalize{value: 100e18}(37_767, type(uint256).max);
-        IUNSTETH(unstETH).finalize{value: 100e18}(37_768, type(uint256).max);
-        IUNSTETH(unstETH).finalize{value: 100e18}(37_769, type(uint256).max);
+        IUNSTETH(unstETH).finalize{ value: 100e18 }(37_767, type(uint256).max);
+        IUNSTETH(unstETH).finalize{ value: 100e18 }(37_768, type(uint256).max);
+        IUNSTETH(unstETH).finalize{ value: 100e18 }(37_769, type(uint256).max);
         vm.stopPrank();
 
         manageLeafs = new ManageLeaf[](2);
@@ -1448,7 +1452,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testEigenLayerLSTStakingIntegration() external {
-        deal(address(METH), address(boringVault), 1_000e18);
+        deal(address(METH), address(boringVault), 1000e18);
 
         // update DecoderAndSanitizer
         rawDataDecoderAndSanitizer = address(new PointFarmingDecoderAndSanitizer(address(boringVault)));
@@ -1498,14 +1502,14 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         bytes[] memory targetData = new bytes[](3);
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", strategyManager, type(uint256).max);
         targetData[1] = abi.encodeWithSignature(
-            "depositIntoStrategy(address,address,uint256)", mETHStrategy, address(METH), 1_000e18
+            "depositIntoStrategy(address,address,uint256)", mETHStrategy, address(METH), 1000e18
         );
         DecoderCustomTypes.QueuedWithdrawalParams[] memory queuedParams =
             new DecoderCustomTypes.QueuedWithdrawalParams[](1);
         queuedParams[0].strategies = new address[](1);
         queuedParams[0].strategies[0] = mETHStrategy;
         queuedParams[0].shares = new uint256[](1);
-        queuedParams[0].shares[0] = 1_000e18;
+        queuedParams[0].shares[0] = 1000e18;
         queuedParams[0].withdrawer = address(boringVault);
         targetData[2] = abi.encodeWithSignature("queueWithdrawals((address[],uint256[],address)[])", queuedParams);
 
@@ -1521,7 +1525,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         // Finalize withdraw requests.
         // Must wait atleast delegationManager.minWithdrawalDelayBlocks() blocks which is 50400.
         uint32 withdrawRequestBlock = uint32(block.number);
-        vm.roll(block.number + 50400);
+        vm.roll(block.number + 50_400);
 
         // Complete the withdrawal
         manageLeafs = new ManageLeaf[](1);
@@ -1542,7 +1546,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         withdrawParams[0].strategies = new address[](1);
         withdrawParams[0].strategies[0] = mETHStrategy;
         withdrawParams[0].shares = new uint256[](1);
-        withdrawParams[0].shares[0] = 1_000e18;
+        withdrawParams[0].shares[0] = 1000e18;
         address[][] memory tokens = new address[][](1);
         tokens[0] = new address[](1);
         tokens[0][0] = address(METH);
@@ -1565,11 +1569,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
-        assertEq(METH.balanceOf(address(boringVault)), 1_000e18, "BoringVault should have received 1,000 METH");
+        assertEq(METH.balanceOf(address(boringVault)), 1000e18, "BoringVault should have received 1,000 METH");
     }
 
     function testSwellSimpleStakingIntegration() external {
-        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
 
         // update DecoderAndSanitizer
         rawDataDecoderAndSanitizer = address(new PointFarmingDecoderAndSanitizer(address(boringVault)));
@@ -1606,10 +1610,9 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         bytes[] memory targetData = new bytes[](3);
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", swellSimpleStaking, type(uint256).max);
-        targetData[1] =
-            abi.encodeWithSignature("deposit(address,uint256,address)", WETH, 1_000e18, address(boringVault));
+        targetData[1] = abi.encodeWithSignature("deposit(address,uint256,address)", WETH, 1000e18, address(boringVault));
         targetData[2] =
-            abi.encodeWithSignature("withdraw(address,uint256,address)", WETH, 1_000e18, address(boringVault));
+            abi.encodeWithSignature("withdraw(address,uint256,address)", WETH, 1000e18, address(boringVault));
 
         address[] memory decodersAndSanitizers = new address[](3);
         decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
@@ -1620,11 +1623,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
-        assertEq(WETH.balanceOf(address(boringVault)), 1_000e18, "BoringVault should have received 1,000 WETH");
+        assertEq(WETH.balanceOf(address(boringVault)), 1000e18, "BoringVault should have received 1,000 WETH");
     }
 
     function testZircuitSimpleStakingIntegration() external {
-        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
 
         // update DecoderAndSanitizer
         rawDataDecoderAndSanitizer = address(new PointFarmingDecoderAndSanitizer(address(boringVault)));
@@ -1661,8 +1664,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         bytes[] memory targetData = new bytes[](3);
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", zircuitSimpleStaking, type(uint256).max);
         targetData[1] =
-            abi.encodeWithSignature("depositFor(address,address,uint256)", WETH, address(boringVault), 1_000e18);
-        targetData[2] = abi.encodeWithSignature("withdraw(address,uint256)", WETH, 1_000e18);
+            abi.encodeWithSignature("depositFor(address,address,uint256)", WETH, address(boringVault), 1000e18);
+        targetData[2] = abi.encodeWithSignature("withdraw(address,uint256)", WETH, 1000e18);
 
         address[] memory decodersAndSanitizers = new address[](3);
         decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
@@ -1673,7 +1676,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
-        assertEq(WETH.balanceOf(address(boringVault)), 1_000e18, "BoringVault should have received 1,000 WETH");
+        assertEq(WETH.balanceOf(address(boringVault)), 1000e18, "BoringVault should have received 1,000 WETH");
     }
 
     function testReverts() external {
@@ -1717,7 +1720,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         decodersAndSanitizers = new address[](1);
 
         targets[0] = address(USDC);
-        targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), 1_000);
+        targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), 1000);
         decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
 
         vm.expectRevert(
@@ -1775,7 +1778,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testManagementMintingSharesRevert() external {
-        deal(address(boringVault), 1_000e18);
+        deal(address(boringVault), 1000e18);
 
         ManageLeaf[] memory leafs = new ManageLeaf[](2);
         leafs[0] = ManageLeaf(address(this), false, "withdraw(uint256)", new address[](0));
@@ -1890,7 +1893,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testBalancerV2IntegrationReverts() external {
-        deal(address(WETH), address(boringVault), 1_000e18);
+        deal(address(WETH), address(boringVault), 1000e18);
         bytes32 poolId = 0x1e19cf2d73a72ef1332c882f20534b6519be0276000200000000000000000112;
         // Make sure the vault can
         // swap wETH -> rETH
@@ -2007,7 +2010,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.assets[1] = address(WETH);
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
-        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT, [100e18,100e18], 0
+        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
+            // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -2016,12 +2020,14 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             joinRequest
         );
         targetData[4] = abi.encodeWithSignature("approve(address,uint256)", rETH_wETH_gauge, type(uint256).max);
-        targetData[5] = abi.encodeWithSignature("deposit(uint256,address)", 203690537881715311640, address(boringVault));
-        targetData[6] = abi.encodeWithSignature("withdraw(uint256)", 203690537881715311640, address(boringVault));
+        targetData[5] =
+            abi.encodeWithSignature("deposit(uint256,address)", 203_690_537_881_715_311_640, address(boringVault));
+        targetData[6] = abi.encodeWithSignature("withdraw(uint256)", 203_690_537_881_715_311_640, address(boringVault));
         targetData[7] = abi.encodeWithSignature("approve(address,uint256)", aura_reth_weth, type(uint256).max);
-        targetData[8] = abi.encodeWithSignature("deposit(uint256,address)", 203690537881715311640, address(boringVault));
+        targetData[8] =
+            abi.encodeWithSignature("deposit(uint256,address)", 203_690_537_881_715_311_640, address(boringVault));
         targetData[9] = abi.encodeWithSignature(
-            "withdraw(uint256,address,address)", 203690537881715311640, address(boringVault), address(boringVault)
+            "withdraw(uint256,address,address)", 203_690_537_881_715_311_640, address(boringVault), address(boringVault)
         );
         DecoderCustomTypes.ExitPoolRequest memory exitRequest = DecoderCustomTypes.ExitPoolRequest({
             assets: new address[](2),
@@ -2031,7 +2037,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
-        exitRequest.userData = abi.encode(1, 203690537881715311640); // EXACT_BPT_IN_FOR_TOKENS_OUT, 203690537881715311640
+        exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
+            // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -2141,7 +2148,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.assets[1] = address(WETH);
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
-        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT, [100e18,100e18], 0
+        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
+            // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -2170,7 +2178,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.assets[1] = address(WETH);
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
-        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT, [100e18,100e18], 0
+        joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
+            // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -2188,7 +2197,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
-        exitRequest.userData = abi.encode(1, 203690537881715311640); // EXACT_BPT_IN_FOR_TOKENS_OUT, 203690537881715311640
+        exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
+            // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -2215,7 +2225,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
-        exitRequest.userData = abi.encode(1, 203690537881715311640); // EXACT_BPT_IN_FOR_TOKENS_OUT, 203690537881715311640
+        exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
+            // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -2594,13 +2605,13 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[4] = abi.encodeWithSignature(
             "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))", mintParams
         );
-        uint256 expectedTokenId = 719588;
+        uint256 expectedTokenId = 719_588;
         DecoderCustomTypes.IncreaseLiquidityParams memory increaseLiquidityParams =
             DecoderCustomTypes.IncreaseLiquidityParams(expectedTokenId, 45e18, 45e18, 0, 0, block.timestamp);
         targetData[5] = abi.encodeWithSignature(
             "increaseLiquidity((uint256,uint256,uint256,uint256,uint256,uint256))", increaseLiquidityParams
         );
-        uint128 expectedLiquidity = 17435811346020121907400;
+        uint128 expectedLiquidity = 17_435_811_346_020_121_907_400;
         DecoderCustomTypes.DecreaseLiquidityParams memory decreaseLiquidityParams =
             DecoderCustomTypes.DecreaseLiquidityParams(expectedTokenId, expectedLiquidity, 0, 0, block.timestamp);
         targetData[6] = abi.encodeWithSignature(
@@ -2707,7 +2718,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testPendleRouterReverts() external {
-        deal(address(WEETH), address(boringVault), 1_000e18);
+        deal(address(WEETH), address(boringVault), 1000e18);
 
         // Need 4 approvals all for router, WEETH, SY, PT, YT
         // WEETH -> SY
@@ -2830,7 +2841,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         DecoderCustomTypes.SwapData memory swapData =
             DecoderCustomTypes.SwapData(DecoderCustomTypes.SwapType.NONE, address(0), hex"", false);
         DecoderCustomTypes.TokenInput memory tokenInput =
-            DecoderCustomTypes.TokenInput(address(WEETH), 1_000e18, address(WEETH), address(0), swapData);
+            DecoderCustomTypes.TokenInput(address(WEETH), 1000e18, address(WEETH), address(0), swapData);
         targetData[5] = abi.encodeWithSignature(
             "mintSyFromToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
             address(boringVault),
@@ -2906,7 +2917,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         uint256[] memory values = new uint256[](13);
 
         // Change token input to try and swap.
-        tokenInput = DecoderCustomTypes.TokenInput(address(EETH), 1_000e18, address(WEETH), address(0), swapData);
+        tokenInput = DecoderCustomTypes.TokenInput(address(EETH), 1000e18, address(WEETH), address(0), swapData);
         targetData[5] = abi.encodeWithSignature(
             "mintSyFromToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
             address(boringVault),
@@ -2923,7 +2934,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
         // Fix tokenInput
-        tokenInput = DecoderCustomTypes.TokenInput(address(WEETH), 1_000e18, address(WEETH), address(0), swapData);
+        tokenInput = DecoderCustomTypes.TokenInput(address(WEETH), 1000e18, address(WEETH), address(0), swapData);
         targetData[5] = abi.encodeWithSignature(
             "mintSyFromToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
             address(boringVault),
@@ -2964,7 +2975,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testEigenLayerLSTStakingReverts() external {
-        deal(address(METH), address(boringVault), 1_000e18);
+        deal(address(METH), address(boringVault), 1000e18);
 
         // update DecoderAndSanitizer
         rawDataDecoderAndSanitizer = address(new PointFarmingDecoderAndSanitizer(address(boringVault)));
@@ -3014,14 +3025,14 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         bytes[] memory targetData = new bytes[](3);
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", strategyManager, type(uint256).max);
         targetData[1] = abi.encodeWithSignature(
-            "depositIntoStrategy(address,address,uint256)", mETHStrategy, address(METH), 1_000e18
+            "depositIntoStrategy(address,address,uint256)", mETHStrategy, address(METH), 1000e18
         );
         DecoderCustomTypes.QueuedWithdrawalParams[] memory queuedParams =
             new DecoderCustomTypes.QueuedWithdrawalParams[](1);
         queuedParams[0].strategies = new address[](1);
         queuedParams[0].strategies[0] = mETHStrategy;
         queuedParams[0].shares = new uint256[](1);
-        queuedParams[0].shares[0] = 1_000e18;
+        queuedParams[0].shares[0] = 1000e18;
         queuedParams[0].withdrawer = address(boringVault);
         targetData[2] = abi.encodeWithSignature("queueWithdrawals((address[],uint256[],address)[])", queuedParams);
 
@@ -3037,7 +3048,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         // Finalize withdraw requests.
         // Must wait atleast delegationManager.minWithdrawalDelayBlocks() blocks which is 50400.
         uint32 withdrawRequestBlock = uint32(block.number);
-        vm.roll(block.number + 50400);
+        vm.roll(block.number + 50_400);
 
         // Complete the withdrawal
         manageLeafs = new ManageLeaf[](1);
@@ -3058,7 +3069,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         withdrawParams[0].strategies = new address[](1);
         withdrawParams[0].strategies[0] = mETHStrategy;
         withdrawParams[0].shares = new uint256[](1);
-        withdrawParams[0].shares[0] = 1_000e18;
+        withdrawParams[0].shares[0] = 1000e18;
         address[][] memory tokens = new address[][](1);
         tokens[0] = new address[](1);
         tokens[0][0] = address(METH);
@@ -3094,7 +3105,12 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     // ========================================= HELPER FUNCTIONS =========================================
     bool doNothing = true;
 
-    function flashLoan(address, address[] calldata tokens, uint256[] calldata amounts, bytes memory userData)
+    function flashLoan(
+        address,
+        address[] calldata tokens,
+        uint256[] calldata amounts,
+        bytes memory userData
+    )
         external
     {
         if (doNothing) {
@@ -3134,7 +3150,10 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         }
     }
 
-    function _getProofsUsingTree(ManageLeaf[] memory manageLeafs, bytes32[][] memory tree)
+    function _getProofsUsingTree(
+        ManageLeaf[] memory manageLeafs,
+        bytes32[][] memory tree
+    )
         internal
         view
         returns (bytes32[][] memory proofs)
@@ -3244,7 +3263,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         ILiquidityPool lp = ILiquidityPool(EETH_LIQUIDITY_POOL);
 
         deal(address(this), amount);
-        lp.deposit{value: amount}();
+        lp.deposit{ value: amount }();
         address admin = lp.etherFiAdminContract();
 
         vm.startPrank(admin);
@@ -3297,7 +3316,11 @@ interface IUNSTETH {
 
     function FINALIZE_ROLE() external view returns (bytes32);
 
-    function findCheckpointHints(uint256[] memory requestIds, uint256 firstIndex, uint256 lastIndex)
+    function findCheckpointHints(
+        uint256[] memory requestIds,
+        uint256 firstIndex,
+        uint256 lastIndex
+    )
         external
         view
         returns (uint256[] memory);

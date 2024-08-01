@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {CrossChainTellerBase, BridgeData} from "./CrossChainTellerBase.sol";
+import { CrossChainTellerBase, BridgeData } from "./CrossChainTellerBase.sol";
 
-struct Chain{
+struct Chain {
     bool allowMessagesFrom;
     bool allowMessagesTo;
     address targetTeller;
@@ -22,11 +22,12 @@ error MultiChainTellerBase_GasTooLow();
  * @title MultiChainTellerBase
  * @notice Base contract for the MultiChainTellers,
  * We've noticed that many bridge options are L1 -> L2 only, which are quite simple IE Optimism Messenger
- * While others like LZ that can contact many bridges, contain lots of additional complexity to manage the configuration for these chains
- * To keep this seperated we are using this MultiChain syntax for the > 2 chain messenging while only CrossChain for 2 chain messengers like OP
+ * While others like LZ that can contact many bridges, contain lots of additional complexity to manage the configuration
+ * for these chains
+ * To keep this seperated we are using this MultiChain syntax for the > 2 chain messenging while only CrossChain for 2
+ * chain messengers like OP
  */
-abstract contract MultiChainTellerBase is CrossChainTellerBase{
-
+abstract contract MultiChainTellerBase is CrossChainTellerBase {
     event ChainAdded(
         uint256 chainSelector,
         bool allowMessagesFrom,
@@ -44,10 +45,13 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
 
     mapping(uint32 => Chain) public selectorToChains;
 
-    constructor(address _owner, address _vault, address _accountant) 
-        CrossChainTellerBase(_owner, _vault, _accountant){
-            
-        }
+    constructor(
+        address _owner,
+        address _vault,
+        address _accountant
+    )
+        CrossChainTellerBase(_owner, _vault, _accountant)
+    { }
 
     /**
      * @dev Callable by OWNER_ROLE.
@@ -66,11 +70,15 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
         address targetTeller,
         uint64 messageGasLimit,
         uint64 messageGasMin
-    ) external requiresAuth{
+    )
+        external
+        requiresAuth
+    {
         if (allowMessagesTo && messageGasLimit == 0) {
             revert MultiChainTellerBase_ZeroMessageGasLimit();
         }
-        selectorToChains[chainSelector] = Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
+        selectorToChains[chainSelector] =
+            Chain(allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
 
         emit ChainAdded(chainSelector, allowMessagesFrom, allowMessagesTo, targetTeller, messageGasLimit, messageGasMin);
     }
@@ -80,7 +88,7 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @notice block messages from a particular chain
      * @param chainSelector of chain
      */
-    function stopMessagesFromChain(uint32 chainSelector) external requiresAuth{
+    function stopMessagesFromChain(uint32 chainSelector) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesFrom = false;
 
@@ -92,7 +100,7 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @notice allow messages from a particular chain
      * @param chainSelector of chain
      */
-    function allowMessagesFromChain(uint32 chainSelector, address targetTeller) external requiresAuth{
+    function allowMessagesFromChain(uint32 chainSelector, address targetTeller) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesFrom = true;
         chain.targetTeller = targetTeller;
@@ -105,7 +113,7 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @notice Remove a chain from the teller.
      * @dev Callable by OWNER_ROLE.
      */
-    function removeChain(uint32 chainSelector) external requiresAuth{
+    function removeChain(uint32 chainSelector) external requiresAuth {
         delete selectorToChains[chainSelector];
 
         emit ChainRemoved(chainSelector);
@@ -115,9 +123,14 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @dev Callable by OWNER_ROLE.
      * @notice Allow messages to a chain.
      */
-    function allowMessagesToChain(uint32 chainSelector, address targetTeller, uint64 messageGasLimit)
-        external requiresAuth{
-
+    function allowMessagesToChain(
+        uint32 chainSelector,
+        address targetTeller,
+        uint64 messageGasLimit
+    )
+        external
+        requiresAuth
+    {
         if (messageGasLimit == 0) {
             revert MultiChainTellerBase_ZeroMessageGasLimit();
         }
@@ -133,7 +146,7 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @dev Callable by OWNER_ROLE.
      * @notice Stop messages to a chain.
      */
-    function stopMessagesToChain(uint32 chainSelector) external requiresAuth{
+    function stopMessagesToChain(uint32 chainSelector) external requiresAuth {
         Chain storage chain = selectorToChains[chainSelector];
         chain.allowMessagesTo = false;
 
@@ -144,7 +157,7 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @dev Callable by OWNER_ROLE.
      * @notice Set the gas limit for messages to a chain.
      */
-    function setChainGasLimit(uint32 chainSelector, uint64 messageGasLimit) external requiresAuth{
+    function setChainGasLimit(uint32 chainSelector, uint64 messageGasLimit) external requiresAuth {
         if (messageGasLimit == 0) {
             revert MultiChainTellerBase_ZeroMessageGasLimit();
         }
@@ -158,16 +171,17 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase{
      * @notice override beforeBridge to check Chain struct
      * @param data bridge data
      */
-    function _beforeBridge(BridgeData calldata data) internal override{
-        if(!selectorToChains[data.chainSelector].allowMessagesTo) revert MultiChainTellerBase_MessagesNotAllowedTo(data.chainSelector);
-        
-        if(data.messageGas > selectorToChains[data.chainSelector].messageGasLimit){
+    function _beforeBridge(BridgeData calldata data) internal override {
+        if (!selectorToChains[data.chainSelector].allowMessagesTo) {
+            revert MultiChainTellerBase_MessagesNotAllowedTo(data.chainSelector);
+        }
+
+        if (data.messageGas > selectorToChains[data.chainSelector].messageGasLimit) {
             revert MultiChainTellerBase_GasLimitExceeded();
         }
 
-        if(data.messageGas < selectorToChains[data.chainSelector].minimumMessageGas){
+        if (data.messageGas < selectorToChains[data.chainSelector].minimumMessageGas) {
             revert MultiChainTellerBase_GasTooLow();
         }
     }
-
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {DecoderCustomTypes} from "src/interfaces/DecoderCustomTypes.sol";
+import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 interface BalancerVault {
     function flashLoan(address, address[] memory tokens, uint256[] memory amounts, bytes calldata userData) external;
@@ -10,5 +10,7 @@ interface BalancerVault {
         DecoderCustomTypes.FundManagement memory funds,
         uint256 limit,
         uint256 deadline
-    ) external returns (uint256 amountCalculated);
+    )
+        external
+        returns (uint256 amountCalculated);
 }

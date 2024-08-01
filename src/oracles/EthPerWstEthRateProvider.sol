@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IRateProvider} from "./../interfaces/IRateProvider.sol";
-import {IChainlink} from "@ion-protocol/interfaces/IChainlink.sol";
-import {IWstEth} from "@ion-protocol/interfaces/ProviderInterfaces.sol";
+import { IRateProvider } from "./../interfaces/IRateProvider.sol";
+import { IChainlink } from "@ion-protocol/interfaces/IChainlink.sol";
+import { IWstEth } from "@ion-protocol/interfaces/ProviderInterfaces.sol";
 
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @notice Reports the price of wstETH in terms of ETH.
@@ -41,7 +41,8 @@ contract EthPerWstEthRateProvider is IRateProvider {
      */
     function getRate() public view returns (uint256 ethPerWstEth) {
         // get price from the protocol feed
-        (, int256 _ethPerStEth,, uint256 lastUpdatedAt,) = ST_ETH_TO_ETH_CHAINLINK.latestRoundData(); // price of stETH denominated in ETH
+        (, int256 _ethPerStEth,, uint256 lastUpdatedAt,) = ST_ETH_TO_ETH_CHAINLINK.latestRoundData(); // price of stETH
+            // denominated in ETH
 
         if (block.timestamp - lastUpdatedAt > MAX_TIME_FROM_LAST_UPDATE) {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAt);

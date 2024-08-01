@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {UManager, FixedPointMathLib, ManagerWithMerkleVerification, ERC20} from "src/micro-managers/UManager.sol";
-import {IUniswapV3Router} from "src/interfaces/IUniswapV3Router.sol";
-import {PriceRouter} from "src/interfaces/PriceRouter.sol";
-import {DecoderCustomTypes} from "src/interfaces/DecoderCustomTypes.sol";
-import {BalancerVault} from "src/interfaces/BalancerVault.sol";
+import { UManager, FixedPointMathLib, ManagerWithMerkleVerification, ERC20 } from "src/micro-managers/UManager.sol";
+import { IUniswapV3Router } from "src/interfaces/IUniswapV3Router.sol";
+import { PriceRouter } from "src/interfaces/PriceRouter.sol";
+import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 
 /**
  * Required Merkle Root Leaves
  * - ERC20 approves with `router` spender.
  * - IUniswapV3Router.exactInput(params), with all desired paths.
+ * @custom:security-contact security@molecularlabs.io
  */
 contract DexSwapperUManager is UManager {
     using FixedPointMathLib for uint256;
@@ -72,7 +73,9 @@ contract DexSwapperUManager is UManager {
         address _router,
         address _balancerVault,
         address _priceRouter
-    ) UManager(_owner, _manager, _boringVault) {
+    )
+        UManager(_owner, _manager, _boringVault)
+    {
         router = IUniswapV3Router(_router);
         balancerVault = BalancerVault(_balancerVault);
         priceRouter = PriceRouter(_priceRouter);
@@ -111,7 +114,11 @@ contract DexSwapperUManager is UManager {
         uint256 amountIn,
         uint256 amountOutMinimum,
         uint256 deadline
-    ) external requiresAuth enforceRateLimit {
+    )
+        external
+        requiresAuth
+        enforceRateLimit
+    {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);
         uint256[] memory values = new uint256[](2);
@@ -175,7 +182,8 @@ contract DexSwapperUManager is UManager {
     /**
      * @notice Performs a swap using the BalancerV2 Vault, and enforces a slippage check.
      * @param manageProofs 2 manage proofs, the first one for the ERC20 approval, and the second for the swap
-     * @param decodersAndSanitizers 2 DecodersAndSanitizers one that implements ERC20 approve, and one that implements BalancerV2Vault.swap
+     * @param decodersAndSanitizers 2 DecodersAndSanitizers one that implements ERC20 approve, and one that implements
+     * BalancerV2Vault.swap
      * @param singleSwap the swap data
      * @param funds the fund management data
      * @param limit the maximum amount of assetIn to swap, or the minimum amount of assets out to receive
@@ -189,7 +197,11 @@ contract DexSwapperUManager is UManager {
         DecoderCustomTypes.FundManagement calldata funds,
         uint256 limit,
         uint256 deadline
-    ) external requiresAuth enforceRateLimit {
+    )
+        external
+        requiresAuth
+        enforceRateLimit
+    {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);
         uint256[] memory values = new uint256[](2);
@@ -247,7 +259,8 @@ contract DexSwapperUManager is UManager {
     /**
      * @notice Performs a swap using a Curve pool, and enforces a slippage check.
      * @param manageProofs 2 manage proofs, the first one for the ERC20 approval, and the second for the swap
-     * @param decodersAndSanitizers 2 DecodersAndSanitizers one that implements ERC20 approve, and one that implements CurvePool.exchange
+     * @param decodersAndSanitizers 2 DecodersAndSanitizers one that implements ERC20 approve, and one that implements
+     * CurvePool.exchange
      * @param info the Curve pool info
      * @param i the index of the token to swap from
      * @param j the index of the token to swap to
@@ -263,7 +276,11 @@ contract DexSwapperUManager is UManager {
         uint256 j,
         uint256 dx,
         uint256 min_dy
-    ) external requiresAuth enforceRateLimit {
+    )
+        external
+        requiresAuth
+        enforceRateLimit
+    {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);
         uint256[] memory values = new uint256[](2);

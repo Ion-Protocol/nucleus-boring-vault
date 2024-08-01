@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {BaseMerkleRootGenerator} from "resources/BaseMerkleRootGenerator.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {Strings} from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
-import {ERC4626} from "@solmate/tokens/ERC4626.sol";
+import { BaseMerkleRootGenerator } from "resources/BaseMerkleRootGenerator.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { Strings } from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
+import { ERC4626 } from "@solmate/tokens/ERC4626.sol";
 
 /**
- *  source .env && forge script script/CreateLiquidUsdMerkleRoot.s.sol:CreateLiquidUsdMerkleRootScript --rpc-url $MAINNET_RPC_URL
+ *  source .env && forge script script/CreateLiquidUsdMerkleRoot.s.sol:CreateLiquidUsdMerkleRootScript --rpc-url
+ * $MAINNET_RPC_URL
  */
 contract CreateLiquidUsdMerkleRootScript is BaseMerkleRootGenerator {
     using FixedPointMathLib for uint256;
@@ -30,7 +31,7 @@ contract CreateLiquidUsdMerkleRootScript is BaseMerkleRootGenerator {
     address public itbCurveConvex_UsdcCrvUsd = address(65);
     address public itbDecoderAndSanitizer = address(65);
 
-    function setUp() external {}
+    function setUp() external { }
 
     /**
      * @notice Uncomment which script you want to run.
@@ -940,7 +941,9 @@ contract CreateLiquidUsdMerkleRootScript is BaseMerkleRootGenerator {
         address itbPositionManager,
         ERC20[] memory tokensUsed,
         string memory itbContractName
-    ) internal {
+    )
+        internal
+    {
         // acceptOwnership
         leafIndex++;
         leafs[leafIndex] = ManageLeaf(
@@ -993,7 +996,9 @@ contract CreateLiquidUsdMerkleRootScript is BaseMerkleRootGenerator {
         address itbPositionManager,
         ERC20[] memory tokensUsed,
         string memory itbContractName
-    ) internal {
+    )
+        internal
+    {
         _addLeafsForITBPositionManager(leafs, itbPositionManager, tokensUsed, itbContractName);
         for (uint256 i; i < tokensUsed.length; ++i) {
             // Deposit
@@ -1028,7 +1033,9 @@ contract CreateLiquidUsdMerkleRootScript is BaseMerkleRootGenerator {
         ERC20 diesal,
         address diesalStaking,
         string memory itbContractName
-    ) internal {
+    )
+        internal
+    {
         ERC20[] memory tokensUsed = new ERC20[](2);
         tokensUsed[0] = underlying;
         tokensUsed[1] = diesal;

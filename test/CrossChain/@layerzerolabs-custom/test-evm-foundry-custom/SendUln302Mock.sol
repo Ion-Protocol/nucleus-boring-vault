@@ -31,7 +31,10 @@ contract SendUln302Mock is SendUlnBase, SendLibBaseE2 {
         address _endpoint,
         uint256 _treasuryGasCap,
         uint256 _treasuryGasForFeeCap
-    ) Ownable(msg.sender) SendLibBaseE2(_endpoint, _treasuryGasCap, _treasuryGasForFeeCap) {
+    )
+        Ownable(msg.sender)
+        SendLibBaseE2(_endpoint, _treasuryGasCap, _treasuryGasForFeeCap)
+    {
         testHelper = TestHelperOz5(_verifyHelper);
     }
 
@@ -78,20 +81,32 @@ contract SendUln302Mock is SendUlnBase, SendLibBaseE2 {
         address _sender,
         uint32 _dstEid,
         WorkerOptions[] memory _options
-    ) internal view override returns (uint256) {
+    )
+        internal
+        view
+        override
+        returns (uint256)
+    {
         return _quoteDVNs(_sender, _dstEid, _options);
     }
 
     function _payVerifier(
         Packet calldata _packet,
         WorkerOptions[] memory _options
-    ) internal override returns (uint256 otherWorkerFees, bytes memory encodedPacket) {
+    )
+        internal
+        override
+        returns (uint256 otherWorkerFees, bytes memory encodedPacket)
+    {
         (otherWorkerFees, encodedPacket) = _payDVNs(fees, _packet, _options);
     }
 
-    function _splitOptions(
-        bytes calldata _options
-    ) internal pure override returns (bytes memory, WorkerOptions[] memory) {
+    function _splitOptions(bytes calldata _options)
+        internal
+        pure
+        override
+        returns (bytes memory, WorkerOptions[] memory)
+    {
         return _splitUlnOptions(_options);
     }
 
@@ -99,7 +114,11 @@ contract SendUln302Mock is SendUlnBase, SendLibBaseE2 {
         Packet calldata _packet,
         bytes calldata _options,
         bool _payInLzToken
-    ) public override returns (MessagingFee memory fee, bytes memory encodedPacket) {
+    )
+        public
+        override
+        returns (MessagingFee memory fee, bytes memory encodedPacket)
+    {
         (fee, encodedPacket) = super.send(_packet, _options, _payInLzToken);
         testHelper.schedulePacket(encodedPacket, _options);
     }

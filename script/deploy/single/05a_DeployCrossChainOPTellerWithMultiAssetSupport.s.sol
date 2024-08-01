@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AccountantWithRateProviders} from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import {CrossChainOPTellerWithMultiAssetSupport} from "./../../../src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
-import {BaseScript} from "./../../Base.s.sol";
-import {stdJson as StdJson} from "@forge-std/StdJson.sol";
-import {ConfigReader} from "../../ConfigReader.s.sol";
-import {console} from "forge-std/Test.sol";
+import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import { CrossChainOPTellerWithMultiAssetSupport } from
+    "./../../../src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
+import { BaseScript } from "./../../Base.s.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { ConfigReader } from "../../ConfigReader.s.sol";
+import { console } from "forge-std/Test.sol";
+
 contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
     using StdJson for string;
-
 
     function run() public returns (address teller) {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public broadcast override returns(address){
+    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require config Values
         require(config.boringVault.code.length != 0, "boringVault must have code");
         require(config.accountant.code.length != 0, "accountant must have code");
@@ -28,7 +29,9 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
         CrossChainOPTellerWithMultiAssetSupport teller = CrossChainOPTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 config.tellerSalt,
-                abi.encodePacked(creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.opMessenger))
+                abi.encodePacked(
+                    creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.opMessenger)
+                )
             )
         );
 
@@ -47,5 +50,4 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
 
         return address(teller);
     }
-
 }

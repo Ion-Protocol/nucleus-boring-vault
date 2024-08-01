@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {BoringVault} from "src/base/BoringVault.sol";
-import {MerkleProofLib} from "@solmate/utils/MerkleProofLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {BalancerVault} from "src/interfaces/BalancerVault.sol";
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { MerkleProofLib } from "@solmate/utils/MerkleProofLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
+/**
+ * @title ManagerWithMerkleVerification
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract ManagerWithMerkleVerification is Auth {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
@@ -20,7 +24,8 @@ contract ManagerWithMerkleVerification is Auth {
     /**
      * @notice A merkle tree root that restricts what data can be passed to the BoringVault.
      * @dev Maps a strategist address to their specific merkle root.
-     * @dev Each leaf is composed of the keccak256 hash of abi.encodePacked {decodersAndSanitizer, target, valueIsNonZero, selector, argumentAddress_0, ...., argumentAddress_N}
+     * @dev Each leaf is composed of the keccak256 hash of abi.encodePacked {decodersAndSanitizer, target,
+     * valueIsNonZero, selector, argumentAddress_0, ...., argumentAddress_N}
      *      Where:
      *             - decodersAndSanitizer is the addres to call to extract packed address arguments from the calldata
      *             - target is the address to make the call to
@@ -130,7 +135,10 @@ contract ManagerWithMerkleVerification is Auth {
         address[] calldata targets,
         bytes[] calldata targetData,
         uint256[] calldata values
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         if (isPaused) revert ManagerWithMerkleVerification__Paused();
         uint256 targetsLength = targets.length;
         if (targetsLength != manageProofs.length) revert ManagerWithMerkleVerification__InvalidManageProofLength();
@@ -168,7 +176,9 @@ contract ManagerWithMerkleVerification is Auth {
         address[] calldata tokens,
         uint256[] calldata amounts,
         bytes calldata userData
-    ) external {
+    )
+        external
+    {
         if (msg.sender != address(vault)) revert ManagerWithMerkleVerification__OnlyCallableByBoringVault();
 
         flashLoanIntentHash = keccak256(userData);
@@ -189,7 +199,9 @@ contract ManagerWithMerkleVerification is Auth {
         uint256[] calldata amounts,
         uint256[] calldata feeAmounts,
         bytes calldata userData
-    ) external {
+    )
+        external
+    {
         if (msg.sender != address(balancerVault)) revert ManagerWithMerkleVerification__OnlyCallableByBalancerVault();
         if (!performingFlashLoan) revert ManagerWithMerkleVerification__FlashLoanNotInProgress();
 
@@ -240,7 +252,10 @@ contract ManagerWithMerkleVerification is Auth {
         address target,
         uint256 value,
         bytes calldata targetData
-    ) internal view {
+    )
+        internal
+        view
+    {
         // Use address decoder to get addresses in call data.
         bytes memory packedArgumentAddresses = abi.decode(decoderAndSanitizer.functionStaticCall(targetData), (bytes));
         if (
@@ -269,7 +284,11 @@ contract ManagerWithMerkleVerification is Auth {
         uint256 value,
         bytes4 selector,
         bytes memory packedArgumentAddresses
-    ) internal pure returns (bool) {
+    )
+        internal
+        pure
+        returns (bool)
+    {
         bool valueNonZero = value > 0;
 
         bytes32 leaf =

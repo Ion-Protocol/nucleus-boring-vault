@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
@@ -10,7 +10,12 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== PENDLEROUTER ===============================
 
-    function mintSyFromToken(address user, address sy, uint256, DecoderCustomTypes.TokenInput calldata input)
+    function mintSyFromToken(
+        address user,
+        address sy,
+        uint256,
+        DecoderCustomTypes.TokenInput calldata input
+    )
         external
         pure
         virtual
@@ -25,7 +30,12 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             abi.encodePacked(user, sy, input.tokenIn, input.tokenMintSy, input.pendleSwap, input.swapData.extRouter);
     }
 
-    function mintPyFromSy(address user, address yt, uint256, uint256)
+    function mintPyFromSy(
+        address user,
+        address yt,
+        uint256,
+        uint256
+    )
         external
         pure
         virtual
@@ -34,7 +44,13 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, yt);
     }
 
-    function swapExactPtForYt(address user, address market, uint256, uint256, DecoderCustomTypes.ApproxParams calldata)
+    function swapExactPtForYt(
+        address user,
+        address market,
+        uint256,
+        uint256,
+        DecoderCustomTypes.ApproxParams calldata
+    )
         external
         pure
         virtual
@@ -43,7 +59,13 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, market);
     }
 
-    function swapExactYtForPt(address user, address market, uint256, uint256, DecoderCustomTypes.ApproxParams calldata)
+    function swapExactYtForPt(
+        address user,
+        address market,
+        uint256,
+        uint256,
+        DecoderCustomTypes.ApproxParams calldata
+    )
         external
         pure
         virtual
@@ -52,7 +74,13 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, market);
     }
 
-    function addLiquidityDualSyAndPt(address user, address market, uint256, uint256, uint256)
+    function addLiquidityDualSyAndPt(
+        address user,
+        address market,
+        uint256,
+        uint256,
+        uint256
+    )
         external
         pure
         virtual
@@ -61,7 +89,13 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, market);
     }
 
-    function removeLiquidityDualSyAndPt(address user, address market, uint256, uint256, uint256)
+    function removeLiquidityDualSyAndPt(
+        address user,
+        address market,
+        uint256,
+        uint256,
+        uint256
+    )
         external
         pure
         virtual
@@ -70,7 +104,12 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, market);
     }
 
-    function redeemPyToSy(address user, address yt, uint256, uint256)
+    function redeemPyToSy(
+        address user,
+        address yt,
+        uint256,
+        uint256
+    )
         external
         pure
         virtual
@@ -79,7 +118,12 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, yt);
     }
 
-    function redeemSyToToken(address user, address sy, uint256, DecoderCustomTypes.TokenOutput calldata output)
+    function redeemSyToToken(
+        address user,
+        address sy,
+        uint256,
+        DecoderCustomTypes.TokenOutput calldata output
+    )
         external
         pure
         virtual
@@ -100,7 +144,12 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         address[] calldata sys,
         address[] calldata yts,
         address[] calldata markets
-    ) external pure virtual returns (bytes memory addressesFound) {
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
         addressesFound = abi.encodePacked(user);
         uint256 sysLength = sys.length;
         for (uint256 i; i < sysLength; ++i) {

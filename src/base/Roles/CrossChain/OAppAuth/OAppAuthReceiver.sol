@@ -8,7 +8,7 @@ import { OAppAuthCore } from "./OAppAuthCore.sol";
 /**
  * @title OAppAuthReceiver
  * @dev Abstract contract implementing the ILayerZeroReceiver interface and extending OAppCore for OApp receivers.
- * 
+ *
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
  */
 abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
@@ -26,7 +26,8 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
      *
      * @dev Providing 0 as the default for OAppSender version. Indicates that the OAppSender is not implemented.
      * ie. this is a RECEIVE only OApp.
-     * @dev If the OApp uses both OAppSender and OAppReceiver, then this needs to be override returning the correct versions.
+     * @dev If the OApp uses both OAppSender and OAppReceiver, then this needs to be override returning the correct
+     * versions.
      */
     function oAppVersion() public view virtual returns (uint64 senderVersion, uint64 receiverVersion) {
         return (0, RECEIVER_VERSION);
@@ -46,10 +47,15 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
      * @dev The default sender IS the OAppReceiver implementer.
      */
     function isComposeMsgSender(
-        Origin calldata /*_origin*/,
-        bytes calldata /*_message*/,
+        Origin calldata, /*_origin*/
+        bytes calldata, /*_message*/
         address _sender
-    ) public view virtual returns (bool) {
+    )
+        public
+        view
+        virtual
+        returns (bool)
+    {
         return _sender == address(this);
     }
 
@@ -77,7 +83,7 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
      * @dev This is also enforced by the OApp.
      * @dev By default this is NOT enabled. ie. nextNonce is hardcoded to return 0.
      */
-    function nextNonce(uint32 /*_srcEid*/, bytes32 /*_sender*/) public view virtual returns (uint64 nonce) {
+    function nextNonce(uint32, /*_srcEid*/ bytes32 /*_sender*/ ) public view virtual returns (uint64 nonce) {
         return 0;
     }
 
@@ -100,7 +106,11 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
         bytes calldata _message,
         address _executor,
         bytes calldata _extraData
-    ) public payable virtual {
+    )
+        public
+        payable
+        virtual
+    {
         // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
         if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
 
@@ -120,5 +130,7 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
         bytes calldata _message,
         address _executor,
         bytes calldata _extraData
-    ) internal virtual;
+    )
+        internal
+        virtual;
 }

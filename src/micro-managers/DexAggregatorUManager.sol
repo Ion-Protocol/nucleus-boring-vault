@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {UManager, FixedPointMathLib, ManagerWithMerkleVerification, ERC20} from "src/micro-managers/UManager.sol";
-import {AggregationRouterV5} from "src/interfaces/AggregationRouterV5.sol";
-import {PriceRouter} from "src/interfaces/PriceRouter.sol";
+import { UManager, FixedPointMathLib, ManagerWithMerkleVerification, ERC20 } from "src/micro-managers/UManager.sol";
+import { AggregationRouterV5 } from "src/interfaces/AggregationRouterV5.sol";
+import { PriceRouter } from "src/interfaces/PriceRouter.sol";
 
 /**
  * Required Merkle Root Leaves
  * - ERC20 approves with `router` spender.
  * - AggregationRouterV5.swap, with all desired addresses.
+ * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorUManager is UManager {
     using FixedPointMathLib for uint256;
@@ -45,7 +46,13 @@ contract DexAggregatorUManager is UManager {
      */
     PriceRouter internal immutable priceRouter;
 
-    constructor(address _owner, address _manager, address _boringVault, address _router, address _priceRouter)
+    constructor(
+        address _owner,
+        address _manager,
+        address _boringVault,
+        address _router,
+        address _priceRouter
+    )
         UManager(_owner, _manager, _boringVault)
     {
         router = AggregationRouterV5(_router);
@@ -79,7 +86,11 @@ contract DexAggregatorUManager is UManager {
         uint256 amountIn,
         ERC20 tokenOut,
         bytes calldata data
-    ) external requiresAuth enforceRateLimit {
+    )
+        external
+        requiresAuth
+        enforceRateLimit
+    {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);
         uint256[] memory values = new uint256[](2);

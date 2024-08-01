@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {BoringVault} from "./../../src/base/BoringVault.sol";
-import {EthPerWstEthRateProvider} from "./../../src/oracles/EthPerWstEthRateProvider.sol";
-import {ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS} from "@ion-protocol/Constants.sol";
-import {IonPoolSharedSetup} from "./IonPoolSharedSetup.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
+import { BoringVault } from "./../../src/base/BoringVault.sol";
+import { EthPerWstEthRateProvider } from "./../../src/oracles/EthPerWstEthRateProvider.sol";
+import { ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS } from "@ion-protocol/Constants.sol";
+import { IonPoolSharedSetup } from "./IonPoolSharedSetup.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
-import {console2} from "forge-std/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract IonPoolTellerTest is IonPoolSharedSetup {
     using FixedPointMathLib for uint256;
@@ -66,7 +66,8 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         uint256 quotePerShare = accountant.getRateInQuoteSafe(WSTETH); // quote / share
 
         uint256 basePerShare = accountant.getRate();
-        uint256 expectedQuotePerShare = basePerShare * 1e18 / basePerQuote; // (base / share) / (base / quote) = quote / share
+        uint256 expectedQuotePerShare = basePerShare * 1e18 / basePerQuote; // (base / share) / (base / quote) = quote /
+            // share
 
         uint256 shares = depositAmt.mulDivDown(1e18, quotePerShare);
         // mint amount = deposit amount * exchangeRate
