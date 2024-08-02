@@ -5,7 +5,9 @@ import {CrossChainBaseTest, CrossChainTellerBase, ERC20, BridgeData} from "./Cro
 import {
     CrossChainARBTellerWithMultiAssetSupport, 
     CrossChainARBTellerWithMultiAssetSupportL1, 
-    CrossChainARBTellerWithMultiAssetSupportL2
+    CrossChainARBTellerWithMultiAssetSupportL2,
+    ARBSYS,
+    AddressAliasHelper
     } from "src/base/Roles/CrossChain/CrossChainARBTellerWithMultiAssetSupport.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 
@@ -50,9 +52,35 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         CrossChainARBTellerWithMultiAssetSupportL2(destinationTellerAddr).setGasBounds(0, uint32(CHAIN_MESSAGE_GAS_LIMIT));
     }
 
+    function testReceivingShares(uint256 sharesToReceive) public{
+        sharesToReceive = uint96(bound(sharesToReceive, 1, 1_000e18));
+        CrossChainARBTellerWithMultiAssetSupportL2 destinationTeller = CrossChainARBTellerWithMultiAssetSupportL2(destinationTellerAddr);
+        destinationTeller.setPeer(sourceTellerAddr);
+
+        address to = makeAddr("receiver");
+
+        BridgeData memory data = BridgeData({
+            chainSelector: DESTINATION_SELECTOR,
+            destinationChainReceiver: to,
+            bridgeFeeToken: ERC20(NATIVE),
+            messageGas: 80_000,
+            data: ""
+        });
+
+        bytes memory callData = abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, sharesToReceive);
+        uint256 wethBefore = WETH.balanceOf(address(boringVault));
+
+        // make a prank call to the teller
+        vm.prank(address(AddressAliasHelper.applyL1ToL2Alias(sourceTellerAddr)));
+        (bool success, ) = destinationTellerAddr.call(callData);
+
+        assertTrue(success);
+        assertEq(boringVault.balanceOf(to), sharesToReceive, "Should have minted shares.");
+
+    }
+
     function testBridgingShares(uint256 sharesToBridge) external {
         CrossChainARBTellerWithMultiAssetSupportL1 sourceTeller = CrossChainARBTellerWithMultiAssetSupportL1(sourceTellerAddr);
-        CrossChainARBTellerWithMultiAssetSupportL2 destinationTeller = CrossChainARBTellerWithMultiAssetSupportL2(destinationTellerAddr);
 
         // L1 Bridge
         sharesToBridge = uint96(bound(sharesToBridge, 1, 1_000e18));
@@ -91,12 +119,15 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             ticketData.length,
             ticketData
         );
+        uint256 wethBefore = WETH.balanceOf(address(boringVault));
 
         // expect L1 deposit emit
         vm.expectEmit();
         emit InboxMessageDelivered(count, expectedData);
         bytes32 id = sourceTeller.bridge{value:quote}(sharesToBridge, data);
         
+        assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
+
         vm.stopPrank();
         // L2 Bridge
 
@@ -165,10 +196,15 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
             ticketData.length,
             ticketData
         );
+        uint256 wethBefore = WETH.balanceOf(address(boringVault));
 
         vm.expectEmit();
         emit InboxMessageDelivered(count, expectedData);
         sourceTeller.depositAndBridge{value:quote}(WETH, amount, sharesToBridge, data);
+
+        assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
+
+        assertEq(WETH.balanceOf(address(boringVault)), wethBefore + sharesToBridge);
 
     }
 

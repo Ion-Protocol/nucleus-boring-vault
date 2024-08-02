@@ -211,5 +211,4 @@ contract CrossChainARBTellerWithMultiAssetSupportL2 is CrossChainARBTellerWithMu
         ARBSYS.sendTxToL1(peer, call_data);
     }
 
-
 }
