@@ -41,7 +41,6 @@ contract DeployCrossChainARBTellerWithMultiAssetSupportL2 is BaseScript {
             AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
             "the accountant vault must be the teller vault"
         );
-        require(address(teller.bridge()) == config.arbBridge, "OP Teller must have messenger set");
 
         return address(teller);
     }

@@ -12,6 +12,7 @@ import {Outbox} from "@arbitrum/nitro-contracts/bridge/Outbox.sol";
 import {AddressAliasHelper} from "@arbitrum/nitro-contracts/libraries/AddressAliasHelper.sol";
 
 ArbSys constant ARBSYS = ArbSys(0x000000000000000000000000000000000000006E);
+
 /**
  * @title CrossChainLayerZeroTellerWithMultiAssetSupport
  * @notice Arbitrum Bridge implementation of CrossChainTeller
@@ -20,8 +21,6 @@ ArbSys constant ARBSYS = ArbSys(0x000000000000000000000000000000000000006E);
  * and create 2 children as L1 and L2 tellers to be deployed respectively
  */
 abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBase {
-
-    IBridge public immutable bridge;
 
     address public peer;
 
@@ -83,6 +82,7 @@ abstract contract CrossChainARBTellerWithMultiAssetSupport is CrossChainTellerBa
  */
 contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMultiAssetSupport{
     IInbox public inbox;
+
     constructor(address _owner, address _vault, address _accountant, address _inbox)
     CrossChainARBTellerWithMultiAssetSupport(_owner, _vault, _accountant){
         inbox = IInbox(_inbox);
@@ -90,19 +90,28 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
 
     function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external override {
         IBridge bridge = inbox.bridge();
+        Outbox outbox = Outbox(bridge.activeOutbox());
+        address l2Sender = outbox.l2ToL1Sender();
+
         // this prevents reentrancies on L2 to L1 txs
         if (msg.sender != address(bridge)){
             revert CrossChainARBTellerWithMultiAssetSupport_OnlyMessenger();
         }
-        Outbox outbox = Outbox(bridge.activeOutbox());
-        address l2Sender = outbox.l2ToL1Sender();
-        if(l2Sender != outbox.l2ToL1Sender()){
+
+        // message must come from peer
+        if(l2Sender != peer){
             revert CrossChainARBTellerWithMultiAssetSupport_OnlyPeerAsSender();
         }
 
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareMintAmount);
     }
 
+    /**
+     * @notice taken from Arbitrum's Inbox.sol
+     * This is the fee for the submission
+     * @param dataLength length of data byte array
+     * @param baseFee block basefee
+     */
     function calculateRetryableSubmissionFee(uint256 dataLength, uint256 baseFee)
         public
         view
@@ -120,6 +129,11 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
         bytes memory ticketData = abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, shareAmount);
 
+        // Inbox.sol dictates:
+        // msg.value >= (maxSubmissionCost + l2CallValue + gasLimit * maxFeePerGas)
+        // and
+        // maxSubmissionCost >= submissionFee
+        // so we get this calculation:
         uint submissionFee = calculateRetryableSubmissionFee(ticketData.length, block.basefee);
         return (submissionFee + 0 + maxMessageGas * data.messageGas);
     }
@@ -171,10 +185,10 @@ contract CrossChainARBTellerWithMultiAssetSupportL2 is CrossChainARBTellerWithMu
     }
 
     function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external override{
-        require(
-            msg.sender == AddressAliasHelper.applyL1ToL2Alias(peer),
-            "Greeting only updateable by L1"
-        );
+        if(msg.sender != AddressAliasHelper.applyL1ToL2Alias(peer)){
+            revert CrossChainARBTellerWithMultiAssetSupport_OnlyPeerAsSender();
+        }
+
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareMintAmount);
     }
 
