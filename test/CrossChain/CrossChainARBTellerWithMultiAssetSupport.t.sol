@@ -73,22 +73,23 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
         // calculate quote
         uint quote = sourceTeller.previewFee(sharesToBridge, data);
+        bytes memory ticketData = abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, sharesToBridge);
+        uint maxSubmissionCost = sourceTeller.calculateRetryableSubmissionFee(ticketData.length, block.basefee);
 
         // get event data
         uint count = SOURCE_BRIDGE.delayedMessageCount();
-        bytes memory encodedShares = abi.encode(sharesToBridge);
         bytes memory expectedData = 
         abi.encodePacked(
-            uint256(uint160(to)),
+            uint256(uint160(sourceTellerAddr)),
             uint256(0),
             quote,
-            sourceTeller.calculateRetryableSubmissionFee(encodedShares.length, block.basefee),
+            maxSubmissionCost,
             uint256(uint160(user)),
             uint256(uint160(user)),
             uint256(CHAIN_MESSAGE_GAS_LIMIT),
             uint256(data.messageGas),
-            encodedShares.length,
-            encodedShares
+            ticketData.length,
+            ticketData
         );
 
         // expect L1 deposit emit
@@ -122,12 +123,10 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
     function testDepositAndBridge(uint256 amount) external{
         CrossChainARBTellerWithMultiAssetSupportL1 sourceTeller = CrossChainARBTellerWithMultiAssetSupportL1(sourceTellerAddr);
-        CrossChainARBTellerWithMultiAssetSupportL2 destinationTeller = CrossChainARBTellerWithMultiAssetSupportL2(destinationTellerAddr);
 
         amount = bound(amount, 0.0001e18, 10_000e18);
         // make a user and give them WETH
         address user = makeAddr("A user");
-        address userChain2 = makeAddr("A user on chain 2");
         deal(address(WETH), user, amount);
 
         // approve teller to spend WETH
@@ -138,7 +137,7 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
         // preform depositAndBridge
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
-            destinationChainReceiver: userChain2,
+            destinationChainReceiver: makeAddr("A user on chain 2"),
             bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
             data: ""
@@ -146,30 +145,30 @@ contract CrossChainARBTellerWithMultiAssetSupportTest is CrossChainBaseTest{
 
         uint ONE_SHARE = 10 ** boringVault.decimals();
 
-        uint shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
-
-        uint quote = sourceTeller.previewFee(shares, data);
-        uint count = SOURCE_BRIDGE.delayedMessageCount();
+        uint sharesToBridge = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint quote = sourceTeller.previewFee(sharesToBridge, data);
+        bytes memory ticketData = abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, sharesToBridge);
+        uint maxSubmissionCost = sourceTeller.calculateRetryableSubmissionFee(ticketData.length, block.basefee);
 
         // get the event data expected
-        bytes memory encodedShares = abi.encode(shares);
+        uint count = SOURCE_BRIDGE.delayedMessageCount();
         bytes memory expectedData = 
         abi.encodePacked(
-            uint256(uint160(userChain2)),
+            uint256(uint160(sourceTellerAddr)),
             uint256(0),
             quote,
-            sourceTeller.calculateRetryableSubmissionFee(encodedShares.length, block.basefee),
+            maxSubmissionCost,
             uint256(uint160(user)),
             uint256(uint160(user)),
             uint256(CHAIN_MESSAGE_GAS_LIMIT),
             uint256(data.messageGas),
-            encodedShares.length,
-            encodedShares
+            ticketData.length,
+            ticketData
         );
 
         vm.expectEmit();
         emit InboxMessageDelivered(count, expectedData);
-        sourceTeller.depositAndBridge{value:quote}(WETH, amount, shares, data);
+        sourceTeller.depositAndBridge{value:quote}(WETH, amount, sharesToBridge, data);
 
     }
 

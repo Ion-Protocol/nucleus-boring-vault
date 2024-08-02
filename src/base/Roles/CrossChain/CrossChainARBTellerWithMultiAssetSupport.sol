@@ -118,9 +118,9 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
      * @param data bridge data
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns(uint256){
-        bytes memory b = abi.encode(shareAmount);
+        bytes memory ticketData = abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, shareAmount);
 
-        uint submissionFee = calculateRetryableSubmissionFee(b.length, block.basefee);
+        uint submissionFee = calculateRetryableSubmissionFee(ticketData.length, block.basefee);
         return (submissionFee + 0 + maxMessageGas * data.messageGas);
     }
 
@@ -130,8 +130,8 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
      * @return msgNum
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns(bytes32 msgNum){
-        uint maxSubmissionCost = calculateRetryableSubmissionFee(abi.encode(shareAmount).length, block.basefee);
-
+        bytes memory ticketData = abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, shareAmount);
+        uint maxSubmissionCost = calculateRetryableSubmissionFee(ticketData.length, block.basefee);
         /*
         createRetryableTicket() parameters:
             address to,
@@ -152,7 +152,7 @@ contract CrossChainARBTellerWithMultiAssetSupportL1 is CrossChainARBTellerWithMu
             msg.sender, 
             maxMessageGas, 
             data.messageGas, 
-            abi.encodeWithSelector(CrossChainARBTellerWithMultiAssetSupport.receiveBridgeMessage.selector, data.destinationChainReceiver, shareAmount)
+            ticketData
             )
         );
 
