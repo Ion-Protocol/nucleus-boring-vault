@@ -21,9 +21,11 @@ import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTr
 import { DeployDecoderAndSanitizer } from "./single/09_DeployDecoderAndSanitizer.s.sol";
 import {DeployCrossChainARBTellerWithMultiAssetSupportL1} from "./single/05c_L1_DeployCrossChainARBTellerWithMultiAssetSupport.s.sol";
 import {DeployCrossChainARBTellerWithMultiAssetSupportL2} from "./single/05c_L2_DeployCrossChainARBTellerWithMultiAssetSupport.s.sol";
+import {CrossChainARBTellerWithMultiAssetSupportL1, CrossChainARBTellerWithMultiAssetSupportL2, BridgeData} from "src/base/Roles/CrossChain/CrossChainARBTellerWithMultiAssetSupport.sol";
 
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
+import {ERC20} from "@solmate/tokens/ERC20.sol";
 
 string constant OUTPUT_JSON_PATH = "/deployment-config/out.json";
 
@@ -52,6 +54,8 @@ contract DeployAll is BaseScript {
     using StdJson for string;
 
     ConfigReader.Config mainConfig;
+    address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    uint32 constant DESTINATION_SELECTOR = 11155111;
 
     function run() public {
         mainConfig = getConfig();
@@ -84,6 +88,30 @@ contract DeployAll is BaseScript {
         new SetAuthorityAndTransferOwnerships().deploy(config);
 
         new DeployDecoderAndSanitizer().deploy(config);
+
+        // my testing below
+        vm.startBroadcast(broadcaster);
+        CrossChainARBTellerWithMultiAssetSupportL2 teller = CrossChainARBTellerWithMultiAssetSupportL2(config.teller);
+        vm.deal(broadcaster, 100);
+
+        (config.base).call{value:100}("");
+        teller.addAsset(ERC20(config.base));
+        console.log(ERC20(config.base).balanceOf(broadcaster));
+        ERC20(config.base).approve(address(teller.vault()), 1);
+
+        // preform depositAndBridge
+        BridgeData memory data = BridgeData({
+            chainSelector: DESTINATION_SELECTOR,
+            destinationChainReceiver: 0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839,
+            bridgeFeeToken: ERC20(NATIVE),
+            messageGas: 80_000,
+            data: ""
+        });
+
+        uint quote = teller.previewFee(1, data);
+
+        teller.depositAndBridge{value:quote}((ERC20(config.base)), 1, 1, data);
+        vm.stopBroadcast();
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {
