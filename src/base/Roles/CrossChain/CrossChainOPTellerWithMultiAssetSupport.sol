@@ -18,6 +18,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
 
     uint32 public maxMessageGas;
     uint32 public minMessageGas;
+    uint128 public nonce;
 
     error CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
     error CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
@@ -59,7 +60,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param receiver to receive the shares
      * @param shareMintAmount amount of shares to mint
      */
-    function receiveBridgeMessage(address receiver, uint256 shareMintAmount) external {
+    function receiveBridgeMessage(address receiver, uint256 shareMintAmount, bytes32 messageId) external {
         _beforeReceive();
 
         if (msg.sender != address(messenger)) {
@@ -71,6 +72,8 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
         }
 
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareMintAmount);
+
+        _afterReceive(shareMintAmount, receiver, messageId);
     }
 
     /**
@@ -78,13 +81,16 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
      * @param data bridge data
      * @return messageId
      */
-    function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns (bytes32) {
+    function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns (bytes32 messageId) {
+        unchecked {
+            messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
+        }
+
         messenger.sendMessage(
             peer,
-            abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount)),
+            abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount, messageId)),
             uint32(data.messageGas)
         );
-        return bytes32(0);
     }
 
     /**

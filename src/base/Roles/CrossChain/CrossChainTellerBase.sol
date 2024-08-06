@@ -91,12 +91,6 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     }
 
     /**
-     * @notice the before bridge hook to perform additional checks
-     * @param data bridge data
-     */
-    function _beforeBridge(BridgeData calldata data) internal virtual;
-
-    /**
      * @notice the virtual bridge function to be overridden
      * @param data bridge data
      * @return messageId
@@ -112,6 +106,13 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
 
     /**
      * @notice after bridge code, just an emit but can be overridden
+     * @notice the before bridge hook to perform additional checks
+     * @param data bridge data
+     */
+    function _beforeBridge(BridgeData calldata data) internal virtual;
+
+    /**
+     * @notice after bridge code, just an emit but can be overriden
      * @param shareAmount share amount burned
      * @param data bridge data
      * @param messageId message id returned when bridged
@@ -125,5 +126,15 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
      */
     function _beforeReceive() internal virtual {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
+    }
+
+    /**
+     * @notice a hook to execute after receiving
+     * @param shareAmount the shareAmount that was minted
+     * @param destinationChainReceiver the receiver of the shares
+     * @param messageId the message ID
+     */
+    function _afterReceive(uint256 shareAmount, address destinationChainReceiver, bytes32 messageId) internal virtual {
+        emit MessageReceived(messageId, shareAmount, destinationChainReceiver);
     }
 }
