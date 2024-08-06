@@ -112,7 +112,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     function _beforeBridge(BridgeData calldata data) internal virtual;
 
     /**
-     * @notice after bridge code, just an emit but can be overriden
+     * @notice after bridge code, just an emit but can be overridden
      * @param shareAmount share amount burned
      * @param data bridge data
      * @param messageId message id returned when bridged
