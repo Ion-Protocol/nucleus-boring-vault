@@ -7,6 +7,8 @@
 .,_,.='``'-.,\____/ \___|\_/ \___|_| |_\____/ \___|\__,_|___/-..__..-''                 ~~--
 ```
 
+> This repository began as a fork of [Se7enSeas](https://github.com/Se7en-Seas)' open source [boring-vault](https://github.com/Se7en-Seas/boring-vault) repo. We want to credit the Se7enSeas for creating the BoringVault architecture and allowing its free distribution.
+
 # Boring Vault Architecture
 
 Boring Vaults are flexible vault contracts that allow for intricate strategies, secured by both onchain and offchain mechanisms.
