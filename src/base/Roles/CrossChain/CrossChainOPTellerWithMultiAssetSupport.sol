@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { CrossChainTellerBase, BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
 import { Auth } from "@solmate/auth/Auth.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 interface ICrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
@@ -14,6 +15,7 @@ interface ICrossDomainMessenger {
  * @notice LayerZero implementation of CrossChainTeller
  */
 contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
+    using FixedPointMathLib for uint256;
     ICrossDomainMessenger public immutable messenger;
     address public peer;
 
@@ -78,6 +80,35 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     }
 
     /**
+     * @notice Does the same logic as receiveBridgeMessage, but also withdraws for the receiver
+     * @param receiver to receive the shares
+     * @param shareMintAmount amount of shares to mint
+     * @param messageId of tx
+     * @param withdrawAsset to withdraw to
+     */
+    function receiveBridgeWithdrawMessage(address receiver, uint256 shareMintAmount, bytes32 messageId, ERC20 withdrawAsset) external {
+        _beforeReceive();
+
+        if (msg.sender != address(messenger)) {
+            revert CrossChainOPTellerWithMultiAssetSupport_OnlyMessenger();
+        }
+
+        if (messenger.xDomainMessageSender() != peer) {
+            revert CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
+        }
+
+        // taken from bulk withdraw
+        if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+
+        if (shareMintAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
+        uint assetsOut = shareMintAmount.mulDivDown(accountant.getRateInQuoteSafe(withdrawAsset), ONE_SHARE);
+        if (assetsOut < 0) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
+        vault.exit(receiver, withdrawAsset, assetsOut, address(0), 0);
+
+        _afterReceive(shareMintAmount, receiver, messageId);
+    }
+
+    /**
      * @notice the virtual bridge function to execute Optimism messenger sendMessage()
      * @param data bridge data
      * @return messageId
@@ -87,11 +118,20 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
             messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
         }
         
-        messenger.sendMessage(
-            peer,
-            abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount, messageId)),
-            uint32(data.messageGas)
-        );
+        if(data.withdrawAtDestination){
+            ERC20 withdrawAsset = abi.decode(data.data, (ERC20));
+            messenger.sendMessage(
+                peer,
+                abi.encodeCall(this.receiveBridgeWithdrawMessage, (data.destinationChainReceiver, shareAmount, messageId, withdrawAsset)),
+                uint32(data.messageGas)
+            );
+        }else{
+            messenger.sendMessage(
+                peer,
+                abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount, messageId)),
+                uint32(data.messageGas)
+            );
+        }
     }
 
     /**

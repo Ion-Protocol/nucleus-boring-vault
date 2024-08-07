@@ -35,7 +35,7 @@ abstract contract MultiChainBaseTest is CrossChainBaseTest {
         );
 
         BridgeData memory data =
-            BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+            BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, false, abi.encode(DESTINATION_SELECTOR));
         sourceTeller.bridge(1e18, data);
 
         // setup chains.
@@ -48,6 +48,7 @@ abstract contract MultiChainBaseTest is CrossChainBaseTest {
             address(this),
             ERC20(NATIVE),
             CHAIN_MESSAGE_GAS_LIMIT + 1,
+            false,
             abi.encode(DESTINATION_SELECTOR)
         );
         vm.expectRevert(abi.encodeWithSelector(MultiChainTellerBase_GasLimitExceeded.selector));
@@ -62,7 +63,7 @@ abstract contract MultiChainBaseTest is CrossChainBaseTest {
             CHAIN_MESSAGE_GAS_LIMIT,
             CHAIN_MESSAGE_GAS_LIMIT
         );
-        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, false, abi.encode(DESTINATION_SELECTOR));
         vm.expectRevert(abi.encodeWithSelector(MultiChainTellerBase_GasTooLow.selector));
         sourceTeller.bridge(1e18, data);
     }

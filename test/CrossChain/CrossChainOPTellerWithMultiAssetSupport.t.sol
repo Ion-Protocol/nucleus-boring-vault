@@ -10,6 +10,11 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
 
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
+contract MockMessenger{
+    function xDomainMessageSender() external returns(address){
+        return address(this);
+    }
+}
 contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -65,8 +70,9 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
-            bridgeFeeToken: WETH,
+            bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
+            withdrawAtDestination: false,
             data: ""
         });
 
@@ -101,8 +107,9 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
-            bridgeFeeToken: WETH,
+            bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
+            withdrawAtDestination: false,
             data: ""
         });
 
@@ -137,8 +144,9 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
-            bridgeFeeToken: WETH,
+            bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
+            withdrawAtDestination: false,
             data: ""
         });
 
@@ -158,6 +166,42 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         assertEq(WETH.balanceOf(address(boringVault)), wethBefore + shares);
     }
 
+    function testReceivesAtDestination(uint amount) external{
+        amount = bound(amount, 0.0001e18, 10_000e18);
+
+        address receiver = makeAddr("receiver");
+
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller =
+            CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
+        vm.etch(0x4200000000000000000000000000000000000007, address(new MockMessenger()).code);
+        address newPeer = destinationTeller.messenger().xDomainMessageSender();
+        destinationTeller.setPeer(newPeer);
+
+        vm.prank(address(destinationTeller.messenger()));
+        destinationTeller.receiveBridgeMessage(receiver, amount, keccak256(abi.encodePacked(amount)));
+
+        assertEq(boringVault.balanceOf(receiver), amount, "Should have minted shares.");
+    }
+
+    function testReceivesAndWithdrawAtDestination(uint amount) external{
+        amount = bound(amount, 0.0001e18, 10_000e18);
+        
+        address receiver = makeAddr("receiver");
+
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller =
+            CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
+        vm.etch(0x4200000000000000000000000000000000000007, address(new MockMessenger()).code);
+        address newPeer = destinationTeller.messenger().xDomainMessageSender();
+        destinationTeller.setPeer(newPeer);
+
+        vm.prank(address(destinationTeller.messenger()));
+        destinationTeller.receiveBridgeWithdrawMessage(receiver, amount, keccak256(abi.encodePacked(amount)), WETH);
+
+        assertEq(WETH.balanceOf(receiver), amount, "Should have withdrawn shares.");
+    }
+
     function testReverts() public virtual override {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
         CrossChainOPTellerWithMultiAssetSupport destinationTeller =
@@ -166,7 +210,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         super.testReverts();
 
         BridgeData memory data =
-            BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+            BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, false, abi.encode(DESTINATION_SELECTOR));
 
         // reverts with gas too low
         sourceTeller.setGasBounds(uint32(CHAIN_MESSAGE_GAS_LIMIT), uint32(CHAIN_MESSAGE_GAS_LIMIT));
