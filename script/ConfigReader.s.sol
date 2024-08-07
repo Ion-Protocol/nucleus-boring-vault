@@ -48,6 +48,10 @@ library ConfigReader {
         address[] rateProviders;
         address[] priceFeeds;
         address base;
+        bytes32 queueSalt;
+        address queue;
+        bytes32 solverSalt;
+        address solver;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
@@ -81,11 +85,20 @@ library ConfigReader {
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
 
+        // Reading from the 'queue' section
+        config.queueSalt = _config.readBytes32(".queue.queueSalt");
+        config.queue = _config.readAddress(".queue.address");
+
+        // Reading from the 'solver' section
+        config.solverSalt = _config.readBytes32(".solver.solverSalt");
+        config.solver = _config.readAddress(".solver.address");
+
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
         config.rolesAuthoritySalt = _config.readBytes32(".rolesAuthority.rolesAuthoritySalt");
         config.strategist = _config.readAddress(".rolesAuthority.strategist");
         config.exchangeRateBot = _config.readAddress(".rolesAuthority.exchangeRateBot");
+        config.solverBot = _config.readAddress(".rolesAuthority.solverBot");
 
         // Reading from the 'decoder' section
         config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
