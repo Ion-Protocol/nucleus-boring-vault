@@ -21,9 +21,9 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
     AtomicSolverV4 public atomicSolver;
     AtomicQueueV2 public atomicQueue;
     address immutable SOLVER_OWNER = makeAddr("AtomicSolverV4");
-    uint8 public constant SOLVER_ROLE = 5;
-    uint8 public constant QUEUE_ROLE = 6;
-    uint8 public constant SOLVER_CALLER_ROLE = 7;
+    uint8 public constant SOLVER_ROLE = 12;
+    uint8 public constant QUEUE_ROLE = 13;
+    uint8 public constant SOLVER_CALLER_ROLE = 14;
     
 
     EthPerWstEthRateProvider ethPerWstEthRateProvider;
