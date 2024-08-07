@@ -18,7 +18,7 @@ import { OAppAuthSender } from "./OAppAuthSender.sol";
  * @dev Abstract contract serving as the base for OApp implementation, combining OAppSender and OAppReceiver
  * functionality.
  *
- * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
+ * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuth is OAppAuthSender, OAppAuthReceiver {
     /**

@@ -24,7 +24,7 @@ error MultiChainTellerBase_GasTooLow();
  * We've noticed that many bridge options are L1 -> L2 only, which are quite simple IE Optimism Messenger
  * While others like LZ that can contact many bridges, contain lots of additional complexity to manage the configuration
  * for these chains
- * To keep this seperated we are using this MultiChain syntax for the > 2 chain messenging while only CrossChain for 2
+ * To keep this separated we are using this MultiChain syntax for the > 2 chain messaging while only CrossChain for 2
  * chain messengers like OP
  */
 abstract contract MultiChainTellerBase is CrossChainTellerBase {

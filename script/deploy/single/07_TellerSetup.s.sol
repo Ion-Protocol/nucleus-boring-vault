@@ -32,7 +32,7 @@ contract TellerSetup is BaseScript {
             // add asset
             teller.addAsset(ERC20(config.assets[i]));
 
-            // set the cooresponding rate provider
+            // set the corresponding rate provider
             string memory key = string(
                 abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString(), ".rateProvider")
             );

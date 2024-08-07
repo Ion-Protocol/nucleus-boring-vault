@@ -200,7 +200,7 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
 
             _leafs[0][i] = keccak256(rawDigest);
         }
-        tree = _buildTrees(_leafs); // are other indicies in the leafs ever accessed?
+        tree = _buildTrees(_leafs);
     }
 
     function _buildTrees(bytes32[][] memory merkleTreeIn) internal pure returns (bytes32[][] memory merkleTreeOut) {

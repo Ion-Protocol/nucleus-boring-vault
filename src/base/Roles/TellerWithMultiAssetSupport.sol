@@ -47,7 +47,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     /**
      * @notice After deposits, shares are locked to the msg.sender's address
      *         for `shareLockPeriod`.
-     * @dev During this time all trasnfers from msg.sender will revert, and
+     * @dev During this time all transfers from msg.sender will revert, and
      *      deposits are refundable.
      */
     uint64 public shareLockPeriod;
@@ -278,6 +278,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
+        // solhint-disable-next-line no-empty-blocks
         try depositAsset.permit(msg.sender, address(vault), depositAmount, deadline, v, r, s) { }
         catch {
             if (depositAsset.allowance(msg.sender, address(vault)) < depositAmount) {

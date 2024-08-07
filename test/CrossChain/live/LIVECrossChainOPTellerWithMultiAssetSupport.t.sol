@@ -8,7 +8,7 @@ import {
 
 /**
  * @notice live test for OP Teller, since OP doesn't use any sort of mock handlers or testing contracts, it is able to
- * be almost entierly inherited from it's local test parent, with just adjusting the deployment with the existing
+ * be almost entirely inherited from it's local test parent, with just adjusting the deployment with the existing
  * addresses.
  */
 contract LIVECrossChainOPTTellerWithMultiAssetSupportTest is CrossChainOPTellerWithMultiAssetSupportTest {

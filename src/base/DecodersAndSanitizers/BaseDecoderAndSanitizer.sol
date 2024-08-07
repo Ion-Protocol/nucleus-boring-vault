@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
+// solhint-disable-next-line no-unused-import
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 contract BaseDecoderAndSanitizer {

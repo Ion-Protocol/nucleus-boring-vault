@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: UNLICENSED */
 pragma solidity ^0.8.0;
 
-import "./WithdrawableDecoderAndSanitizer.sol";
-import "./Ownable2StepDecoderAndSanitizer.sol";
+import { WithdrawableDecoderAndSanitizer } from "./WithdrawableDecoderAndSanitizer.sol";
+import { Ownable2StepDecoderAndSanitizer } from "./Ownable2StepDecoderAndSanitizer.sol";
 
 /// @title Decoder and sanitizer for ITBContract
 /// @author IntoTheBlock Corp

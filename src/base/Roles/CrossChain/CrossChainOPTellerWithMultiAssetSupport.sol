@@ -2,7 +2,6 @@
 pragma solidity 0.8.21;
 
 import { CrossChainTellerBase, BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
-import { Auth } from "@solmate/auth/Auth.sol";
 
 interface ICrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
@@ -86,7 +85,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
         unchecked {
             messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
         }
-        
+
         messenger.sendMessage(
             peer,
             abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount, messageId)),
@@ -109,10 +108,11 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
     }
 
     /**
-     * @notice the virtual function to override to get bridge fees, allways zero for OP
+     * @notice the virtual function to override to get bridge fees, always zero for OP
      * @param shareAmount to send
      * @param data bridge data
      */
+    // solhint-disable-next-line no-unused-vars
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
         return 0;
     }

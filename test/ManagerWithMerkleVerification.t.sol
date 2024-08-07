@@ -1523,7 +1523,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
         // Finalize withdraw requests.
-        // Must wait atleast delegationManager.minWithdrawalDelayBlocks() blocks which is 50400.
+        // Must wait at least delegationManager.minWithdrawalDelayBlocks() blocks which is 50400.
         uint32 withdrawRequestBlock = uint32(block.number);
         vm.roll(block.number + 50_400);
 
@@ -1883,7 +1883,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         doNothing = false;
 
-        // Try performing a flash loan but with userData editted.
+        // Try performing a flash loan but with userData edited.
         vm.expectRevert(
             abi.encodeWithSelector(
                 ManagerWithMerkleVerification.ManagerWithMerkleVerification__BadFlashLoanIntentHash.selector
@@ -3046,7 +3046,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
         // Finalize withdraw requests.
-        // Must wait atleast delegationManager.minWithdrawalDelayBlocks() blocks which is 50400.
+        // Must wait at least delegationManager.minWithdrawalDelayBlocks() blocks which is 50400.
         uint32 withdrawRequestBlock = uint32(block.number);
         vm.roll(block.number + 50_400);
 

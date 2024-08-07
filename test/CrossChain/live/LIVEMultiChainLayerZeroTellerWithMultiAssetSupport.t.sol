@@ -12,7 +12,8 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 /**
  * @notice LayerZero normally is tested with a foundry testing framework that includes mocks for the crosschain ability,
- * Testing this live is not an option so most functions must be overriden and simplified to test only on the local chain
+ * Testing this live is not an option so most functions must be overridden and simplified to test only on the local
+ * chain
  */
 contract LIVEMultiChainLayerZeroTellerWithMultiAssetSupportTest is
     MultiChainLayerZeroTellerWithMultiAssetSupportTest
@@ -86,7 +87,7 @@ contract LIVEMultiChainLayerZeroTellerWithMultiAssetSupportTest is
         vm.deal(user, 10e18);
         WETH.approve(address(boringVault), amount);
 
-        // preform depositAndBridge
+        // perform depositAndBridge
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
@@ -131,7 +132,7 @@ contract LIVEMultiChainLayerZeroTellerWithMultiAssetSupportTest is
         vm.deal(user, 10e18);
         WETH.approve(address(boringVault), amount);
 
-        // preform depositAndBridge
+        // perform depositAndBridge
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,

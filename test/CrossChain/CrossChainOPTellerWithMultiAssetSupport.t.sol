@@ -104,7 +104,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         vm.deal(user, 10e18);
         WETH.approve(address(boringVault), amount);
 
-        // preform depositAndBridge
+        // perform depositAndBridge
         BridgeData memory data = BridgeData({
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
