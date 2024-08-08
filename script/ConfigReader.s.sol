@@ -27,10 +27,11 @@ library ConfigReader {
         bytes32 managerSalt;
         address balancerVault;
         bytes32 tellerSalt;
+        uint32 peerEid;
         address accountant;
         address opMessenger;
-        uint256 maxGasForPeer;
-        uint256 minGasForPeer;
+        uint64 maxGasForPeer;
+        uint64 minGasForPeer;
         address lzEndpoint;
         bytes32 rolesAuthoritySalt;
         address manager;
@@ -76,10 +77,11 @@ library ConfigReader {
         // Reading from the 'teller' section
         config.teller = _config.readAddress(".teller.address");
         config.tellerSalt = _config.readBytes32(".teller.tellerSalt");
-        config.maxGasForPeer = _config.readUint(".teller.maxGasForPeer");
-        config.minGasForPeer = _config.readUint(".teller.minGasForPeer");
+        config.maxGasForPeer = uint64(_config.readUint(".teller.maxGasForPeer"));
+        config.minGasForPeer = uint64(_config.readUint(".teller.minGasForPeer"));
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
+        config.peerEid = uint32(_config.readUint(".teller.peerEid"));
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
@@ -90,11 +92,6 @@ library ConfigReader {
         // Reading from the 'decoder' section
         config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
         config.decoder = _config.readAddress(".decoder.address");
-
-        // Reading from the 'rateProvider' section
-        config.rateProvider = _config.readAddress(".rateProvider.address");
-        config.rateProviderSalt = _config.readBytes32(".rateProvider.rateProviderSalt");
-        config.maxTimeFromLastUpdate = uint32(_config.readUint(".rateProvider.maxTimeFromLastUpdate"));
 
         // Reading from the 'chainConfig' section
         config.base = _chainConfig.readAddress(".base");
