@@ -1,15 +1,16 @@
 ```
-              _____       ______        _____                       _.====.._
-             /  ___|     |___  /       /  ___|                    ,:._       ~-_
-             \ `--.  ___    / /__ _ __ \ `--.  ___  __ _ ___          `\        ~-_
-              `--. \/ _ \  / / _ \ '_ \ `--. \/ _ \/ _` / __|           |          `.
-             /\__/ /  __/./ /  __/ | | /\__/ /  __/ (_| \__ \         ,/             ~-_
-.,_,.='``'-.,\____/ \___|\_/ \___|_| |_\____/ \___|\__,_|___/-..__..-''                 ~~--
+ .-. .-..-. .-.  ,--,  ,-.    ,---.  .-. .-.   .---.
+ |  \| || | | |.' .')  | |    | .-'  | | | |  ( .-._)
+ |   | || | | ||  |(_) | |    | `-.  | | | | (_) \
+ | |\  || | | |\  \    | |    | .-'  | | | | _  \ \
+ | | |)|| `-')| \  `-. | `--. |  `--.| `-')|( `-'  )
+ /(  (_)`---(_)  \____\|( __.'/( __.'`---(_) `----'
+(__)                   (_)   (__)
 ```
 
 > This repository began as a fork of [Se7enSeas](https://github.com/Se7en-Seas)' open source [boring-vault](https://github.com/Se7en-Seas/boring-vault) repo. We want to credit the Se7enSeas for creating the BoringVault architecture and allowing its free distribution.
 
-# Boring Vault Architecture
+# Boring Vault Architectures
 
 Boring Vaults are flexible vault contracts that allow for intricate strategies, secured by both onchain and offchain mechanisms.
 
