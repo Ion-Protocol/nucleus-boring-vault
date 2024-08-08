@@ -4,8 +4,6 @@ pragma solidity 0.8.21;
 import { AtomicQueueV2 } from "./AtomicQueueV2.sol";
 import { IAtomicSolver } from "./IAtomicSolver.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
-import { ERC4626 } from "@solmate/tokens/ERC4626.sol";
-import { IWEETH } from "src/interfaces/IStaking.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
