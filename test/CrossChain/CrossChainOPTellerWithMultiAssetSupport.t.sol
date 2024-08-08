@@ -88,6 +88,35 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         assertEq(boringVault.balanceOf(address(this)), balBefore - sharesToBridge, "Should have burned shares.");
     }
 
+    function testUniqueIDs() public virtual{
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
+        CrossChainOPTellerWithMultiAssetSupport destinationTeller =
+            CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
+
+        uint sharesToBridge = 12;
+
+        // Bridge shares.
+        address to = vm.addr(1);
+
+        BridgeData memory data = BridgeData({
+            chainSelector: DESTINATION_SELECTOR,
+            destinationChainReceiver: to,
+            bridgeFeeToken: WETH,
+            messageGas: 80_000,
+            data: ""
+        });
+
+        uint256 quote = 0;
+
+        uint256 balBefore = boringVault.balanceOf(address(this));
+        bytes32 id1 = sourceTeller.bridge{ value: quote }(sharesToBridge, data);
+
+        // preform the exact same bridge again and assert the ids are not the same
+        bytes32 id2 = sourceTeller.bridge{ value: quote }(sharesToBridge, data);
+
+        assertNotEq(id1, id2, "Id's must be unique");
+    }
+
     function testDepositAndBridge(uint256 amount) external {
         CrossChainOPTellerWithMultiAssetSupport sourceTeller = CrossChainOPTellerWithMultiAssetSupport(sourceTellerAddr);
         CrossChainOPTellerWithMultiAssetSupport destinationTeller =
