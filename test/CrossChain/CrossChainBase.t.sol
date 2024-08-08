@@ -122,7 +122,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
 
         // Give BoringVault some WETH, and this address some shares, and LINK.
-        deal(address(WETH), address(boringVault), 1000e18);
+        deal(address(WETH), address(boringVault), 100000e18);
         deal(address(boringVault), address(this), 1000e18, true);
         deal(address(LINK), address(this), 1000e18);
     }

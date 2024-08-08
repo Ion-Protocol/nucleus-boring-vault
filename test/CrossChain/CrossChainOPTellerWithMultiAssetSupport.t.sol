@@ -169,7 +169,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
     function testReceivesAtDestination(uint amount) external{
         amount = bound(amount, 0.0001e18, 10_000e18);
 
-        address receiver = makeAddr("receiver");
+        address receiver = makeAddr("a user");
 
         CrossChainOPTellerWithMultiAssetSupport destinationTeller =
             CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
@@ -185,9 +185,11 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
     }
 
     function testReceivesAndWithdrawAtDestination(uint amount) external{
+
         amount = bound(amount, 0.0001e18, 10_000e18);
+        assertGe(WETH.balanceOf(address(boringVault)), amount, "boring vault doesn't have enough weth");
         
-        address receiver = makeAddr("receiver");
+        address receiver = address(444444444);
 
         CrossChainOPTellerWithMultiAssetSupport destinationTeller =
             CrossChainOPTellerWithMultiAssetSupport(destinationTellerAddr);
