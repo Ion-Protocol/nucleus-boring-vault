@@ -22,6 +22,7 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         require(address(config.manager).code.length != 0, "manager must have code");
         require(address(config.teller).code.length != 0, "teller must have code");
         require(address(config.accountant).code.length != 0, "accountant must have code");
+        require(address(config.solver).code.length != 0, "solver must have code");
         require(address(config.boringVault) != address(0), "boringVault");
         require(address(config.manager) != address(0), "manager");
         require(address(config.accountant) != address(0), "accountant");
@@ -34,10 +35,12 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         IAuthority(config.accountant).setAuthority(config.rolesAuthority);
         IAuthority(config.manager).setAuthority(config.rolesAuthority);
         IAuthority(config.teller).setAuthority(config.rolesAuthority);
+        IAuthority(config.solver).setAuthority(config.rolesAuthority);
         IAuthority(config.boringVault).transferOwnership(config.protocolAdmin);
         IAuthority(config.manager).transferOwnership(config.protocolAdmin);
         IAuthority(config.accountant).transferOwnership(config.protocolAdmin);
         IAuthority(config.teller).transferOwnership(config.protocolAdmin);
+        IAuthority(config.solver).transferOwnership(config.protocolAdmin);
         IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
 
         // Post Configuration Check
@@ -45,5 +48,6 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         require(IAuthority(config.manager).owner() == config.protocolAdmin, "manager");
         require(IAuthority(config.accountant).owner() == config.protocolAdmin, "accountant");
         require(IAuthority(config.teller).owner() == config.protocolAdmin, "teller");
+        require(IAuthority(config.solver).owner() == config.protocolAdmin, "solver");
     }
 }

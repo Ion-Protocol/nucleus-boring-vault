@@ -6,6 +6,7 @@ import { ManagerWithMerkleVerification } from "./../../../src/base/Roles/Manager
 import { BoringVault } from "./../../../src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import {AtomicSolverV4} from "./../../src/atomic-queue/AtomicSolverV4.sol";
 import { BaseScript } from "../../Base.s.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
@@ -21,6 +22,9 @@ contract DeployRolesAuthority is BaseScript {
     uint8 public constant MANAGER_ROLE = 2;
     uint8 public constant TELLER_ROLE = 3;
     uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 4;
+    uint8 public constant SOLVER_ROLE = 5;
+    uint8 public constant QUEUE_ROLE = 6; // queue role is for calling finishSolve in solver
+    uint8 public constant SOLVER_CALLER_ROLE = 7;
 
     function run() public virtual returns (address rolesAuthority) {
         return deploy(getConfig());
@@ -32,6 +36,8 @@ contract DeployRolesAuthority is BaseScript {
         require(config.manager.code.length != 0, "manager must have code");
         require(config.teller.code.length != 0, "teller must have code");
         require(config.accountant.code.length != 0, "accountant must have code");
+        require(config.queue.code.length != 0, "queue must have code");
+        require(config.solver.code.length != 0, "solver must have code");
         require(config.boringVault != address(0), "boringVault");
         require(config.manager != address(0), "manager");
         require(config.teller != address(0), "teller");
@@ -58,6 +64,10 @@ contract DeployRolesAuthority is BaseScript {
         // 1. VAULT_STRATEGIST (BOT EOA)
         // 2. MANAGER (CONTRACT)
         // 3. TELLER (CONTRACT)
+        // 4. EXCHANGE_RATE_BOT (BOT EOA)
+        // 5. SOLVER (CONTRACT)
+        // 6. QUEUE (CONTRACT)
+        // 7. SOLVER_BOT (BOT EOA)
         // --- Roles ---
         // 1. STRATEGIST_ROLE
         //     - manager.manageVaultWithMerkleVerification
@@ -69,6 +79,16 @@ contract DeployRolesAuthority is BaseScript {
         //     - boringVault.enter()
         //     - boringVault.exit()
         //     - assigned to TELLER
+        // 5. SOLVER_ROLE
+        //     - teller.bulkWithdraw
+        //     - assigned to SOLVER
+        // 6. QUEUE_ROLE
+        //     - solver.finshSolve
+        //     - assigned to QUEUE
+        // 7. SOLVER_CALLER_ROLE
+        //     - solver.p2pSolve
+        //     - solver.redeemSolve
+        //     - assigned to SOLVER_BOT
         // --- Public ---
         // 1. teller.deposit
         rolesAuthority.setRoleCapability(
@@ -101,6 +121,21 @@ contract DeployRolesAuthority is BaseScript {
             UPDATE_EXCHANGE_RATE_ROLE, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector, true
         );
 
+        rolesAuthority.setRoleCapability(
+            SOLVER_ROLE, config.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+        );
+
+        rolesAuthority.setRoleCapability(QUEUE_ROLE, config.solver, AtomicSolverV4.finishSolve.selector, true
+        );
+
+        rolesAuthority.setRoleCapability(
+            SOLVER_CALLER_ROLE, config.solver, AtomicSolverV4.p2pSolve.selector, true
+        );
+
+        rolesAuthority.setRoleCapability(
+            SOLVER_CALLER_ROLE, config.solver, AtomicSolverV4.redeemSolve.selector, true
+        );
+
         // --- Assign roles to users ---
 
         rolesAuthority.setUserRole(config.strategist, STRATEGIST_ROLE, true);
@@ -110,6 +145,12 @@ contract DeployRolesAuthority is BaseScript {
         rolesAuthority.setUserRole(config.teller, TELLER_ROLE, true);
 
         rolesAuthority.setUserRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE, true);
+
+        rolesAuthority.setUserRole(config.solver, SOLVER_ROLE, true);
+
+        rolesAuthority.setUserRole(config.queue, QUEUE_ROLE, true);
+
+        rolesAuthority.setUserRole(config.solverBot, SOLVER_CALLER_ROLE, true);
 
         // Post Deploy Checks
         require(
@@ -121,6 +162,12 @@ contract DeployRolesAuthority is BaseScript {
         require(
             rolesAuthority.doesUserHaveRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE),
             "exchangeRateBot should have UPDATE_EXCHANGE_RATE_ROLE"
+        );
+        require(rolesAuthority.doesUserHaveRole(config.solver, SOLVER_ROLE), "solver should have SOLVER_ROLE");
+        require(rolesAuthority.doesUserHaveRole(config.queue, QUEUE_ROLE), "queue should have QUEUE_ROLE");
+        require(
+            rolesAuthority.doesUserHaveRole(config.solverBot, SOLVER_CALLER_ROLE),
+            "solverBot should have SOLVER_CALLER_ROLE"
         );
         require(
             rolesAuthority.canCall(
@@ -157,6 +204,22 @@ contract DeployRolesAuthority is BaseScript {
                 config.exchangeRateBot, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector
             ),
             "exchangeRateBot should be able to call accountant.updateExchangeRate"
+        );
+        require(
+            rolesAuthority.canCall(config.solver, config.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector),
+            "solver should be able to call teller.bulkWithdraw"
+        );
+        require(
+            rolesAuthority.canCall(config.queue, config.solver, AtomicSolverV4.finishSolve.selector),
+            "queue should be able to call solver.finishSolve"
+        );
+        require(
+            rolesAuthority.canCall(config.solverBot, config.solver, AtomicSolverV4.p2pSolve.selector),
+            "solverBot should be able to call solver.p2pSolve"
+        );
+        require(
+            rolesAuthority.canCall(config.solverBot, config.solver, AtomicSolverV4.redeemSolve.selector),
+            "solverBot should be able to call solver.redeemSolve"
         );
         require(
             rolesAuthority.canCall(address(1), config.teller, TellerWithMultiAssetSupport.deposit.selector),
