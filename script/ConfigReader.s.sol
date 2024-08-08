@@ -52,6 +52,7 @@ library ConfigReader {
         address queue;
         bytes32 solverSalt;
         address solver;
+        address solverBot;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {

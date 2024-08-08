@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { AtomicSolverV4 } from "./../../src/atomic-queue/AtomicSolverV4.sol";
-import { BaseScript } from "./../Base.s.sol";
+import { AtomicSolverV4 } from "./../../../src/atomic-queue/AtomicSolverV4.sol";
+import { BaseScript } from "../../Base.s.sol";
 import { stdJson as StdJson } from "forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 
@@ -20,7 +20,7 @@ contract DeployAtomicSolverV4 is BaseScript {
         // Create Contract
         bytes memory creationCode = type(AtomicSolverV4).creationCode;
 
-        solver = AtomicSolverV4(
+        AtomicSolverV4 solver = AtomicSolverV4(
             CREATEX.deployCreate3(config.solverSalt, abi.encodePacked(creationCode, abi.encode(broadcaster)))
         );
 
