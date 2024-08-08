@@ -15,10 +15,12 @@ import { DeployCrossChainOPTellerWithMultiAssetSupport } from
     "./single/05a_DeployCrossChainOPTellerWithMultiAssetSupport.s.sol";
 import { DeployMultiChainLayerZeroTellerWithMultiAssetSupport } from
     "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
-import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
-import { TellerSetup } from "./single/07_TellerSetup.s.sol";
-import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTransferOwnerships.s.sol";
-import { DeployDecoderAndSanitizer } from "./single/09_DeployDecoderAndSanitizer.s.sol";
+import { DeployAtomicQueueV2 } from "./single/06_DeployAtomicQueueV2.s.sol";
+import { DeployAtomicSolverV4 } from "./single/07_DeployAtomicSolverV4.s.sol";
+import { DeployRolesAuthority } from "./single/08_DeployRolesAuthority.s.sol";
+import { TellerSetup } from "./single/09_TellerSetup.s.sol";
+import { SetAuthorityAndTransferOwnerships } from "./single/10_SetAuthorityAndTransferOwnerships.s.sol";
+import { DeployDecoderAndSanitizer } from "./single/11_DeployDecoderAndSanitizer.s.sol";
 
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
@@ -75,6 +77,12 @@ contract DeployAll is BaseScript {
         config.teller = _deployTeller(config);
 
         new TellerSetup().deploy(config);
+
+        address queue = new DeployAtomicQueueV2().deploy(config);
+        config.queue = queue;
+
+        address solver = new DeployAtomicSolverV4().deploy(config);
+        config.solver = solver;
 
         address rolesAuthority = new DeployRolesAuthority().deploy(config);
         config.rolesAuthority = rolesAuthority;
