@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {BoringVault} from "./../../src/base/BoringVault.sol";
-import {EthPerWstEthRateProvider} from "./../../src/oracles/EthPerWstEthRateProvider.sol";
-import {ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS} from "@ion-protocol/Constants.sol";
-import {IonPoolSharedSetup} from "./IonPoolSharedSetup.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {TellerWithMultiAssetSupport} from "./../../src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AtomicSolverV4} from "./../../src/atomic-queue/AtomicSolverV4.sol";
-import {AtomicQueueV2} from "./../../src/atomic-queue/AtomicQueueV2.sol";
-import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {StdUtils, IMulticall3} from "forge-std/StdUtils.sol";
+import { BoringVault } from "./../../src/base/BoringVault.sol";
+import { EthPerWstEthRateProvider } from "./../../src/oracles/EthPerWstEthRateProvider.sol";
+import { ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS } from "@ion-protocol/Constants.sol";
+import { IonPoolSharedSetup } from "./IonPoolSharedSetup.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { TellerWithMultiAssetSupport } from "./../../src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AtomicSolverV4 } from "./../../src/atomic-queue/AtomicSolverV4.sol";
+import { AtomicQueueV2 } from "./../../src/atomic-queue/AtomicQueueV2.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { StdUtils, IMulticall3 } from "forge-std/StdUtils.sol";
 
-import {console2} from "forge-std/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract IonPoolSolverTest is IonPoolSharedSetup {
     using FixedPointMathLib for uint256;
@@ -24,7 +24,6 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
     uint8 public constant SOLVER_ROLE = 12;
     uint8 public constant QUEUE_ROLE = 13;
     uint8 public constant SOLVER_CALLER_ROLE = 14;
-    
 
     EthPerWstEthRateProvider ethPerWstEthRateProvider;
 
@@ -54,31 +53,17 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
         vm.stopPrank();
 
         rolesAuthority.setRoleCapability(
-            SOLVER_ROLE,
-            address(teller),
-            TellerWithMultiAssetSupport.bulkWithdraw.selector,
-            true
+            SOLVER_ROLE, address(teller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+        );
+
+        rolesAuthority.setRoleCapability(QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.finishSolve.selector, true);
+
+        rolesAuthority.setRoleCapability(
+            SOLVER_CALLER_ROLE, address(atomicSolver), AtomicSolverV4.p2pSolve.selector, true
         );
 
         rolesAuthority.setRoleCapability(
-            QUEUE_ROLE,
-            address(atomicSolver),
-            AtomicSolverV4.finishSolve.selector,
-            true
-        );
-
-        rolesAuthority.setRoleCapability(
-            SOLVER_CALLER_ROLE,
-            address(atomicSolver),
-            AtomicSolverV4.p2pSolve.selector,
-            true
-        );
-
-        rolesAuthority.setRoleCapability(
-            SOLVER_CALLER_ROLE,
-            address(atomicSolver),
-            AtomicSolverV4.redeemSolve.selector,
-            true
+            SOLVER_CALLER_ROLE, address(atomicSolver), AtomicSolverV4.redeemSolve.selector, true
         );
 
         rolesAuthority.setUserRole(address(atomicSolver), SOLVER_ROLE, true);
@@ -100,7 +85,8 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
         uint256 quotePerShare = accountant.getRateInQuoteSafe(WSTETH); // quote / share
 
         uint256 basePerShare = accountant.getRate();
-        uint256 expectedQuotePerShare = basePerShare * 1e18 / basePerQuote; // (base / share) / (base / quote) = quote / share
+        uint256 expectedQuotePerShare = basePerShare * 1e18 / basePerQuote; // (base / share) / (base / quote) = quote /
+            // share
 
         uint256 shares = depositAmt.mulDivDown(1e18, quotePerShare);
         // mint amount = deposit amount * exchangeRate
@@ -133,27 +119,26 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
         assertEq(WSTETH.balanceOf(address(boringVault)), depositAmt * 3, "WSTETH transferred to vault");
         assertEq(WETH.balanceOf(address(boringVault)), depositAmt, "WETH transferred from user");
 
-
         // set atomic queue requests
 
         AtomicQueueV2.AtomicRequest memory request1 = AtomicQueueV2.AtomicRequest({
-            deadline: 2**32,
-            atomicPrice: 10**17,//0.1
-            offerAmount: 10**18,//1 share
+            deadline: 2 ** 32,
+            atomicPrice: 10 ** 17, //0.1
+            offerAmount: 10 ** 18, //1 share
             inSolve: false
         });
 
         AtomicQueueV2.AtomicRequest memory request2 = AtomicQueueV2.AtomicRequest({
-            deadline: 2**32,
-            atomicPrice: 10**18,//1
-            offerAmount: 10**18,//1 share
+            deadline: 2 ** 32,
+            atomicPrice: 10 ** 18, //1
+            offerAmount: 10 ** 18, //1 share
             inSolve: false
         });
 
         AtomicQueueV2.AtomicRequest memory request3 = AtomicQueueV2.AtomicRequest({
-            deadline: 2**32,
-            atomicPrice: 2 * 10**18,//2
-            offerAmount: 10**18,//1 share
+            deadline: 2 ** 32,
+            atomicPrice: 2 * 10 ** 18, //2
+            offerAmount: 10 ** 18, //1 share
             inSolve: false
         });
 
@@ -175,9 +160,9 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
         requests[1] = atomicQueue.getUserAtomicRequest(users[1], ERC20(boringVault), ERC20(WSTETH));
         requests[2] = atomicQueue.getUserAtomicRequest(users[2], ERC20(boringVault), ERC20(WSTETH));
 
-        assertEq(requests[0].atomicPrice, 10**17, "request 1 atomic price");
-        assertEq(requests[1].atomicPrice, 10**18, "request 2 atomic price");
-        assertEq(requests[2].atomicPrice, 2 * 10**18, "request 3 atomic price");
+        assertEq(requests[0].atomicPrice, 10 ** 17, "request 1 atomic price");
+        assertEq(requests[1].atomicPrice, 10 ** 18, "request 2 atomic price");
+        assertEq(requests[2].atomicPrice, 2 * 10 ** 18, "request 3 atomic price");
 
         bool isValidRequest = atomicQueue.isAtomicRequestValid(ERC20(boringVault), users[0], requests[0]);
 
@@ -194,15 +179,21 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
         IMulticall3.Call[] memory calls = new IMulticall3.Call[](3);
         calls[0] = IMulticall3.Call({
             target: address(atomicQueue),
-            callData: abi.encodeWithSelector(AtomicQueueV2.isAtomicRequestValid.selector, ERC20(boringVault), users[0], requests[0])
+            callData: abi.encodeWithSelector(
+                AtomicQueueV2.isAtomicRequestValid.selector, ERC20(boringVault), users[0], requests[0]
+            )
         });
         calls[1] = IMulticall3.Call({
             target: address(atomicQueue),
-            callData: abi.encodeWithSelector(AtomicQueueV2.isAtomicRequestValid.selector, ERC20(boringVault), users[1], requests[1])
+            callData: abi.encodeWithSelector(
+                AtomicQueueV2.isAtomicRequestValid.selector, ERC20(boringVault), users[1], requests[1]
+            )
         });
         calls[2] = IMulticall3.Call({
             target: address(atomicQueue),
-            callData: abi.encodeWithSelector(AtomicQueueV2.isAtomicRequestValid.selector, ERC20(boringVault), users[2], requests[2])
+            callData: abi.encodeWithSelector(
+                AtomicQueueV2.isAtomicRequestValid.selector, ERC20(boringVault), users[2], requests[2]
+            )
         });
 
         IMulticall3 multicall = IMulticall3(0xcA11bde05977b3631167028862bE2a173976CA11);
@@ -215,15 +206,20 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
         uint256 maxPriceAllowed = accountant.getRateInQuoteSafe(WSTETH);
 
         vm.startPrank(SOLVER_OWNER);
-        vm.expectRevert(abi.encodeWithSelector(AtomicQueueV2.AtomicQueueV2__PriceTooHigh.selector, users[1], requests[1].atomicPrice, maxPriceAllowed));
-        // queue, vault, want, users, min want asset (slippage param), maxAssets (cumsum of atomicPrice and offerAmounts), teller
-        atomicSolver.redeemSolve(atomicQueue, ERC20(boringVault), ERC20(WSTETH), users, 10**18, 3*10**18, teller);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AtomicQueueV2.AtomicQueueV2__PriceTooHigh.selector, users[1], requests[1].atomicPrice, maxPriceAllowed
+            )
+        );
+        // queue, vault, want, users, min want asset (slippage param), maxAssets (cumsum of atomicPrice and
+        // offerAmounts), teller
+        atomicSolver.redeemSolve(atomicQueue, ERC20(boringVault), ERC20(WSTETH), users, 10 ** 18, 3 * 10 ** 18, teller);
         vm.stopPrank();
 
         AtomicQueueV2.AtomicRequest memory newRequest2 = AtomicQueueV2.AtomicRequest({
-            deadline: 2**32,
-            atomicPrice: 8*10**17,//0.8
-            offerAmount: 10**18,//1 share
+            deadline: 2 ** 32,
+            atomicPrice: 8 * 10 ** 17, //0.8
+            offerAmount: 10 ** 18, //1 share
             inSolve: false
         });
 
@@ -232,7 +228,7 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
 
         requests[1] = atomicQueue.getUserAtomicRequest(users[1], ERC20(boringVault), ERC20(WSTETH));
 
-        assertEq(requests[1].atomicPrice, 8*10**17, "request 2 atomic price");
+        assertEq(requests[1].atomicPrice, 8 * 10 ** 17, "request 2 atomic price");
 
         address[] memory validUsers = new address[](2);
 
@@ -243,10 +239,13 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
 
         vm.startPrank(SOLVER_OWNER);
         ERC20(WSTETH).approve(address(atomicSolver), type(uint256).max);
-        // queue, vault, want, users, min want asset (slippage param), maxAssets (cumsum of atomicPrice and offerAmounts), teller
-        atomicSolver.redeemSolve(atomicQueue, ERC20(boringVault), ERC20(WSTETH), validUsers, 10**18, 3*10**18, teller);
+        // queue, vault, want, users, min want asset (slippage param), maxAssets (cumsum of atomicPrice and
+        // offerAmounts), teller
+        atomicSolver.redeemSolve(
+            atomicQueue, ERC20(boringVault), ERC20(WSTETH), validUsers, 10 ** 18, 3 * 10 ** 18, teller
+        );
         vm.stopPrank();
-        
+
         // only one share requested, so should have only exactly atomic price as balance
         assertEq(WSTETH.balanceOf(validUsers[0]), request1.atomicPrice, "WSTETH transferred to user");
         assertEq(WSTETH.balanceOf(validUsers[1]), newRequest2.atomicPrice, "WSTETH transferred to user");
@@ -261,5 +260,4 @@ contract IonPoolSolverTest is IonPoolSharedSetup {
 
         assertGt(solverBalancePost, solverBalancePre, "solver balance increased");
     }
-
 }

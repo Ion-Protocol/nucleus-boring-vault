@@ -6,7 +6,7 @@ import { ManagerWithMerkleVerification } from "./../../../src/base/Roles/Manager
 import { BoringVault } from "./../../../src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import {AtomicSolverV4} from "./../../src/atomic-queue/AtomicSolverV4.sol";
+import { AtomicSolverV4 } from "./../../src/atomic-queue/AtomicSolverV4.sol";
 import { BaseScript } from "../../Base.s.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
@@ -125,16 +125,11 @@ contract DeployRolesAuthority is BaseScript {
             SOLVER_ROLE, config.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
 
-        rolesAuthority.setRoleCapability(QUEUE_ROLE, config.solver, AtomicSolverV4.finishSolve.selector, true
-        );
+        rolesAuthority.setRoleCapability(QUEUE_ROLE, config.solver, AtomicSolverV4.finishSolve.selector, true);
 
-        rolesAuthority.setRoleCapability(
-            SOLVER_CALLER_ROLE, config.solver, AtomicSolverV4.p2pSolve.selector, true
-        );
+        rolesAuthority.setRoleCapability(SOLVER_CALLER_ROLE, config.solver, AtomicSolverV4.p2pSolve.selector, true);
 
-        rolesAuthority.setRoleCapability(
-            SOLVER_CALLER_ROLE, config.solver, AtomicSolverV4.redeemSolve.selector, true
-        );
+        rolesAuthority.setRoleCapability(SOLVER_CALLER_ROLE, config.solver, AtomicSolverV4.redeemSolve.selector, true);
 
         // --- Assign roles to users ---
 

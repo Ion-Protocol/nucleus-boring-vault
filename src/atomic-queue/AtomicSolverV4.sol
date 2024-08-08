@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {AtomicQueueV2} from "./AtomicQueueV2.sol";
-import {IAtomicSolver} from "./IAtomicSolver.sol";
-import {Auth, Authority} from "@solmate/auth/Auth.sol";
-import {ERC4626} from "@solmate/tokens/ERC4626.sol";
-import {IWEETH} from "src/interfaces/IStaking.sol";
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-
+import { AtomicQueueV2 } from "./AtomicQueueV2.sol";
+import { IAtomicSolver } from "./IAtomicSolver.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { ERC4626 } from "@solmate/tokens/ERC4626.sol";
+import { IWEETH } from "src/interfaces/IStaking.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 
 /**
  * @title AtomicSolverV4
@@ -48,7 +47,7 @@ contract AtomicSolverV4 is IAtomicSolver, Auth {
 
     //============================== IMMUTABLES ===============================
 
-    constructor(address _owner) Auth(_owner, Authority(address(0))) {}
+    constructor(address _owner) Auth(_owner, Authority(address(0))) { }
 
     //============================== SOLVE FUNCTIONS ===============================
     /**
@@ -62,7 +61,10 @@ contract AtomicSolverV4 is IAtomicSolver, Auth {
         address[] calldata users,
         uint256 minOfferReceived,
         uint256 maxAssets
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         bytes memory runData = abi.encode(SolveType.P2P, msg.sender, minOfferReceived, maxAssets, type(uint256).max);
 
         // Solve for `users`.
@@ -81,14 +83,18 @@ contract AtomicSolverV4 is IAtomicSolver, Auth {
         uint256 minimumAssetsOut,
         uint256 maxAssets,
         TellerWithMultiAssetSupport teller
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         AccountantWithRateProviders accountant = teller.accountant();
         uint256 priceToCheckAtomicPrice = accountant.getRateInQuoteSafe(want);
         if (priceToCheckAtomicPrice == 0) {
             revert AtomicSolverV4___FailedToSolve();
         }
-        
-        bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller, priceToCheckAtomicPrice);
+
+        bytes memory runData =
+            abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller, priceToCheckAtomicPrice);
 
         // Solve for `users`.
         queue.solve(offer, want, users, runData, address(this));
@@ -111,7 +117,10 @@ contract AtomicSolverV4 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) external requiresAuth {
+    )
+        external
+        requiresAuth
+    {
         if (initiator != address(this)) revert AtomicSolverV4___WrongInitiator();
 
         address queue = msg.sender;
@@ -137,7 +146,9 @@ contract AtomicSolverV4 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) internal {
+    )
+        internal
+    {
         (, address solver, uint256 minOfferReceived, uint256 maxAssets) =
             abi.decode(runData, (SolveType, address, uint256, uint256));
 
@@ -171,7 +182,9 @@ contract AtomicSolverV4 is IAtomicSolver, Auth {
         ERC20 want,
         uint256 offerReceived,
         uint256 wantApprovalAmount
-    ) internal {
+    )
+        internal
+    {
         (, address solver, uint256 minimumAssetsOut, uint256 maxAssets, TellerWithMultiAssetSupport teller) =
             abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport));
 

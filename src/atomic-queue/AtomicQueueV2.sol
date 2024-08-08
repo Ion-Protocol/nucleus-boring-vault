@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
-import {IAtomicSolver} from "./IAtomicSolver.sol";
-import {AtomicSolverV4} from "./AtomicSolverV4.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
+import { IAtomicSolver } from "./IAtomicSolver.sol";
+import { AtomicSolverV4 } from "./AtomicSolverV4.sol";
 
 /**
  * @title AtomicQueueV2
@@ -126,7 +126,11 @@ contract AtomicQueueV2 is ReentrancyGuard {
      * @param user the address of the user making the request
      * @param userRequest the request struct to validate
      */
-    function isAtomicRequestValid(ERC20 offer, address user, AtomicRequest calldata userRequest)
+    function isAtomicRequestValid(
+        ERC20 offer,
+        address user,
+        AtomicRequest calldata userRequest
+    )
         external
         view
         returns (bool)
@@ -188,7 +192,13 @@ contract AtomicQueueV2 is ReentrancyGuard {
      * @param runData extra data that is passed back to solver when `finishSolve` is called
      * @param solver the address to make `finishSolve` callback to
      */
-    function solve(ERC20 offer, ERC20 want, address[] calldata users, bytes calldata runData, address solver)
+    function solve(
+        ERC20 offer,
+        ERC20 want,
+        address[] calldata users,
+        bytes calldata runData,
+        address solver
+    )
         external
         nonReentrant
     {
@@ -200,15 +210,16 @@ contract AtomicQueueV2 is ReentrancyGuard {
         // index 0 is total want assets, index 1 is total offer assets, index 2 is priceLimit
         uint256[3] memory wantAndOfferInfo = _wantAndOfferInfoHelper(runData);
 
-        mapping(address => AtomicRequest)
-            storage intermediateUserKey = userAtomicRequest[offer][want];
+        mapping(address => AtomicRequest) storage intermediateUserKey = userAtomicRequest[offer][want];
         for (uint256 i; i < users.length;) {
             AtomicRequest storage request = intermediateUserKey[users[i]];
 
             if (request.inSolve) revert AtomicQueueV2__UserRepeated(users[i]);
             if (block.timestamp > request.deadline) revert AtomicQueueV2__RequestDeadlineExceeded(users[i]);
             if (request.offerAmount == 0) revert AtomicQueueV2__ZeroOfferAmount(users[i]);
-            if(request.atomicPrice > wantAndOfferInfo[2]) revert AtomicQueueV2__PriceTooHigh(users[i], request.atomicPrice, wantAndOfferInfo[2]);
+            if (request.atomicPrice > wantAndOfferInfo[2]) {
+                revert AtomicQueueV2__PriceTooHigh(users[i], request.atomicPrice, wantAndOfferInfo[2]);
+            }
             // still have DoS/griefing vector even if we skip instead of revert by price,
             // since users can still front run requests with high offer amounts or draw down their approval/balance
 
@@ -219,8 +230,9 @@ contract AtomicQueueV2 is ReentrancyGuard {
             wantAndOfferInfo[0] += request.offerAmount;
             request.inSolve = true;
             {
-            // Transfer shares from user to solver.
-            offer.safeTransferFrom(users[i], solver, request.offerAmount);}
+                // Transfer shares from user to solver.
+                offer.safeTransferFrom(users[i], solver, request.offerAmount);
+            }
             unchecked {
                 ++i;
             }
@@ -232,7 +244,8 @@ contract AtomicQueueV2 is ReentrancyGuard {
             AtomicRequest storage request = intermediateUserKey[users[i]];
 
             if (request.inSolve) {
-                // We know that the minimum price and deadline arguments are satisfied since this can only be true if they were.
+                // We know that the minimum price and deadline arguments are satisfied since this can only be true if
+                // they were.
 
                 // Send user their share of assets.
                 uint256 assetsToUser = _calculateAssetAmount(request.offerAmount, request.atomicPrice, offerDecimals);
@@ -266,7 +279,11 @@ contract AtomicQueueV2 is ReentrancyGuard {
      * @param want the ERC20 want token to check for solvability
      * @param users an array of user addresses to check for solvability
      */
-    function viewSolveMetaData(ERC20 offer, ERC20 want, address[] calldata users)
+    function viewSolveMetaData(
+        ERC20 offer,
+        ERC20 want,
+        address[] calldata users
+    )
         external
         view
         returns (SolveMetaData[] memory metaData, uint256 totalAssetsForWant, uint256 totalAssetsToOffer)
@@ -277,8 +294,7 @@ contract AtomicQueueV2 is ReentrancyGuard {
         // Setup meta data.
         metaData = new SolveMetaData[](users.length);
 
-        mapping(address => AtomicRequest)
-            storage intermediateUserKey = userAtomicRequest[offer][want];
+        mapping(address => AtomicRequest) storage intermediateUserKey = userAtomicRequest[offer][want];
 
         for (uint256 i; i < users.length; ++i) {
             AtomicRequest memory request = intermediateUserKey[users[i]];
@@ -318,7 +334,11 @@ contract AtomicQueueV2 is ReentrancyGuard {
      * @notice Helper function to calculate the amount of want assets a users wants in exchange for
      *         `offerAmount` of offer asset.
      */
-    function _calculateAssetAmount(uint256 offerAmount, uint256 atomicPrice, uint8 offerDecimals)
+    function _calculateAssetAmount(
+        uint256 offerAmount,
+        uint256 atomicPrice,
+        uint8 offerDecimals
+    )
         internal
         pure
         returns (uint256)
@@ -332,7 +352,8 @@ contract AtomicQueueV2 is ReentrancyGuard {
         returns (uint256[3] memory wantAndOfferInfo)
     {
         // decode runData
-        (, , , , , uint256 priceLimit) = abi.decode(runData, (AtomicSolverV4.SolveType, address, uint256, uint256, address, uint256));
+        (,,,,, uint256 priceLimit) =
+            abi.decode(runData, (AtomicSolverV4.SolveType, address, uint256, uint256, address, uint256));
 
         wantAndOfferInfo[2] = priceLimit;
     }
