@@ -9,7 +9,7 @@ import { IOAppCore, ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-oapp-v2/c
  * @title OAppAuthCore
  * @dev Abstract contract implementing the IOAppCore interface with basic OApp configurations.
  *
- * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatability purposes
+ * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthCore is IOAppCore, Auth {
     // The LayerZero endpoint associated with the given OApp

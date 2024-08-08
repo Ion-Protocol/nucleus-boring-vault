@@ -1,0 +1,17 @@
+{
+    "filter_paths": "lib",
+    "detectors_to_exclude": "naming-convention,pragma,assembly,equality",
+    "exclude_informational": true,
+    "exclude_low": true,
+    "solc_remaps": [
+        "@solmate/=lib/solmate/src/",
+        "@forge-std/=lib/forge-std/src/",
+        "forge-std/=lib/forge-std/src/",
+        "@ds-test/=lib/forge-std/lib/ds-test/src/",
+        "ds-test/=lib/forge-std/lib/ds-test/src/",
+        "@openzeppelin/=lib/openzeppelin-contracts/",
+        "@ion-protocol/=lib/ion-protocol/src/",
+        "@layerzerolabs/=node_modules/@layerzerolabs/"
+    ]
+  }
+  

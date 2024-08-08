@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: UNLICENSED */
 pragma solidity ^0.8.0;
 
-import "./common/BoringDecoderAndSanitizer.sol";
-import "./aave/AaveDecoderAndSanitizer.sol";
-import "./curve_and_convex/CurveAndConvexDecoderAndSanitizer.sol";
-import "./gearbox/GearboxDecoderAndSanitizer.sol";
+import { BoringDecoderAndSanitizer } from "./common/BoringDecoderAndSanitizer.sol";
+import { AaveDecoderAndSanitizer } from "./aave/AaveDecoderAndSanitizer.sol";
+import { CurveAndConvexDecoderAndSanitizer } from "./curve_and_convex/CurveAndConvexDecoderAndSanitizer.sol";
+import { GearboxDecoderAndSanitizer } from "./gearbox/GearboxDecoderAndSanitizer.sol";
 
 contract ITBPositionDecoderAndSanitizer is
     BoringDecoderAndSanitizer,
