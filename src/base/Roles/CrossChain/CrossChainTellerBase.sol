@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { TellerWithMultiAssetSupport } from "../TellerWithMultiAssetSupport.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 struct BridgeData {
     uint32 chainSelector;
@@ -18,6 +19,8 @@ struct BridgeData {
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
  */
 abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
+    using FixedPointMathLib for uint256;
+
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
     event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
@@ -136,5 +139,23 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
      */
     function _afterReceive(uint256 shareAmount, address destinationChainReceiver, bytes32 messageId) internal virtual {
         emit MessageReceived(messageId, shareAmount, destinationChainReceiver);
+    }
+
+    /**
+     * @notice taken from bulk withdraw
+     * @param withdrawAsset asset to withdraw
+     * @param shareMintAmount amount to mint
+     * @param receiver receiver of assets
+     */
+    function _withdraw(ERC20 withdrawAsset, uint shareMintAmount, address receiver) internal {
+        // taken from bulk withdraw
+        if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+
+        if (shareMintAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
+        uint assetsOut = shareMintAmount.mulDivDown(accountant.getRateInQuoteSafe(withdrawAsset), ONE_SHARE);
+        if (assetsOut < 0) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
+        // don't actually mint the shares, just exit with their value
+        vault.exit(receiver, withdrawAsset, assetsOut, address(0), 0);
+
     }
 }

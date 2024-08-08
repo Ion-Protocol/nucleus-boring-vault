@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import { CrossChainTellerBase, BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
 import { Auth } from "@solmate/auth/Auth.sol";
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 interface ICrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
@@ -15,7 +14,6 @@ interface ICrossDomainMessenger {
  * @notice LayerZero implementation of CrossChainTeller
  */
 contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
-    using FixedPointMathLib for uint256;
     ICrossDomainMessenger public immutable messenger;
     address public peer;
 
@@ -97,13 +95,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
             revert CrossChainOPTellerWithMultiAssetSupport_OnlyPeerAsSender();
         }
 
-        // taken from bulk withdraw
-        if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
-
-        if (shareMintAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
-        uint assetsOut = shareMintAmount.mulDivDown(accountant.getRateInQuoteSafe(withdrawAsset), ONE_SHARE);
-        if (assetsOut < 0) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
-        vault.exit(receiver, withdrawAsset, assetsOut, address(0), 0);
+        _withdraw(withdrawAsset, shareMintAmount, receiver);
 
         _afterReceive(shareMintAmount, receiver, messageId);
     }

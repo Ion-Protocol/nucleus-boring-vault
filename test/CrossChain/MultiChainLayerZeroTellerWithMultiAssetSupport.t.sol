@@ -13,6 +13,8 @@ import { OAppAuthCore } from "src/base/Roles/CrossChain/OAppAuth/OAppAuthCore.so
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { console } from "forge-std/Test.sol";
 
+uint64 constant GAS_TO_SEND = 180_000;
+
 contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTest, TestHelperOz5 {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -20,6 +22,48 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
     function setUp() public virtual override(MultiChainBaseTest, TestHelperOz5) {
         MultiChainBaseTest.setUp();
         TestHelperOz5.setUp();
+    }
+
+    function testBridgeAndWithdrawShares(uint256 sharesToBridge) external virtual{
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller =
+            MultiChainLayerZeroTellerWithMultiAssetSupport(sourceTellerAddr);
+        MultiChainLayerZeroTellerWithMultiAssetSupport destinationTeller =
+            MultiChainLayerZeroTellerWithMultiAssetSupport(destinationTellerAddr);
+
+        sharesToBridge = uint96(bound(sharesToBridge, 1, 1000e18));
+        assertGe(WETH.balanceOf(address(boringVault)), sharesToBridge, "boring vault doesn't have enough weth");
+
+        uint256 startingShareBalance = boringVault.balanceOf(address(this));
+        // Setup chains on bridge.
+        sourceTeller.addChain(DESTINATION_SELECTOR, true, true, address(destinationTeller), CHAIN_MESSAGE_GAS_LIMIT, 0);
+        destinationTeller.addChain(SOURCE_SELECTOR, true, true, sourceTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
+
+        // Bridge shares.
+        address to = vm.addr(1);
+
+        BridgeData memory data = BridgeData({
+            chainSelector: DESTINATION_SELECTOR,
+            destinationChainReceiver: to,
+            bridgeFeeToken: ERC20(NATIVE),
+            messageGas: GAS_TO_SEND,
+            withdrawAtDestination: true,
+            data: abi.encode(WETH)
+        });
+
+        uint256 quote = sourceTeller.previewFee(sharesToBridge, data) * 102 / 100;
+        bytes32 id = sourceTeller.bridge{ value: quote }(sharesToBridge, data);
+
+        verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(destinationTellerAddr));
+
+        assertEq(
+            boringVault.balanceOf(address(this)), startingShareBalance - sharesToBridge, "Should have burned shares."
+        );
+
+        assertEq(WETH.balanceOf(to), sharesToBridge, "to address should have no shares");
+
+        assertEq(boringVault.balanceOf(to), 0, "Should not have minted shares.");
+
+        assertEq(WETH.balanceOf(to), sharesToBridge, "Should not have withdrawn WETH.");
     }
 
     function testBridgingShares(uint256 sharesToBridge) external virtual {
@@ -41,12 +85,12 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: to,
             bridgeFeeToken: ERC20(NATIVE),
-            messageGas: 80_000,
+            messageGas: GAS_TO_SEND,
             withdrawAtDestination: false,
             data: ""
         });
 
-        uint256 quote = sourceTeller.previewFee(sharesToBridge, data);
+        uint256 quote = sourceTeller.previewFee(sharesToBridge, data) * 102 / 100;
         bytes32 id = sourceTeller.bridge{ value: quote }(sharesToBridge, data);
 
         verifyPackets(uint32(DESTINATION_SELECTOR), addressToBytes32(destinationTellerAddr));
@@ -84,7 +128,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
             bridgeFeeToken: ERC20(NATIVE),
-            messageGas: 80_000,
+            messageGas: GAS_TO_SEND,
             withdrawAtDestination: false,
             data: ""
         });
@@ -95,7 +139,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         // just need to pass in a number roughly the same size to get quote
         // I still get the real number here for testing
         uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
-        uint256 quote = sourceTeller.previewFee(shares, data);
+        uint256 quote = sourceTeller.previewFee(shares, data) * 102 / 100;
 
         vm.expectRevert(
             bytes(
@@ -132,7 +176,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
             chainSelector: DESTINATION_SELECTOR,
             destinationChainReceiver: userChain2,
             bridgeFeeToken: ERC20(NATIVE),
-            messageGas: 80_000,
+            messageGas: GAS_TO_SEND,
             withdrawAtDestination: false,
             data: ""
         });
@@ -143,7 +187,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         // just need to pass in a number roughly the same size to get quote
         // I still get the real number here for testing
         uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
-        uint256 quote = sourceTeller.previewFee(shares, data);
+        uint256 quote = sourceTeller.previewFee(shares, data) * 102 / 100;
         uint256 wethBefore = WETH.balanceOf(address(boringVault));
 
         sourceTeller.depositAndBridge{ value: quote }(WETH, amount, shares, data);
@@ -182,7 +226,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         // Call now succeeds.
         data = BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NATIVE), 80_000, false, abi.encode(DESTINATION_SELECTOR));
-        uint256 quote = sourceTeller.previewFee(1e18, data);
+        uint256 quote = sourceTeller.previewFee(1e18, data) * 102 / 100;
 
         sourceTeller.bridge{ value: quote }(1e18, data);
     }

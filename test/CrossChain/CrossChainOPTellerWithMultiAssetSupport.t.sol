@@ -201,6 +201,8 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
         vm.prank(address(destinationTeller.messenger()));
         destinationTeller.receiveBridgeWithdrawMessage(receiver, amount, keccak256(abi.encodePacked(amount)), WETH);
 
+        assertEq(boringVault.balanceOf(receiver), 0, "Should have no shares.");
+
         assertEq(WETH.balanceOf(receiver), amount, "Should have withdrawn shares.");
     }
 

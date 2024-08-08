@@ -70,8 +70,12 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         }
 
         // Decode the payload to get the message
-        (uint256 shareAmount, address receiver) = abi.decode(payload, (uint256, address));
-        vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
+        (uint256 shareAmount, address receiver, address withdrawAssetZeroIfNoWithdraw) = abi.decode(payload, (uint256, address, address));
+        if(withdrawAssetZeroIfNoWithdraw == address(0)){
+            vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
+        }else{
+            _withdraw(ERC20(withdrawAssetZeroIfNoWithdraw), shareAmount, receiver);
+        }
 
         _afterReceive(shareAmount, receiver, _guid);
     }
@@ -86,7 +90,9 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
             revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
 
-        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver);
+        // if the withdraw bool is set to true then pass in the withdraw asset, if not just send zero address which will not preform a withdraw on bridge
+        address withdrawAssetZeroIfNoWithdraw = (data.withdrawAtDestination) ? abi.decode(data.data, (address)) : address(0);
+        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, withdrawAssetZeroIfNoWithdraw);
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
 
         MessagingReceipt memory receipt = _lzSend(
