@@ -1,0 +1,24 @@
+{
+  "extends": "solhint:recommended",
+  "plugins": [],
+  "rules": {
+    "avoid-suicide": "error",
+    "avoid-sha3": "warn",
+    "func-visibility": [
+      "warn",
+      {
+        "ignoreConstructors": true
+      }
+    ],
+    "state-visibility": "off",
+    "no-inline-assembly": "off",
+    "one-contract-per-file": "off",
+    "var-name-mixedcase": "off",
+    "immutable-vars-naming": "off",
+    "reason-string": "off",
+    "gas-custom-errors": "off",
+    "const-name-snakecase": "off",
+    "func-name-mixedcase": "off",
+    "no-unused-vars": "off"
+  }
+}

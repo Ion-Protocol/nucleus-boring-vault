@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { UManager, FixedPointMathLib, ManagerWithMerkleVerification, ERC20 } from "src/micro-managers/UManager.sol";
+import { UManager, FixedPointMathLib, ERC20 } from "src/micro-managers/UManager.sol";
 import { AggregationRouterV5 } from "src/interfaces/AggregationRouterV5.sol";
 import { PriceRouter } from "src/interfaces/PriceRouter.sol";
 

@@ -46,7 +46,8 @@
     "08_DeployRateProviders:deployment:deploy:anvil": "forge script script/deploy/08_DeployRateProviders.s.sol --rpc-url http://localhost:8545 --private-key $PRIVATE_KEY --slow",
     "08_DeployRateProviders:deployment:deploy:tenderly": "forge script script/deploy/08_DeployRateProviders.s.sol --rpc-url $TENDERLY_RPC_URL --private-key $PRIVATE_KEY --slow",
     "08_DeployRateProviders:deployment:deploy:sepolia": "forge script script/deploy/08_DeployRateProviders.s.sol --rpc-url $SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --slow",
-    "08_DeployRateProviders:deployment:deploy:mainnet": "forge script script/deploy/08_DeployRateProviders.s.sol --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --slow"
+    "08_DeployRateProviders:deployment:deploy:mainnet": "forge script script/deploy/08_DeployRateProviders.s.sol --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --slow",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",
@@ -54,7 +55,8 @@
     "@layerzerolabs/test-devtools-evm-foundry": "^0.2.7",
     "@layerzerolabs/toolbox-foundry": "^0.1.6",
     "@openzeppelin/contracts": "^5.0.2",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "husky": "^9.1.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

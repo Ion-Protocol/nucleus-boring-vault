@@ -113,6 +113,7 @@ contract EthPerTokenRateProvider is IRateProvider {
     /**
      * @dev To revert upon custom checks such as sequencer liveness.
      */
+    // solhint-disable-next-line no-empty-blocks
     function _validityCheck() internal view virtual { }
 
     function _isEqual(string memory a, string memory b) internal pure returns (bool) {
