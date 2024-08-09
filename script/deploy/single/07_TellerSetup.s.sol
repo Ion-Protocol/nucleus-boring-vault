@@ -37,7 +37,7 @@ contract TellerSetup is BaseScript {
                 abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString(), ".rateProvider")
             );
             address rateProvider = getChainConfigFile().readAddress(key);
-            AccountantWithRateProviders(teller.accountant()).setRateProviderData(ERC20(config.base), true, rateProvider);
+            teller.accountant().setRateProviderData(ERC20(config.assets[i]), false, rateProvider);
         }
     }
 }

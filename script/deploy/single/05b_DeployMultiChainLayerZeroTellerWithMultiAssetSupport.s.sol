@@ -36,9 +36,9 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
             )
         );
 
-        // configure the crosschain functionality
-        // teller.setPeer(SEPOLIA_OPT_EID, addressToBytes32(address(main)));
-        // teller.addChain(SEPOLIA_OPT_EID, true, true, address(main), 100_000, 0);
+        // configure the crosschain functionality, assume same address
+        teller.setPeer(config.peerEid, bytes32(bytes20(address(teller))));
+        teller.addChain(config.peerEid, true, true, address(teller), config.maxGasForPeer, config.minGasForPeer);
 
         // Post Deploy Checks
         require(teller.shareLockPeriod() == 0, "share lock period must be zero");
