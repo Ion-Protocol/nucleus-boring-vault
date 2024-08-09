@@ -19,8 +19,7 @@ abstract contract BaseScript is Script {
     string constant CONFIG_CHAIN_ROOT = "./deployment-config/chains/";
 
     /// Custom base params
-    // ICreateX CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-    ICreateX CREATEX = ICreateX(0x27F4e513eA8eE01eE442A8011720439518F54ae8);
+    ICreateX CREATEX = ICreateX(0xD7d6e6C50507d278b9F43f62Bc7b9310ECeff2C5);
 
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
@@ -57,7 +56,7 @@ abstract contract BaseScript is Script {
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
         if (address(CREATEX).code.length == 0) {
-            revert("CREATEX Not Deployed on this chain. Use the Library to forge deploy it");
+            revert("CREATEX Not Deployed on this chain. Use the DeployCustomCreatex script to deploy it");
         }
     }
 

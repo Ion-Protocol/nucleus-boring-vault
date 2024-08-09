@@ -68,7 +68,7 @@ contract DeployRolesAuthority is BaseScript {
         // 3. TELLER_ROLE
         //     - boringVault.enter()
         //     - boringVault.exit()
-        //     - assigned to TELLER
+        //     - assigned to TELLERaddress(0) // `Authority`
         // --- Public ---
         // 1. teller.deposit
         rolesAuthority.setRoleCapability(
@@ -115,7 +115,8 @@ contract DeployRolesAuthority is BaseScript {
         require(
             rolesAuthority.doesUserHaveRole(config.strategist, STRATEGIST_ROLE),
             "strategist should have STRATEGIST_ROLE"
-        );
+        );        IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
+
         require(rolesAuthority.doesUserHaveRole(config.manager, MANAGER_ROLE), "manager should have MANAGER_ROLE");
         require(rolesAuthority.doesUserHaveRole(config.teller, TELLER_ROLE), "teller should have TELLER_ROLE");
         require(

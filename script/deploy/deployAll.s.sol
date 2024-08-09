@@ -18,7 +18,6 @@ import { DeployMultiChainLayerZeroTellerWithMultiAssetSupport } from
 import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
 import { TellerSetup } from "./single/07_TellerSetup.s.sol";
 import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTransferOwnerships.s.sol";
-import { DeployDecoderAndSanitizer } from "./single/09_DeployDecoderAndSanitizer.s.sol";
 
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
@@ -86,8 +85,6 @@ contract DeployAll is BaseScript {
         new SetAuthorityAndTransferOwnerships().deploy(config);
         console.log("Set Authority And Transfer Ownerships Complete");
 
-        new DeployDecoderAndSanitizer().deploy(config);
-        console.log("Deploy Decoder and Sanitizer complete");
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {
