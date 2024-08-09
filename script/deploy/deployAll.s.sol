@@ -57,7 +57,6 @@ contract DeployAll is BaseScript {
     }
 
     function deploy(ConfigReader.Config memory config) public override returns (address) {
-
         address boringVault = new DeployIonBoringVaultScript().deploy(config);
         config.boringVault = boringVault;
         console.log("Boring Vault: ", boringVault);
@@ -84,7 +83,6 @@ contract DeployAll is BaseScript {
 
         new SetAuthorityAndTransferOwnerships().deploy(config);
         console.log("Set Authority And Transfer Ownerships Complete");
-
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {

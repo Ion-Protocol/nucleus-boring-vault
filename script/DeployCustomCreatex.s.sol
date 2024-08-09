@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity =0.8.23;
 
-import {console} from "forge-std/console.sol";
+import { console } from "forge-std/console.sol";
 import { CreateX } from "lib/createx/src/CreateX.sol";
 import { Script, stdJson } from "@forge-std/Script.sol";
 
-contract DeployCustomCreateX is Script{
+contract DeployCustomCreateX is Script {
     address broadcaster;
     string internal mnemonic;
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
@@ -21,7 +21,6 @@ contract DeployCustomCreateX is Script{
             mnemonic = vm.envOr({ name: "MNEMONIC", defaultValue: TEST_MNEMONIC });
             (broadcaster,) = deriveRememberKey({ mnemonic: mnemonic, index: 0 });
         }
-
     }
 
     modifier broadcast() {
@@ -30,11 +29,10 @@ contract DeployCustomCreateX is Script{
         vm.stopBroadcast();
     }
 
-
     function run() public broadcast {
         require(EXPECTED.code.length == 0, "Createx already exists on this chain");
 
-        CreateX createx = new CreateX{salt:SALT}();
+        CreateX createx = new CreateX{ salt: SALT }();
 
         console.log(address(createx));
         require(address(createx) == EXPECTED, "address is not expected");
