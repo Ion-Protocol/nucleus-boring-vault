@@ -20,7 +20,6 @@ import { DeployAtomicSolverV4 } from "./single/07_DeployAtomicSolverV4.s.sol";
 import { DeployRolesAuthority } from "./single/08_DeployRolesAuthority.s.sol";
 import { TellerSetup } from "./single/09_TellerSetup.s.sol";
 import { SetAuthorityAndTransferOwnerships } from "./single/10_SetAuthorityAndTransferOwnerships.s.sol";
-import { DeployDecoderAndSanitizer } from "./single/11_DeployDecoderAndSanitizer.s.sol";
 
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
