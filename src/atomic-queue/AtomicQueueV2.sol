@@ -33,7 +33,7 @@ contract AtomicQueueV2 is ReentrancyGuard {
      * @param atomicPrice the price in terms of `want` asset the user wants their `offer` assets "sold" at
      * @dev atomicPrice MUST be in terms of `want` asset decimals.
      * @param offerAmount the amount of `offer` asset the user wants converted to `want` asset
-     * @param inSolve bool used during solves to prevent duplicate users, and to prevent re-doing multiple checks
+     * @param inSolve bool used during solves to prevent duplicate users, and to prevent redoing multiple checks
      */
     struct AtomicRequest {
         uint64 deadline; // deadline to fulfill request
