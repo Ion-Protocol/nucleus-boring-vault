@@ -60,23 +60,25 @@ contract DeployAll is BaseScript {
     }
 
     function deploy(ConfigReader.Config memory config) public override returns (address) {
-        // address rateProvider = new DeployRateProviders().deploy(config);
-        // config.rateProvider = rateProvider;
-
         address boringVault = new DeployIonBoringVaultScript().deploy(config);
         config.boringVault = boringVault;
+        console.log("Boring Vault: ", boringVault);
 
         address manager = new DeployManagerWithMerkleVerification().deploy(config);
         config.manager = manager;
+        console.log("Manager: ", manager);
 
         address accountant = new DeployAccountantWithRateProviders().deploy(config);
         config.accountant = accountant;
+        console.log("Accountant: ", accountant);
 
         // deploy the teller
         // we use an if statement to determine the teller type and which one to deploy
         config.teller = _deployTeller(config);
+        console.log("Teller: ", config.teller);
 
         new TellerSetup().deploy(config);
+        console.log("Teller setup complete");
 
         address queue = new DeployAtomicQueueV2().deploy(config);
         config.queue = queue;
@@ -86,10 +88,10 @@ contract DeployAll is BaseScript {
 
         address rolesAuthority = new DeployRolesAuthority().deploy(config);
         config.rolesAuthority = rolesAuthority;
+        console.log("Roles Authority: ", rolesAuthority);
 
         new SetAuthorityAndTransferOwnerships().deploy(config);
-
-        new DeployDecoderAndSanitizer().deploy(config);
+        console.log("Set Authority And Transfer Ownerships Complete");
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {

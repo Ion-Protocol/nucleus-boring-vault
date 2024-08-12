@@ -19,7 +19,7 @@ abstract contract BaseScript is Script {
     string constant CONFIG_CHAIN_ROOT = "./deployment-config/chains/";
 
     /// Custom base params
-    ICreateX CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
+    ICreateX CREATEX = ICreateX(0xD7d6e6C50507d278b9F43f62Bc7b9310ECeff2C5);
 
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
@@ -48,18 +48,15 @@ abstract contract BaseScript is Script {
         deployCreate2 = vm.envOr({ name: "CREATE2", defaultValue: true });
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
-            console.log("using env provided wallet");
             broadcaster = from;
         } else {
-            console.log("Using default mnemonic wallet");
             mnemonic = vm.envOr({ name: "MNEMONIC", defaultValue: TEST_MNEMONIC });
             (broadcaster,) = deriveRememberKey({ mnemonic: mnemonic, index: 0 });
         }
-        console2.log("broadcaster", broadcaster);
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
         if (address(CREATEX).code.length == 0) {
-            revert("CREATEX Not Deployed on this chain. Use the Library to forge deploy it");
+            revert("CREATEX Not Deployed on this chain. Use the DeployCustomCreatex script to deploy it");
         }
     }
 
@@ -82,7 +79,6 @@ abstract contract BaseScript is Script {
     }
 
     function getChainConfigFile() internal view returns (string memory) {
-        console2.log("Deployment Chain ID:", block.chainid);
         return vm.readFile(string.concat(CONFIG_CHAIN_ROOT, Strings.toString(block.chainid), ".json"));
     }
 
