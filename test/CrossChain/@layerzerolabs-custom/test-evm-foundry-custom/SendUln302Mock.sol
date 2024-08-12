@@ -101,7 +101,9 @@ contract SendUln302Mock is SendUlnBase, SendLibBaseE2 {
         (otherWorkerFees, encodedPacket) = _payDVNs(fees, _packet, _options);
     }
 
-    function _splitOptions(bytes calldata _options)
+    function _splitOptions(
+        bytes calldata _options
+    )
         internal
         pure
         override

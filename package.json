@@ -8,8 +8,10 @@
     "solhint": "solhint -w 0 'src/**/*.sol'",
     "slither": "slither src",
     "prepare": "husky",
-    "deploy-mainnet": "forge script script/deploy/deployAll.s.sol -f $MAINNET_RPC_URL --private-key=$PRIVATE_KEY --slow",
-    "deploy-l2": "forge script script/deploy/deployAll.s.sol -f $L2_RPC_URL --private-key=$PRIVATE_KEY --slow"
+    "deploy-createx-l1": "dotenv -e .env -- forge script script/DeployCustomCreatex.s.sol --rpc-url $L1_RPC_URL --private-key $PRIVATE_KEY --slow",
+    "deploy-createx-l2": "dotenv -e .env -- forge script script/DeployCustomCreatex.s.sol --rpc-url $L2_RPC_URL --private-key $PRIVATE_KEY --slow",
+    "deploy-l1": "dotenv -e .env -- forge script script/deploy/deployAll.s.sol -f $L1_RPC_URL --private-key=$PRIVATE_KEY --slow",
+    "deploy-l2": "dotenv -e .env -- forge script script/deploy/deployAll.s.sol -f $L2_RPC_URL --private-key=$PRIVATE_KEY --slow"
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",
@@ -27,6 +29,7 @@
     "@layerzerolabs/lz-evm-oapp-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
+    "dotenv-cli": "^7.4.2",
     "forge-std": "^1.1.2",
     "prettier": "^3.3.2",
     "solhint": "^5.0.1"
