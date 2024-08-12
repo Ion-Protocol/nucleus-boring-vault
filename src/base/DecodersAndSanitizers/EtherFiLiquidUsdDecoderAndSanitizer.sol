@@ -79,7 +79,9 @@ contract EtherFiLiquidUsdDecoderAndSanitizer is
      * @notice BalancerV2, NativeWrapper, Curve, and Gearbox all specify a `withdraw(uint256)`,
      *         all cases are handled the same way.
      */
-    function withdraw(uint256)
+    function withdraw(
+        uint256
+    )
         external
         pure
         override(
@@ -114,7 +116,9 @@ contract EtherFiLiquidUsdDecoderAndSanitizer is
      * @notice EtherFi, and Lido all specify a `wrap(uint256)`,
      *         all cases are handled the same way.
      */
-    function wrap(uint256)
+    function wrap(
+        uint256
+    )
         external
         pure
         override(EtherFiDecoderAndSanitizer, LidoDecoderAndSanitizer)
@@ -128,7 +132,9 @@ contract EtherFiLiquidUsdDecoderAndSanitizer is
      * @notice EtherFi, and Lido all specify a `unwrap(uint256)`,
      *         all cases are handled the same way.
      */
-    function unwrap(uint256)
+    function unwrap(
+        uint256
+    )
         external
         pure
         override(EtherFiDecoderAndSanitizer, LidoDecoderAndSanitizer)

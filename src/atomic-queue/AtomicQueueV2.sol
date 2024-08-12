@@ -346,7 +346,9 @@ contract AtomicQueueV2 is ReentrancyGuard {
         return atomicPrice.mulDivDown(offerAmount, 10 ** offerDecimals);
     }
 
-    function _wantAndOfferInfoHelper(bytes calldata runData)
+    function _wantAndOfferInfoHelper(
+        bytes calldata runData
+    )
         internal
         pure
         returns (uint256[3] memory wantAndOfferInfo)
