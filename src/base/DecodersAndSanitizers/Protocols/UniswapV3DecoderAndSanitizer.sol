@@ -23,7 +23,9 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== UNISWAP V3 ===============================
 
-    function exactInput(DecoderCustomTypes.ExactInputParams calldata params)
+    function exactInput(
+        DecoderCustomTypes.ExactInputParams calldata params
+    )
         external
         pure
         virtual
@@ -44,7 +46,9 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(addressesFound, params.recipient);
     }
 
-    function mint(DecoderCustomTypes.MintParams calldata params)
+    function mint(
+        DecoderCustomTypes.MintParams calldata params
+    )
         external
         pure
         virtual
@@ -55,7 +59,9 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.token0, params.token1, params.recipient);
     }
 
-    function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
+    function increaseLiquidity(
+        DecoderCustomTypes.IncreaseLiquidityParams calldata params
+    )
         external
         view
         virtual
@@ -71,7 +77,9 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(operator, token0, token1);
     }
 
-    function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
+    function decreaseLiquidity(
+        DecoderCustomTypes.DecreaseLiquidityParams calldata params
+    )
         external
         view
         virtual
@@ -88,7 +96,9 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
-    function collect(DecoderCustomTypes.CollectParams calldata params)
+    function collect(
+        DecoderCustomTypes.CollectParams calldata params
+    )
         external
         view
         virtual
