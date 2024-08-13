@@ -8,7 +8,9 @@
     "solhint": "solhint -w 0 'src/**/*.sol'",
     "slither": "slither src",
     "prepare": "husky",
-    "deploy-mainnet": "forge script script/deploy/deployAll.s.sol -f $MAINNET_RPC_URL --private-key=$PRIVATE_KEY --slow",
+    "deploy-createx-l1": "forge script script/DeployCustomCreatex.s.sol --rpc-url $L1_RPC_URL --private-key $PRIVATE_KEY --slow",
+    "deploy-createx-l2": "forge script script/DeployCustomCreatex.s.sol --rpc-url $L2_RPC_URL --private-key $PRIVATE_KEY --slow",
+    "deploy-l1": "forge script script/deploy/deployAll.s.sol -f $L1_RPC_URL --private-key=$PRIVATE_KEY --slow",
     "deploy-l2": "forge script script/deploy/deployAll.s.sol -f $L2_RPC_URL --private-key=$PRIVATE_KEY --slow"
   },
   "devDependencies": {
