@@ -32,6 +32,7 @@
         "minGasForPeer": 60000,
         "peerEid": 30101,
         "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "opMessenger": "0x0000000000000000000000000000000000000000",
         "assets": [
         ],
         "address": "0x0000000000000000000000000000000000000000"

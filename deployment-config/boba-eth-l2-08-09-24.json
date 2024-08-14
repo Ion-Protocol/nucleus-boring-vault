@@ -6,7 +6,7 @@
         "boringVaultName": "Boba Native Yield Nucleus Token", 
         "boringVaultSymbol": "bobaETH",
     
-        "address": "0x0000000000000000000000000000000000000000"    
+        "address": "0x52E4d8989fa8b3E1C06696e7b16DEf5d7707A0d1"    
     },
 
     "manager":{
@@ -23,15 +23,16 @@
         "minimumUpdateDelayInSeconds": "3600",
         "managementFee": "0",
 
-        "address": "0x0000000000000000000000000000000000000000"
+        "address": "0x78cba912751dB70CBd77C1111A4d1aDD077AD99A"
     },
 
     "teller": {
-        "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000001",
+        "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000002",
         "maxGasForPeer": 200000,
         "minGasForPeer": 60000,
         "peerEid": 0,
         "tellerContractName": "CrossChainOPTellerWithMultiAssetSupport",
+        "opMessenger": "0x4200000000000000000000000000000000000007",
         "assets": [
         ],
         "address": "0x0000000000000000000000000000000000000000"
