@@ -1,33 +1,27 @@
 {
     "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-
-    "boringVault":{
+    "boringVault": {
         "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000001",
-        "boringVaultName": "Boba Native Yield Nucleus Token", 
+        "boringVaultName": "Boba Native Yield Nucleus Token",
         "boringVaultSymbol": "bobaETH",
-    
-        "address": "0x0000000000000000000000000000000000000000"    
-    },
-
-    "manager":{
-        "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000001",
-
         "address": "0x0000000000000000000000000000000000000000"
     },
-    
-    "accountant":{
+    "manager": {
+        "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000001",
+        "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
         "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000001",
         "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
         "allowedExchangeRateChangeUpper": "10030",
         "allowedExchangeRateChangeLower": "9980",
         "minimumUpdateDelayInSeconds": "3600",
         "managementFee": "0",
-
         "address": "0x0000000000000000000000000000000000000000"
     },
-
     "teller": {
         "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000001",
+        "opMessenger": "0x4200000000000000000000000000000000000007",
         "maxGasForPeer": 200000,
         "minGasForPeer": 60000,
         "peerEid": 0,
@@ -46,14 +40,10 @@
         "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000001",
         "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
         "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-
         "address": "0x0000000000000000000000000000000000000000"
     },
-
     "decoder": {
         "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000001",
-    
-        "address": "0x0000000000000000000000000000000000000000" 
+        "address": "0x0000000000000000000000000000000000000000"
     }
-
 }
