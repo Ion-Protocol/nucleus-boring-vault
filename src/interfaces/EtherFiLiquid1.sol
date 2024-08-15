@@ -72,7 +72,9 @@ interface EtherFiLiquid1 {
     function addPosition(uint32 index, uint32 positionId, bytes memory configurationData, bool inDebtArray) external;
     function addPositionToCatalogue(uint32 positionId) external;
     function allowance(address, address) external view returns (uint256);
-    function alternativeAssetData(address)
+    function alternativeAssetData(
+        address
+    )
         external
         view
         returns (bool isSupported, uint32 holdingPosition, uint32 depositFee);

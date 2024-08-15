@@ -86,7 +86,7 @@ contract CrossChainOPTellerWithMultiAssetSupport is CrossChainTellerBase {
         unchecked {
             messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
         }
-        
+
         messenger.sendMessage(
             peer,
             abi.encodeCall(this.receiveBridgeMessage, (data.destinationChainReceiver, shareAmount, messageId)),
