@@ -11,16 +11,17 @@ import { ConfigReader } from "../../ConfigReader.s.sol";
 import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
+uint8 constant STRATEGIST_ROLE = 1;
+uint8 constant MANAGER_ROLE = 2;
+uint8 constant TELLER_ROLE = 3;
+uint8 constant UPDATE_EXCHANGE_RATE_ROLE = 4;
+uint8 constant SOLVER_ROLE = 5;
+
 /**
  * NOTE Deploys with `Authority` set to zero bytes.
  */
 contract DeployRolesAuthority is BaseScript {
     using StdJson for string;
-
-    uint8 public constant STRATEGIST_ROLE = 1;
-    uint8 public constant MANAGER_ROLE = 2;
-    uint8 public constant TELLER_ROLE = 3;
-    uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 4;
 
     function run() public virtual returns (address rolesAuthority) {
         return deploy(getConfig());
