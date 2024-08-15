@@ -10,7 +10,7 @@ contract DeployCustomCreateX is Script {
     string internal mnemonic;
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
-    address constant EXPECTED = 0xD7d6e6C50507d278b9F43f62Bc7b9310ECeff2C5;
+    address constant EXPECTED = 0x1077f8ea07EA34D9F23BC39256BF234665FB391f;
     bytes32 constant SALT = 0x8888888833388888888000000000000000000000000000000000000000000000;
 
     constructor() {
@@ -33,7 +33,6 @@ contract DeployCustomCreateX is Script {
         require(EXPECTED.code.length == 0, "Createx already exists on this chain");
 
         CreateX createx = new CreateX{ salt: SALT }();
-
         console.log(address(createx));
         require(address(createx) == EXPECTED, "address is not expected");
     }
