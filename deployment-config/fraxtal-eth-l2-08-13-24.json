@@ -1,45 +1,42 @@
 {
     "protocolAdmin": "0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826",
     "boringVault": {
-        "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000001",
-        "boringVaultName": "Boba Native Yield Nucleus Token",
-        "boringVaultSymbol": "bobaETH",
-
+        "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000002",
+        "boringVaultName": "Fraxtal Native Yield Nucleus Token",
+        "boringVaultSymbol": "frxtlETH",
         "address": "0x0000000000000000000000000000000000000000"
     },
     "manager": {
-        "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000001",
+        "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000002",
         "address": "0x0000000000000000000000000000000000000000"
     },
     "accountant": {
-        "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000001",
+        "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000002",
         "payoutAddress": "0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826",
         "allowedExchangeRateChangeUpper": "10030",
         "allowedExchangeRateChangeLower": "9980",
         "minimumUpdateDelayInSeconds": "3600",
         "managementFee": "0",
-
         "address": "0x0000000000000000000000000000000000000000"
     },
     "teller": {
         "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000002",
         "maxGasForPeer": 200000,
         "minGasForPeer": 60000,
-        "peerEid": 0,
-        "tellerContractName": "CrossChainOPTellerWithMultiAssetSupport",
+        "peerEid": 30101,
+        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
         "opMessenger": "0x4200000000000000000000000000000000000007",
         "assets": [],
-      
         "address": "0x0000000000000000000000000000000000000000"
     },
     "rolesAuthority": {
-        "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000001",
+        "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000002",
         "strategist": "0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826",
         "exchangeRateBot": "0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826",
         "address": "0x0000000000000000000000000000000000000000"
     },
     "decoder": {
-        "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000001",
+        "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000002",
         "address": "0x0000000000000000000000000000000000000000"
     }
 }
