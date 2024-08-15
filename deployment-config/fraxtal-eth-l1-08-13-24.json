@@ -21,11 +21,11 @@
     },
     "teller": {
         "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000002",
-        "opMessenger": "0x4200000000000000000000000000000000000007",
         "maxGasForPeer": 200000,
         "minGasForPeer": 60000,
         "peerEid": 30255,
         "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "opMessenger": "0x126bcc31Bc076B3d515f60FBC81FddE0B0d542Ed",
         "assets": [
             "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee",
             "0xbf5495efe5db9ce00f80364c8b423567e58d2110",
