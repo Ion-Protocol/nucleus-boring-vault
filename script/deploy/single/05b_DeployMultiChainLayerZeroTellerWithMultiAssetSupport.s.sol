@@ -7,9 +7,20 @@ import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
 import { BaseScript } from "./../../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
-
+import {ILayerZeroEndpointV2} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
     using StdJson for string;
+    address dead = 0x000000000000000000000000000000000000dEaD;
+
+    struct UlnConfig {
+        uint64 confirmations;
+        // we store the length of required DVNs and optional DVNs instead of using DVN.length directly to save gas
+        uint8 requiredDVNCount; // 0 indicate DEFAULT, NIL_DVN_COUNT indicate NONE (to override the value of default)
+        uint8 optionalDVNCount; // 0 indicate DEFAULT, NIL_DVN_COUNT indicate NONE (to override the value of default)
+        uint8 optionalDVNThreshold; // (0, optionalDVNCount]
+        address[] requiredDVNs; // no duplicates. sorted an an ascending order. allowed overlap with optionalDVNs
+        address[] optionalDVNs; // no duplicates. sorted an an ascending order. allowed overlap with requiredDVNs
+    }
 
     function run() public returns (address teller) {
         return deploy(getConfig());
@@ -49,6 +60,21 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         );
         require(address(teller.endpoint()) == config.lzEndpoint, "OP Teller must have messenger set");
 
+        // check if the DVN is configured and print a message to the screen to inform the deployer if not.
+        ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(config.lzEndpoint);
+        address lib = endpoint.defaultSendLibrary(config.peerEid);
+        bytes memory configBytes = endpoint.getConfig(config.teller, lib, config.peerEid, 2);
+        UlnConfig memory ulnConfig = abi.decode(configBytes, (UlnConfig));
+
+        require(ulnConfig.confirmations != 0, "uln config confirmations cannot be 0");
+        uint8 numRequiredDVN = ulnConfig.requiredDVNCount;
+        uint8 numOptionalDVN = ulnConfig.optionalDVNCount;
+        for(uint i; i < numRequiredDVN; ++i){
+            require(ulnConfig.requiredDVNs[i] != dead, "uln config must not include dead");
+        }
+        for(uint i; i < numRequiredDVN; ++i){
+            require(ulnConfig.optionalDVNs[i] != dead, "uln config must not include dead");
+        }
         return address(teller);
     }
 }
