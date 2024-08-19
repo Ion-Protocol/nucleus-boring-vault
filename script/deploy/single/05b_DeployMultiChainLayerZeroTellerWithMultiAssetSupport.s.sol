@@ -99,7 +99,8 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
 
         requiredDVNs[0] = config.dvnIfNoDefault;
 
-        bytes memory ulnConfigBytes = abi.encode(UlnConfig(config.dvnBlockConfirmationsRequiredIfNoDefault, 1, 0, 0, requiredDVNs, optionalDVNs));
+        bytes memory ulnConfigBytes =
+            abi.encode(UlnConfig(config.dvnBlockConfirmationsRequiredIfNoDefault, 1, 0, 0, requiredDVNs, optionalDVNs));
 
         SetConfigParam[] memory setConfigParams = new SetConfigParam[](1);
         setConfigParams[0] = SetConfigParam(config.peerEid, 2, ulnConfigBytes);
