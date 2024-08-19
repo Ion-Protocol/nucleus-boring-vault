@@ -86,4 +86,8 @@ abstract contract BaseScript is Script {
         path = string.concat(CONFIG_PATH_ROOT, vm.prompt("Please Enter The Deployments Configuration File Name: "));
         return vm.readFile(path);
     }
+
+    function compareStrings(string memory a, string memory b) internal returns (bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
+    }
 }

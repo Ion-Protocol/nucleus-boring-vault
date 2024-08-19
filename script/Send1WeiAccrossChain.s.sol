@@ -11,7 +11,8 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 import { EtherFiLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import { MultiChainLayerZeroTellerWithMultiAssetSupport } from "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
+import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
+    "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
@@ -51,7 +52,7 @@ contract TestScript is Script {
         // ERC20 WETH = ERC20(0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000);
         address BORING_VAULT = 0x52E4d8989fa8b3E1C06696e7b16DEf5d7707A0d1;
         address TELLER = 0xB52C7d88F0514796877B04cF945E56cC4C66CD05;
-        
+
         teller = CrossChainTellerBase(TELLER);
 
         require(teller.isSupported(WETH), "asset not supported");
@@ -61,16 +62,16 @@ contract TestScript is Script {
 
         // teller.deposit(WETH, 1000000000, 1000000000);
         BridgeData memory data = BridgeData({
-            chainSelector: 30280,
+            chainSelector: 30_280,
             destinationChainReceiver: broadcaster,
             bridgeFeeToken: NATIVE,
             messageGas: 100_000,
             data: ""
         });
 
-        uint256 fee = teller.previewFee(1000000000, data);
+        uint256 fee = teller.previewFee(1_000_000_000, data);
 
-        teller.depositAndBridge{value:fee}(WETH, 1, 1, data);
+        teller.depositAndBridge{ value: fee }(WETH, 1, 1, data);
 
         // boring_vault = new BoringVault(owner, "Test Boring Vault", "BV", 18);
 

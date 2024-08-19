@@ -9,6 +9,7 @@ import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { SetConfigParam } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/IMessageLibManager.sol";
+import { console2 } from "@forge-std/console2.sol";
 
 contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
     using StdJson for string;
@@ -63,7 +64,7 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         );
         require(address(teller.endpoint()) == config.lzEndpoint, "OP Teller must have messenger set");
 
-        // check if the DVN is configured and print a message to the screen to inform the deployer if not.
+        _checkUlnConfig(config);
         return address(teller);
     }
 
@@ -73,34 +74,40 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         bytes memory configBytes = endpoint.getConfig(config.teller, lib, config.peerEid, 2);
         UlnConfig memory ulnConfig = abi.decode(configBytes, (UlnConfig));
 
-        if (ulnConfig.confirmations == 0) {
-            _setConfig(endpoint, lib, config);
-            return;
-        }
+
+
         uint8 numRequiredDVN = ulnConfig.requiredDVNCount;
         uint8 numOptionalDVN = ulnConfig.optionalDVNCount;
+        bool isDead;
+
         for (uint256 i; i < numRequiredDVN; ++i) {
             if (ulnConfig.requiredDVNs[i] == dead) {
-                _setConfig(endpoint, lib, config);
-                return;
+                isDead = true;
             }
         }
+
         for (uint256 i; i < numRequiredDVN; ++i) {
             if (ulnConfig.optionalDVNs[i] == dead) {
-                _setConfig(endpoint, lib, config);
-                return;
+                isDead = true;
             }
         }
-    }
+
+        if(!isDead){
+            string memory a = vm.prompt("There is a default configuration for this chain/peerEid combination. Would you like to use it? (y/n)");
+            if(compareStrings(a,"y")){
+                console2.log("using default config");
+                return;
+            }else{
+                console2.log("setting LayerZero ULN config using provided in config file");
+                _setConfig(endpoint, lib, config);
+            }
+        }
+    }   
 
     function _setConfig(ILayerZeroEndpointV2 endpoint, address lib, ConfigReader.Config memory config) internal {
-        address[] memory requiredDVNs = new address[](1);
-        address[] memory optionalDVNs = new address[](0);
-
-        requiredDVNs[0] = config.dvnIfNoDefault;
 
         bytes memory ulnConfigBytes =
-            abi.encode(UlnConfig(config.dvnBlockConfirmationsRequiredIfNoDefault, 1, 0, 0, requiredDVNs, optionalDVNs));
+            abi.encode(UlnConfig(config.dvnBlockConfirmationsRequired, uint8(config.requiredDnvs.length), uint8(config.optionalDvns.length), config.optionalDvnThreshold, config.requiredDnvs, config.optionalDvns));
 
         SetConfigParam[] memory setConfigParams = new SetConfigParam[](1);
         setConfigParams[0] = SetConfigParam(config.peerEid, 2, ulnConfigBytes);

@@ -94,8 +94,4 @@ contract DeployAll is BaseScript {
             revert INVALID_TELLER_CONTRACT_NAME();
         }
     }
-
-    function compareStrings(string memory a, string memory b) private returns (bool) {
-        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
-    }
 }
