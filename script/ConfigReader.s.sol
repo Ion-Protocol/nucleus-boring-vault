@@ -28,6 +28,8 @@ library ConfigReader {
         address balancerVault;
         bytes32 tellerSalt;
         uint32 peerEid;
+        address dvnIfNoDefault;
+        uint64 dvnBlockConfirmationsRequiredIfNoDefault;
         address accountant;
         address opMessenger;
         uint64 maxGasForPeer;
@@ -82,6 +84,8 @@ library ConfigReader {
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
         config.peerEid = uint32(_config.readUint(".teller.peerEid"));
+        config.dvnIfNoDefault = _config.readAddress(".teller.dvnIfNoDefault");
+        config.dvnBlockConfirmationsRequiredIfNoDefault = uint64(_config.readUint(".teller.dvnBlockConfirmationsRequiredIfNoDefault"));
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
