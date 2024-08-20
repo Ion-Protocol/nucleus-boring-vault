@@ -24,7 +24,7 @@ import { console2 } from "forge-std/console2.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 interface IWETH {
-    function deposit(uint256) external payable;
+    function deposit() external payable;
     function approve(address, uint256) external;
 }
 
@@ -48,9 +48,10 @@ contract TestScript is Script {
         vm.startBroadcast(privateKey);
 
         ERC20 NATIVE = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        ERC20 WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        ERC20 WETH = ERC20(0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8);
+        // ERC20 WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         // ERC20 WETH = ERC20(0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000);
-        address BORING_VAULT = 0x52E4d8989fa8b3E1C06696e7b16DEf5d7707A0d1;
+        address BORING_VAULT = 0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce;
         address TELLER = 0xB52C7d88F0514796877B04cF945E56cC4C66CD05;
 
         teller = CrossChainTellerBase(TELLER);
@@ -58,21 +59,21 @@ contract TestScript is Script {
         require(teller.isSupported(WETH), "asset not supported");
 
         // WETH.approve(BORING_VAULT, 1 ether);
-        // IWETH(address(WETH)).deposit{value: 0.0001 ether}(0.0001 ether);
+        // IWETH(address(WETH)).deposit{value: 1};
 
         // teller.deposit(WETH, 1000000000, 1000000000);
         BridgeData memory data = BridgeData({
-            chainSelector: 30_280,
+            chainSelector: 30101,
             destinationChainReceiver: broadcaster,
             bridgeFeeToken: NATIVE,
             messageGas: 100_000,
             data: ""
         });
 
-        uint256 fee = teller.previewFee(1_000_000_000, data);
+        uint256 fee = teller.previewFee(1, data);
 
-        teller.depositAndBridge{ value: fee }(WETH, 1, 1, data);
-
+        // teller.depositAndBridge{ value: fee }(WETH, 1, 1, data);
+        teller.bridge{value: fee}(1, data);
         // boring_vault = new BoringVault(owner, "Test Boring Vault", "BV", 18);
 
         // manager = new ManagerWithMerkleVerification(owner, address(boring_vault), balancerVault);

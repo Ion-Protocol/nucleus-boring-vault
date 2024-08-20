@@ -14,7 +14,7 @@ import { console2 } from "@forge-std/console2.sol";
 contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
     using StdJson for string;
 
-    address dead = 0x000000000000000000000000000000000000dEaD;
+    address constant DEAD = 0x000000000000000000000000000000000000dEaD;
 
     struct UlnConfig {
         uint64 confirmations;
@@ -55,8 +55,12 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         bytes32 leftPaddedBytes32Peer = addressToBytes32LeftPad(address(teller));
 
         // this number = 1 << (8*20)
-        // an address cannot take up more than 20 bytes and thus 1 shifted 20 bytes right should be larger than any number address can be if padded correctly
-        require(leftPaddedBytes32Peer < 0x0000000000000000000000010000000000000000000000000000000000000000, "Address not left padded correctly");
+        // an address cannot take up more than 20 bytes and thus 1 shifted 20 bytes right should be larger than any
+        // number address can be if padded correctly
+        require(
+            leftPaddedBytes32Peer < 0x0000000000000000000000010000000000000000000000000000000000000000,
+            "Address not left padded correctly"
+        );
 
         teller.setPeer(config.peerEid, leftPaddedBytes32Peer);
         teller.addChain(config.peerEid, true, true, address(teller), config.maxGasForPeer, config.minGasForPeer);
@@ -76,13 +80,14 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         address receiveLib = endpoint.defaultReceiveLibrary(config.peerEid);
         require(sendLib != address(0), "sendLib = 0, check peerEid");
         require(receiveLib != address(0), "receiveLib = 0, check peerEid");
+        
         // check if a default config exists for these libraries and if not set the config
         _checkUlnConfig(config, sendLib);
         _checkUlnConfig(config, receiveLib);
 
         // confirm the library is set
         sendLib = endpoint.getSendLibrary(config.teller, config.peerEid);
-        (receiveLib, ) = endpoint.getReceiveLibrary(config.teller, config.peerEid);
+        (receiveLib,) = endpoint.getReceiveLibrary(config.teller, config.peerEid);
         require(sendLib != address(0), "No sendLib");
         require(receiveLib != address(0), "no receiveLib");
 
@@ -103,18 +108,19 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         bool isDead;
 
         for (uint256 i; i < numRequiredDVN; ++i) {
-            if (ulnConfig.requiredDVNs[i] == dead) {
+            if (ulnConfig.requiredDVNs[i] == DEAD) {
                 isDead = true;
             }
         }
 
         for (uint256 i; i < numOptionalDVN; ++i) {
-            if (ulnConfig.optionalDVNs[i] == dead) {
+            if (ulnConfig.optionalDVNs[i] == DEAD) {
                 isDead = true;
             }
         }
 
-        // if no dead address in the ulnConfig, prompt for use of default onchain config, otherwise just use what's in config file
+        // if no dead address in the ulnConfig, prompt for use of default onchain config, otherwise just use what's in
+        // config file
         if (!isDead) {
             string memory a = vm.prompt(
                 "There is a default onchain configuration for this chain/peerEid combination. Would you like to use it? (y/n)"
@@ -125,11 +131,12 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
                 console2.log("setting LayerZero ULN config using params provided in config file");
                 _setConfig(endpoint, lib, config);
             }
-        }else{
-            console2.log("No default configuration for this chain/peerEid combination. Using params provided in config file");
-            _setConfig(endpoint, lib,config);
+        } else {
+            console2.log(
+                "No default configuration for this chain/peerEid combination. Using params provided in config file"
+            );
+            _setConfig(endpoint, lib, config);
         }
-
     }
 
     function _setConfig(ILayerZeroEndpointV2 endpoint, address lib, ConfigReader.Config memory config) internal {
@@ -157,11 +164,11 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
     }
 
     function sortAddresses(address[] memory addresses) internal pure returns (address[] memory) {
-        uint length = addresses.length;
-        if(length < 2){return addresses;}
+        uint256 length = addresses.length;
+        if (length < 2) return addresses;
 
-        for (uint i; i < length - 1; ++i) {
-            for (uint j; j < length - i - 1; ++j) {
+        for (uint256 i; i < length - 1; ++i) {
+            for (uint256 j; j < length - i - 1; ++j) {
                 if (addresses[j] > addresses[j + 1]) {
                     address temp = addresses[j];
                     addresses[j] = addresses[j + 1];
@@ -172,8 +179,7 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         return addresses;
     }
 
-    function addressToBytes32LeftPad(address addr) internal returns(bytes32 leftPadBytes32){
+    function addressToBytes32LeftPad(address addr) internal returns (bytes32 leftPadBytes32) {
         leftPadBytes32 = bytes32(bytes20(addr)) >> 0x60;
     }
-
 }
