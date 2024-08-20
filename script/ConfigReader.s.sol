@@ -28,7 +28,7 @@ library ConfigReader {
         address balancerVault;
         bytes32 tellerSalt;
         uint32 peerEid;
-        address[] requiredDnvs;
+        address[] requiredDvns;
         address[] optionalDvns;
         uint64 dvnBlockConfirmationsRequired;
         uint8 optionalDvnThreshold;
@@ -87,10 +87,11 @@ library ConfigReader {
         config.assets = _config.readAddressArray(".teller.assets");
         config.peerEid = uint32(_config.readUint(".teller.peerEid"));
 
-        config.requiredDnvs = _config.readAddressArray(".teller.dvnIfNoDefault.requiredDvns");
-        config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optionalDvns");
-        config.dvnBlockConfirmationsRequired = uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
-        config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalDvnThreshold"));
+        config.requiredDvns = _config.readAddressArray(".teller.dvnIfNoDefault.required");
+        config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optional");
+        config.dvnBlockConfirmationsRequired =
+            uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
+        config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalThreshold"));
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");

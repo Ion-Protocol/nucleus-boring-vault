@@ -52,8 +52,15 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         );
 
         // configure the crosschain functionality, assume same address
-        teller.setPeer(config.peerEid, bytes32(bytes20(address(teller))));
+        bytes32 leftPaddedBytes32Peer = addressToBytes32LeftPad(address(teller));
+
+        // this number = 1 << (8*20)
+        // an address cannot take up more than 20 bytes and thus 1 shifted 20 bytes right should be larger than any number address can be if padded correctly
+        require(leftPaddedBytes32Peer < 0x0000000000000000000000010000000000000000000000000000000000000000, "Address not left padded correctly");
+
+        teller.setPeer(config.peerEid, leftPaddedBytes32Peer);
         teller.addChain(config.peerEid, true, true, address(teller), config.maxGasForPeer, config.minGasForPeer);
+        ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(config.lzEndpoint);
 
         // Post Deploy Checks
         require(teller.shareLockPeriod() == 0, "share lock period must be zero");
@@ -62,19 +69,34 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
             AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
             "the accountant vault must be the teller vault"
         );
-        require(address(teller.endpoint()) == config.lzEndpoint, "OP Teller must have messenger set");
+        require(address(endpoint) == config.lzEndpoint, "OP Teller must have messenger set");
 
-        _checkUlnConfig(config);
+        // get the default libraries for the peer
+        address sendLib = endpoint.defaultSendLibrary(config.peerEid);
+        address receiveLib = endpoint.defaultReceiveLibrary(config.peerEid);
+        require(sendLib != address(0), "sendLib = 0, check peerEid");
+        require(receiveLib != address(0), "receiveLib = 0, check peerEid");
+        // check if a default config exists for these libraries and if not set the config
+        _checkUlnConfig(config, sendLib);
+        _checkUlnConfig(config, receiveLib);
+
+        // confirm the library is set
+        sendLib = endpoint.getSendLibrary(config.teller, config.peerEid);
+        (receiveLib, ) = endpoint.getReceiveLibrary(config.teller, config.peerEid);
+        require(sendLib != address(0), "No sendLib");
+        require(receiveLib != address(0), "no receiveLib");
+
+        // transfer delegate to the multisig
+        teller.setDelegate(config.protocolAdmin);
+
         return address(teller);
     }
 
-    function _checkUlnConfig(ConfigReader.Config memory config) internal {
+    function _checkUlnConfig(ConfigReader.Config memory config, address lib) internal {
         ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(config.lzEndpoint);
-        address lib = endpoint.defaultSendLibrary(config.peerEid);
+
         bytes memory configBytes = endpoint.getConfig(config.teller, lib, config.peerEid, 2);
         UlnConfig memory ulnConfig = abi.decode(configBytes, (UlnConfig));
-
-
 
         uint8 numRequiredDVN = ulnConfig.requiredDVNCount;
         uint8 numOptionalDVN = ulnConfig.optionalDVNCount;
@@ -86,31 +108,72 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
             }
         }
 
-        for (uint256 i; i < numRequiredDVN; ++i) {
+        for (uint256 i; i < numOptionalDVN; ++i) {
             if (ulnConfig.optionalDVNs[i] == dead) {
                 isDead = true;
             }
         }
 
-        if(!isDead){
-            string memory a = vm.prompt("There is a default configuration for this chain/peerEid combination. Would you like to use it? (y/n)");
-            if(compareStrings(a,"y")){
-                console2.log("using default config");
-                return;
-            }else{
-                console2.log("setting LayerZero ULN config using provided in config file");
+        // if no dead address in the ulnConfig, prompt for use of default onchain config, otherwise just use what's in config file
+        if (!isDead) {
+            string memory a = vm.prompt(
+                "There is a default onchain configuration for this chain/peerEid combination. Would you like to use it? (y/n)"
+            );
+            if (compareStrings(a, "y")) {
+                console2.log("using default onchain config");
+            } else {
+                console2.log("setting LayerZero ULN config using params provided in config file");
                 _setConfig(endpoint, lib, config);
             }
+        }else{
+            console2.log("No default configuration for this chain/peerEid combination. Using params provided in config file");
+            _setConfig(endpoint, lib,config);
         }
-    }   
+
+    }
 
     function _setConfig(ILayerZeroEndpointV2 endpoint, address lib, ConfigReader.Config memory config) internal {
+        require(config.dvnBlockConfirmationsRequired != 0, "dvn block confirmations 0");
+        require(config.requiredDvns.length != 0, "no required dvns");
 
-        bytes memory ulnConfigBytes =
-            abi.encode(UlnConfig(config.dvnBlockConfirmationsRequired, uint8(config.requiredDnvs.length), uint8(config.optionalDvns.length), config.optionalDvnThreshold, config.requiredDnvs, config.optionalDvns));
+        // sort the dvns
+        config.requiredDvns = sortAddresses(config.requiredDvns);
+        config.optionalDvns = sortAddresses(config.optionalDvns);
+
+        bytes memory ulnConfigBytes = abi.encode(
+            UlnConfig(
+                config.dvnBlockConfirmationsRequired,
+                uint8(config.requiredDvns.length),
+                uint8(config.optionalDvns.length),
+                config.optionalDvnThreshold,
+                config.requiredDvns,
+                config.optionalDvns
+            )
+        );
 
         SetConfigParam[] memory setConfigParams = new SetConfigParam[](1);
         setConfigParams[0] = SetConfigParam(config.peerEid, 2, ulnConfigBytes);
         endpoint.setConfig(config.teller, lib, setConfigParams);
     }
+
+    function sortAddresses(address[] memory addresses) internal pure returns (address[] memory) {
+        uint length = addresses.length;
+        if(length < 2){return addresses;}
+
+        for (uint i; i < length - 1; ++i) {
+            for (uint j; j < length - i - 1; ++j) {
+                if (addresses[j] > addresses[j + 1]) {
+                    address temp = addresses[j];
+                    addresses[j] = addresses[j + 1];
+                    addresses[j + 1] = temp;
+                }
+            }
+        }
+        return addresses;
+    }
+
+    function addressToBytes32LeftPad(address addr) internal returns(bytes32 leftPadBytes32){
+        leftPadBytes32 = bytes32(bytes20(addr)) >> 0x60;
+    }
+
 }
