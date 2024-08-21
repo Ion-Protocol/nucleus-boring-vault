@@ -80,7 +80,7 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         address receiveLib = endpoint.defaultReceiveLibrary(config.peerEid);
         require(sendLib != address(0), "sendLib = 0, check peerEid");
         require(receiveLib != address(0), "receiveLib = 0, check peerEid");
-        
+
         // check if a default config exists for these libraries and if not set the config
         _checkUlnConfig(config, sendLib);
         _checkUlnConfig(config, receiveLib);

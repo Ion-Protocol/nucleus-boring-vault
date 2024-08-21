@@ -48,22 +48,23 @@ contract TestScript is Script {
         vm.startBroadcast(privateKey);
 
         ERC20 NATIVE = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        ERC20 WETH = ERC20(0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8);
+        ERC20 WETH = ERC20(0xFC00000000000000000000000000000000000006);
         // ERC20 WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         // ERC20 WETH = ERC20(0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000);
-        address BORING_VAULT = 0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce;
-        address TELLER = 0xB52C7d88F0514796877B04cF945E56cC4C66CD05;
+        address BORING_VAULT = 0x647Ea8b492832e9D99A06DE8cc9A05e58FcCdF02;
+        address TELLER = 0xD9395622c8Ec792D1cb6F39B562095fDa240BA57;
 
         teller = CrossChainTellerBase(TELLER);
 
         require(teller.isSupported(WETH), "asset not supported");
 
         // WETH.approve(BORING_VAULT, 1 ether);
-        // IWETH(address(WETH)).deposit{value: 1};
+        // payable(address(WETH)).call{value: 1}("");
+        // require(WETH.balanceOf(broadcaster) > 1, "No WETH");
 
         // teller.deposit(WETH, 1000000000, 1000000000);
         BridgeData memory data = BridgeData({
-            chainSelector: 30101,
+            chainSelector: 30_101,
             destinationChainReceiver: broadcaster,
             bridgeFeeToken: NATIVE,
             messageGas: 100_000,
@@ -73,7 +74,7 @@ contract TestScript is Script {
         uint256 fee = teller.previewFee(1, data);
 
         // teller.depositAndBridge{ value: fee }(WETH, 1, 1, data);
-        teller.bridge{value: fee}(1, data);
+        teller.bridge{ value: fee }(1, data);
         // boring_vault = new BoringVault(owner, "Test Boring Vault", "BV", 18);
 
         // manager = new ManagerWithMerkleVerification(owner, address(boring_vault), balancerVault);
