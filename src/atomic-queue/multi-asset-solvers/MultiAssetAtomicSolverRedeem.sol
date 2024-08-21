@@ -46,6 +46,9 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
     error MultiAssetAtomicSolverRedeem___InsufficientAssetsRedeemed(uint256 redeemedAmount, uint256 requiredAmount);
     error MultiAssetAtomicSolverRedeem___MismatchedArrayLengths();
     error MultiAssetAtomicSolverRedeem___DuplicateOrUnsortedAssets();
+    error MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
+        int256 globalSlippagePriceMinimum, int256[] balanceDeltas, int256 actualSlippage
+    );
 
     // Updated struct to hold data for each want asset
     struct WantAssetData {
@@ -87,13 +90,14 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
         AccountantWithRateProviders accountant = teller.accountant();
         uint256 totalOfferNeeded = 0;
         uint256[] memory assetPrices = new uint256[](wantAssets.length);
+        // plus 1 for the offer/vault token
+        int256[] memory balanceDeltas = new int256[](wantAssets.length + 1);
 
         uint256 previousAssetAddress = 0;
         address redeemCurrencyForExcessOffer;
 
-        //TODO: store pre-balances of the solver for each asset in this loop
-
-        for (uint256 i = 0; i < wantAssets.length; i++) {
+        uint256 i;
+        for (i; i < wantAssets.length; i++) {
             // Check if assets are in increasing order (prevents duplicates)
             uint256 currentAssetAddress = uint256(uint160(address(wantAssets[i].asset)));
             if (currentAssetAddress <= previousAssetAddress) {
@@ -109,10 +113,14 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             if (wantAssets[i].useAsRedeemTokenForExcessOffer) {
                 redeemCurrencyForExcessOffer = address(wantAssets[i].asset);
             }
+            balanceDeltas[i] = int256(want.balanceOf(msg.sender));
         }
 
+        // store the solver balance for the offer asset at index wantAssets.length
+        balanceDeltas[i] = int256(offer.balanceOf(msg.sender));
+
         // Solve for each want asset with its corresponding users
-        for (uint256 i = 0; i < wantAssets.length; i++) {
+        for (i = 0; i < wantAssets.length; i++) {
             bytes memory runData = abi.encode(
                 SolveType.REDEEM,
                 msg.sender,
@@ -131,7 +139,15 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             offer.safeTransfer(msg.sender, offer.balanceOf(address(this)));
         }
 
+        //get change in balances for each asset
+        for (i = 0; i < wantAssets.length; i++) {
+            balanceDeltas[i] = int256(want.balanceOf(msg.sender)) - balanceDeltas[i];
+        }
+
+        balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
+
         // TODO: global slippage check with the balances, prices and maxOfferAssets...might need decimal conversion?
+        // _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets);
     }
 
     function finishSolve(
@@ -261,5 +277,21 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
         //TODO: check if this is the correct way to calculate the offerNeededForWant accounting for rounding up and also
         // if decimals of want are not 18
         offerNeededForWant = wantAmount.mul(priceToCheckAtomicPrice).div(1e18);
+    }
+
+    function _globalSlippageCheck(
+        int256[] memory balanceDeltas,
+        uint256[] memory assetPrices,
+        int256 globalSlippagePriceMinimum,
+        WantAssetData[] calldata wantAssets
+    )
+        internal
+    {
+        //TODO: implement this function
+        if (globalSlippagePriceMinimum > 0) {
+            revert MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
+                globalSlippagePriceMinimum, balanceDeltas, 0
+            );
+        }
     }
 }
