@@ -11,7 +11,8 @@
     "deploy-createx-l1": "forge script script/DeployCustomCreatex.s.sol --rpc-url $L1_RPC_URL --private-key $PRIVATE_KEY --slow",
     "deploy-createx-l2": "forge script script/DeployCustomCreatex.s.sol --rpc-url $L2_RPC_URL --private-key $PRIVATE_KEY --slow",
     "deploy-l1": "forge script script/deploy/deployAll.s.sol -f $L1_RPC_URL --private-key=$PRIVATE_KEY --slow",
-    "deploy-l2": "forge script script/deploy/deployAll.s.sol -f $L2_RPC_URL --private-key=$PRIVATE_KEY --slow"
+    "deploy-l2": "forge script script/deploy/deployAll.s.sol -f $L2_RPC_URL --private-key=$PRIVATE_KEY --slow",
+    "check-configs": "bun lzConfigCheck.cjs"
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",
