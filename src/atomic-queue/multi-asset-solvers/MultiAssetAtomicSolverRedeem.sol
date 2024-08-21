@@ -158,8 +158,14 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
     )
         internal
     {
-        (, address wantAssets, uint256 minimumAssetsOut, uint256 maxAssets, TellerWithMultiAssetSupport teller, uint256)
-        = abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport, uint256));
+        (
+            ,
+            address wantAssets,
+            uint256 minimumAssetsOut,
+            uint256 maxAssets,
+            TellerWithMultiAssetSupport teller,
+            uint256 priceToCheckAtomicPrice
+        ) = abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport, uint256));
 
         if (address(offer) != address(teller.vault())) {
             revert MultiAssetAtomicSolverRedeem___BoringVaultTellerMismatch(address(offer), address(teller));
@@ -173,11 +179,22 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
         // Find from tload the excessAssetAmount and useSolverBalanceFirst for this want asset
         (uint256 excessAmount, bool useSolverBalanceFirst) = _doTempLoad(want);
 
-        // Calculate the amount of offer asset needed for this want asset
-        uint256 offerNeededForWant = (wantApprovalAmount * assetPrice) / 1e18; // Assuming 18 decimals for price
-
-        // Redeem the shares, sending assets to solver
-        teller.bulkWithdraw(want, offerNeededForWant, currentWantAsset.minimumAssetsOut, solver);
+        uint256 offerNeededForWant; //(wantApprovalAmount * assetPrice) / 1e18; // Assuming 18 decimals for price
+        if (useSolverBalanceFirst) {
+            uint256 solverBalance = want.balanceOf(solver);
+            solverBalance >= wantApprovalAmount
+                ? offerNeededForWant = 0
+                : offerNeededForWant =
+                    _getMinOfferNeededForWant(wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, want);
+            // Redeem the shares, sending assets to solver
+            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
+        } else {
+            offerNeededForWant =
+                _getMinOfferNeededForWant(wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, want);
+            // Redeem the shares, sending assets to solver
+            // TODO: should we do any other slippage checks here? Initial thought is no
+            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount + excessAmount, solver);
+        }
 
         // Transfer required assets from solver
         want.safeTransferFrom(solver, address(this), wantApprovalAmount);
@@ -220,5 +237,19 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             tstore(key1, 0)
             tstore(key2, 0)
         }
+    }
+
+    function _getMinOfferNeededForWant(
+        uint256 wantAmount,
+        uint256 priceToCheckAtomicPrice,
+        ERC20 want
+    )
+        internal
+        view
+        returns (uint256 offerNeededForWant)
+    {
+        //TODO: check if this is the correct way to calculate the offerNeededForWant accounting for rounding up and also
+        // if decimals of want are not 18
+        offerNeededForWant = wantAmount.mul(priceToCheckAtomicPrice).div(1e18);
     }
 }
