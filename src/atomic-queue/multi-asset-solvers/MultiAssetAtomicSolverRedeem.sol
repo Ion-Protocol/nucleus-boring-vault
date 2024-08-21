@@ -56,6 +56,7 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
         uint256 excessAssetAmount;
         // if true, will use all the initial solver balance in that asset first
         bool useSolverBalanceFirst;
+        bool useAsRedeemTokenForExcessOffer; // if true, will use this asset to redeem the excess offer tokens
         address[] users;
     }
 
@@ -88,6 +89,9 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
         uint256[] memory assetPrices = new uint256[](wantAssets.length);
 
         uint256 previousAssetAddress = 0;
+        address redeemCurrencyForExcessOffer;
+
+        //TODO: store pre-balances of the solver for each asset in this loop
 
         for (uint256 i = 0; i < wantAssets.length; i++) {
             // Check if assets are in increasing order (prevents duplicates)
@@ -102,6 +106,9 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
                 revert MultiAssetAtomicSolverRedeem___FailedToSolve();
             }
             _doTempStore(wantAssets[i].asset, wantAssets[i].excessAssetAmount, wantAssets[i].useSolverBalanceFirst);
+            if (wantAssets[i].useAsRedeemTokenForExcessOffer) {
+                redeemCurrencyForExcessOffer = address(wantAssets[i].asset);
+            }
         }
 
         // Solve for each want asset with its corresponding users
@@ -117,11 +124,14 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             queue.solve(offer, wantAssets[i].asset, wantAssets[i].users, runData, address(this));
         }
 
-        // do the global slippage check with the balances, prices and maxOfferAssets...might decimal conversion?
+        // send any excess offer shares to the solver or redeem in requested currency if specified
+        if (redeemCurrencyForExcessOffer != address(0)) {
+            teller.bulkWithdraw(redeemCurrencyForExcessOffer, offer.balanceOf(address(this)), 0, msg.sender);
+        } else {
+            offer.safeTransfer(msg.sender, offer.balanceOf(address(this)));
+        }
 
-        // send any excess offer shares to the solver
-        // possibly implement a preferred redeem asset to redeem first then send?
-        offer.safeTransfer(msg.sender, offer.balanceOf(address(this)));
+        // TODO: global slippage check with the balances, prices and maxOfferAssets...might need decimal conversion?
     }
 
     function finishSolve(
