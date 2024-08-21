@@ -22,7 +22,7 @@ interface IAtomicQueue {
         external;
 }
 
-contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
+contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
