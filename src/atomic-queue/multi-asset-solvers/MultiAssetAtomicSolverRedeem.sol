@@ -9,6 +9,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
 
 interface IAtomicQueue {
     function solve(
@@ -277,6 +278,7 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
     {
         // handling cases where decimals could differ between offer and want
         // should be ok with warm sload on decimals here because tstore/tload since gas costs are similar
+        // TODO: change offer decimals to maybe base decimals (even though usually are the same)...
         uint8 offerDecimals = offer.decimals();
         uint8 wantDecimals = want.decimals();
         uint256 wantAmountWithDecimals = _changeDecimals(wantAmount, wantDecimals, offerDecimals);
@@ -291,10 +293,37 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
     )
         internal
     {
-        //TODO: implement this function
-        if (globalSlippagePriceMinimum > 0) {
+        int256 actualSlippage = 0;
+        uint8 offerDecimals = offer.decimals();
+
+        for (uint256 i = 0; i < balanceDeltas.length; i++) {
+            ERC20 wantAsset = wantAssets[i].wantAsset;
+            uint8 wantDecimals = wantAsset.decimals();
+
+            // Convert balance delta to offer decimals
+            int256 scaledDelta = changeDecimalsSigned(balanceDeltas[i], wantDecimals, offerDecimals);
+
+            // Convert asset price to offer decimals
+            uint256 scaledPrice = changeDecimals(assetPrices[i], wantDecimals, offerDecimals);
+
+            // Calculate the slippage for this asset
+            int256 assetSlippage = SignedMath.mulDiv(
+                scaledDelta,
+                int256(scaledPrice),
+                int256(10 ** offerDecimals),
+                SignedMath.Rounding.Floor // Round down for conservative estimate
+            );
+
+            actualSlippage += assetSlippage;
+        }
+
+        // Add the offer token's balance delta
+        // TODO: need to use exchange rate for offer token to put in terms of base asset...
+        actualSlippage += balanceDeltas[balanceDeltas.length - 1];
+
+        if (globalSlippagePriceMinimum > actualSlippage) {
             revert MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
-                globalSlippagePriceMinimum, balanceDeltas, 0
+                globalSlippagePriceMinimum, balanceDeltas, actualSlippage
             );
         }
     }
@@ -307,6 +336,17 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             return amount * (10 ** (toDecimals - fromDecimals));
         } else {
             return amount / (10 ** (fromDecimals - toDecimals));
+        }
+    }
+
+    // Helper function to change decimals for signed integers
+    function changeDecimalsSigned(int256 amount, uint8 fromDecimals, uint8 toDecimals) internal pure returns (int256) {
+        if (fromDecimals == toDecimals) {
+            return amount;
+        } else if (fromDecimals < toDecimals) {
+            return amount * int256(10 ** (toDecimals - fromDecimals));
+        } else {
+            return amount / int256(10 ** (fromDecimals - toDecimals));
         }
     }
 }
