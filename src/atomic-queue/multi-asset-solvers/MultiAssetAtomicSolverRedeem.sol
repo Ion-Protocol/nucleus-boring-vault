@@ -8,6 +8,7 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 interface IAtomicQueue {
     function solve(
@@ -146,8 +147,8 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
 
         balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
 
-        // TODO: global slippage check with the balances, prices and maxOfferAssets...might need decimal conversion?
-        // _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets);
+        // TODO: global slippage check with the balances, prices and maxOfferAssets
+        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets);
     }
 
     function finishSolve(
@@ -211,14 +212,13 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             solverBalance >= wantApprovalAmount
                 ? offerNeededForWant = 0
                 : offerNeededForWant =
-                    _getMinOfferNeededForWant(wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, want);
+                    _getMinOfferNeededForWant(wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, want, offer);
             // Redeem the shares, sending assets to solver
             teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
         } else {
             offerNeededForWant =
-                _getMinOfferNeededForWant(wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, want);
+                _getMinOfferNeededForWant(wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, want, offer);
             // Redeem the shares, sending assets to solver
-            // TODO: should we do any other slippage checks here? Initial thought is no
             teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount + excessAmount, solver);
         }
 
@@ -268,15 +268,19 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
     function _getMinOfferNeededForWant(
         uint256 wantAmount,
         uint256 priceToCheckAtomicPrice,
-        ERC20 want
+        ERC20 want,
+        ERC20 offer
     )
         internal
         view
         returns (uint256 offerNeededForWant)
     {
-        //TODO: check if this is the correct way to calculate the offerNeededForWant accounting for rounding up and also
-        // if decimals of want are not 18
-        offerNeededForWant = wantAmount.mul(priceToCheckAtomicPrice).div(1e18);
+        // handling cases where decimals could differ between offer and want
+        // should be ok with warm sload on decimals here because tstore/tload since gas costs are similar
+        uint8 offerDecimals = offer.decimals();
+        uint8 wantDecimals = want.decimals();
+        uint256 wantAmountWithDecimals = _changeDecimals(wantAmount, wantDecimals, offerDecimals);
+        offerNeededForWant = Math.ceilDiv(wantAmountWithDecimals * (10 ** offerDecimals), priceToCheckAtomicPrice);
     }
 
     function _globalSlippageCheck(
@@ -292,6 +296,17 @@ contract MultiAssetAtomicSolverBase is IAtomicSolver, Auth {
             revert MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
                 globalSlippagePriceMinimum, balanceDeltas, 0
             );
+        }
+    }
+
+    // Helper function to change decimals similar to one in AccountantWithRateProviders
+    function _changeDecimals(uint256 amount, uint8 fromDecimals, uint8 toDecimals) internal pure returns (uint256) {
+        if (fromDecimals == toDecimals) {
+            return amount;
+        } else if (fromDecimals < toDecimals) {
+            return amount * (10 ** (toDecimals - fromDecimals));
+        } else {
+            return amount / (10 ** (fromDecimals - toDecimals));
         }
     }
 }
