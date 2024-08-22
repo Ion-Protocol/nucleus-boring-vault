@@ -3,8 +3,8 @@
 
     "boringVault":{
         "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000a",
-        "boringVaultName": "Ion Vault", 
-        "boringVaultSymbol": "IVT",
+        "boringVaultName": "Nucleus Vault", 
+        "boringVaultSymbol": "NV",
     
         "address": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC"    
     },
