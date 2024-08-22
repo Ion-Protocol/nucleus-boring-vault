@@ -1,0 +1,7 @@
+{
+    "target": "0x8DB2350D78aBc13f5673A411D4700BCF87864dDE",
+    "signature": "pricePerShare()",
+    "expectedMin": "100000000",
+    "expectedMax": "100000000",
+    "salt": "0x1000000000000000000000000000000000000000000000000000000000000000"
+}

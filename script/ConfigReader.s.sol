@@ -85,7 +85,8 @@ library ConfigReader {
         config.assets = _config.readAddressArray(".teller.assets");
         config.peerEid = uint32(_config.readUint(".teller.peerEid"));
         config.dvnIfNoDefault = _config.readAddress(".teller.dvnIfNoDefault");
-        config.dvnBlockConfirmationsRequiredIfNoDefault = uint64(_config.readUint(".teller.dvnBlockConfirmationsRequiredIfNoDefault"));
+        config.dvnBlockConfirmationsRequiredIfNoDefault =
+            uint64(_config.readUint(".teller.dvnBlockConfirmationsRequiredIfNoDefault"));
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
