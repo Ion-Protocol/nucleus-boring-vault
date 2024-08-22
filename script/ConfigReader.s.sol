@@ -15,7 +15,7 @@ library ConfigReader {
     struct Config {
         address protocolAdmin;
         address base;
-        uint8 baseDecimals;
+        uint8 boringVaultAndBaseDecimals;
         bytes32 accountantSalt;
         address boringVault;
         address payoutAddress;
@@ -58,7 +58,7 @@ library ConfigReader {
         // Reading the 'protocolAdmin'
         config.protocolAdmin = _config.readAddress(".protocolAdmin");
         config.base = _config.readAddress(".base");
-        config.baseDecimals = uint8(_config.readUint(".baseDecimals"));
+        config.boringVaultAndBaseDecimals = uint8(_config.readUint(".boringVaultAndBaseDecimals"));
 
         // Reading from the 'accountant' section
         config.accountant = _config.readAddress(".accountant.address");

@@ -31,8 +31,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(config.minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
             require(config.managementFee < 1e4, "managementFee");
             require(
-                startingExchangeRate == 10 ** config.baseDecimals,
-                "starting exchange rate must be equal to base decimals"
+                startingExchangeRate == 10 ** config.boringVaultAndBaseDecimals,
+                "starting exchange rate must be equal to the boringVault and base decimals"
             );
         }
         // Create Contract

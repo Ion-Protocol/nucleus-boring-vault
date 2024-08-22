@@ -1,7 +1,7 @@
 {
     "protocolAdmin": "0xF2dE1311C5b2C1BD94de996DA13F80010453e505",
     "base": "0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8",
-    "baseDecimals": "18",
+    "boringVaultAndBaseDecimals": "18",
     "boringVault":{
         "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000000",
         "boringVaultName": "Sei Native Yield Nucleus Token", 

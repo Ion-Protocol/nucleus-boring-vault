@@ -1,7 +1,7 @@
 {
     "protocolAdmin": "0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826",
     "base": "0xFC00000000000000000000000000000000000006",
-    "baseDecimals": "18",
+    "boringVaultAndBaseDecimals": "18",
     "boringVault": {
         "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000002",
         "boringVaultName": "Fraxtal Native Yield Nucleus Token",
