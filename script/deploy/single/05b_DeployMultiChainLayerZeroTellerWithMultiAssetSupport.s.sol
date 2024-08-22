@@ -139,7 +139,14 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         }
     }
 
-    function _setConfig(address newTeller, ILayerZeroEndpointV2 endpoint, address lib, ConfigReader.Config memory config) internal {
+    function _setConfig(
+        address newTeller,
+        ILayerZeroEndpointV2 endpoint,
+        address lib,
+        ConfigReader.Config memory config
+    )
+        internal
+    {
         require(config.dvnBlockConfirmationsRequired != 0, "dvn block confirmations 0");
         require(config.requiredDvns.length != 0, "no required dvns");
 
