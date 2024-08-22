@@ -19,7 +19,7 @@ contract DeployGenericRateProvider is BaseScript {
     string signature = config.readString(".signature");
     bytes32 salt = config.readBytes32(".salt");
 
-    function run() public returns (GenericRateProvider rateProvider) {
+    function run() public broadcast returns (GenericRateProvider rateProvider) {
         bytes4 functionSig = bytes4(keccak256(bytes(signature)));
         console2.logBytes4(functionSig);
 
