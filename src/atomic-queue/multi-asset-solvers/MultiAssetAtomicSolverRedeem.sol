@@ -170,7 +170,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
 
         // global slippage check with the balances, prices and maxOfferAssets
-        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets);
+        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets, accountant);
     }
 
     function finishSolve(
@@ -311,7 +311,8 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         int256[] memory balanceDeltas,
         uint256[] memory assetPrices,
         int256 globalSlippagePriceMinimum,
-        WantAssetData[] calldata wantAssets
+        WantAssetData[] calldata wantAssets,
+        AccountantWithRateProviders accountant
     )
         internal
     {
@@ -339,9 +340,13 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             actualSlippage += assetSlippage;
         }
 
-        // Add the offer token's balance delta
-        // TODO: need to use exchange rate for offer token to put in terms of base asset...
-        actualSlippage += balanceDeltas[balanceDeltas.length - 1];
+        // Add the offer token's balance delta in terms of base token
+        actualSlippage += SignedMath.mulDiv(
+            balanceDeltas[balanceDeltas.length - 1],
+            int256(accountant.getRateSafe()),
+            int256(10 ** offerDecimals),
+            SignedMath.Rounding.Floor
+        );
 
         if (globalSlippagePriceMinimum > actualSlippage) {
             revert MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
