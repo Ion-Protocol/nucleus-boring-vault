@@ -56,6 +56,10 @@ contract DeployAll is BaseScript {
         deploy(mainConfig);
     }
 
+    function run(string memory deployFile) public {
+        deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
+    }
+
     function deploy(ConfigReader.Config memory config) public override returns (address) {
         address boringVault = new DeployIonBoringVaultScript().deploy(config);
         config.boringVault = boringVault;
