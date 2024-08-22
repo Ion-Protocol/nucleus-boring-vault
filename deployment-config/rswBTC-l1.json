@@ -1,23 +1,24 @@
 {
     "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-    "base": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-    "baseDecimals": "18",
+    "base": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "baseDecimals": "8",
+
     "boringVault":{
-        "boringVaultSalt": "0x100000000000000000000000000000000000000000000000000000000000000a",
-        "boringVaultName": "Sei Native Yield Nucleus Token", 
-        "boringVaultSymbol": "seiyanETH",
+        "boringVaultSalt": "0x100000000000000000000000000000000000000000000000000000000000000b",
+        "boringVaultName": "Swell Native Yield Nucleus Token", 
+        "boringVaultSymbol": "rswBTC",
     
         "address": "0x0000000000000000000000000000000000000000"    
     },
 
     "manager":{
-        "managerSalt": "0x200000000000000000000000000000000000000000000000000000000000000a",
+        "managerSalt": "0x200000000000000000000000000000000000000000000000000000000000000b",
 
         "address": "0x0000000000000000000000000000000000000000"
     },
     
     "accountant":{
-        "accountantSalt": "0x300000000000000000000000000000000000000000000000000000000000000a",
+        "accountantSalt": "0x300000000000000000000000000000000000000000000000000000000000000b",
         "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
         "allowedExchangeRateChangeUpper": "10030",
         "allowedExchangeRateChangeLower": "9980",
@@ -31,21 +32,16 @@
         "tellerSalt": "0x400000000000000000000000000000000000000000000000000000000000000a",
         "maxGasForPeer": 200000,
         "minGasForPeer": 60000,
-        "peerEid": 30280,
-        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "peerEid": 0,
+        "tellerContractName": "TellerWithMultiAssetSupport",
         "opMessenger": "0x0000000000000000000000000000000000000000",
         "assets": [
-            "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee",
-            "0xbf5495efe5db9ce00f80364c8b423567e58d2110",
-            "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7",
-            "0xFAe103DC9cf190eD75350761e95403b7b8aFa6c0",
-            "0xD9A442856C234a39a81a089C06451EBAa4306a72",
-            "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
+            "0x8DB2350D78aBc13f5673A411D4700BCF87864dDE"
         ],
         "address": "0x0000000000000000000000000000000000000000"
     },
     "rolesAuthority": {
-        "rolesAuthoritySalt": "0x500000000000000000000000000000000000000000000000000000000000000a",
+        "rolesAuthoritySalt": "0x500000000000000000000000000000000000000000000000000000000000000b",
         "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
         "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
 
