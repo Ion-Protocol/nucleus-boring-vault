@@ -32,9 +32,8 @@
         "maxGasForPeer": 100000,
         "minGasForPeer": 0,
         "peerEid": 0,
-        "dvnIfNoDefault": "0x589dEDbD617e0CBcB916A9223F4d1300c294236b",
-        "dvnBlockConfirmationsRequiredIfNoDefault": 15,
-        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",        
+        "opMessenger": "0x0000000000000000000000000000000000000000",
         "assets": [
             "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
             "0xbf5495Efe5DB9ce00f80364C8B423567e58d2110"

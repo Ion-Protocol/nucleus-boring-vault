@@ -84,9 +84,7 @@ library ConfigReader {
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
         config.peerEid = uint32(_config.readUint(".teller.peerEid"));
-        config.dvnIfNoDefault = _config.readAddress(".teller.dvnIfNoDefault");
-        config.dvnBlockConfirmationsRequiredIfNoDefault =
-            uint64(_config.readUint(".teller.dvnBlockConfirmationsRequiredIfNoDefault"));
+        config.opMessenger = _config.readAddress(".teller.opMessenger");
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
@@ -101,7 +99,6 @@ library ConfigReader {
         // Reading from the 'chainConfig' section
         config.base = _chainConfig.readAddress(".base");
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
-        config.opMessenger = _chainConfig.readAddress(".opMessenger");
         config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
 
         return config;
