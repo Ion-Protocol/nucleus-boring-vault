@@ -34,9 +34,6 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 startingExchangeRate == 10 ** config.baseDecimals,
                 "starting exchange rate must be equal to base decimals"
             );
-            // TODO This could now be removed since starting exchange rate must always be enforced to be equal to base
-            // decimals.
-            // require(startingExchangeRate == 1e18, "starting exchange rate must be 1e18");
         }
         // Create Contract
         bytes memory creationCode = type(AccountantWithRateProviders).creationCode;
