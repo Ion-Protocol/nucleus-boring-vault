@@ -82,8 +82,8 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         require(receiveLib != address(0), "receiveLib = 0, check peerEid");
 
         // check if a default config exists for these libraries and if not set the config
-        _checkUlnConfig(config, sendLib);
-        _checkUlnConfig(config, receiveLib);
+        _checkUlnConfig(address(teller), config, sendLib);
+        _checkUlnConfig(address(teller), config, receiveLib);
 
         // confirm the library is set
         sendLib = endpoint.getSendLibrary(config.teller, config.peerEid);
@@ -97,10 +97,10 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         return address(teller);
     }
 
-    function _checkUlnConfig(ConfigReader.Config memory config, address lib) internal {
+    function _checkUlnConfig(address newTeller, ConfigReader.Config memory config, address lib) internal {
         ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(config.lzEndpoint);
 
-        bytes memory configBytes = endpoint.getConfig(config.teller, lib, config.peerEid, 2);
+        bytes memory configBytes = endpoint.getConfig(newTeller, lib, config.peerEid, 2);
         UlnConfig memory ulnConfig = abi.decode(configBytes, (UlnConfig));
 
         uint8 numRequiredDVN = ulnConfig.requiredDVNCount;
@@ -129,17 +129,24 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
                 console2.log("using default onchain config");
             } else {
                 console2.log("setting LayerZero ULN config using params provided in config file");
-                _setConfig(endpoint, lib, config);
+                _setConfig(newTeller, endpoint, lib, config);
             }
         } else {
             console2.log(
                 "No default configuration for this chain/peerEid combination. Using params provided in config file"
             );
-            _setConfig(endpoint, lib, config);
+            _setConfig(newTeller, endpoint, lib, config);
         }
     }
 
-    function _setConfig(ILayerZeroEndpointV2 endpoint, address lib, ConfigReader.Config memory config) internal {
+    function _setConfig(
+        address newTeller,
+        ILayerZeroEndpointV2 endpoint,
+        address lib,
+        ConfigReader.Config memory config
+    )
+        internal
+    {
         require(config.dvnBlockConfirmationsRequired != 0, "dvn block confirmations 0");
         require(config.requiredDvns.length != 0, "no required dvns");
 
@@ -160,7 +167,7 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
 
         SetConfigParam[] memory setConfigParams = new SetConfigParam[](1);
         setConfigParams[0] = SetConfigParam(config.peerEid, 2, ulnConfigBytes);
-        endpoint.setConfig(config.teller, lib, setConfigParams);
+        endpoint.setConfig(newTeller, lib, setConfigParams);
     }
 
     function sortAddresses(address[] memory addresses) internal pure returns (address[] memory) {
