@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.21;
+pragma solidity 0.8.24;
 
 import {
     MultiAssetAtomicSolverRedeem,
@@ -155,7 +155,7 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
         });
 
         vm.prank(SOLVER_OWNER);
-        solver.multiAssetRedeemSolve(atomicQueue, boringVault, wantAssets, 150e18, teller, int256(1e17));
+        solver.multiAssetRedeemSolve(atomicQueue, boringVault, wantAssets, teller, int256(1e17));
 
         // Assert results
         for (uint256 i = 0; i < users.length; i++) {
@@ -255,7 +255,6 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
             atomicQueue,
             boringVault,
             wantAssets,
-            150e18,
             teller,
             int256(1e19) // Very high slippage threshold, should fail
         );

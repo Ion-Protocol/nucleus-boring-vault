@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.21;
+pragma solidity 0.8.24;
 
 import { IAtomicSolver } from "../IAtomicSolver.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
@@ -78,7 +78,6 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
      * @param queue the AtomicQueueV2 contract
      * @param offer the ERC20 asset sent to the solver
      * @param wantAssets an array of WantAssetData structs, each containing the desired asset and its users
-     * @param maxOfferAssets the maximum amount of offer assets that can be used in this transaction
      * @param teller the TellerWithMultiAssetSupport contract
      * @param globalSlippagePriceMinimum the global slippage price minimum
      */
@@ -86,7 +85,6 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         IAtomicQueue queue,
         ERC20 offer,
         WantAssetData[] calldata wantAssets,
-        uint256 maxOfferAssets,
         TellerWithMultiAssetSupport teller,
         int256 globalSlippagePriceMinimum
     )
@@ -96,69 +94,11 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         AccountantWithRateProviders accountant = teller.accountant();
         _baseDecimalsTempStore(address(offer), accountant);
 
-        uint256 totalOfferNeeded = 0;
-        uint256[] memory assetPrices = new uint256[](wantAssets.length);
-
-        // plus 1 for the offer/vault token
-        int256[] memory balanceDeltas = new int256[](wantAssets.length + 1);
-
-        // intended to use only one redemption currency
-        address redeemCurrencyForExcessOffer;
-
-        address[] memory usedAddresses = new address[](wantAssets.length);
-
-        uint256 i;
-        for (i; i < wantAssets.length;) {
-            // Checks if any want assets are duplicates,
-            // since typically want assets supported will be
-            // in the single digits, this does not need to be optimized with bit/bloom filtering
-            // and enforcing order of want assets to be increasing in address is not feasible since
-            // the order of want assets needs to correspond to which use existing balance and which use excess
-            for (uint256 j = 0; j < i;) {
-                address wantAssetAddress = address(wantAssets[i].asset);
-                if (address(wantAssetAddress) == usedAddresses[j]) {
-                    revert MultiAssetAtomicSolverRedeem___DuplicateWantAsset(wantAssetAddress);
-                }
-                unchecked {
-                    ++j;
-                }
-            }
-            // Get the rate in quote for each want asset
-            assetPrices[i] = accountant.getRateInQuoteSafe(wantAssets[i].asset);
-            // if price is 0, revert as either paused, not supported, or failed to get rate
-            if (assetPrices[i] == 0) {
-                revert MultiAssetAtomicSolverRedeem___FailedToSolve();
-            }
-            //set the temp store for the want asset which will be loaded after callback
-            _doTempStore(wantAssets[i].asset, wantAssets[i].excessAssetAmount, wantAssets[i].useSolverBalanceFirst);
-            // This is the currency in which any excess offer tokens will be redeemed (if specified)
-            if (wantAssets[i].useAsRedeemTokenForExcessOffer) {
-                redeemCurrencyForExcessOffer = address(wantAssets[i].asset);
-            }
-            // Set initial balance to calculate global slippage later
-            balanceDeltas[i] = int256(wantAssets[i].asset.balanceOf(msg.sender));
-            // Update the used addresses array for duplicate checking
-            usedAddresses[i] = address(wantAssets[i].asset);
-            unchecked {
-                ++i;
-            }
-        }
-
-        // store the solver balance for the offer asset at index wantAssets.length
-        balanceDeltas[i] = int256(offer.balanceOf(msg.sender));
+        (uint256[] memory assetPrices, int256[] memory balanceDeltas, address redeemCurrencyForExcessOffer) =
+            _multiAssetRedeemSolveSetup(offer, wantAssets, accountant);
 
         // Solve for each want asset with its corresponding users
-        for (i = 0; i < wantAssets.length; i++) {
-            bytes memory runData = abi.encode(
-                SolveType.REDEEM,
-                msg.sender,
-                wantAssets[i].minimumAssetsOut,
-                wantAssets[i].maxAssets,
-                teller,
-                assetPrices[i]
-            );
-            queue.solve(offer, wantAssets[i].asset, wantAssets[i].users, runData, address(this));
-        }
+        _doAllSolves(queue, offer, wantAssets, teller, assetPrices);
 
         // send any excess offer shares to the solver or redeem in requested currency if specified
         if (redeemCurrencyForExcessOffer != address(0)) {
@@ -167,15 +107,8 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             offer.safeTransfer(msg.sender, offer.balanceOf(address(this)));
         }
 
-        //get change in balances for each asset
-        for (i = 0; i < wantAssets.length; i++) {
-            balanceDeltas[i] = int256(wantAssets[i].asset.balanceOf(msg.sender)) - balanceDeltas[i];
-        }
-
-        balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
-
         // global slippage check with the balances, prices and maxOfferAssets
-        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets, accountant, offer);
+        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets, teller);
 
         // delete the temp storage for base decimals
         _baseDecimalsTempDelete(address(offer));
@@ -210,19 +143,13 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         bytes memory runData,
         ERC20 offer,
         ERC20 want,
-        uint256 offerReceived,
+        uint256,
         uint256 wantApprovalAmount
     )
         internal
     {
-        (
-            ,
-            address solver,
-            uint256 minimumAssetsOut,
-            uint256 maxAssets,
-            TellerWithMultiAssetSupport teller,
-            uint256 priceToCheckAtomicPrice
-        ) = abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport, uint256));
+        (, address solver,, uint256 maxAssets, TellerWithMultiAssetSupport teller, uint256 priceToCheckAtomicPrice) =
+            abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport, uint256));
 
         if (address(offer) != address(teller.vault())) {
             revert MultiAssetAtomicSolverRedeem___BoringVaultTellerMismatch(address(offer), address(teller));
@@ -233,27 +160,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             revert MultiAssetAtomicSolverRedeem___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
         }
 
-        // Find from tload the excessAssetAmount, useSolverBalanceFirst, and decimals for this want asset
-        (uint256 excessAmount, bool useSolverBalanceFirst, uint8 wantDecimals) = _doTempLoad(address(want));
-
-        uint256 offerNeededForWant;
-
-        if (useSolverBalanceFirst) {
-            uint256 solverBalance = want.balanceOf(solver);
-            solverBalance >= wantApprovalAmount
-                ? offerNeededForWant = 0
-                : offerNeededForWant = _getMinOfferNeededForWant(
-                    wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, want, offer, wantDecimals
-                );
-            // Redeem the shares, sending assets to solver
-            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
-        } else {
-            offerNeededForWant = _getMinOfferNeededForWant(
-                wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, want, offer, wantDecimals
-            );
-            // Redeem the shares, sending assets to solver
-            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount + excessAmount, solver);
-        }
+        _handleExcessOrBalanceAmounts(solver, want, offer, teller, wantApprovalAmount, priceToCheckAtomicPrice);
 
         // Transfer required assets from solver
         want.safeTransferFrom(solver, address(this), wantApprovalAmount);
@@ -338,7 +245,6 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     function _getMinOfferNeededForWant(
         uint256 wantAmount,
         uint256 priceToCheckAtomicPrice,
-        ERC20 want,
         ERC20 offer,
         uint8 wantDecimals
     )
@@ -360,16 +266,22 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         uint256[] memory assetPrices,
         int256 globalSlippagePriceMinimum,
         WantAssetData[] calldata wantAssets,
-        AccountantWithRateProviders accountant,
-        ERC20 offer
+        TellerWithMultiAssetSupport teller
     )
         internal
     {
         int256 actualSlippage = 0;
+
+        AccountantWithRateProviders accountant = teller.accountant();
+        ERC20 offer = ERC20(teller.vault());
+
         uint8 baseDecimals = _baseDecimalsTempLoad(address(offer));
 
-        for (uint256 i = 0; i < balanceDeltas.length;) {
+        uint256 i;
+        for (i; i < balanceDeltas.length;) {
             ERC20 wantAsset = wantAssets[i].asset;
+            //update the balance delta to reflect the actual change in balance
+            balanceDeltas[i] = int256(wantAsset.balanceOf(msg.sender)) - balanceDeltas[i];
             (,, uint8 wantDecimals) = _doTempLoad(address(wantAsset));
 
             // Convert balance delta to base decimals
@@ -398,6 +310,9 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
                 ++i;
             }
         }
+
+        // Update the balance delta for the offer token
+        balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
 
         // Add the offer token's balance delta in terms of base token
         actualSlippage += SignedMath.ternary(balanceDeltas[balanceDeltas.length - 1] < 0, -1, int256(1))
@@ -444,6 +359,125 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             return amount * int256(10 ** (toDecimals - fromDecimals));
         } else {
             return amount / int256(10 ** (fromDecimals - toDecimals));
+        }
+    }
+
+    function _doAllSolves(
+        IAtomicQueue queue,
+        ERC20 offer,
+        WantAssetData[] calldata wantAssets,
+        TellerWithMultiAssetSupport teller,
+        uint256[] memory assetPrices
+    )
+        internal
+    {
+        for (uint256 i = 0; i < wantAssets.length;) {
+            bytes memory runData = abi.encode(
+                SolveType.REDEEM,
+                msg.sender,
+                wantAssets[i].minimumAssetsOut,
+                wantAssets[i].maxAssets,
+                teller,
+                assetPrices[i]
+            );
+            queue.solve(offer, wantAssets[i].asset, wantAssets[i].users, runData, address(this));
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _multiAssetRedeemSolveSetup(
+        ERC20 offer,
+        WantAssetData[] calldata wantAssets,
+        AccountantWithRateProviders accountant
+    )
+        internal
+        returns (uint256[] memory, int256[] memory, address)
+    {
+        uint256[] memory assetPrices = new uint256[](wantAssets.length);
+
+        // plus 1 for the offer/vault token
+        int256[] memory balanceDeltas = new int256[](wantAssets.length + 1);
+
+        // intended to use only one redemption currency
+        address redeemCurrencyForExcessOffer;
+
+        address[] memory usedAddresses = new address[](wantAssets.length);
+
+        uint256 i;
+        for (i; i < wantAssets.length;) {
+            // Checks if any want assets are duplicates,
+            // since typically want assets supported will be
+            // in the single digits, this does not need to be optimized with bit/bloom filtering
+            // and enforcing order of want assets to be increasing in address is not feasible since
+            // the order of want assets needs to correspond to which use existing balance and which use excess
+            for (uint256 j = 0; j < i;) {
+                address wantAssetAddress = address(wantAssets[i].asset);
+                if (address(wantAssetAddress) == usedAddresses[j]) {
+                    revert MultiAssetAtomicSolverRedeem___DuplicateWantAsset(wantAssetAddress);
+                }
+                unchecked {
+                    ++j;
+                }
+            }
+            // Get the rate in quote for each want asset
+            assetPrices[i] = accountant.getRateInQuoteSafe(wantAssets[i].asset);
+            // if price is 0, revert as either paused, not supported, or failed to get rate
+            if (assetPrices[i] == 0) {
+                revert MultiAssetAtomicSolverRedeem___FailedToSolve();
+            }
+            //set the temp store for the want asset which will be loaded after callback
+            _doTempStore(wantAssets[i].asset, wantAssets[i].excessAssetAmount, wantAssets[i].useSolverBalanceFirst);
+            // This is the currency in which any excess offer tokens will be redeemed (if specified)
+            if (wantAssets[i].useAsRedeemTokenForExcessOffer) {
+                redeemCurrencyForExcessOffer = address(wantAssets[i].asset);
+            }
+            // Set initial balance to calculate global slippage later
+            balanceDeltas[i] = int256(wantAssets[i].asset.balanceOf(msg.sender));
+            // Update the used addresses array for duplicate checking
+            usedAddresses[i] = address(wantAssets[i].asset);
+            unchecked {
+                ++i;
+            }
+        }
+
+        // store the solver balance for the offer asset at index wantAssets.length
+        balanceDeltas[i] = int256(offer.balanceOf(msg.sender));
+
+        return (assetPrices, balanceDeltas, redeemCurrencyForExcessOffer);
+    }
+
+    function _handleExcessOrBalanceAmounts(
+        address solver,
+        ERC20 want,
+        ERC20 offer,
+        TellerWithMultiAssetSupport teller,
+        uint256 wantApprovalAmount,
+        uint256 priceToCheckAtomicPrice
+    )
+        internal
+    {
+        // Find from tload the excessAssetAmount, useSolverBalanceFirst, and decimals for this want asset
+        (uint256 excessAmount, bool useSolverBalanceFirst, uint8 wantDecimals) = _doTempLoad(address(want));
+
+        uint256 offerNeededForWant;
+
+        if (useSolverBalanceFirst) {
+            uint256 solverBalance = want.balanceOf(solver);
+            solverBalance >= wantApprovalAmount
+                ? offerNeededForWant = 0
+                : offerNeededForWant = _getMinOfferNeededForWant(
+                    wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, offer, wantDecimals
+                );
+            // Redeem the shares, sending assets to solver
+            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
+        } else {
+            offerNeededForWant = _getMinOfferNeededForWant(
+                wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, offer, wantDecimals
+            );
+            // Redeem the shares, sending assets to solver
+            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount + excessAmount, solver);
         }
     }
 }
