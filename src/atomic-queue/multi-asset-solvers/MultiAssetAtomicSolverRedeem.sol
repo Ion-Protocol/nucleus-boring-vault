@@ -52,6 +52,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     error MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
         int256 globalSlippagePriceMinimum, int256[] balanceDeltas, int256 actualSlippage
     );
+    error MultiAssetAtomicSolverRedeem___OnlyRedeemAllowed();
 
     // Updated struct to hold data for each want asset
     struct WantAssetData {
@@ -104,7 +105,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         // intended to use only one redemption currency
         address redeemCurrencyForExcessOffer;
 
-        address[] memory usedAddresses = new address[](addresses.length);
+        address[] memory usedAddresses = new address[](wantAssets.length);
 
         uint256 i;
         for (i; i < wantAssets.length;) {
@@ -114,8 +115,9 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             // and enforcing order of want assets to be increasing in address is not feasible since
             // the order of want assets needs to correspond to which use existing balance and which use excess
             for (uint256 j = 0; j < i;) {
-                if (addresses[i] == usedAddresses[j]) {
-                    revert MultiAssetAtomicSolverRedeem___DuplicateWantAsset(addresses[i]);
+                address wantAssetAddress = address(wantAssets[i].asset);
+                if (address(wantAssetAddress) == usedAddresses[j]) {
+                    revert MultiAssetAtomicSolverRedeem___DuplicateWantAsset(wantAssetAddress);
                 }
                 unchecked {
                     ++j;
@@ -134,7 +136,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
                 redeemCurrencyForExcessOffer = address(wantAssets[i].asset);
             }
             // Set initial balance to calculate global slippage later
-            balanceDeltas[i] = int256(want.balanceOf(msg.sender));
+            balanceDeltas[i] = int256(wantAssets[i].asset.balanceOf(msg.sender));
             // Update the used addresses array for duplicate checking
             usedAddresses[i] = address(wantAssets[i].asset);
             unchecked {
@@ -167,7 +169,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
 
         //get change in balances for each asset
         for (i = 0; i < wantAssets.length; i++) {
-            balanceDeltas[i] = int256(want.balanceOf(msg.sender)) - balanceDeltas[i];
+            balanceDeltas[i] = int256(wantAssets[i].asset.balanceOf(msg.sender)) - balanceDeltas[i];
         }
 
         balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
@@ -215,7 +217,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     {
         (
             ,
-            address wantAssets,
+            address solver,
             uint256 minimumAssetsOut,
             uint256 maxAssets,
             TellerWithMultiAssetSupport teller,
@@ -350,7 +352,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         // different decimals
         uint8 baseDecimals = _baseDecimalsTempLoad(offer);
         uint256 wantAmountWithDecimals = _changeDecimals(wantAmount, wantDecimals, baseDecimals);
-        offerNeededForWant = Math.ceilDiv(wantAmountWithDecimals * (10 ** offerDecimals), priceToCheckAtomicPrice);
+        offerNeededForWant = Math.ceilDiv(wantAmountWithDecimals * (10 ** baseDecimals), priceToCheckAtomicPrice);
     }
 
     function _globalSlippageCheck(
@@ -380,7 +382,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             int256 assetSlippage = SignedMath.mulDiv(
                 scaledDelta,
                 int256(scaledPrice),
-                int256(10 ** offerDecimals),
+                int256(10 ** baseDecimals),
                 SignedMath.Rounding.Floor // Round down for conservative estimate
             );
 
