@@ -162,7 +162,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
 
         // send any excess offer shares to the solver or redeem in requested currency if specified
         if (redeemCurrencyForExcessOffer != address(0)) {
-            teller.bulkWithdraw(redeemCurrencyForExcessOffer, offer.balanceOf(address(this)), 0, msg.sender);
+            teller.bulkWithdraw(ERC20(redeemCurrencyForExcessOffer), offer.balanceOf(address(this)), 0, msg.sender);
         } else {
             offer.safeTransfer(msg.sender, offer.balanceOf(address(this)));
         }
@@ -234,7 +234,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         }
 
         // Find from tload the excessAssetAmount, useSolverBalanceFirst, and decimals for this want asset
-        (uint256 excessAmount, bool useSolverBalanceFirst, uint8 wantDecimals) = _doTempLoad(want);
+        (uint256 excessAmount, bool useSolverBalanceFirst, uint8 wantDecimals) = _doTempLoad(address(want));
 
         uint256 offerNeededForWant;
 
@@ -262,7 +262,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         want.safeApprove(queue, wantApprovalAmount);
     }
 
-    function _doTempStore(address asset, uint256 excessAmount, bool useSolverBalanceFirst) internal {
+    function _doTempStore(ERC20 asset, uint256 excessAmount, bool useSolverBalanceFirst) internal {
         // Store excessAssetAmount, useSolverBalanceFirst and decimals for each asset
         uint256 key1 = uint256(keccak256(abi.encodePacked(asset)));
         uint256 key2 = key1 + 1;
@@ -350,7 +350,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         // use tstore/tload to avoid external calls
         // @notice: in all nucleus deployments, offer and base decimals should be same, but other want assets could have
         // different decimals
-        uint8 baseDecimals = _baseDecimalsTempLoad(offer);
+        uint8 baseDecimals = _baseDecimalsTempLoad(address(offer));
         uint256 wantAmountWithDecimals = _changeDecimals(wantAmount, wantDecimals, baseDecimals);
         offerNeededForWant = Math.ceilDiv(wantAmountWithDecimals * (10 ** baseDecimals), priceToCheckAtomicPrice);
     }
@@ -366,11 +366,11 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         internal
     {
         int256 actualSlippage = 0;
-        uint8 baseDecimals = _baseDecimalsTempLoad(offer);
+        uint8 baseDecimals = _baseDecimalsTempLoad(address(offer));
 
         for (uint256 i = 0; i < balanceDeltas.length;) {
-            ERC20 wantAsset = wantAssets[i].wantAsset;
-            (,, uint8 wantDecimals) = _doTempLoad(wantAsset);
+            ERC20 wantAsset = wantAssets[i].asset;
+            (,, uint8 wantDecimals) = _doTempLoad(address(wantAsset));
 
             // Convert balance delta to base decimals
             int256 scaledDelta = _changeDecimalsSigned(balanceDeltas[i], wantDecimals, baseDecimals);
@@ -379,17 +379,20 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             uint256 scaledPrice = _changeDecimals(assetPrices[i], wantDecimals, baseDecimals);
 
             // Calculate the slippage for this asset
-            int256 assetSlippage = SignedMath.mulDiv(
-                scaledDelta,
-                int256(scaledPrice),
-                int256(10 ** baseDecimals),
-                SignedMath.Rounding.Floor // Round down for conservative estimate
-            );
+            int256 assetSlippage = SignedMath.ternary(scaledDelta < 0, -1, int256(1))
+                * int256(
+                    Math.mulDiv(
+                        SignedMath.abs(scaledDelta),
+                        scaledPrice,
+                        10 ** baseDecimals,
+                        Math.Rounding.Floor // Round down for conservative estimate
+                    )
+                );
 
             actualSlippage += assetSlippage;
 
             // go ahead and delete the temp storage for this want asset
-            _doTempDelete(wantAsset);
+            _doTempDelete(address(wantAsset));
 
             unchecked {
                 ++i;
@@ -397,12 +400,15 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         }
 
         // Add the offer token's balance delta in terms of base token
-        actualSlippage += SignedMath.mulDiv(
-            balanceDeltas[balanceDeltas.length - 1],
-            int256(accountant.getRateSafe()),
-            int256(10 ** baseDecimals),
-            SignedMath.Rounding.Floor
-        );
+        actualSlippage += SignedMath.ternary(balanceDeltas[balanceDeltas.length - 1] < 0, -1, int256(1))
+            * int256(
+                Math.mulDiv(
+                    SignedMath.abs(balanceDeltas[balanceDeltas.length - 1]),
+                    accountant.getRateSafe(),
+                    10 ** baseDecimals,
+                    Math.Rounding.Floor // Round down for conservative estimate
+                )
+            );
 
         if (globalSlippagePriceMinimum > actualSlippage) {
             revert MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded(
