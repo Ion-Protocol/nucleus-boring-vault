@@ -10,6 +10,7 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 interface IAtomicQueue {
     function solve(
@@ -92,6 +93,8 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         requiresAuth
     {
         AccountantWithRateProviders accountant = teller.accountant();
+        _baseDecimalsTempStore(address(offer), accountant);
+
         uint256 totalOfferNeeded = 0;
         uint256[] memory assetPrices = new uint256[](wantAssets.length);
 
@@ -170,7 +173,10 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         balanceDeltas[i] = int256(offer.balanceOf(msg.sender)) - balanceDeltas[i];
 
         // global slippage check with the balances, prices and maxOfferAssets
-        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets, accountant);
+        _globalSlippageCheck(balanceDeltas, assetPrices, globalSlippagePriceMinimum, wantAssets, accountant, offer);
+
+        // delete the temp storage for base decimals
+        _baseDecimalsTempDelete(address(offer));
     }
 
     function finishSolve(
@@ -225,21 +231,24 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             revert MultiAssetAtomicSolverRedeem___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
         }
 
-        // Find from tload the excessAssetAmount and useSolverBalanceFirst for this want asset
-        (uint256 excessAmount, bool useSolverBalanceFirst) = _doTempLoad(want);
+        // Find from tload the excessAssetAmount, useSolverBalanceFirst, and decimals for this want asset
+        (uint256 excessAmount, bool useSolverBalanceFirst, uint8 wantDecimals) = _doTempLoad(want);
 
-        uint256 offerNeededForWant; //(wantApprovalAmount * assetPrice) / 1e18; // Assuming 18 decimals for price
+        uint256 offerNeededForWant;
+
         if (useSolverBalanceFirst) {
             uint256 solverBalance = want.balanceOf(solver);
             solverBalance >= wantApprovalAmount
                 ? offerNeededForWant = 0
-                : offerNeededForWant =
-                    _getMinOfferNeededForWant(wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, want, offer);
+                : offerNeededForWant = _getMinOfferNeededForWant(
+                    wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, want, offer, wantDecimals
+                );
             // Redeem the shares, sending assets to solver
             teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
         } else {
-            offerNeededForWant =
-                _getMinOfferNeededForWant(wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, want, offer);
+            offerNeededForWant = _getMinOfferNeededForWant(
+                wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, want, offer, wantDecimals
+            );
             // Redeem the shares, sending assets to solver
             teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount + excessAmount, solver);
         }
@@ -252,38 +261,75 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     }
 
     function _doTempStore(address asset, uint256 excessAmount, bool useSolverBalanceFirst) internal {
-        // Store excessAssetAmount and useSolverBalanceFirst for each asset
+        // Store excessAssetAmount, useSolverBalanceFirst and decimals for each asset
         uint256 key1 = uint256(keccak256(abi.encodePacked(asset)));
         uint256 key2 = key1 + 1;
+        uint256 key3 = key2 + 1;
+
+        uint8 decimals = asset.decimals();
 
         assembly {
             tstore(key1, excessAmount)
             tstore(key2, useSolverBalanceFirst)
+            tstore(key3, decimals)
         }
     }
 
-    function _doTempLoad(address asset) internal view returns (uint256, bool) {
+    function _doTempLoad(address asset) internal view returns (uint256, bool, uint8) {
         uint256 key1 = uint256(keccak256(abi.encodePacked(asset)));
         uint256 key2 = key1 + 1;
+        uint256 key3 = key2 + 1;
 
         uint256 excessAssetAmount;
         bool useSolverBalanceFirst;
+        uint8 decimals;
 
         assembly {
             excessAssetAmount := tload(key1)
             useSolverBalanceFirst := tload(key2)
+            decimals := tload(key3)
         }
 
-        return (excessAssetAmount, useSolverBalanceFirst);
+        return (excessAssetAmount, useSolverBalanceFirst, decimals);
     }
 
     function _doTempDelete(address asset) internal {
         uint256 key1 = uint256(keccak256(abi.encodePacked(asset)));
         uint256 key2 = key1 + 1;
+        uint256 key3 = key2 + 1;
 
         assembly {
             tstore(key1, 0)
             tstore(key2, 0)
+            tstore(key3, 0)
+        }
+    }
+
+    function _baseDecimalsTempStore(address offer, AccountantWithRateProviders accountant) internal {
+        uint256 key = uint256(keccak256(abi.encodePacked(offer)));
+        uint8 decimals = accountant.decimals();
+
+        assembly {
+            tstore(key, decimals)
+        }
+    }
+
+    function _baseDecimalsTempLoad(address offer) internal view returns (uint8) {
+        uint256 key = uint256(keccak256(abi.encodePacked(offer)));
+        uint8 decimals;
+
+        assembly {
+            decimals := tload(key)
+        }
+
+        return decimals;
+    }
+
+    function _baseDecimalsTempDelete(address offer) internal {
+        uint256 key = uint256(keccak256(abi.encodePacked(offer)));
+
+        assembly {
+            tstore(key, 0)
         }
     }
 
@@ -291,19 +337,19 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         uint256 wantAmount,
         uint256 priceToCheckAtomicPrice,
         ERC20 want,
-        ERC20 offer
+        ERC20 offer,
+        uint8 wantDecimals
     )
         internal
         view
         returns (uint256 offerNeededForWant)
     {
         // handling cases where decimals could differ between offer and want
-        // should be ok with warm sload on decimals here because tstore/tload since gas costs are similar
+        // use tstore/tload to avoid external calls
         // @notice: in all nucleus deployments, offer and base decimals should be same, but other want assets could have
         // different decimals
-        uint8 offerDecimals = offer.decimals();
-        uint8 wantDecimals = want.decimals();
-        uint256 wantAmountWithDecimals = _changeDecimals(wantAmount, wantDecimals, offerDecimals);
+        uint8 baseDecimals = _baseDecimalsTempLoad(offer);
+        uint256 wantAmountWithDecimals = _changeDecimals(wantAmount, wantDecimals, baseDecimals);
         offerNeededForWant = Math.ceilDiv(wantAmountWithDecimals * (10 ** offerDecimals), priceToCheckAtomicPrice);
     }
 
@@ -312,22 +358,23 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         uint256[] memory assetPrices,
         int256 globalSlippagePriceMinimum,
         WantAssetData[] calldata wantAssets,
-        AccountantWithRateProviders accountant
+        AccountantWithRateProviders accountant,
+        ERC20 offer
     )
         internal
     {
         int256 actualSlippage = 0;
-        uint8 offerDecimals = offer.decimals();
+        uint8 baseDecimals = _baseDecimalsTempLoad(offer);
 
-        for (uint256 i = 0; i < balanceDeltas.length; i++) {
+        for (uint256 i = 0; i < balanceDeltas.length;) {
             ERC20 wantAsset = wantAssets[i].wantAsset;
-            uint8 wantDecimals = wantAsset.decimals();
+            (,, uint8 wantDecimals) = _doTempLoad(wantAsset);
 
-            // Convert balance delta to offer decimals
-            int256 scaledDelta = changeDecimalsSigned(balanceDeltas[i], wantDecimals, offerDecimals);
+            // Convert balance delta to base decimals
+            int256 scaledDelta = _changeDecimalsSigned(balanceDeltas[i], wantDecimals, baseDecimals);
 
-            // Convert asset price to offer decimals
-            uint256 scaledPrice = changeDecimals(assetPrices[i], wantDecimals, offerDecimals);
+            // Convert asset price to base decimals
+            uint256 scaledPrice = _changeDecimals(assetPrices[i], wantDecimals, baseDecimals);
 
             // Calculate the slippage for this asset
             int256 assetSlippage = SignedMath.mulDiv(
@@ -338,13 +385,20 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             );
 
             actualSlippage += assetSlippage;
+
+            // go ahead and delete the temp storage for this want asset
+            _doTempDelete(wantAsset);
+
+            unchecked {
+                ++i;
+            }
         }
 
         // Add the offer token's balance delta in terms of base token
         actualSlippage += SignedMath.mulDiv(
             balanceDeltas[balanceDeltas.length - 1],
             int256(accountant.getRateSafe()),
-            int256(10 ** offerDecimals),
+            int256(10 ** baseDecimals),
             SignedMath.Rounding.Floor
         );
 
@@ -367,7 +421,15 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     }
 
     // Helper function to change decimals for signed integers
-    function changeDecimalsSigned(int256 amount, uint8 fromDecimals, uint8 toDecimals) internal pure returns (int256) {
+    function _changeDecimalsSigned(
+        int256 amount,
+        uint8 fromDecimals,
+        uint8 toDecimals
+    )
+        internal
+        pure
+        returns (int256)
+    {
         if (fromDecimals == toDecimals) {
             return amount;
         } else if (fromDecimals < toDecimals) {
