@@ -87,6 +87,8 @@ contract DeployAll is BaseScript {
 
         new SetAuthorityAndTransferOwnerships().deploy(config);
         console.log("Set Authority And Transfer Ownerships Complete");
+
+        mainConfig = config;
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {

@@ -56,6 +56,7 @@ abstract contract BaseScript is Script {
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
         if (address(CREATEX).code.length == 0) {
+            console.log("Current Chain ID: ", block.chainid);
             revert("CREATEX Not Deployed on this chain. Use the DeployCustomCreatex script to deploy it");
         }
     }
