@@ -101,7 +101,7 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
             ERC20(address(WSTETH_ADDRESS)), isPeggedToBase, address(ethPerWstEthRateProvider)
         );
         accountant.setRateProviderData(wantToken1, false, address(new MockRateProvider(1.05e18)));
-        accountant.setRateProviderData(wantToken2, false, address(new MockRateProvider(0.000833e18)));
+        accountant.setRateProviderData(wantToken2, false, address(new MockRateProvider(0.000833e6)));
         vm.stopPrank();
     }
 
@@ -353,43 +353,57 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
         );
     }
 
-    function test_GlobalSlippageCheck() public {
+    function testFail_GlobalSlippageCheck() public {
+        (
+            address[] memory users,
+            AtomicQueue.AtomicRequest memory request1,
+            AtomicQueue.AtomicRequest memory request2,
+            AtomicQueue.AtomicRequest memory request3,
+            uint256[] memory balancesPreAndSupply
+        ) = _getRequestAndSolverSetup();
+
+        address[] memory wantArr1 = new address[](1);
+        wantArr1[0] = users[0];
+        address[] memory wantArr2 = new address[](1);
+        wantArr2[0] = users[2];
+        address[] memory wantArr3 = new address[](1);
+        wantArr3[0] = users[1];
+
         MultiAssetAtomicSolverRedeem.WantAssetData[] memory wantAssets =
-            new MultiAssetAtomicSolverRedeem.WantAssetData[](2);
+            new MultiAssetAtomicSolverRedeem.WantAssetData[](3);
         wantAssets[0] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: wantToken1,
-            minimumAssetsOut: 90e18,
-            maxAssets: 100e18,
-            excessAssetAmount: 5e18,
+            asset: WETH,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0,
             useSolverBalanceFirst: true,
-            users: new address[](0)
+            users: wantArr1
         });
         wantAssets[1] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: wantToken2,
-            minimumAssetsOut: 45e6,
-            maxAssets: 50e6,
-            excessAssetAmount: 2e6,
+            asset: WSTETH,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0,
+            useSolverBalanceFirst: true,
+            users: wantArr2
+        });
+        wantAssets[2] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: wantToken1,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0.3e18,
             useSolverBalanceFirst: false,
-            users: new address[](0)
+            users: wantArr3
         });
 
-        vm.prank(SOLVER_OWNER);
-        vm.expectRevert(
-            // abi.encodeWithSelector(
-            //     MultiAssetAtomicSolverRedeem.MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded.selector,
-            //     0,
-            //     0,
-            //     0
-            // )
-        );
+        vm.startPrank(SOLVER_OWNER);
+        WETH.approve(address(solver), type(uint256).max);
+        WSTETH.approve(address(solver), type(uint256).max);
+        wantToken1.approve(address(solver), type(uint256).max);
         solver.multiAssetRedeemSolve(
-            IAtomicQueue(address(atomicQueue)),
-            boringVault,
-            wantAssets,
-            teller,
-            int256(1e19), // Very high slippage threshold, should fail,
-            address(WETH)
+            IAtomicQueue(address(atomicQueue)), boringVault, wantAssets, teller, int256(1e18), address(WSTETH)
         );
+        vm.stopPrank();
     }
 
     function _getRequestAndSolverSetup()

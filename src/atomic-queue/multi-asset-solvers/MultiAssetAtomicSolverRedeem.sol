@@ -74,11 +74,14 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
      * @notice This function is used to solve for multiple assets in a single transaction
      * @notice Solvers should order the want assets in a way that they use their own balances (if any do so) first
      * @notice and then use the excess offer tokens to redeem the remaining assets last to minimize revert chances
+     * @notice global slippage check uses exchange rate and rate providers and account for all want assets provided plus
+     * vault tokens
      * @param queue the AtomicQueueV2 contract
      * @param offer the ERC20 asset sent to the solver
      * @param wantAssets an array of WantAssetData structs, each containing the desired asset and its users
      * @param teller the TellerWithMultiAssetSupport contract
-     * @param globalSlippagePriceMinimum the global slippage price minimum
+     * @param globalSlippagePriceMinimum the solver sender's global slippage price minimum across all assets (in terms
+     * of the base asset)
      * @param redeemCurrencyForExcessOffer the address to use as redeem token for excess offer
      */
     function multiAssetRedeemSolve(
@@ -273,10 +276,11 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
     {
         int256 actualSlippage = 0;
 
-        AccountantWithRateProviders accountant = teller.accountant();
+        // AccountantWithRateProviders accountant = teller.accountant();
         ERC20 offer = ERC20(teller.vault());
 
         uint8 baseDecimals = _baseDecimalsTempLoad(address(offer));
+        uint256 baseExchangeRate = AccountantWithRateProviders(teller.accountant()).getRate();
 
         uint256 i;
         for (i; i < wantAssets.length;) {
@@ -296,12 +300,11 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
                 * int256(
                     Math.mulDiv(
                         SignedMath.abs(scaledDelta),
+                        baseExchangeRate,
                         scaledPrice,
-                        10 ** baseDecimals,
                         Math.Rounding.Floor // Round down for conservative estimate
                     )
                 );
-
             actualSlippage += assetSlippage;
 
             // go ahead and delete the temp storage for this want asset
@@ -320,7 +323,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             * int256(
                 Math.mulDiv(
                     SignedMath.abs(balanceDeltas[balanceDeltas.length - 1]),
-                    accountant.getRateSafe(),
+                    baseExchangeRate,
                     10 ** baseDecimals,
                     Math.Rounding.Floor // Round down for conservative estimate
                 )
