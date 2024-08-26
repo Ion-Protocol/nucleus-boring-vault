@@ -63,7 +63,6 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         uint256 excessAssetAmount;
         // if true, will use all the initial solver balance in that asset first
         bool useSolverBalanceFirst;
-        bool useAsRedeemTokenForExcessOffer; // if true, will use this asset to redeem the excess offer tokens
         address[] users;
     }
 
@@ -80,13 +79,15 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
      * @param wantAssets an array of WantAssetData structs, each containing the desired asset and its users
      * @param teller the TellerWithMultiAssetSupport contract
      * @param globalSlippagePriceMinimum the global slippage price minimum
+     * @param redeemCurrencyForExcessOffer the address to use as redeem token for excess offer
      */
     function multiAssetRedeemSolve(
         IAtomicQueue queue,
         ERC20 offer,
         WantAssetData[] calldata wantAssets,
         TellerWithMultiAssetSupport teller,
-        int256 globalSlippagePriceMinimum
+        int256 globalSlippagePriceMinimum,
+        address redeemCurrencyForExcessOffer
     )
         external
         requiresAuth
@@ -94,7 +95,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         AccountantWithRateProviders accountant = teller.accountant();
         _baseDecimalsTempStore(address(offer), accountant);
 
-        (uint256[] memory assetPrices, int256[] memory balanceDeltas, address redeemCurrencyForExcessOffer) =
+        (uint256[] memory assetPrices, int256[] memory balanceDeltas) =
             _multiAssetRedeemSolveSetup(offer, wantAssets, accountant);
 
         // Solve for each want asset with its corresponding users
@@ -278,7 +279,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         uint8 baseDecimals = _baseDecimalsTempLoad(address(offer));
 
         uint256 i;
-        for (i; i < balanceDeltas.length;) {
+        for (i; i < wantAssets.length;) {
             ERC20 wantAsset = wantAssets[i].asset;
             //update the balance delta to reflect the actual change in balance
             balanceDeltas[i] = int256(wantAsset.balanceOf(msg.sender)) - balanceDeltas[i];
@@ -393,15 +394,12 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         AccountantWithRateProviders accountant
     )
         internal
-        returns (uint256[] memory, int256[] memory, address)
+        returns (uint256[] memory, int256[] memory)
     {
         uint256[] memory assetPrices = new uint256[](wantAssets.length);
 
         // plus 1 for the offer/vault token
         int256[] memory balanceDeltas = new int256[](wantAssets.length + 1);
-
-        // intended to use only one redemption currency
-        address redeemCurrencyForExcessOffer;
 
         address[] memory usedAddresses = new address[](wantAssets.length);
 
@@ -429,10 +427,6 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
             }
             //set the temp store for the want asset which will be loaded after callback
             _doTempStore(wantAssets[i].asset, wantAssets[i].excessAssetAmount, wantAssets[i].useSolverBalanceFirst);
-            // This is the currency in which any excess offer tokens will be redeemed (if specified)
-            if (wantAssets[i].useAsRedeemTokenForExcessOffer) {
-                redeemCurrencyForExcessOffer = address(wantAssets[i].asset);
-            }
             // Set initial balance to calculate global slippage later
             balanceDeltas[i] = int256(wantAssets[i].asset.balanceOf(msg.sender));
             // Update the used addresses array for duplicate checking
@@ -445,7 +439,7 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
         // store the solver balance for the offer asset at index wantAssets.length
         balanceDeltas[i] = int256(offer.balanceOf(msg.sender));
 
-        return (assetPrices, balanceDeltas, redeemCurrencyForExcessOffer);
+        return (assetPrices, balanceDeltas);
     }
 
     function _handleExcessOrBalanceAmounts(
@@ -470,8 +464,10 @@ contract MultiAssetAtomicSolverRedeem is IAtomicSolver, Auth {
                 : offerNeededForWant = _getMinOfferNeededForWant(
                     wantApprovalAmount - solverBalance, priceToCheckAtomicPrice, offer, wantDecimals
                 );
-            // Redeem the shares, sending assets to solver
-            teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
+            // Redeem the shares, sending assets to solver if any residual amount is needed
+            if (offerNeededForWant > 0) {
+                teller.bulkWithdraw(want, offerNeededForWant, wantApprovalAmount - solverBalance, solver);
+            }
         } else {
             offerNeededForWant = _getMinOfferNeededForWant(
                 wantApprovalAmount + excessAmount, priceToCheckAtomicPrice, offer, wantDecimals
