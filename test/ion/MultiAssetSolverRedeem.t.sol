@@ -225,40 +225,74 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
             users: wantArr3
         });
 
-        console2.log(
-            "solver balance before solve made it before function call want token 1", wantToken1.balanceOf(SOLVER_OWNER)
-        );
-        console2.log("solver balance before solve made it before function call weth", WETH.balanceOf(SOLVER_OWNER));
-        console2.log("solver balance before solve made it before function call wsteth", WSTETH.balanceOf(SOLVER_OWNER));
-        console2.log(
-            "solver balance before solve made it before function call boring vault", boringVault.balanceOf(SOLVER_OWNER)
-        );
+        uint256 solverBalancePreWeth = WETH.balanceOf(SOLVER_OWNER);
+        uint256 solverBalancePreWsteth = WSTETH.balanceOf(SOLVER_OWNER);
+        uint256 solverBalancePreWantToken1 = wantToken1.balanceOf(SOLVER_OWNER);
+        uint256 solverBalancePreBoringVault = boringVault.balanceOf(SOLVER_OWNER);
+        uint256 wethUserBalancePre = WETH.balanceOf(users[0]);
+        uint256 wstethBalancePre = WSTETH.balanceOf(users[2]);
+        uint256 wantToken1BalancePre = wantToken1.balanceOf(users[1]);
+        uint256 boringVaultPreSupply = boringVault.totalSupply();
         vm.startPrank(SOLVER_OWNER);
         WETH.approve(address(solver), type(uint256).max);
         WSTETH.approve(address(solver), type(uint256).max);
         wantToken1.approve(address(solver), type(uint256).max);
         solver.multiAssetRedeemSolve(
-            IAtomicQueue(address(atomicQueue)), boringVault, wantAssets, teller, -1 * int256(1e18), address(WSTETH)
+            IAtomicQueue(address(atomicQueue)), boringVault, wantAssets, teller, -1 * int256(1e18), address(0)
         );
         vm.stopPrank();
 
-        console2.log(
-            "solver balance before solve made it after function call want token 1", wantToken1.balanceOf(SOLVER_OWNER)
+        uint256 solverBalancePostWeth = WETH.balanceOf(SOLVER_OWNER);
+        uint256 solverBalancePostWsteth = WSTETH.balanceOf(SOLVER_OWNER);
+        uint256 solverBalancePostWantToken1 = wantToken1.balanceOf(SOLVER_OWNER);
+        uint256 solverBalancePostBoringVault = boringVault.balanceOf(SOLVER_OWNER);
+
+        // should use solver balance first for weth
+        //there was 1 token request for 0.5 WETH and 1 token request for 0.8 WSTETH
+        //solver should has 10 WETH and 0.4 WSTETH before the solve
+        // therefore the entire weth order should be filled by solver balance and half of the WSTETH order should be
+        // filled by solver balance
+        // this means afterwards that solver balance will be 9.5 WETH and 0 WSTETH
+        // since an excess of 0.3 wantToken1 was requested, and solver had 0 wantToken1 to start, final balance of
+        // solver should be 0.3 wantToken1
+        // then there should be a residual of offer shares left with solver since address(0) was passed as the
+        // redeemCurrency
+
+        assertEq(solverBalancePreWeth - solverBalancePostWeth, request1.atomicPrice, "Solver should have spent WETH");
+        assertEq(
+            solverBalancePreWsteth - solverBalancePostWsteth,
+            request3.atomicPrice / 2,
+            "Solver should have spent WSTETH"
         );
-        console2.log("solver balance before solve made it after function call weth", WETH.balanceOf(SOLVER_OWNER));
-        console2.log("solver balance before solve made it after function call wsteth", WSTETH.balanceOf(SOLVER_OWNER));
-        console2.log(
-            "solver balance before solve made it after function call boring vault", boringVault.balanceOf(SOLVER_OWNER)
+        assertEq(
+            solverBalancePostWantToken1 - solverBalancePreWantToken1,
+            wantAssets[2].excessAssetAmount,
+            "Solver should have received excess wantToken1"
+        );
+        assertGt(
+            solverBalancePostBoringVault, solverBalancePreBoringVault, "Solver should have received residual shares"
         );
 
-        // Assert results
-        // for (uint256 i = 0; i < users.length; i++) {
-        //     assertGt(wantToken1.balanceOf(users[i]), 0, "User should have received wantToken1");
-        //     assertGt(wantToken2.balanceOf(users[i]), 0, "User should have received wantToken2");
-        // }
-
-        // assertLt(wantToken1.balanceOf(SOLVER_OWNER), 1000e18, "Solver should have spent wantToken1");
-        // assertLt(wantToken2.balanceOf(SOLVER_OWNER), 1000e6, "Solver should have spent wantToken2");
+        //users should have received their assets
+        // user 1 should have received 0.5 WETH for 1 share
+        // user 2 should have received 0.8 WSTETH for 1 share
+        // user 3 should have received 1 wantToken1 for 1 share
+        // the total supply should went down 3 - balance change for solver owner
+        assertEq(WETH.balanceOf(users[0]) - wethUserBalancePre, request1.atomicPrice, "user 1 got an increase of WETH");
+        assertEq(
+            WSTETH.balanceOf(users[2]) - wstethBalancePre, request3.atomicPrice, "user 2 got an increase of WSTETH"
+        );
+        assertEq(
+            wantToken1.balanceOf(users[1]) - wantToken1BalancePre,
+            request2.atomicPrice,
+            "user 3 got an increase of wantToken1"
+        );
+        assertEq(
+            boringVaultPreSupply - boringVault.totalSupply(),
+            request1.offerAmount + request2.offerAmount + request3.offerAmount + solverBalancePreBoringVault
+                - solverBalancePostBoringVault,
+            "total supply should have decreased by the sum of the offer amounts minus the solver balance change"
+        );
     }
 
     function test_FinishSolve() public {
