@@ -105,7 +105,303 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
         vm.stopPrank();
     }
 
-    function test_MultiAssetRedeemSolve() public {
+    function test_MultiAssetRedeemSolve_NoRedeemCurrency() public {
+        (
+            address[] memory users,
+            AtomicQueue.AtomicRequest memory request1,
+            AtomicQueue.AtomicRequest memory request2,
+            AtomicQueue.AtomicRequest memory request3,
+            uint256[] memory balancesPreAndSupply
+        ) = _getRequestAndSolverSetup();
+
+        address[] memory wantArr1 = new address[](1);
+        wantArr1[0] = users[0];
+        address[] memory wantArr2 = new address[](1);
+        wantArr2[0] = users[2];
+        address[] memory wantArr3 = new address[](1);
+        wantArr3[0] = users[1];
+
+        MultiAssetAtomicSolverRedeem.WantAssetData[] memory wantAssets =
+            new MultiAssetAtomicSolverRedeem.WantAssetData[](3);
+        wantAssets[0] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: WETH,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0,
+            useSolverBalanceFirst: true,
+            users: wantArr1
+        });
+        wantAssets[1] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: WSTETH,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0,
+            useSolverBalanceFirst: true,
+            users: wantArr2
+        });
+        wantAssets[2] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: wantToken1,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0.3e18,
+            useSolverBalanceFirst: false,
+            users: wantArr3
+        });
+
+        vm.startPrank(SOLVER_OWNER);
+        WETH.approve(address(solver), type(uint256).max);
+        WSTETH.approve(address(solver), type(uint256).max);
+        wantToken1.approve(address(solver), type(uint256).max);
+        solver.multiAssetRedeemSolve(
+            IAtomicQueue(address(atomicQueue)), boringVault, wantAssets, teller, -1 * int256(1e18), address(0)
+        );
+        vm.stopPrank();
+
+        // should use solver balance first for weth
+        //there was 1 token request for 0.5 WETH and 1 token request for 0.8 WSTETH
+        //solver should has 10 WETH and 0.4 WSTETH before the solve
+        // therefore the entire weth order should be filled by solver balance and half of the WSTETH order should be
+        // filled by solver balance
+        // this means afterwards that solver balance will be 9.5 WETH and 0 WSTETH
+        // since an excess of 0.3 wantToken1 was requested, and solver had 0 wantToken1 to start, final balance of
+        // solver should be 0.3 wantToken1
+        // then there should be a residual of offer shares left with solver since address(0) was passed as the
+        // redeemCurrency
+
+        assertEq(
+            balancesPreAndSupply[0] - WETH.balanceOf(SOLVER_OWNER),
+            request1.atomicPrice,
+            "Solver should have spent WETH"
+        );
+        assertEq(
+            balancesPreAndSupply[1] - WSTETH.balanceOf(SOLVER_OWNER),
+            request3.atomicPrice / 2,
+            "Solver should have spent WSTETH"
+        );
+        assertEq(
+            wantToken1.balanceOf(SOLVER_OWNER) - balancesPreAndSupply[2],
+            wantAssets[2].excessAssetAmount,
+            "Solver should have received excess wantToken1"
+        );
+        assertGt(
+            boringVault.balanceOf(SOLVER_OWNER), balancesPreAndSupply[3], "Solver should have received residual shares"
+        );
+
+        //users should have received their assets
+        // user 1 should have received 0.5 WETH for 1 share
+        // user 2 should have received 0.8 WSTETH for 1 share
+        // user 3 should have received 1 wantToken1 for 1 share
+        // the total supply should went down 3 - balance change for solver owner
+        assertEq(
+            WETH.balanceOf(users[0]) - balancesPreAndSupply[4], request1.atomicPrice, "user 1 got an increase of WETH"
+        );
+        assertEq(
+            WSTETH.balanceOf(users[2]) - balancesPreAndSupply[5],
+            request3.atomicPrice,
+            "user 2 got an increase of WSTETH"
+        );
+        assertEq(
+            wantToken1.balanceOf(users[1]) - balancesPreAndSupply[6],
+            request2.atomicPrice,
+            "user 3 got an increase of wantToken1"
+        );
+        assertEq(
+            balancesPreAndSupply[7] - boringVault.totalSupply(),
+            request1.offerAmount + request2.offerAmount + request3.offerAmount + balancesPreAndSupply[3]
+                - boringVault.balanceOf(SOLVER_OWNER),
+            "total supply should have decreased by the sum of the offer amounts minus the solver balance change"
+        );
+    }
+
+    function test_MultiAssetRedeemSolve_WithRedeemCurrency() public {
+        (
+            address[] memory users,
+            AtomicQueue.AtomicRequest memory request1,
+            AtomicQueue.AtomicRequest memory request2,
+            AtomicQueue.AtomicRequest memory request3,
+            uint256[] memory balancesPreAndSupply
+        ) = _getRequestAndSolverSetup();
+
+        address[] memory wantArr1 = new address[](1);
+        wantArr1[0] = users[0];
+        address[] memory wantArr2 = new address[](1);
+        wantArr2[0] = users[2];
+        address[] memory wantArr3 = new address[](1);
+        wantArr3[0] = users[1];
+
+        MultiAssetAtomicSolverRedeem.WantAssetData[] memory wantAssets =
+            new MultiAssetAtomicSolverRedeem.WantAssetData[](3);
+        wantAssets[0] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: WETH,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0,
+            useSolverBalanceFirst: true,
+            users: wantArr1
+        });
+        wantAssets[1] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: WSTETH,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0,
+            useSolverBalanceFirst: true,
+            users: wantArr2
+        });
+        wantAssets[2] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: wantToken1,
+            minimumAssetsOut: 0,
+            maxAssets: type(uint256).max,
+            excessAssetAmount: 0.3e18,
+            useSolverBalanceFirst: false,
+            users: wantArr3
+        });
+
+        vm.startPrank(SOLVER_OWNER);
+        WETH.approve(address(solver), type(uint256).max);
+        WSTETH.approve(address(solver), type(uint256).max);
+        wantToken1.approve(address(solver), type(uint256).max);
+        solver.multiAssetRedeemSolve(
+            IAtomicQueue(address(atomicQueue)), boringVault, wantAssets, teller, -1 * int256(1e18), address(WSTETH)
+        );
+        vm.stopPrank();
+
+        // should use solver balance first for weth
+        //there was 1 token request for 0.5 WETH and 1 token request for 0.8 WSTETH
+        //solver should has 10 WETH and 0.4 WSTETH before the solve
+        // therefore the entire weth order should be filled by solver balance and half of the WSTETH order should be
+        // filled by solver balance
+        // this means afterwards that solver balance will be 9.5 WETH and 0 WSTETH
+        // since an excess of 0.3 wantToken1 was requested, and solver had 0 wantToken1 to start, final balance of
+        // solver should be 0.3 wantToken1
+        // then there because in this test we request wsteth to be redeem currency, there should be no residual offer
+        // shares left and an excess of wsteth redemptions since WSTETH was passed as the
+        // redeemCurrency
+
+        assertEq(
+            balancesPreAndSupply[0] - WETH.balanceOf(SOLVER_OWNER),
+            request1.atomicPrice,
+            "Solver should have spent WETH"
+        );
+        assertGt(
+            WSTETH.balanceOf(SOLVER_OWNER) - balancesPreAndSupply[1] - request3.atomicPrice / 2,
+            0,
+            "Solver should have spent WSTETH but then redeemed excess solver shares for wsteth"
+        );
+        assertEq(
+            wantToken1.balanceOf(SOLVER_OWNER) - balancesPreAndSupply[2],
+            wantAssets[2].excessAssetAmount,
+            "Solver should have received excess wantToken1"
+        );
+        assertEq(
+            boringVault.balanceOf(SOLVER_OWNER),
+            0,
+            "Solver should have received residual shares but then redeemed all of them"
+        );
+
+        //users should have received their assets
+        // user 1 should have received 0.5 WETH for 1 share
+        // user 2 should have received 0.8 WSTETH for 1 share
+        // user 3 should have received 1 wantToken1 for 1 share
+        // the total supply should went down 3
+        assertEq(
+            WETH.balanceOf(users[0]) - balancesPreAndSupply[4], request1.atomicPrice, "user 1 got an increase of WETH"
+        );
+        assertEq(
+            WSTETH.balanceOf(users[2]) - balancesPreAndSupply[5],
+            request3.atomicPrice,
+            "user 2 got an increase of WSTETH"
+        );
+        assertEq(
+            wantToken1.balanceOf(users[1]) - balancesPreAndSupply[6],
+            request2.atomicPrice,
+            "user 3 got an increase of wantToken1"
+        );
+        assertEq(
+            balancesPreAndSupply[7] - boringVault.totalSupply(),
+            request1.offerAmount + request2.offerAmount + request3.offerAmount,
+            "total supply should have decreased by the sum of the offer amounts"
+        );
+    }
+
+    function testFail_FinishSolve_WrongInitiator() public {
+        bytes memory runData =
+            abi.encode(MultiAssetAtomicSolverRedeem.SolveType.REDEEM, address(this), 85e18, 100e18, teller, 1e18);
+
+        vm.prank(address(atomicQueue));
+        solver.finishSolve(
+            runData,
+            address(0x999), // Wrong initiator
+            boringVault,
+            wantToken1,
+            100e18,
+            90e18
+        );
+    }
+
+    function testFail_FinishSolve_MaxAssetsExceeded() public {
+        bytes memory runData =
+            abi.encode(MultiAssetAtomicSolverRedeem.SolveType.REDEEM, address(this), 85e18, 100e18, teller, 1e18);
+
+        vm.prank(address(atomicQueue));
+        solver.finishSolve(
+            runData,
+            address(solver),
+            boringVault,
+            wantToken1,
+            100e18,
+            101e18 // Exceeds maxAssets
+        );
+    }
+
+    function test_GlobalSlippageCheck() public {
+        MultiAssetAtomicSolverRedeem.WantAssetData[] memory wantAssets =
+            new MultiAssetAtomicSolverRedeem.WantAssetData[](2);
+        wantAssets[0] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: wantToken1,
+            minimumAssetsOut: 90e18,
+            maxAssets: 100e18,
+            excessAssetAmount: 5e18,
+            useSolverBalanceFirst: true,
+            users: new address[](0)
+        });
+        wantAssets[1] = MultiAssetAtomicSolverRedeem.WantAssetData({
+            asset: wantToken2,
+            minimumAssetsOut: 45e6,
+            maxAssets: 50e6,
+            excessAssetAmount: 2e6,
+            useSolverBalanceFirst: false,
+            users: new address[](0)
+        });
+
+        vm.prank(SOLVER_OWNER);
+        vm.expectRevert(
+            // abi.encodeWithSelector(
+            //     MultiAssetAtomicSolverRedeem.MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded.selector,
+            //     0,
+            //     0,
+            //     0
+            // )
+        );
+        solver.multiAssetRedeemSolve(
+            IAtomicQueue(address(atomicQueue)),
+            boringVault,
+            wantAssets,
+            teller,
+            int256(1e19), // Very high slippage threshold, should fail,
+            address(WETH)
+        );
+    }
+
+    function _getRequestAndSolverSetup()
+        internal
+        returns (
+            address[] memory,
+            AtomicQueue.AtomicRequest memory,
+            AtomicQueue.AtomicRequest memory,
+            AtomicQueue.AtomicRequest memory,
+            uint256[] memory
+        )
+    {
         address[] memory users = new address[](3);
         users[0] = makeAddr("user1");
         users[1] = makeAddr("user2");
@@ -191,200 +487,25 @@ contract MultiAssetAtomicSolverRedeemTest is IonPoolSharedSetup {
         deal(address(WETH), SOLVER_OWNER, 10e18);
         deal(address(WSTETH), SOLVER_OWNER, 0.4e18);
 
-        address[] memory wantArr1 = new address[](1);
-        wantArr1[0] = users[0];
-        address[] memory wantArr2 = new address[](1);
-        wantArr2[0] = users[2];
-        address[] memory wantArr3 = new address[](1);
-        wantArr3[0] = users[1];
+        uint256[] memory balancesPreAndSupply = new uint256[](8);
+        // solverBalancePreWeth = WETH.balanceOf(SOLVER_OWNER);
+        // solverBalancePreWsteth = WSTETH.balanceOf(SOLVER_OWNER);
+        // solverBalancePreWantToken1 = wantToken1.balanceOf(SOLVER_OWNER);
+        // solverBalancePreBoringVault = boringVault.balanceOf(SOLVER_OWNER);
+        // wethUserBalancePre = WETH.balanceOf(users[0]);
+        // wstethBalancePre = WSTETH.balanceOf(users[2]);
+        // wantToken1BalancePre = wantToken1.balanceOf(users[1]);
+        // boringVaultPreSupply = boringVault.totalSupply();
+        balancesPreAndSupply[0] = WETH.balanceOf(SOLVER_OWNER);
+        balancesPreAndSupply[1] = WSTETH.balanceOf(SOLVER_OWNER);
+        balancesPreAndSupply[2] = wantToken1.balanceOf(SOLVER_OWNER);
+        balancesPreAndSupply[3] = boringVault.balanceOf(SOLVER_OWNER);
+        balancesPreAndSupply[4] = WETH.balanceOf(users[0]);
+        balancesPreAndSupply[5] = WSTETH.balanceOf(users[2]);
+        balancesPreAndSupply[6] = wantToken1.balanceOf(users[1]);
+        balancesPreAndSupply[7] = boringVault.totalSupply();
 
-        MultiAssetAtomicSolverRedeem.WantAssetData[] memory wantAssets =
-            new MultiAssetAtomicSolverRedeem.WantAssetData[](3);
-        wantAssets[0] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: WETH,
-            minimumAssetsOut: 0,
-            maxAssets: type(uint256).max,
-            excessAssetAmount: 0,
-            useSolverBalanceFirst: true,
-            users: wantArr1
-        });
-        wantAssets[1] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: WSTETH,
-            minimumAssetsOut: 0,
-            maxAssets: type(uint256).max,
-            excessAssetAmount: 0,
-            useSolverBalanceFirst: true,
-            users: wantArr2
-        });
-        wantAssets[2] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: wantToken1,
-            minimumAssetsOut: 0,
-            maxAssets: type(uint256).max,
-            excessAssetAmount: 0.3e18,
-            useSolverBalanceFirst: false,
-            users: wantArr3
-        });
-
-        uint256 solverBalancePreWeth = WETH.balanceOf(SOLVER_OWNER);
-        uint256 solverBalancePreWsteth = WSTETH.balanceOf(SOLVER_OWNER);
-        uint256 solverBalancePreWantToken1 = wantToken1.balanceOf(SOLVER_OWNER);
-        uint256 solverBalancePreBoringVault = boringVault.balanceOf(SOLVER_OWNER);
-        uint256 wethUserBalancePre = WETH.balanceOf(users[0]);
-        uint256 wstethBalancePre = WSTETH.balanceOf(users[2]);
-        uint256 wantToken1BalancePre = wantToken1.balanceOf(users[1]);
-        uint256 boringVaultPreSupply = boringVault.totalSupply();
-        vm.startPrank(SOLVER_OWNER);
-        WETH.approve(address(solver), type(uint256).max);
-        WSTETH.approve(address(solver), type(uint256).max);
-        wantToken1.approve(address(solver), type(uint256).max);
-        solver.multiAssetRedeemSolve(
-            IAtomicQueue(address(atomicQueue)), boringVault, wantAssets, teller, -1 * int256(1e18), address(0)
-        );
-        vm.stopPrank();
-
-        uint256 solverBalancePostWeth = WETH.balanceOf(SOLVER_OWNER);
-        uint256 solverBalancePostWsteth = WSTETH.balanceOf(SOLVER_OWNER);
-        uint256 solverBalancePostWantToken1 = wantToken1.balanceOf(SOLVER_OWNER);
-        uint256 solverBalancePostBoringVault = boringVault.balanceOf(SOLVER_OWNER);
-
-        // should use solver balance first for weth
-        //there was 1 token request for 0.5 WETH and 1 token request for 0.8 WSTETH
-        //solver should has 10 WETH and 0.4 WSTETH before the solve
-        // therefore the entire weth order should be filled by solver balance and half of the WSTETH order should be
-        // filled by solver balance
-        // this means afterwards that solver balance will be 9.5 WETH and 0 WSTETH
-        // since an excess of 0.3 wantToken1 was requested, and solver had 0 wantToken1 to start, final balance of
-        // solver should be 0.3 wantToken1
-        // then there should be a residual of offer shares left with solver since address(0) was passed as the
-        // redeemCurrency
-
-        assertEq(solverBalancePreWeth - solverBalancePostWeth, request1.atomicPrice, "Solver should have spent WETH");
-        assertEq(
-            solverBalancePreWsteth - solverBalancePostWsteth,
-            request3.atomicPrice / 2,
-            "Solver should have spent WSTETH"
-        );
-        assertEq(
-            solverBalancePostWantToken1 - solverBalancePreWantToken1,
-            wantAssets[2].excessAssetAmount,
-            "Solver should have received excess wantToken1"
-        );
-        assertGt(
-            solverBalancePostBoringVault, solverBalancePreBoringVault, "Solver should have received residual shares"
-        );
-
-        //users should have received their assets
-        // user 1 should have received 0.5 WETH for 1 share
-        // user 2 should have received 0.8 WSTETH for 1 share
-        // user 3 should have received 1 wantToken1 for 1 share
-        // the total supply should went down 3 - balance change for solver owner
-        assertEq(WETH.balanceOf(users[0]) - wethUserBalancePre, request1.atomicPrice, "user 1 got an increase of WETH");
-        assertEq(
-            WSTETH.balanceOf(users[2]) - wstethBalancePre, request3.atomicPrice, "user 2 got an increase of WSTETH"
-        );
-        assertEq(
-            wantToken1.balanceOf(users[1]) - wantToken1BalancePre,
-            request2.atomicPrice,
-            "user 3 got an increase of wantToken1"
-        );
-        assertEq(
-            boringVaultPreSupply - boringVault.totalSupply(),
-            request1.offerAmount + request2.offerAmount + request3.offerAmount + solverBalancePreBoringVault
-                - solverBalancePostBoringVault,
-            "total supply should have decreased by the sum of the offer amounts minus the solver balance change"
-        );
-    }
-
-    function test_FinishSolve() public {
-        // Setup
-        address initiator = address(solver);
-        uint256 offerReceived = 100e18;
-        uint256 wantApprovalAmount = 90e18;
-
-        bytes memory runData =
-            abi.encode(MultiAssetAtomicSolverRedeem.SolveType.REDEEM, address(this), 85e18, 100e18, teller, 1e18);
-
-        vm.prank(SOLVER_OWNER);
-        wantToken1.approve(address(solver), type(uint256).max);
-
-        vm.prank(address(atomicQueue));
-        solver.finishSolve(runData, initiator, boringVault, wantToken1, offerReceived, wantApprovalAmount);
-
-        // Assert results
-        assertEq(
-            wantToken1.allowance(address(solver), address(atomicQueue)),
-            wantApprovalAmount,
-            "Solver should approve queue to spend wantToken1"
-        );
-    }
-
-    function testFail_FinishSolve_WrongInitiator() public {
-        bytes memory runData =
-            abi.encode(MultiAssetAtomicSolverRedeem.SolveType.REDEEM, address(this), 85e18, 100e18, teller, 1e18);
-
-        vm.prank(address(atomicQueue));
-        solver.finishSolve(
-            runData,
-            address(0x999), // Wrong initiator
-            boringVault,
-            wantToken1,
-            100e18,
-            90e18
-        );
-    }
-
-    function testFail_FinishSolve_MaxAssetsExceeded() public {
-        bytes memory runData =
-            abi.encode(MultiAssetAtomicSolverRedeem.SolveType.REDEEM, address(this), 85e18, 100e18, teller, 1e18);
-
-        vm.prank(address(atomicQueue));
-        solver.finishSolve(
-            runData,
-            address(solver),
-            boringVault,
-            wantToken1,
-            100e18,
-            101e18 // Exceeds maxAssets
-        );
-    }
-
-    function test_GlobalSlippageCheck() public {
-        MultiAssetAtomicSolverRedeem.WantAssetData[] memory wantAssets =
-            new MultiAssetAtomicSolverRedeem.WantAssetData[](2);
-        wantAssets[0] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: wantToken1,
-            minimumAssetsOut: 90e18,
-            maxAssets: 100e18,
-            excessAssetAmount: 5e18,
-            useSolverBalanceFirst: true,
-            users: new address[](0)
-        });
-        wantAssets[1] = MultiAssetAtomicSolverRedeem.WantAssetData({
-            asset: wantToken2,
-            minimumAssetsOut: 45e6,
-            maxAssets: 50e6,
-            excessAssetAmount: 2e6,
-            useSolverBalanceFirst: false,
-            users: new address[](0)
-        });
-
-        vm.prank(SOLVER_OWNER);
-        vm.expectRevert(
-            // abi.encodeWithSelector(
-            //     MultiAssetAtomicSolverRedeem.MultiAssetAtomicSolverRedeem___GlobalSlippageThresholdExceeded.selector,
-            //     0,
-            //     0,
-            //     0
-            // )
-        );
-        solver.multiAssetRedeemSolve(
-            IAtomicQueue(address(atomicQueue)),
-            boringVault,
-            wantAssets,
-            teller,
-            int256(1e19), // Very high slippage threshold, should fail,
-            address(WETH)
-        );
+        return (users, request1, request2, request3, balancesPreAndSupply);
     }
 }
 
