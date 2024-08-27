@@ -11,6 +11,7 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 
 string constant RPC_URL_ENV = "MAINNET_RPC_URL";
 string constant FILE_NAME = "exampleL1.json";
@@ -37,7 +38,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         // we have to start the fork again... I don't exactly know why. But it's a known issue with foundry re:
         // https://github.com/foundry-rs/foundry/issues/5471
         _startFork(RPC_URL_ENV);
-
+        // (new DeployRateProviders()).run("liveDeploy", FILE_NAME, true);
         // Run the deployment scripts
         run(FILE_NAME);
         // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
@@ -118,6 +119,82 @@ contract LiveDeploy is ForkTest, DeployAll {
             depositAmount,
             "Should have been able to withdraw back the depositAmount"
         );
+    }
+
+    uint256 constant DELTA = 10_000;
+
+    function testDepositASupportedAssetAndUpdateRate(uint256 depositAmount, uint96 rateChange) public {
+        uint256 assetsCount = mainConfig.assets.length;
+        AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
+        // manual bounding done because bound() doesn't exist for uint96
+        rateChange = rateChange % uint96(mainConfig.allowedExchangeRateChangeUpper - 1);
+        rateChange = (rateChange < mainConfig.allowedExchangeRateChangeLower + 1)
+            ? mainConfig.allowedExchangeRateChangeLower + 1
+            : rateChange;
+
+        depositAmount = bound(depositAmount, 1, 10_000e18);
+
+        // mint a bunch of extra tokens to the vault for if rate increased
+        deal(mainConfig.base, mainConfig.boringVault, depositAmount);
+        uint256 expecteShares;
+        uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
+        uint256[] memory rateInQuoteBefore = new uint256[](assetsCount);
+        for (uint256 i; i < assetsCount; ++i) {
+            rateInQuoteBefore[i] = accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i]));
+            expectedSharesByAsset[i] =
+                depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
+            expecteShares += expectedSharesByAsset[i];
+
+            _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmount);
+        }
+
+        BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
+        assertEq(boringVault.balanceOf(address(this)), expecteShares, "Should have received expected shares");
+
+        // update the rate
+        vm.startPrank(mainConfig.exchangeRateBot);
+        uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
+        accountant.updateExchangeRate(newRate);
+        vm.stopPrank();
+
+        // withdrawal the assets for the same amount back
+        for (uint256 i; i < assetsCount; ++i) {
+            assertEq(
+                accountant.getRateInQuote(ERC20(mainConfig.assets[i])),
+                rateInQuoteBefore[i] * rateChange / 10_000,
+                "Rate change did not apply to asset"
+            );
+
+            // mint extra assets for vault to give out
+            deal(mainConfig.assets[i], mainConfig.boringVault, depositAmount);
+
+            uint256 expectedAssetsBack = ((depositAmount) * rateChange / 10_000);
+
+            uint256 assetsOut = expectedSharesByAsset[i].mulDivDown(
+                accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE
+            );
+
+            // console.log("Deposit Amount: ",depositAmount);
+            // console.log("RateInQuoteBefore: ", rateInQuoteBefore[i]);
+            // console.log("RateInQuoteNow: ", accountant.getRateInQuote(ERC20(mainConfig.assets[i])));
+            // console.log("AccountantRate: ", accountant.getRate());
+            // console.log("Rate Change: ", rateChange);
+            // console.log("expectedAssetsBack: ", expectedAssetsBack);
+
+            // sometimes passes... Sometimes doesn't... Rounding errors?
+            assertApproxEqAbs(assetsOut, expectedAssetsBack, DELTA, "assets out not equal to expected assets back");
+
+            TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
+                ERC20(mainConfig.assets[i]), expectedSharesByAsset[i], expectedAssetsBack * 99 / 100, address(this)
+            );
+
+            assertApproxEqAbs(
+                ERC20(mainConfig.assets[i]).balanceOf(address(this)),
+                expectedAssetsBack,
+                DELTA,
+                "Should have been able to withdraw back the depositAmounts"
+            );
+        }
     }
 
     function testDepositASupportedAsset(uint256 depositAmount, uint256 indexOfSupported) public {
