@@ -39,6 +39,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     AtomicSolverV3 public atomicSolverV3;
 
     address public solver = vm.addr(54);
+    uint256 ONE_SHARE;
 
     function setUp() external {
         // Setup forked environment.
@@ -47,6 +48,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
+        ONE_SHARE = 10 ** boringVault.decimals();
 
         accountant = new AccountantWithRateProviders(
             address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
@@ -106,6 +108,36 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         accountant.setRateProviderData(EETH, true, address(0));
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
+    }
+
+    function testMath(uint depositAmount, uint rateChange) external{
+        depositAmount = bound(depositAmount, 1, 1_000_000_000e18);
+        rateChange = bound(rateChange, 9998, 10002);
+        // make sure starting rate is not 1
+        uint startRateWEETH = accountant.getRate();
+        assertNotEq(startRateWEETH, 1, "Start Rate for WEETH is 0");
+
+        // get the expected assets back after rate change
+        uint256 expectedAssetsBack = ((depositAmount).mulDivDown(rateChange, 10_000));
+        // get the shares back when depositing before rate change
+        uint depositShares = depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(WEETH)));
+
+        // change the rate
+        uint96 newRate = uint96(accountant.getRate().mulDivDown(uint96(rateChange), 10_000));
+        vm.warp(1 days + block.timestamp);
+        accountant.updateExchangeRate(newRate);
+
+        // calculate the assets out at the new rate
+        uint256 assetsOut = depositShares.mulDivDown(
+            accountant.getRateInQuoteSafe(ERC20(WEETH)), (ONE_SHARE)
+        );
+
+        // print if the expected > out and assert they're the same
+        console.log("expectedAssetsBack > realAssetsOut: ", expectedAssetsBack > assetsOut);
+        console.log("expectedAssetsBack: ", expectedAssetsBack);
+        console.log("assetsOut: ", assetsOut);
+        assertTrue(expectedAssetsBack >= assetsOut, "BIG PROBLEM, not in protocol's favor");
+        // assertApproxEqAbs(expectedAssetsBack, assetsOut, 1, "deposit * rateChange != depositAmount with getRateInQuoteSafe math");
     }
 
     function testDepositReverting(uint256 amount) external {

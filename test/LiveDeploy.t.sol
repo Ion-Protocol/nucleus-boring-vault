@@ -13,8 +13,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 
-string constant RPC_URL_ENV = "MAINNET_RPC_URL";
-string constant FILE_NAME = "exampleL1.json";
+string constant RPC_URL_ENV = "USING_FORK_FLAG";
 
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
 abstract contract ForkTest is Test {
@@ -23,8 +22,8 @@ abstract contract ForkTest is Test {
     }
 
     function _startFork(string memory rpcKey) internal virtual returns (uint256 forkId) {
-        forkId = vm.createFork(vm.envString(rpcKey));
-        vm.selectFork(forkId);
+        // forkId = vm.createFork(vm.envString(rpcKey));
+        // vm.selectFork(forkId);
     }
 }
 
@@ -40,6 +39,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         _startFork(RPC_URL_ENV);
         // (new DeployRateProviders()).run("liveDeploy", FILE_NAME, true);
         // Run the deployment scripts
+        string memory FILE_NAME = vm.envString("LIVE_DEPLOY_READ_FILE_NAME");
         run(FILE_NAME);
         // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
         vm.warp(block.timestamp + mainConfig.minimumUpdateDelayInSeconds);
