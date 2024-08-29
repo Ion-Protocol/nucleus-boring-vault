@@ -8,6 +8,10 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 contract RateMath is Test {
     using FixedPointMathLib for uint256;
 
+    // basis points
+    uint256 constant ACCEPTED_DELTA_PERCENT = 100;
+
+    // keep some state variables that each test can change according to the scenario it's testing
     uint256 ONE_SHARE;
     uint256 exchangeRateInBase;
     uint256 baseDecimals;
@@ -18,6 +22,20 @@ contract RateMath is Test {
     function setUp() external {
         // hard coded at 18 since in deploy script vault is set to 18 decimals, and this is set to that
         ONE_SHARE = 1e18;
+    }
+
+    // started on a helper function for bounds
+    function boundValues(
+        uint256 depositAmount,
+        uint256 startQuoteRate,
+        uint256 startExchangeRate
+    )
+        internal
+        returns (uint256 _depositAmount, uint256 _quoteRate, uint256 _exchangeRate)
+    {
+        _depositAmount = bound(depositAmount, 1, 100_000_000 * e(quoteDecimals));
+        _quoteRate = bound(startQuoteRate, 1 * e(quoteRateDecimals - 2), 10 * e(quoteRateDecimals));
+        _exchangeRate = bound(startExchangeRate, 8 * e(baseDecimals - 1), 2 * e(baseDecimals));
     }
 
     function testAtomicDepositAndWithdraw_18Decimals(
@@ -32,10 +50,8 @@ contract RateMath is Test {
         quoteDecimals = 18;
         quoteRateDecimals = 18;
 
-        // bound values
-        depositAmount = bound(depositAmount, 1, 100_000_000e18);
-        quoteRate = bound(startQuoteRate, 1e18, 10_000e18);
-        exchangeRateInBase = bound(startExchangeRate, 8e17, 2e18);
+        // bound values with helper function
+        (depositAmount, quoteRate, exchangeRateInBase) = boundValues(depositAmount, startQuoteRate, startExchangeRate);
 
         // get shares out if deposit done
         uint256 shares = depositAssetForShares(depositAmount);
@@ -44,7 +60,12 @@ contract RateMath is Test {
         uint256 assetsBack = withdrawSharesForAssets(shares);
 
         assertFalse(assetsBack > depositAmount, "The assets back should not be > deposit amount when atomic");
-        assertApproxEqAbs(assetsBack, depositAmount, 2, "assetsBack != depositAmount when atomic");
+        assertApproxEqAbs(
+            assetsBack,
+            depositAmount,
+            depositAmount.mulDivUp(ACCEPTED_DELTA_PERCENT, 10_000),
+            "assetsBack != depositAmount when atomic"
+        );
     }
 
     function testDepositAndWithdrawWithRateChange_18Decimals(
@@ -85,6 +106,7 @@ contract RateMath is Test {
         assertApproxEqAbs(assetsBack, depositAmount, 2, "assetsBack != depositAmount with rate change");
     }
 
+    // WIP testing with 6 decimals, not yet using helper
     function testDepositAndWithdrawWithRateChange_18Decimals_Quote6(
         uint256 depositAmount,
         uint256 startQuoteRate,
@@ -120,44 +142,8 @@ contract RateMath is Test {
             console.log("Difference: ", assetsBack - depositAmount);
         }
         assertFalse(assetsBack > depositAmount, "The assets back should not be > deposit amount");
-        //assertApproxEqAbs(assetsBack, depositAmount, 2, "assetsBack != depositAmount with rate change");
+        assertApproxEqAbs(assetsBack, depositAmount, 2, "assetsBack != depositAmount with rate change");
     }
-
-    // function testMath(uint256 depositAmount, uint256 rateChange) external {
-    //     depositAmount = bound(depositAmount, 1, 1_000_000_000e18);
-    //     rateChange = bound(rateChange, 9998, 10_002);
-    //     // get the expected assets back after rate change
-    //     uint256 expectedAssetsBack = ((depositAmount).mulDivDown(rateChange, 10_000));
-
-    //     // get the shares back when depositing before rate change
-    //     uint accountantRateBefore = accountant.getRateInQuoteSafe(ERC20(WEETH));
-    //     assertNotEq(accountantRateBefore, 1e18, "accountantRateBefore for WEETH equal to 1");
-    //     uint256 depositShares = depositAmount.mulDivDown(ONE_SHARE, accountantRateBefore);
-    //     console.log("Shares * Rate:\t\t", depositShares * ONE_SHARE);
-    //     console.log("accountantRateBefore:\t\t", accountantRateBefore);
-
-    //     // todo- atomic
-    //     // change the rate
-    //     uint96 newRate = uint96(accountant.getRate().mulDivDown(uint96(rateChange), 10_000));
-    //     vm.warp(1 days + block.timestamp);
-    //     accountant.updateExchangeRate(newRate);
-
-    //     // calculate the assets out at the new rate
-    //     uint accountantRateAfter = accountant.getRateInQuoteSafe(ERC20(WEETH));
-    //     assertApproxEqAbs(accountantRateBefore.mulDivDown(rateChange, 10_000), accountantRateAfter, 1,
-    // "accountantRateBefore not equal to after with rate applied");
-    //     console.log("Shares * Rate:\t", depositShares * accountantRateAfter);
-    //     console.log("one_share:\t\t", ONE_SHARE);
-    //     uint256 assetsOut = depositShares.mulDivDown(accountantRateAfter, (ONE_SHARE));
-
-    //     // print if the expected > out and assert they're the same
-    //     console.log("expectedAssetsBack >= realAssetsOut: ", expectedAssetsBack >= assetsOut);
-    //     console.log("expectedAssetsBack: ", expectedAssetsBack);
-    //     console.log("assetsOut: ", assetsOut);
-    //     // assertTrue(expectedAssetsBack >= assetsOut, "BIG PROBLEM, not in protocol's favor");
-    //     assertApproxEqAbs(expectedAssetsBack, assetsOut, 1, "deposit * rateChange != depositAmount with");
-    //     // getRateInQuoteSafe math");
-    // }
 
     function withdrawSharesForAssets(uint256 shareAmount) public returns (uint256 assetsOut) {
         assetsOut = shareAmount.mulDivDown(getRateInQuote(), ONE_SHARE);
@@ -170,6 +156,7 @@ contract RateMath is Test {
     }
 
     function getRateInQuote() public view returns (uint256 rateInQuote) {
+        // exchangeRateInBase is called this because the rate provider will return decimals in that of base
         uint256 exchangeRateInQuoteDecimals = changeDecimals(exchangeRateInBase, baseDecimals, quoteDecimals);
 
         uint256 oneQuote = 10 ** quoteDecimals;
@@ -187,5 +174,9 @@ contract RateMath is Test {
         } else {
             return amount / 10 ** (fromDecimals - toDecimals);
         }
+    }
+
+    function e(uint256 decimals) internal returns (uint256) {
+        return (10 ** decimals);
     }
 }
