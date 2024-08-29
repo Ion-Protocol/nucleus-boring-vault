@@ -13,7 +13,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { StdJson } from "@forge-std/StdJson.sol";
+import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 import { CrossChainOPTellerWithMultiAssetSupportTest } from
     "test/CrossChain/CrossChainOPTellerWithMultiAssetSupport.t.sol";
