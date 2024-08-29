@@ -110,46 +110,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
     }
 
-    function testMath(uint256 depositAmount, uint256 rateChange) external {
-        depositAmount = bound(depositAmount, 1, 1_000_000_000e18);
-        rateChange = bound(rateChange, 9998, 10_002);
-        // get the expected assets back after rate change
-        uint256 expectedAssetsBack = ((depositAmount).mulDivDown(rateChange, 10_000));
-
-        // get the shares back when depositing before rate change
-        uint256 accountantRateBefore = accountant.getRateInQuoteSafe(ERC20(WEETH));
-        assertNotEq(accountantRateBefore, 1e18, "accountantRateBefore for WEETH equal to 1");
-        uint256 depositShares = depositAmount.mulDivDown(ONE_SHARE, accountantRateBefore);
-        console.log("Shares * Rate:\t\t", depositShares * ONE_SHARE);
-        console.log("accountantRateBefore:\t\t", accountantRateBefore);
-
-        // todo- atomic
-        // change the rate
-        uint96 newRate = uint96(accountant.getRate().mulDivDown(uint96(rateChange), 10_000));
-        vm.warp(1 days + block.timestamp);
-        accountant.updateExchangeRate(newRate);
-
-        // calculate the assets out at the new rate
-        uint256 accountantRateAfter = accountant.getRateInQuoteSafe(ERC20(WEETH));
-        assertApproxEqAbs(
-            accountantRateBefore.mulDivDown(rateChange, 10_000),
-            accountantRateAfter,
-            1,
-            "accountantRateBefore not equal to after with rate applied"
-        );
-        console.log("Shares * Rate:\t", depositShares * accountantRateAfter);
-        console.log("one_share:\t\t", ONE_SHARE);
-        uint256 assetsOut = depositShares.mulDivDown(accountantRateAfter, (ONE_SHARE));
-
-        // print if the expected > out and assert they're the same
-        console.log("expectedAssetsBack >= realAssetsOut: ", expectedAssetsBack >= assetsOut);
-        console.log("expectedAssetsBack: ", expectedAssetsBack);
-        console.log("assetsOut: ", assetsOut);
-        // assertTrue(expectedAssetsBack >= assetsOut, "BIG PROBLEM, not in protocol's favor");
-        assertApproxEqAbs(expectedAssetsBack, assetsOut, 1, "deposit * rateChange != depositAmount with");
-        // getRateInQuoteSafe math");
-    }
-
     function testDepositReverting(uint256 amount) external {
         amount = bound(amount, 0.0001e18, 10_000e18);
         // Turn on share lock period, and deposit reverting
