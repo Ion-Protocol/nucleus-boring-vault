@@ -50,12 +50,6 @@ contract DeployAll is BaseScript {
 
     ConfigReader.Config mainConfig;
 
-    function run() public {
-        mainConfig = getConfig();
-
-        deploy(mainConfig);
-    }
-
     function run(string memory deployFile) public {
         deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
     }

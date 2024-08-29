@@ -12,6 +12,8 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { StdJson } from "@forge-std/StdJson.sol";
 
 import { CrossChainOPTellerWithMultiAssetSupportTest } from
     "test/CrossChain/CrossChainOPTellerWithMultiAssetSupport.t.sol";
@@ -26,6 +28,8 @@ string constant DEFAULT_RPC_URL = "L1_RPC_URL";
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
 abstract contract ForkTest is Test {
     constructor() {
+        // the start fork must be done before the constructor in the Base.s.sol, as it attempts to access an onchain
+        // asset, CREATEX
         _startFork(DEFAULT_RPC_URL);
     }
 
@@ -38,6 +42,8 @@ abstract contract ForkTest is Test {
 }
 
 contract LiveDeploy is ForkTest, DeployAll {
+    using Strings for address;
+    using StdJson for string;
     using FixedPointMathLib for uint256;
 
     ERC20 constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
@@ -46,19 +52,43 @@ contract LiveDeploy is ForkTest, DeployAll {
 
     function setUp() public virtual {
         string memory FILE_NAME;
+
+        // 31_337 is default if this script is ran with no --fork-url= CLI flag
+        // when using the Makefile we use this flag to simplify use of the makefile
+        // however, the script should still have a default configuration for fork and FILE_NAME
         if (block.chainid == 31_337) {
+            // default file is exampleL1
             FILE_NAME = "exampleL1.json";
+
+            // we have to start the fork again... I don't exactly know why. But it's a known issue with foundry re:
+            // https://github.com/foundry-rs/foundry/issues/5471
+            _startFork(DEFAULT_RPC_URL);
         } else {
+            // Otherwise we use the makefile provided deployment file ENV name
             FILE_NAME = vm.envString("LIVE_DEPLOY_READ_FILE_NAME");
         }
 
-        // we have to start the fork again... I don't exactly know why. But it's a known issue with foundry re:
-        // https://github.com/foundry-rs/foundry/issues/5471
-        _startFork(DEFAULT_RPC_URL);
-        // (new DeployRateProviders()).run("liveDeploy", FILE_NAME, true);
+        // todo - include deploying rate providers IF not already deployed on this chain
+        // (new DeployRateProviders()).run("liveDeploy.json", FILE_NAME, true);
+
         // Run the deployment scripts
 
         run(FILE_NAME);
+
+        // check for if all rate providers are deployed, if not error
+        for (uint256 i; i < mainConfig.assets.length; ++i) {
+            // set the corresponding rate provider
+            string memory key = string(
+                abi.encodePacked(
+                    ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
+                )
+            );
+
+            address rateProvider = getChainConfigFile().readAddress(key);
+            assertNotEq(rateProvider, address(0), "Rate provider address is 0");
+            assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+        }
+
         // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
         vm.warp(block.timestamp + mainConfig.minimumUpdateDelayInSeconds);
 
@@ -84,22 +114,22 @@ contract LiveDeploy is ForkTest, DeployAll {
         } else { }
     }
 
-    function testDepositBaseAssetAndUpdateRate(uint256 depositAmount, uint96 rateChange) public {
+    function testDepositBaseAssetAndUpdateRate(uint256 depositAmount, uint256 rateChange256) public {
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
-        // manual bounding done because bound() doesn't exist for uint96
-        rateChange = rateChange % uint96(mainConfig.allowedExchangeRateChangeUpper - 1);
-        rateChange = (rateChange < mainConfig.allowedExchangeRateChangeLower + 1)
-            ? mainConfig.allowedExchangeRateChangeLower + 1
-            : rateChange;
+        // bound and cast since bound does not support uint96
+        uint96 rateChange = uint96(
+            bound(rateChange256, mainConfig.allowedExchangeRateChangeLower, mainConfig.allowedExchangeRateChangeUpper)
+        );
+
+        depositAmount = bound(depositAmount, 1, 10_000e18);
 
         // mint a bunch of extra tokens to the vault for if rate increased
         deal(mainConfig.base, mainConfig.boringVault, depositAmount);
 
-        depositAmount = bound(depositAmount, 1, 10_000e18);
-
         _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
         uint256 expected_shares = depositAmount;
+
         assertEq(
             boringVault.balanceOf(address(this)),
             expected_shares,
@@ -107,10 +137,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         );
 
         // update the rate
-        vm.startPrank(mainConfig.exchangeRateBot);
-        uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
-        accountant.updateExchangeRate(newRate);
-        vm.stopPrank();
+        _updateRate(rateChange, accountant);
 
         uint256 expectedAssetsBack = depositAmount * rateChange / 10_000;
 
@@ -122,6 +149,35 @@ contract LiveDeploy is ForkTest, DeployAll {
             ERC20(mainConfig.base).balanceOf(address(this)),
             expectedAssetsBack,
             "Should have been able to withdraw back the depositAmount with rate factored"
+        );
+    }
+
+    function testDepositBaseAssetOnStartingRate(uint256 depositAmount, uint256 rateChange256) public {
+        AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
+
+        // bound and cast since bound does not support uint96
+        uint96 rateChange = uint96(
+            bound(rateChange256, mainConfig.allowedExchangeRateChangeLower, mainConfig.allowedExchangeRateChangeUpper)
+        );
+        depositAmount = bound(depositAmount, 2, 10_000e18);
+
+        // update the rate
+        _updateRate(rateChange, accountant);
+        _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
+
+        BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
+        uint256 sharesOut = boringVault.balanceOf(address(this));
+
+        // attempt a withdrawal after
+        TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
+            ERC20(mainConfig.base), sharesOut, depositAmount - 2, address(this)
+        );
+
+        assertApproxEqAbs(
+            ERC20(mainConfig.base).balanceOf(address(this)),
+            depositAmount,
+            2,
+            "Should have been able to withdraw back the depositAmount"
         );
     }
 
@@ -179,10 +235,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         assertEq(boringVault.balanceOf(address(this)), expecteShares, "Should have received expected shares");
 
         // update the rate
-        vm.startPrank(mainConfig.exchangeRateBot);
-        uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
-        accountant.updateExchangeRate(newRate);
-        vm.stopPrank();
+        _updateRate(rateChange, accountant);
 
         // withdrawal the assets for the same amount back
         for (uint256 i; i < assetsCount; ++i) {
@@ -202,14 +255,7 @@ contract LiveDeploy is ForkTest, DeployAll {
                 accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE
             );
 
-            // console.log("Deposit Amount: ",depositAmount);
-            // console.log("RateInQuoteBefore: ", rateInQuoteBefore[i]);
-            // console.log("RateInQuoteNow: ", accountant.getRateInQuote(ERC20(mainConfig.assets[i])));
-            // console.log("AccountantRate: ", accountant.getRate());
-            // console.log("Rate Change: ", rateChange);
-            // console.log("expectedAssetsBack: ", expectedAssetsBack);
-
-            // sometimes passes... Sometimes doesn't... Rounding errors?
+            // Delta must be set very high to pass
             assertApproxEqAbs(assetsOut, expectedAssetsBack, DELTA, "assets out not equal to expected assets back");
 
             TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
@@ -261,7 +307,7 @@ contract LiveDeploy is ForkTest, DeployAll {
     function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount) internal {
         deal(address(asset), address(this), depositAmount);
         asset.approve(mainConfig.boringVault, depositAmount);
-        TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, depositAmount);
+        TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, 0);
     }
 
     function _testLZDepositAndBridge(ERC20 asset, uint256 amount) internal {
@@ -344,8 +390,6 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         uint256 wethBefore = asset.balanceOf(address(boringVault));
 
-        // vm.expectEmit();
-        // emit CrossChainOPTellerWithMultiAssetSupportTest.SentMessageExtension1(address(sourceTeller), 0);
         sourceTeller.depositAndBridge{ value: quote }(asset, amount, shares, data);
 
         assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
@@ -355,5 +399,13 @@ contract LiveDeploy is ForkTest, DeployAll {
 
     function addressToBytes32(address _addr) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(_addr)));
+    }
+
+    function _updateRate(uint96 rateChange, AccountantWithRateProviders accountant) internal {
+        // update the rate
+        vm.startPrank(mainConfig.exchangeRateBot);
+        uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
+        accountant.updateExchangeRate(newRate);
+        vm.stopPrank();
     }
 }
