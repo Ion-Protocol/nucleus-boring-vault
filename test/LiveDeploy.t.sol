@@ -21,17 +21,19 @@ import { CrossChainOPTellerWithMultiAssetSupport } from
 import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 
-string constant RPC_URL_ENV = "USING_FORK_FLAG";
+string constant DEFAULT_RPC_URL = "L1_RPC_URL";
 
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
 abstract contract ForkTest is Test {
     constructor() {
-        _startFork(RPC_URL_ENV);
+        _startFork(DEFAULT_RPC_URL);
     }
 
     function _startFork(string memory rpcKey) internal virtual returns (uint256 forkId) {
-        // forkId = vm.createFork(vm.envString(rpcKey));
-        // vm.selectFork(forkId);
+        if (block.chainid == 31_337) {
+            forkId = vm.createFork(vm.envString(rpcKey));
+            vm.selectFork(forkId);
+        }
     }
 }
 
@@ -43,12 +45,19 @@ contract LiveDeploy is ForkTest, DeployAll {
     uint8 constant SOLVER_ROLE = 42;
 
     function setUp() public virtual {
+        string memory FILE_NAME;
+        if (block.chainid == 31_337) {
+            FILE_NAME = "exampleL1.json";
+        } else {
+            FILE_NAME = vm.envString("LIVE_DEPLOY_READ_FILE_NAME");
+        }
+
         // we have to start the fork again... I don't exactly know why. But it's a known issue with foundry re:
         // https://github.com/foundry-rs/foundry/issues/5471
-        _startFork(RPC_URL_ENV);
+        _startFork(DEFAULT_RPC_URL);
         // (new DeployRateProviders()).run("liveDeploy", FILE_NAME, true);
         // Run the deployment scripts
-        string memory FILE_NAME = vm.envString("LIVE_DEPLOY_READ_FILE_NAME");
+
         run(FILE_NAME);
         // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
         vm.warp(block.timestamp + mainConfig.minimumUpdateDelayInSeconds);
