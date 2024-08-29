@@ -7,6 +7,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { console } from "@forge-std/Test.sol";
 
 /**
  * @title AccountantWithRateProviders
@@ -356,7 +357,10 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             } else {
                 uint256 quoteRate = data.rateProvider.getRate();
                 uint256 oneQuote = 10 ** quoteDecimals;
-                rateInQuote = oneQuote.mulDivDown(exchangeRateInQuoteDecimals, quoteRate);
+                rateInQuote = oneQuote.mulDivDown((exchangeRateInQuoteDecimals), quoteRate);
+                console.log("Quote Rate: ", quoteRate);
+                console.log("One Quote: ", oneQuote);
+                console.log("Exchange Rate In Quote Decimals: ", exchangeRateInQuoteDecimals);
             }
         }
     }

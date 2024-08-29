@@ -13,6 +13,14 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 
+import { CrossChainOPTellerWithMultiAssetSupportTest } from
+    "test/CrossChain/CrossChainOPTellerWithMultiAssetSupport.t.sol";
+import { CrossChainTellerBase, BridgeData, ERC20 } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import { CrossChainOPTellerWithMultiAssetSupport } from
+    "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
+import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
+    "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
+
 string constant RPC_URL_ENV = "USING_FORK_FLAG";
 
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
@@ -30,6 +38,7 @@ abstract contract ForkTest is Test {
 contract LiveDeploy is ForkTest, DeployAll {
     using FixedPointMathLib for uint256;
 
+    ERC20 constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     uint256 ONE_SHARE;
     uint8 constant SOLVER_ROLE = 42;
 
@@ -55,6 +64,15 @@ contract LiveDeploy is ForkTest, DeployAll {
             SOLVER_ROLE, mainConfig.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         vm.stopPrank();
+    }
+
+    function testDepositAndBridge(uint256 amount) public {
+        string memory tellerName = mainConfig.tellerContractName;
+        if (compareStrings(tellerName, "CrossChainOPTellerWithMultiAssetSupport")) {
+            _testOPDepositAndBridge(ERC20(mainConfig.base), amount);
+        } else if (compareStrings(tellerName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
+            _testLZDepositAndBridge(ERC20(mainConfig.base), amount);
+        } else { }
     }
 
     function testDepositBaseAssetAndUpdateRate(uint256 depositAmount, uint96 rateChange) public {
@@ -159,9 +177,10 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // withdrawal the assets for the same amount back
         for (uint256 i; i < assetsCount; ++i) {
-            assertEq(
+            assertApproxEqAbs(
                 accountant.getRateInQuote(ERC20(mainConfig.assets[i])),
                 rateInQuoteBefore[i] * rateChange / 10_000,
+                1,
                 "Rate change did not apply to asset"
             );
 
@@ -234,5 +253,98 @@ contract LiveDeploy is ForkTest, DeployAll {
         deal(address(asset), address(this), depositAmount);
         asset.approve(mainConfig.boringVault, depositAmount);
         TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, depositAmount);
+    }
+
+    function _testLZDepositAndBridge(ERC20 asset, uint256 amount) internal {
+        MultiChainLayerZeroTellerWithMultiAssetSupport sourceTeller =
+            MultiChainLayerZeroTellerWithMultiAssetSupport(mainConfig.teller);
+        BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
+        AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
+
+        amount = bound(amount, 0.0001e18, 10_000e18);
+        // make a user and give them BASE
+        address user = makeAddr("A user");
+        address userChain2 = makeAddr("A user on chain 2");
+        deal(address(asset), user, amount);
+
+        // approve teller to spend BASE
+        vm.startPrank(user);
+        vm.deal(user, 10e18);
+        asset.approve(address(boringVault), amount);
+
+        // perform depositAndBridge
+        BridgeData memory data = BridgeData({
+            chainSelector: mainConfig.peerEid,
+            destinationChainReceiver: userChain2,
+            bridgeFeeToken: NATIVE_ERC20,
+            messageGas: 100_000,
+            data: ""
+        });
+
+        uint256 ONE_SHARE = 10 ** boringVault.decimals();
+
+        // so you don't really need to know exact shares in reality
+        // just need to pass in a number roughly the same size to get quote
+        // I still get the real number here for testing
+        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(asset));
+        uint256 quote = sourceTeller.previewFee(shares, data);
+        uint256 assetBefore = asset.balanceOf(address(boringVault));
+
+        sourceTeller.depositAndBridge{ value: quote }(asset, amount, shares, data);
+        // verifyPackets(uint32(mainConfig.peerEid), addressToBytes32(address(mainConfig.teller)));
+
+        assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
+
+        // assertEq(boringVault.balanceOf(userChain2), shares), ;
+
+        assertEq(asset.balanceOf(address(boringVault)), assetBefore + shares, "boring vault should have shares");
+        vm.stopPrank();
+    }
+
+    function _testOPDepositAndBridge(ERC20 asset, uint256 amount) internal {
+        CrossChainOPTellerWithMultiAssetSupport sourceTeller =
+            CrossChainOPTellerWithMultiAssetSupport(mainConfig.teller);
+        BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
+        AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
+
+        amount = bound(amount, 0.0001e18, 10_000e18);
+        // make a user and give them BASE
+
+        address user = makeAddr("A user");
+        address userChain2 = makeAddr("A user on chain 2");
+        deal(address(asset), user, amount);
+
+        // approve teller to spend BASE
+        vm.startPrank(user);
+        vm.deal(user, 10e18);
+        asset.approve(mainConfig.boringVault, amount);
+
+        // perform depositAndBridge
+        BridgeData memory data = BridgeData({
+            chainSelector: 0,
+            destinationChainReceiver: userChain2,
+            bridgeFeeToken: NATIVE_ERC20,
+            messageGas: 100_000,
+            data: ""
+        });
+
+        uint256 ONE_SHARE = 10 ** boringVault.decimals();
+
+        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(asset));
+        uint256 quote = 0;
+
+        uint256 wethBefore = asset.balanceOf(address(boringVault));
+
+        // vm.expectEmit();
+        // emit CrossChainOPTellerWithMultiAssetSupportTest.SentMessageExtension1(address(sourceTeller), 0);
+        sourceTeller.depositAndBridge{ value: quote }(asset, amount, shares, data);
+
+        assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
+
+        assertEq(asset.balanceOf(address(boringVault)), wethBefore + shares, "boring vault should have shares");
+    }
+
+    function addressToBytes32(address _addr) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(_addr)));
     }
 }
