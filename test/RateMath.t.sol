@@ -21,7 +21,7 @@ contract RateMath is Test {
     uint256 baseDecimals;
     // the quote asset decimals
     uint256 quoteDecimals;
-    // decimals returned by rate provider
+    // decimals returned by rate provider in base per quote
     uint256 quoteRateDecimals;
     // quote rate returned by rate provider
     uint256 quoteRate;
@@ -42,6 +42,7 @@ contract RateMath is Test {
     {
         /// NOTE rounding error is problematic with very small deposits, so start at 1e4
         _depositAmount = bound(depositAmount, 1 * e(quoteDecimals), 100_000_000 * e(quoteDecimals));
+        // base per quote
         _quoteRate = bound(startQuoteRate, 1 * e(quoteRateDecimals - 2), 10 * e(quoteRateDecimals));
         _exchangeRate = bound(startExchangeRate, 8 * e(baseDecimals - 1), 2 * e(baseDecimals));
     }
@@ -58,13 +59,14 @@ contract RateMath is Test {
         quoteRateDecimals = 6;
 
         depositAmount = bound(depositAmount, 1 * e(quoteDecimals), 100_000_000 * e(quoteDecimals));
-        quoteRate = 100_000 * e(quoteDecimals);
+        // BASE PER QUOTE returning in quote decimals
+        quoteRate = 10;
         exchangeRateInBase = 1 * e(baseDecimals);
 
         uint256 shares = depositAssetForShares(depositAmount);
         console.log("returned shares: ", shares);
 
-        quoteRate = 105_000 * e(quoteDecimals);
+        quoteRate = 9;
 
         uint256 assetsBack = withdrawSharesForAssets(shares);
         assertEq(assetsBack, 105_000 * e(quoteDecimals), "I withdraw one share and I should get 105,000 usdc");
