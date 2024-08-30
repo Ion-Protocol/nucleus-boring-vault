@@ -50,12 +50,13 @@
       "rateProvider": "0x318Da095d602C08eF41319f4c4bA0646d318C906",
       "decimals": 8
     },
-    "":{
+    "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6":{
       "priceFeed": "0x19219bc90f48dee4d5cf202e09c438faacfd8bea",
-      "rateProvider": "",
+      "rateProvider": "0x0000000000000000000000000000000000000000",
       "decimals": 18,
-      "description": "STETH / ETH",
+      "description": "apxETH/ETH",
       "priceFeedType": 1
+
     }
    
   }

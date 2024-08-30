@@ -10,7 +10,7 @@ contract DeployCustomCreateX is Script {
     string internal mnemonic;
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
-    address constant EXPECTED = 0x1C64d5eBCf22AC237d00cF7bB9Be6395e59B23b7;
+    address constant EXPECTED = 0x1077f8ea07EA34D9F23BC39256BF234665FB391f;
     bytes32 constant SALT = 0x8888888833388888888000000000000000000000000000000000000000000000;
 
     constructor() {
