@@ -1,5 +1,7 @@
 {
+    "base": "0x51fCe89b9f6D4c530698f181167043e1bB4abf89",
     "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "boringVaultAndBaseDecimals": "6",
     "boringVault": {
       "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000e",
       "boringVaultName": "Form ETH",
@@ -24,7 +26,8 @@
       "maxGasForPeer": 100000,
       "minGasForPeer": 0,
       "peerEid": 40270,
-      "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+      "tellerContractName": "TellerWithMultiAssetSupport",
+      "opMessenger": "0x58Cc85b8D04EA49cC6DBd3CbFFd00B4B8D6cb3ef",
       "assets": [
 
       ],

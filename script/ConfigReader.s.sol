@@ -14,6 +14,8 @@ library ConfigReader {
 
     struct Config {
         address protocolAdmin;
+        address base;
+        uint8 boringVaultAndBaseDecimals;
         bytes32 accountantSalt;
         address boringVault;
         address payoutAddress;
@@ -51,12 +53,13 @@ library ConfigReader {
         address[] assets;
         address[] rateProviders;
         address[] priceFeeds;
-        address base;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
         // Reading the 'protocolAdmin'
         config.protocolAdmin = _config.readAddress(".protocolAdmin");
+        config.base = _config.readAddress(".base");
+        config.boringVaultAndBaseDecimals = uint8(_config.readUint(".boringVaultAndBaseDecimals"));
 
         // Reading from the 'accountant' section
         config.accountant = _config.readAddress(".accountant.address");
@@ -103,9 +106,7 @@ library ConfigReader {
         config.decoder = _config.readAddress(".decoder.address");
 
         // Reading from the 'chainConfig' section
-        config.base = _chainConfig.readAddress(".base");
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
-        config.opMessenger = _chainConfig.readAddress(".opMessenger");
         config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
 
         return config;

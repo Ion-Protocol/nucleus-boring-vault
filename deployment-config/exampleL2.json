@@ -1,5 +1,6 @@
 {
   "protocolAdmin": "0xF2dE1311C5b2C1BD94de996DA13F80010453e505",
+  "boringVaultAndBaseDecimals": "18",
   "boringVault": {
     "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000e",
     "boringVaultName": "Nucleus Vault",
