@@ -19,7 +19,7 @@ abstract contract BaseScript is Script {
     string constant CONFIG_CHAIN_ROOT = "./deployment-config/chains/";
 
     /// Custom base params
-    ICreateX CREATEX = ICreateX(0xD7d6e6C50507d278b9F43f62Bc7b9310ECeff2C5);
+    ICreateX CREATEX = ICreateX(0x1C64d5eBCf22AC237d00cF7bB9Be6395e59B23b7);
 
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
