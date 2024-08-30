@@ -304,6 +304,22 @@ contract LiveDeploy is ForkTest, DeployAll {
         }
     }
 
+    function testAssetsAreAllNormalERC20() public {
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
+
+        for (uint256 i; i < mainConfig.assets.length; ++i) {
+            ERC20 asset = ERC20(mainConfig.assets[i]);
+            deal(address(asset), user1, 1 ether);
+            assertEq(asset.balanceOf(user1), 1 ether, "asset did not deal to user1 correctly");
+            uint256 totalSupplyStart = asset.totalSupply();
+            vm.prank(user1);
+            asset.transfer(user2, 0.5 ether);
+            assertEq(asset.balanceOf(user1), 0.5 ether, "user1 balance not removed after transfer");
+            assertEq(asset.balanceOf(user2), 0.5 ether, "user2 balance not incremented after transfer");
+        }
+    }
+
     function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount) internal {
         deal(address(asset), address(this), depositAmount);
         asset.approve(mainConfig.boringVault, depositAmount);
