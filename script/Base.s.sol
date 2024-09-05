@@ -17,6 +17,7 @@ abstract contract BaseScript is Script {
     string constant CONFIG_CHAIN_ROOT = "./deployment-config/chains/";
 
     /// Custom base params
+    // Address for Sepolia
     ICreateX CREATEX = ICreateX(0x1C64d5eBCf22AC237d00cF7bB9Be6395e59B23b7);
 
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
