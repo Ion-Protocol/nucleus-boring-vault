@@ -60,7 +60,7 @@ contract RateMath is Test {
         // get shares out if deposit done
         uint256 shares = depositAssetForShares(depositAmount);
 
-        // get assets back if all shares are withdrawn immediatelly
+        // get assets back if all shares are withdrawn immediately
         uint256 assetsBack = withdrawSharesForAssets(shares);
         assertTrue(assetsBack <= depositAmount, "Users should never get back more assets than they deposited");
         assertApproxEqAbs(
@@ -98,7 +98,6 @@ contract RateMath is Test {
         // update the rate according to rate change
         exchangeRateInBase = exchangeRateInBase.mulDivDown(rateChange, 10_000);
 
-        // get assets back if all shares are withdrawn immediatelly
         uint256 assetsBack = withdrawSharesForAssets(shares);
         // get expected amount out
         uint256 expected = (depositAmount * exchangeRateInBase * startQuoteRate) / (quoteRate * startExchangeRate);
@@ -146,7 +145,6 @@ contract RateMath is Test {
         // update the rate according to rate change
         quoteRate = quoteRate.mulDivDown(rateChange, 10_000);
 
-        // get assets back if all shares are withdrawn immediatelly
         uint256 assetsBack = withdrawSharesForAssets(shares);
 
         // get expected amount out
@@ -200,7 +198,6 @@ contract RateMath is Test {
 
         uint256 expected = (depositAmount * exchangeRateInBase * startQuoteRate) / (quoteRate * startExchangeRate);
 
-        // get assets back if all shares are withdrawn immediatelly
         uint256 assetsBack = withdrawSharesForAssets(shares);
 
         if (assetsBack > expected) {
@@ -251,7 +248,6 @@ contract RateMath is Test {
 
         uint256 expected = (depositAmount * exchangeRateInBase * startQuoteRate) / (quoteRate * startExchangeRate);
 
-        // get assets back if all shares are withdrawn immediatelly
         uint256 assetsBack = withdrawSharesForAssets(shares);
 
         if (assetsBack > expected) {
@@ -295,7 +291,7 @@ contract RateMath is Test {
         }
     }
 
-    /// @dev Helper function to preform 10**x
+    /// @dev Helper function to perform 10**x
     function e(uint256 decimals) internal pure returns (uint256) {
         return (10 ** decimals);
     }
