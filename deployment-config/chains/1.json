@@ -1,4 +1,5 @@
 {
+  "name": "Ethereum",
   "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
   "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
   "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
