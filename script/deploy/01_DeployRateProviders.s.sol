@@ -16,18 +16,18 @@ contract DeployRateProviders is BaseScript {
     using StdJson for string;
     using Strings for address;
 
-    function run(string memory fileName, string memory configFileName, bool ignoreExisting) public {
+    function run(string memory fileName, string memory configFileName) public {
         string memory path = string.concat(CONFIG_PATH_ROOT, configFileName);
         string memory config = vm.readFile(path);
-        _run(fileName, config, ignoreExisting);
+        _run(fileName, config);
     }
 
     function run() public {
         string memory config = requestConfigFileFromUser();
-        _run(Strings.toString(block.chainid), config, false);
+        _run(Strings.toString(block.chainid), config);
     }
 
-    function _run(string memory fileName, string memory config, bool ignoreExisting) internal {
+    function _run(string memory fileName, string memory config) internal {
         string memory chainConfig = getChainConfigFile();
 
         address[] memory assets = config.readAddressArray(".teller.assets");
@@ -39,7 +39,7 @@ contract DeployRateProviders is BaseScript {
                 string(abi.encodePacked(".assetToRateProviderAndPriceFeed.", assets[i].toHexString(), ".rateProvider"));
             address rateProvider = chainConfig.readAddress(rateProviderKey);
             // must deploy new rate provider and set the value
-            if (ignoreExisting || rateProvider == address(0)) {
+            if (rateProvider == address(0)) {
                 address priceFeed = chainConfig.readAddress(
                     string(abi.encodePacked(".assetToRateProviderAndPriceFeed.", assets[i].toHexString(), ".priceFeed"))
                 );

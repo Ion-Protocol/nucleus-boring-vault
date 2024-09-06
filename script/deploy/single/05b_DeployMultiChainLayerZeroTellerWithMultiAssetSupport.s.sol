@@ -73,7 +73,7 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
             AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
             "the accountant vault must be the teller vault"
         );
-        require(address(endpoint) == config.lzEndpoint, "OP Teller must have messenger set");
+        require(address(endpoint) == config.lzEndpoint, "LZ Teller must have endpoint set");
 
         // get the default libraries for the peer
         address sendLib = endpoint.defaultSendLibrary(config.peerEid);

@@ -10,10 +10,11 @@ contract DeployCustomCreateX is Script {
     string internal mnemonic;
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
-    address constant EXPECTED = 0x1C64d5eBCf22AC237d00cF7bB9Be6395e59B23b7;
+    address immutable EXPECTED;
     bytes32 constant SALT = 0x8888888833388888888000000000000000000000000000000000000000000000;
 
     constructor() {
+        EXPECTED = vm.envAddress("CREATEX");
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
             broadcaster = from;

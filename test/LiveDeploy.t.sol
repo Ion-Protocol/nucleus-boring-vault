@@ -24,6 +24,7 @@ import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 
 string constant DEFAULT_RPC_URL = "L1_RPC_URL";
+uint256 constant DELTA = 10_000;
 
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
 abstract contract ForkTest is Test {
@@ -67,9 +68,6 @@ contract LiveDeploy is ForkTest, DeployAll {
             // Otherwise we use the makefile provided deployment file ENV name
             FILE_NAME = vm.envString("LIVE_DEPLOY_READ_FILE_NAME");
         }
-
-        // todo - include deploying rate providers IF not already deployed on this chain
-        // (new DeployRateProviders()).run("liveDeploy.json", FILE_NAME, true);
 
         // Run the deployment scripts
 
@@ -204,8 +202,6 @@ contract LiveDeploy is ForkTest, DeployAll {
         );
     }
 
-    uint256 constant DELTA = 10_000;
-
     function testDepositASupportedAssetAndUpdateRate(uint256 depositAmount, uint96 rateChange) public {
         uint256 assetsCount = mainConfig.assets.length;
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
@@ -304,19 +300,21 @@ contract LiveDeploy is ForkTest, DeployAll {
         }
     }
 
-    function testAssetsAreAllNormalERC20() public {
+    function testAssetsAreAllNormalERC20(uint256 mintAmount, uint256 transferAmount) public {
+        mintAmount = bound(mintAmount, 1, type(uint256).max);
+        transferAmount = bound(transferAmount, 1, mintAmount);
         address user1 = makeAddr("user1");
         address user2 = makeAddr("user2");
 
         for (uint256 i; i < mainConfig.assets.length; ++i) {
             ERC20 asset = ERC20(mainConfig.assets[i]);
-            deal(address(asset), user1, 1 ether);
-            assertEq(asset.balanceOf(user1), 1 ether, "asset did not deal to user1 correctly");
+            deal(address(asset), user1, mintAmount);
+            assertEq(asset.balanceOf(user1), mintAmount, "asset did not deal to user1 correctly");
             uint256 totalSupplyStart = asset.totalSupply();
             vm.prank(user1);
-            asset.transfer(user2, 0.5 ether);
-            assertEq(asset.balanceOf(user1), 0.5 ether, "user1 balance not removed after transfer");
-            assertEq(asset.balanceOf(user2), 0.5 ether, "user2 balance not incremented after transfer");
+            asset.transfer(user2, transferAmount);
+            assertEq(asset.balanceOf(user1), mintAmount - transferAmount, "user1 balance not removed after transfer");
+            assertEq(asset.balanceOf(user2), transferAmount, "user2 balance not incremented after transfer");
         }
     }
 

@@ -89,7 +89,7 @@ function assert(statement, message){
 async function main() {
     const args = process.argv.slice(2);
 
-    if (args.length < 2) {
+    if (args.length != 2) {
         console.error("Usage: node script.js <file1Name> <file2Name>");
         process.exit(1);
     }
@@ -113,7 +113,7 @@ async function main() {
 
         const chain2 = findings2.findings[0].chain;
         for (const finding of findings2.findings) {
-            assert(providers1.includes(finding.provider), "Provider: "+finding.provider+" does not havea matching provider in the first config");
+            assert(providers1.includes(finding.provider), "Provider: "+finding.provider+" does not have a matching provider in the first config");
             assert(finding.chain == chain2, "Networks do not match for: "+finding);
         }
 

@@ -356,7 +356,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             } else {
                 uint256 quoteRate = data.rateProvider.getRate();
                 uint256 oneQuote = 10 ** quoteDecimals;
-                rateInQuote = oneQuote.mulDivDown((exchangeRateInQuoteDecimals), quoteRate);
+                rateInQuote = oneQuote.mulDivDown(exchangeRateInQuoteDecimals, quoteRate);
             }
         }
     }
