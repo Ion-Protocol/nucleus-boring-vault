@@ -9,7 +9,7 @@ import {
     ETH_PER_RSETH_CHAINLINK,
     ETH_PER_RSWETH_CHAINLINK,
     ETH_PER_PUFETH_REDSTONE,
-    ETH_PER_APXETH_REDSTOME
+    ETH_PER_APXETH_REDSTONE
 } from "./../../../src/helper/Constants.sol";
 
 import { Test } from "@forge-std/Test.sol";
@@ -204,7 +204,7 @@ contract ApxEthRateProviderTest is EthPerTokenRateProviderTest {
 
         ethPerTokenRateProvider = new EthPerTokenRateProvider(
             "apxETH/ETH",
-            ETH_PER_APXETH_REDSTOME,
+            ETH_PER_APXETH_REDSTONE,
             MAX_TIME_FROM_LAST_UPDATE,
             18,
             EthPerTokenRateProvider.PriceFeedType.REDSTONE
@@ -215,7 +215,7 @@ contract ApxEthRateProviderTest is EthPerTokenRateProviderTest {
         vm.expectRevert(EthPerTokenRateProvider.InvalidDescription.selector);
         ethPerTokenRateProvider = new EthPerTokenRateProvider(
             incorrectDescription,
-            ETH_PER_APXETH_REDSTOME,
+            ETH_PER_APXETH_REDSTONE,
             MAX_TIME_FROM_LAST_UPDATE,
             18,
             EthPerTokenRateProvider.PriceFeedType.REDSTONE
