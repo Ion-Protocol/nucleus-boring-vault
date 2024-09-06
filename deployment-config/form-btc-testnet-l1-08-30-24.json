@@ -1,0 +1,57 @@
+{
+  "base": "0x0893A950E8f80B21658ba35D39d9AB00cCa95589",
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "boringVaultAndBaseDecimals": "8",
+  "boringVault": {
+    "boringVaultSalt": "0x1ddd634c506ad203da17ff000000000000000000000000000000000000000011",
+    "boringVaultName": "Form BTC",
+    "boringVaultSymbol": "FBTC",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x30432d4b4ec00003b4a250000000000000000000000000000000000000000011",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x6a184dbea6f3cc0318679f000000000000000000000000000000000000000011",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "9998",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x51f8968749a56d01202c91000000000000000000000000000000000000000011",
+    "maxGasForPeer": 100000,
+    "minGasForPeer": 0,
+    "peerEid": 40270,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "opMessenger": "0x58Cc85b8D04EA49cC6DBd3CbFFd00B4B8D6cb3ef",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": [
+        "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
+      ],
+      "optional": [
+        "0x380275805876Ff19055EA900CDb2B46a94ecF20D",
+        "0x8FafAE7Dd957044088b3d0F67359C327c6200d18",
+        "0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5",
+        "0xe552485d02EDd3067FE7FCbD4dd56BB1D3A998D2"
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 1
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a000000000000000000000000000000000000000011",
+    "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x48b53893da2e0b0248268c000000000000000000000000000000000000000011",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}

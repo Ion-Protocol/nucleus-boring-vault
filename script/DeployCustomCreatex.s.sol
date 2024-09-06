@@ -34,7 +34,6 @@ contract DeployCustomCreateX is Script {
         require(EXPECTED.code.length == 0, "Createx already exists on this chain");
 
         CreateX createx = new CreateX{ salt: SALT }();
-
         console.log(address(createx));
         require(address(createx) == EXPECTED, "address is not expected");
     }

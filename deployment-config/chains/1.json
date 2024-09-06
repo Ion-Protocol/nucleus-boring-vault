@@ -1,5 +1,5 @@
 {
-  "base": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+  "name": "Ethereum",
   "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
   "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
   "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
@@ -41,11 +41,23 @@
       "priceFeedType": 1
     },
     "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": {
-      "priceFeed": "",
+      "priceFeed": "0x86392dC19c0b719886221c78AB11eb8Cf5c52812",
       "rateProvider": "0xa360Df495d0560bDDc5d681B54991629965ae170",
       "decimals": 18,
-      "description": "",
+      "description": "STETH / ETH",
       "priceFeedType": 0
+    },
+    "0x8db2350d78abc13f5673a411d4700bcf87864dde": {
+      "rateProvider": "0x318Da095d602C08eF41319f4c4bA0646d318C906",
+      "decimals": 8
+    },
+    "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6":{
+      "priceFeed": "0x19219bc90f48dee4d5cf202e09c438faacfd8bea",
+      "rateProvider": "",
+      "decimals": 18,
+      "description": "apxETH/ETH",
+      "priceFeedType": 1
     }
+   
   }
 }

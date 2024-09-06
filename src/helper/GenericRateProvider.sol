@@ -32,7 +32,7 @@ contract GenericRateProvider is IRateProvider {
 
     constructor(
         address _target,
-        bytes4 _selctor,
+        bytes4 _selector,
         bytes32 _staticArgument0,
         bytes32 _staticArgument1,
         bytes32 _staticArgument2,
@@ -43,7 +43,7 @@ contract GenericRateProvider is IRateProvider {
         bytes32 _staticArgument7
     ) {
         target = _target;
-        selector = _selctor;
+        selector = _selector;
         staticArgument0 = _staticArgument0;
         staticArgument1 = _staticArgument1;
         staticArgument2 = _staticArgument2;
