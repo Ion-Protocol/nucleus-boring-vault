@@ -1,4 +1,5 @@
 {
+  "name": "Ethereum",
   "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
   "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
   "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
@@ -50,11 +51,11 @@
       "rateProvider": "0x318Da095d602C08eF41319f4c4bA0646d318C906",
       "decimals": 8
     },
-    "":{
+    "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6":{
       "priceFeed": "0x19219bc90f48dee4d5cf202e09c438faacfd8bea",
       "rateProvider": "",
       "decimals": 18,
-      "description": "STETH / ETH",
+      "description": "apxETH/ETH",
       "priceFeedType": 1
     }
    
