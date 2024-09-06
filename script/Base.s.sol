@@ -6,10 +6,8 @@ import { ICreateX } from "lib/createx/src/ICreateX.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import { Script, stdJson } from "@forge-std/Script.sol";
-import { console2 } from "@forge-std/console2.sol";
 
 import { ConfigReader, IAuthority } from "./ConfigReader.s.sol";
-import { console } from "forge-std/Test.sol";
 
 abstract contract BaseScript is Script {
     using stdJson for string;
@@ -57,7 +55,6 @@ abstract contract BaseScript is Script {
 
         // if this chain doesn't have a CREATEX deployment, deploy it ourselves
         if (address(CREATEX).code.length == 0) {
-            console.log("Current Chain ID: ", block.chainid);
             revert("CREATEX Not Deployed on this chain. Use the DeployCustomCreatex script to deploy it");
         }
     }
@@ -74,7 +71,9 @@ abstract contract BaseScript is Script {
         vm.stopBroadcast();
     }
 
-    function deploy(ConfigReader.Config memory config) public virtual returns (address);
+    function deploy(ConfigReader.Config memory config) public virtual returns (address) {
+        revert("deploy() Not Implemented");
+    }
 
     function getConfig() public returns (ConfigReader.Config memory) {
         return ConfigReader.toConfig(requestConfigFileFromUser(), getChainConfigFile());

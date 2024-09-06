@@ -1,16 +1,16 @@
 {
-  "base": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-  "protocolAdmin": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
-  "boringVaultAndBaseDecimals": "18",
+  "base": "0x51fCe89b9f6D4c530698f181167043e1bB4abf89",
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "boringVaultAndBaseDecimals": "6",
   "boringVault": {
     "boringVaultSalt": "0x1ddd634c506ad203da17ff000000000000000000000000000000000000000010",
-    "boringVaultName": "Nucleus Vault",
-    "boringVaultSymbol": "NV",
-    "address": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC"
+    "boringVaultName": "Form ETH",
+    "boringVaultSymbol": "FETH",
+    "address": "0x0000000000000000000000000000000000000000"
   },
   "manager": {
     "managerSalt": "0x30432d4b4ec00003b4a250000000000000000000000000000000000000000010",
-    "address": "0x0000000000fAd6Db23abdC1a85621B97bd1Dc82f"
+    "address": "0x0000000000000000000000000000000000000000"
   },
   "accountant": {
     "accountantSalt": "0x6a184dbea6f3cc0318679f000000000000000000000000000000000000000010",
@@ -18,19 +18,17 @@
     "allowedExchangeRateChangeUpper": "10003",
     "allowedExchangeRateChangeLower": "9998",
     "minimumUpdateDelayInSeconds": "3600",
-    "managementFee": "2000",
-    "address": "0x00000000004F96C07B83e86600D86F9479bB43fa"
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
   },
   "teller": {
     "tellerSalt": "0x51f8968749a56d01202c91000000000000000000000000000000000000000010",
     "maxGasForPeer": 100000,
     "minGasForPeer": 0,
-    "peerEid": 30280,
-    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
-    "assets": [
-      "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
-      "0xbf5495Efe5DB9ce00f80364C8B423567e58d2110"
-    ],
+    "peerEid": 40270,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "opMessenger": "0x58Cc85b8D04EA49cC6DBd3CbFFd00B4B8D6cb3ef",
+    "assets": [],
     "dvnIfNoDefault": {
       "required": [
         "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
@@ -44,16 +42,16 @@
       "blockConfirmationsRequiredIfNoDefault": 15,
       "optionalThreshold": 1
     },
-    "address": "0x00000000004F96C07B83e86600D86F0000000000"
+    "address": "0x0000000000000000000000000000000000000000"
   },
   "rolesAuthority": {
     "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a000000000000000000000000000000000000000010",
-    "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
-    "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000",
-    "address": "0x00000000004F96C07B83e86600D86F0000000000"
+    "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "address": "0x0000000000000000000000000000000000000000"
   },
   "decoder": {
     "decoderSalt": "0x48b53893da2e0b0248268c000000000000000000000000000000000000000010",
-    "address": "0x00000000004F96C07B83e86600D86F0000000000"
+    "address": "0x0000000000000000000000000000000000000000"
   }
 }
