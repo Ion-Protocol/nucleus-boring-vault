@@ -50,10 +50,8 @@ contract DeployAll is BaseScript {
 
     ConfigReader.Config mainConfig;
 
-    function run() public {
-        mainConfig = getConfig();
-
-        deploy(mainConfig);
+    function run(string memory deployFile) public {
+        deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
     }
 
     function deploy(ConfigReader.Config memory config) public override returns (address) {
@@ -83,6 +81,8 @@ contract DeployAll is BaseScript {
 
         new SetAuthorityAndTransferOwnerships().deploy(config);
         console.log("Set Authority And Transfer Ownerships Complete");
+
+        mainConfig = config;
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {

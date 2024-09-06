@@ -113,7 +113,7 @@ async function main() {
 
         const chain2 = findings2.findings[0].chain;
         for (const finding of findings2.findings) {
-            assert(providers1.includes(finding.provider), "Provider: "+finding.provider+" does not havea matching provider in the first config");
+            assert(providers1.includes(finding.provider), "Provider: "+finding.provider+" does not have a matching provider in the first config");
             assert(finding.chain == chain2, "Networks do not match for: "+finding);
         }
 

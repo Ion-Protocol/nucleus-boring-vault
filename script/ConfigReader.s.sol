@@ -46,7 +46,6 @@ library ConfigReader {
         address rolesAuthority;
         bytes32 decoderSalt;
         address decoder;
-        address rateProvider;
         bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
         address[] assets;

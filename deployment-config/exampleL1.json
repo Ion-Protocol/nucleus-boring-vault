@@ -1,69 +1,58 @@
 {
-    "protocolAdmin": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
-
-    "boringVault":{
-        "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000a",
-        "boringVaultName": "Nucleus Vault", 
-        "boringVaultSymbol": "NV",
-    
-        "address": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC"    
+  "protocolAdmin": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
+  "boringVault": {
+    "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000000e",
+    "boringVaultName": "Nucleus Vault",
+    "boringVaultSymbol": "NV",
+    "address": "0x0000000000E7Ab44153eEBEF2343ba5289F65dAC"
+  },
+  "manager": {
+    "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000000e",
+    "address": "0x0000000000fAd6Db23abdC1a85621B97bd1Dc82f"
+  },
+  "accountant": {
+    "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000000e",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "base": "0x5f207d42F869fd1c71d7f0f81a2A67Fc20FF7323",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "9998",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "2000",
+    "address": "0x00000000004F96C07B83e86600D86F9479bB43fa"
+  },
+  "teller": {
+    "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000e",
+    "maxGasForPeer": 100000,
+    "minGasForPeer": 0,
+    "peerEid": 30280,
+    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+    "assets": [
+      "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
+      "0xbf5495Efe5DB9ce00f80364C8B423567e58d2110"
+    ],
+    "dvnIfNoDefault": {
+      "required": [
+        "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
+      ],
+      "optional": [
+        "0x380275805876Ff19055EA900CDb2B46a94ecF20D",
+        "0x8FafAE7Dd957044088b3d0F67359C327c6200d18",
+        "0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5",
+        "0xe552485d02EDd3067FE7FCbD4dd56BB1D3A998D2"
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 1
     },
-
-    "manager":{
-        "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000000a",
-
-        "address": "0x0000000000fAd6Db23abdC1a85621B97bd1Dc82f"
-    },
-    
-    "accountant":{
-        "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000000a",
-        "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-        "base": "0x5f207d42F869fd1c71d7f0f81a2A67Fc20FF7323",
-        "allowedExchangeRateChangeUpper": "10003",
-        "allowedExchangeRateChangeLower": "9998",
-        "minimumUpdateDelayInSeconds": "3600",
-        "managementFee": "2000",
-
-        "address": "0x00000000004F96C07B83e86600D86F9479bB43fa"
-    },
-
-    "teller": {
-        "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000a",
-        "maxGasForPeer": 100000,
-        "minGasForPeer": 0,
-        "peerEid": 30280,
-        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
-        "assets": [
-            "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
-            "0xbf5495Efe5DB9ce00f80364C8B423567e58d2110"
-        ],
-        "dvnIfNoDefault":{
-            "required":["0x589dEDbD617e0CBcB916A9223F4d1300c294236b"],
-            "optional":[
-                "0x380275805876Ff19055EA900CDb2B46a94ecF20D",
-                "0x8FafAE7Dd957044088b3d0F67359C327c6200d18",
-                "0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5",
-                "0xe552485d02EDd3067FE7FCbD4dd56BB1D3A998D2"
-            ],
-            "blockConfirmationsRequiredIfNoDefault": 15,
-            "optionalThreshold": 1
-        },
-
-        "address": "0x00000000004F96C07B83e86600D86F0000000000"
-    },
-
-    "rolesAuthority": {
-        "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000000a",
-        "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
-        "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000",
-
-        "address": "0x00000000004F96C07B83e86600D86F0000000000"
-    },
-
-    "decoder": {
-        "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000000a",
-    
-        "address": "0x00000000004F96C07B83e86600D86F0000000000" 
-    }
-
+    "address": "0x00000000004F96C07B83e86600D86F0000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000000e",
+    "strategist": "0xC2d99d76bb9D46BF8Ec9449E4DfAE48C30CF0839",
+    "exchangeRateBot": "0x00000000004F96C07B83e86600D86F0000000000",
+    "address": "0x00000000004F96C07B83e86600D86F0000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000000e",
+    "address": "0x00000000004F96C07B83e86600D86F0000000000"
+  }
 }
