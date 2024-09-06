@@ -68,9 +68,6 @@ contract LiveDeploy is ForkTest, DeployAll {
             FILE_NAME = vm.envString("LIVE_DEPLOY_READ_FILE_NAME");
         }
 
-        // todo - include deploying rate providers IF not already deployed on this chain
-        // (new DeployRateProviders()).run("liveDeploy.json", FILE_NAME, true);
-
         // Run the deployment scripts
 
         run(FILE_NAME);
