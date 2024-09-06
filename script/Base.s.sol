@@ -45,6 +45,7 @@ abstract contract BaseScript is Script {
     ///
     /// The use case for $ETH_FROM is to specify the broadcaster key and its address via the command line.
     constructor() {
+        CREATEX = ICreateX(vm.envAddress("CREATEX"));
         deployCreate2 = vm.envOr({ name: "CREATE2", defaultValue: true });
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
