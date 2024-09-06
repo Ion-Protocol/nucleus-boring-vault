@@ -14,7 +14,7 @@ contract DeployCustomCreateX is Script {
     bytes32 constant SALT = 0x8888888833388888888000000000000000000000000000000000000000000000;
 
     constructor() {
-        EXPECTED = ICreateX(vm.envAddress("CREATEX"));
+        EXPECTED = vm.envAddress("CREATEX");
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
             broadcaster = from;
