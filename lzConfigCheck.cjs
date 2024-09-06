@@ -89,7 +89,7 @@ function assert(statement, message){
 async function main() {
     const args = process.argv.slice(2);
 
-    if (args.length < 2) {
+    if (args.length != 2) {
         console.error("Usage: node script.js <file1Name> <file2Name>");
         process.exit(1);
     }
