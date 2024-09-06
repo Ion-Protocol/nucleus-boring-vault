@@ -20,7 +20,7 @@ live-deployL1:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
 	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L1_RPC_URL} --private-key=$(PRIVATE_KEY) --broadcast --slow --verify
 
-live- deployL2:
+live-deployL2:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
 	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L1_RPC_URL} --private-key=$(PRIVATE_KEY) --broadcast --slow --verify
 
