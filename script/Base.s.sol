@@ -17,7 +17,7 @@ abstract contract BaseScript is Script {
     string constant CONFIG_CHAIN_ROOT = "./deployment-config/chains/";
 
     /// Custom base params
-    ICreateX CREATEX = ICreateX(0x1077f8ea07EA34D9F23BC39256BF234665FB391f);
+    ICreateX immutable CREATEX;
 
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
@@ -43,6 +43,7 @@ abstract contract BaseScript is Script {
     ///
     /// The use case for $ETH_FROM is to specify the broadcaster key and its address via the command line.
     constructor() {
+        CREATEX = ICreateX(vm.envAddress("CREATEX"));
         deployCreate2 = vm.envOr({ name: "CREATE2", defaultValue: true });
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
@@ -85,5 +86,9 @@ abstract contract BaseScript is Script {
     function requestConfigFileFromUser() internal returns (string memory) {
         path = string.concat(CONFIG_PATH_ROOT, vm.prompt("Please Enter The Deployments Configuration File Name: "));
         return vm.readFile(path);
+    }
+
+    function compareStrings(string memory a, string memory b) internal returns (bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
 }

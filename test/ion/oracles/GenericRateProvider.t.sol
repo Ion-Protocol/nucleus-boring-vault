@@ -22,18 +22,18 @@ abstract contract GenericRateProviderTest is Test {
 
         _initialize();
 
-        require(address(rateProvider) != address(0), "rate provider not set");
-        require(decimals > 0, "decimals not set");
-        require(target != address(0), "target not set");
-        require(bytes4(selector).length > 0, "selector not set");
+        assertNotEq(address(rateProvider), address(0), "rate provider not set");
+        assertGt(decimals, 0, "decimals not set");
+        assertNotEq(target, address(0), "target not set");
+        assertGt(bytes4(selector).length, 0, "selector not set");
     }
 
     function test_GetRateWithinExpectedBounds() public {
         uint256 rate = rateProvider.getRate();
         (uint256 min, uint256 max) = _expectedRateMinMax();
 
-        require(rate >= min, "rate must be greater than or equal to min");
-        require(rate <= max, "rate must be less than or equal to max");
+        assertGe(rate, min, "rate must be greater than or equal to min");
+        assertLe(rate, max, "rate must be less than or equal to max");
     }
 
     function _initialize() public virtual;

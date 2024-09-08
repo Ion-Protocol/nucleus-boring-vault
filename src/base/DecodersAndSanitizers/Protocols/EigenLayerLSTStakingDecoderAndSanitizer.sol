@@ -23,9 +23,7 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
         addressesFound = abi.encodePacked(strategy, token);
     }
 
-    function queueWithdrawals(
-        DecoderCustomTypes.QueuedWithdrawalParams[] calldata queuedWithdrawalParams
-    )
+    function queueWithdrawals(DecoderCustomTypes.QueuedWithdrawalParams[] calldata queuedWithdrawalParams)
         external
         pure
         virtual

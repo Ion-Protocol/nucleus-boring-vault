@@ -8,9 +8,7 @@ import { UlnOptions } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/li
 contract UlnOptionsMock {
     using UlnOptions for bytes;
 
-    function decode(
-        bytes calldata _options
-    )
+    function decode(bytes calldata _options)
         public
         pure
         returns (bytes memory executorOptions, bytes memory dvnOptions)
@@ -33,9 +31,7 @@ contract OptionsHelper {
         (gas, value) = this.decodeLzReceiveOption(option);
     }
 
-    function _parseExecutorNativeDropOption(
-        bytes memory _options
-    )
+    function _parseExecutorNativeDropOption(bytes memory _options)
         internal
         view
         returns (uint256 amount, bytes32 receiver)
@@ -46,9 +42,7 @@ contract OptionsHelper {
         (amount, receiver) = this.decodeNativeDropOption(option);
     }
 
-    function _parseExecutorLzComposeOption(
-        bytes memory _options
-    )
+    function _parseExecutorLzComposeOption(bytes memory _options)
         internal
         view
         returns (uint16 index, uint256 gas, uint256 value)
@@ -109,9 +103,7 @@ contract OptionsHelper {
         return ExecutorOptions.decodeNativeDropOption(_option);
     }
 
-    function decodeLzComposeOption(
-        bytes calldata _option
-    )
+    function decodeLzComposeOption(bytes calldata _option)
         external
         pure
         returns (uint16 index, uint128 gas, uint128 value)

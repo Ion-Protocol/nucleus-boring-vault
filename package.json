@@ -7,11 +7,7 @@
     "coverage": "./coverage.sh",
     "solhint": "solhint -w 0 'src/**/*.sol'",
     "slither": "slither src",
-    "prepare": "husky",
-    "deploy-createx-l1": "forge script script/DeployCustomCreatex.s.sol --rpc-url $L1_RPC_URL --private-key $PRIVATE_KEY --slow --no-metadata",
-    "deploy-createx-l2": "forge script script/DeployCustomCreatex.s.sol --rpc-url $L2_RPC_URL --private-key $PRIVATE_KEY --slow --no-metadata",
-    "deploy-l1": "forge script script/deploy/deployAll.s.sol -f $L1_RPC_URL --private-key=$PRIVATE_KEY --slow",
-    "deploy-l2": "forge script script/deploy/deployAll.s.sol -f $L2_RPC_URL --private-key=$PRIVATE_KEY --slow"
+    "prepare": "husky"
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",

@@ -39,6 +39,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     AtomicSolverV3 public atomicSolverV3;
 
     address public solver = vm.addr(54);
+    uint256 ONE_SHARE;
 
     function setUp() external {
         // Setup forked environment.
@@ -47,6 +48,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
+        ONE_SHARE = 10 ** boringVault.decimals();
 
         accountant = new AccountantWithRateProviders(
             address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0

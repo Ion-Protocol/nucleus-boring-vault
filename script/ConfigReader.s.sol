@@ -15,7 +15,7 @@ library ConfigReader {
     struct Config {
         address protocolAdmin;
         address base;
-        uint8 baseDecimals;
+        uint8 boringVaultAndBaseDecimals;
         bytes32 accountantSalt;
         address boringVault;
         address payoutAddress;
@@ -30,8 +30,10 @@ library ConfigReader {
         address balancerVault;
         bytes32 tellerSalt;
         uint32 peerEid;
-        address dvnIfNoDefault;
-        uint64 dvnBlockConfirmationsRequiredIfNoDefault;
+        address[] requiredDvns;
+        address[] optionalDvns;
+        uint64 dvnBlockConfirmationsRequired;
+        uint8 optionalDvnThreshold;
         address accountant;
         address opMessenger;
         uint64 maxGasForPeer;
@@ -46,7 +48,6 @@ library ConfigReader {
         address rolesAuthority;
         bytes32 decoderSalt;
         address decoder;
-        address rateProvider;
         bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
         address[] assets;
@@ -58,7 +59,7 @@ library ConfigReader {
         // Reading the 'protocolAdmin'
         config.protocolAdmin = _config.readAddress(".protocolAdmin");
         config.base = _config.readAddress(".base");
-        config.baseDecimals = uint8(_config.readUint(".baseDecimals"));
+        config.boringVaultAndBaseDecimals = uint8(_config.readUint(".boringVaultAndBaseDecimals"));
 
         // Reading from the 'accountant' section
         config.accountant = _config.readAddress(".accountant.address");
@@ -87,7 +88,12 @@ library ConfigReader {
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
         config.peerEid = uint32(_config.readUint(".teller.peerEid"));
-        config.opMessenger = _config.readAddress(".teller.opMessenger");
+
+        config.requiredDvns = _config.readAddressArray(".teller.dvnIfNoDefault.required");
+        config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optional");
+        config.dvnBlockConfirmationsRequired =
+            uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
+        config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalThreshold"));
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");

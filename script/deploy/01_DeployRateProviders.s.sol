@@ -16,8 +16,18 @@ contract DeployRateProviders is BaseScript {
     using StdJson for string;
     using Strings for address;
 
+    function run(string memory fileName, string memory configFileName) public {
+        string memory path = string.concat(CONFIG_PATH_ROOT, configFileName);
+        string memory config = vm.readFile(path);
+        _run(fileName, config);
+    }
+
     function run() public {
         string memory config = requestConfigFileFromUser();
+        _run(Strings.toString(block.chainid), config);
+    }
+
+    function _run(string memory fileName, string memory config) internal {
         string memory chainConfig = getChainConfigFile();
 
         address[] memory assets = config.readAddressArray(".teller.assets");
@@ -52,8 +62,7 @@ contract DeployRateProviders is BaseScript {
                 );
                 rateProvider =
                     deployRateProvider(description, priceFeed, maxTimeFromLastUpdate, decimals, priceFeedType);
-                string memory chainConfigFilePath =
-                    string.concat(CONFIG_CHAIN_ROOT, Strings.toString(block.chainid), ".json");
+                string memory chainConfigFilePath = string.concat(CONFIG_CHAIN_ROOT, fileName, ".json");
                 rateProvider.toHexString().write(chainConfigFilePath, rateProviderKey);
             }
         }
