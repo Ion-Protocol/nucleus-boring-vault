@@ -84,9 +84,7 @@ interface IUNSTETH {
         bool isClaimed;
     }
 
-    function getWithdrawalStatus(
-        uint256[] calldata _requestIds
-    )
+    function getWithdrawalStatus(uint256[] calldata _requestIds)
         external
         view
         returns (WithdrawalRequestStatus[] memory statuses);

@@ -64,9 +64,7 @@ contract LidoLiquidDecoderAndSanitizer is
      * @notice BalancerV2, NativeWrapper, Curve, and Gearbox all specify a `withdraw(uint256)`,
      *         all cases are handled the same way.
      */
-    function withdraw(
-        uint256
-    )
+    function withdraw(uint256)
         external
         pure
         override(

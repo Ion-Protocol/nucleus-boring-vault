@@ -24,9 +24,7 @@ interface INonFungiblePositionManager {
     }
 
     function ownerOf(uint256 tokenId) external view returns (address);
-    function positions(
-        uint256 tokenId
-    )
+    function positions(uint256 tokenId)
         external
         view
         returns (
