@@ -7,7 +7,7 @@
     "coverage": "./coverage.sh",
     "solhint": "solhint -w 0 'src/**/*.sol'",
     "slither": "slither src",
-    "prepare": "husky",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",
