@@ -19,3 +19,5 @@ broadcast/*
 
 # Bun
 node_modules/
+
+.vscode
