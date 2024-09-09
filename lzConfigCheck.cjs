@@ -1,3 +1,5 @@
+import { log } from 'console';
+
 const fs = require('fs');
 const readline = require('readline');
 
@@ -112,10 +114,16 @@ async function main() {
         }
 
         const chain2 = findings2.findings[0].chain;
+        const providers2 = findings2.findings.map(finding => finding.provider);
         for (const finding of findings2.findings) {
             assert(providers1.includes(finding.provider), "Provider: "+finding.provider+" does not have a matching provider in the first config");
             assert(finding.chain == chain2, "Networks do not match for: "+finding);
         }
+
+        console.log('chain1', chain1);
+        console.log('providers1', providers1);
+        console.log('chain2', chain2);
+        console.log('providers2', providers2);
 
         console.log("✅ Config check passed");
     } catch (error) {

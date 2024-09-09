@@ -53,12 +53,10 @@
     },
     "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6":{
       "priceFeed": "0x19219bc90f48dee4d5cf202e09c438faacfd8bea",
-      "rateProvider": "0x0000000000000000000000000000000000000000",
+      "rateProvider": "0x47c2bDE6E8134BB69BE54ad09684B8CBBb57caC8",
       "decimals": 18,
       "description": "apxETH/ETH",
       "priceFeedType": 1
-
     }
-   
   }
 }
