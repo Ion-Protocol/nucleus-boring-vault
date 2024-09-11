@@ -36,7 +36,6 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
     uint32 immutable MINIMUM_UPDATE_DELAY_IN_SECONDS = 3600; // 1 hour
     uint16 immutable MANAGEMENT_FEE = 0.2e4; // maximum 0.2e4
 
-
     BoringVault public boringVault;
     TellerWithMultiAssetSupport public teller;
     AccountantWithRateProviders public accountant;
