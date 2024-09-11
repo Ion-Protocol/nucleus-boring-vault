@@ -11,6 +11,7 @@ import { MainnetAddresses } from "./../resources/MainnetAddresses.sol";
 import { IIonPool } from "@ion-protocol/interfaces/IIonPool.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
+import "./../../../src/helper/Constants.sol";
 
 contract IonPoolSharedSetup is Test, MainnetAddresses {
     using stdStorage for StdStorage;
@@ -34,14 +35,7 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
     uint16 immutable ALLOWED_EXCHANGE_RATE_CHANGE_LOWER = 0.995e4;
     uint32 immutable MINIMUM_UPDATE_DELAY_IN_SECONDS = 3600; // 1 hour
     uint16 immutable MANAGEMENT_FEE = 0.2e4; // maximum 0.2e4
-    // --- RolesAuthority ---
-    uint8 public constant MANAGER_ROLE = 1;
-    uint8 public constant STRATEGIST_ROLE = 2;
-    uint8 public constant TELLER_ROLE = 3;
-    // uint8 public constant MANGER_INTERNAL_ROLE = 3;
-    // uint8 public constant ADMIN_ROLE = 4;
-    // uint8 public constant BORING_VAULT_ROLE = 5;
-    // uint8 public constant BALANCER_VAULT_ROLE = 6;
+
 
     BoringVault public boringVault;
     TellerWithMultiAssetSupport public teller;
