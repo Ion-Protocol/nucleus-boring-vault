@@ -28,6 +28,13 @@
     "peerEid": 30280,
     "tellerContractName": "TellerWithMultiAssetSupport",
     "assets": [
+      "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee",
+      "0xbf5495efe5db9ce00f80364c8b423567e58d2110",
+      "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7",
+      "0xFAe103DC9cf190eD75350761e95403b7b8aFa6c0",
+      "0xD9A442856C234a39a81a089C06451EBAa4306a72",
+      "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "0x9Ba021B0a9b958B5E75cE9f6dff97C7eE52cb3E6"
     ],
     "dvnIfNoDefault": {
       "required": [
