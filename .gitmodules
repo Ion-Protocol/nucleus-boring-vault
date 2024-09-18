@@ -16,3 +16,6 @@
 [submodule "lib/createx"]
 	path = lib/createx
 	url = https://github.com/pcaversaccio/createx
+[submodule "nucleus-deployments"]
+	path = nucleus-deployments
+	url = git@github.com:Ion-Protocol/nucleus-deployments.git

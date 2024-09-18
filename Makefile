@@ -44,3 +44,18 @@ deploy-createx-l2:
 
 check-configs: 
 	bun lzConfigCheck.cjs
+
+chain1 := $(shell cast chain-id -r $(L1_RPC_URL))
+chain2 := $(shell cast chain-id -r $(L2_RPC_URL))
+symbol := $(shell cat deployment-config/$(fileL1) | jq -r ".boringVault.boringVaultSymbol")
+post-deploy:
+	mkdir -p ./nucleus-deployments/$(symbol)
+	cp ./broadcast/deployAll.s.sol/$(chain1)/run-latest.json ./nucleus-deployments/$(symbol)/L1.json
+	cp ./broadcast/deployAll.s.sol/$(chain2)/run-latest.json ./nucleus-deployments/$(symbol)/L2.json
+	cp ./deployment-config/$(fileL1) ./nucleus-deployments/$(symbol)/L1Config.json
+	cp ./deployment-config/$(fileL2) ./nucleus-deployments/$(symbol)/L2Config.json
+	cd nucleus-deployments
+	git checkout -b $(symbol)
+	git add .
+	git commit -m "$(symbol) deployment"
+	git push origin $(symbol)
