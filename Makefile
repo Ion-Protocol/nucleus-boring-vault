@@ -54,8 +54,4 @@ post-deploy:
 	cp ./broadcast/deployAll.s.sol/$(chain2)/run-latest.json ./nucleus-deployments/$(symbol)/L2.json
 	cp ./deployment-config/$(fileL1) ./nucleus-deployments/$(symbol)/L1Config.json
 	cp ./deployment-config/$(fileL2) ./nucleus-deployments/$(symbol)/L2Config.json
-	cd nucleus-deployments
-	git checkout -b $(symbol)
-	git add .
-	git commit -m "$(symbol) deployment"
-	git push origin $(symbol)
+	cd nucleus-deployments && git checkout -b $(symbol) && git add . && git commit -m "$(symbol) deployment" && git push origin $(symbol) && git checkout main
