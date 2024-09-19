@@ -22,7 +22,7 @@ import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTr
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
 
-string constant OUTPUT_JSON_PATH = "/deployment-config/out.json";
+string constant OUTPUT_JSON_PATH = "./deployment-config/out.json";
 
 error INVALID_TELLER_CONTRACT_NAME();
 
@@ -47,6 +47,7 @@ error INVALID_TELLER_CONTRACT_NAME();
  */
 contract DeployAll is BaseScript {
     using StdJson for string;
+    using Strings for address;
 
     ConfigReader.Config mainConfig;
 
@@ -83,6 +84,13 @@ contract DeployAll is BaseScript {
         console.log("Set Authority And Transfer Ownerships Complete");
 
         mainConfig = config;
+
+        // write everything to an out file
+        config.boringVault.toHexString().write(OUTPUT_JSON_PATH, ".boringVault");
+        config.manager.toHexString().write(OUTPUT_JSON_PATH, ".manager");
+        config.accountant.toHexString().write(OUTPUT_JSON_PATH, ".accountant");
+        config.teller.toHexString().write(OUTPUT_JSON_PATH, ".teller");
+        config.rolesAuthority.toHexString().write(OUTPUT_JSON_PATH, ".rolesAuthority");
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {
