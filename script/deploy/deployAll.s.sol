@@ -51,8 +51,19 @@ contract DeployAll is BaseScript {
 
     ConfigReader.Config mainConfig;
 
+    // skips the json writing
+    function runLiveTest(string memory deployFile) public {
+        deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
+    }
+
     function run(string memory deployFile) public {
         deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
+        // write everything to an out file
+        mainConfig.boringVault.toHexString().write(OUTPUT_JSON_PATH, ".boringVault");
+        mainConfig.manager.toHexString().write(OUTPUT_JSON_PATH, ".manager");
+        mainConfig.accountant.toHexString().write(OUTPUT_JSON_PATH, ".accountant");
+        mainConfig.teller.toHexString().write(OUTPUT_JSON_PATH, ".teller");
+        mainConfig.rolesAuthority.toHexString().write(OUTPUT_JSON_PATH, ".rolesAuthority");
     }
 
     function deploy(ConfigReader.Config memory config) public override returns (address) {
@@ -84,13 +95,6 @@ contract DeployAll is BaseScript {
         console.log("Set Authority And Transfer Ownerships Complete");
 
         mainConfig = config;
-
-        // write everything to an out file
-        config.boringVault.toHexString().write(OUTPUT_JSON_PATH, ".boringVault");
-        config.manager.toHexString().write(OUTPUT_JSON_PATH, ".manager");
-        config.accountant.toHexString().write(OUTPUT_JSON_PATH, ".accountant");
-        config.teller.toHexString().write(OUTPUT_JSON_PATH, ".teller");
-        config.rolesAuthority.toHexString().write(OUTPUT_JSON_PATH, ".rolesAuthority");
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {

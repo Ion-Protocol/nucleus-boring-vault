@@ -71,7 +71,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // Run the deployment scripts
 
-        run(FILE_NAME);
+        runLiveTest(FILE_NAME);
 
         // check for if all rate providers are deployed, if not error
         for (uint256 i; i < mainConfig.assets.length; ++i) {
