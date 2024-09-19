@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { DeployAll } from "script/deploy/deployAll.s.sol";
 import { ConfigReader } from "script/ConfigReader.s.sol";
+import { SOLVER_ROLE } from "script/deploy/single/06_DeployRolesAuthority.s.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
@@ -22,6 +23,8 @@ import { CrossChainOPTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
 import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
+
+import { console2 } from "forge-std/console2.sol";
 
 string constant DEFAULT_RPC_URL = "L1_RPC_URL";
 uint256 constant DELTA = 10_000;
@@ -49,7 +52,6 @@ contract LiveDeploy is ForkTest, DeployAll {
 
     ERC20 constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     uint256 ONE_SHARE;
-    uint8 constant SOLVER_ROLE = 42;
 
     function setUp() public virtual {
         string memory FILE_NAME;
@@ -86,9 +88,6 @@ contract LiveDeploy is ForkTest, DeployAll {
             assertNotEq(rateProvider, address(0), "Rate provider address is 0");
             assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
         }
-
-        // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
-        vm.warp(block.timestamp + mainConfig.minimumUpdateDelayInSeconds);
 
         // define one share based off of vault decimals
         ONE_SHARE = 10 ** BoringVault(payable(mainConfig.boringVault)).decimals();
@@ -211,7 +210,7 @@ contract LiveDeploy is ForkTest, DeployAll {
             ? mainConfig.allowedExchangeRateChangeLower + 1
             : rateChange;
 
-        depositAmount = bound(depositAmount, 1, 10_000e18);
+        depositAmount = bound(depositAmount, 0.5e18, 10_000e18);
 
         // mint a bunch of extra tokens to the vault for if rate increased
         deal(mainConfig.base, mainConfig.boringVault, depositAmount);
@@ -223,7 +222,6 @@ contract LiveDeploy is ForkTest, DeployAll {
             expectedSharesByAsset[i] =
                 depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
             expecteShares += expectedSharesByAsset[i];
-
             _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmount);
         }
 
@@ -243,7 +241,7 @@ contract LiveDeploy is ForkTest, DeployAll {
             );
 
             // mint extra assets for vault to give out
-            deal(mainConfig.assets[i], mainConfig.boringVault, depositAmount);
+            deal(mainConfig.assets[i], mainConfig.boringVault, depositAmount * 2);
 
             uint256 expectedAssetsBack = ((depositAmount) * rateChange / 10_000);
 
@@ -417,9 +415,13 @@ contract LiveDeploy is ForkTest, DeployAll {
 
     function _updateRate(uint96 rateChange, AccountantWithRateProviders accountant) internal {
         // update the rate
+        // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
+        uint256 time = block.timestamp;
+        vm.warp(time + mainConfig.minimumUpdateDelayInSeconds);
         vm.startPrank(mainConfig.exchangeRateBot);
         uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
         accountant.updateExchangeRate(newRate);
         vm.stopPrank();
+        vm.warp(time);
     }
 }

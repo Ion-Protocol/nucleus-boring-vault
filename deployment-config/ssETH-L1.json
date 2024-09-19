@@ -1,0 +1,66 @@
+{
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "base": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+  "boringVaultAndBaseDecimals": "18",
+  "boringVault": {
+    "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000011",
+    "boringVaultName": "Sei Native Yield Super Seiyan ETH",
+    "boringVaultSymbol": "ssETH",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000011",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000011",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10030",
+    "allowedExchangeRateChangeLower": "9980",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000011",
+    "maxGasForPeer": 200000,
+    "minGasForPeer": 60000,
+    "peerEid": 30280,
+    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+    "opMessenger": "0x0000000000000000000000000000000000000000",
+    "assets": [
+      "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee",
+      "0xbf5495efe5db9ce00f80364c8b423567e58d2110",
+      "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7",
+      "0xFAe103DC9cf190eD75350761e95403b7b8aFa6c0",
+      "0xD9A442856C234a39a81a089C06451EBAa4306a72",
+      "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "0x9Ba021B0a9b958B5E75cE9f6dff97C7eE52cb3E6",
+      "0xac3E018457B222d93114458476f3E3416Abbe38F"
+    ],
+    "dvnIfNoDefault": {
+      "required": [
+        "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
+      ],
+      "optional": [
+        "0x380275805876Ff19055EA900CDb2B46a94ecF20D",
+        "0x8FafAE7Dd957044088b3d0F67359C327c6200d18",
+        "0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5",
+        "0xe552485d02EDd3067FE7FCbD4dd56BB1D3A998D2"
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 2
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000011",
+    "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000007",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}

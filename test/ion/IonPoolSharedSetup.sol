@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
+import "./../../../src/helper/Constants.sol";
 import { BoringVault } from "./../../src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "./../../src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "./../../src/base/Roles/AccountantWithRateProviders.sol";
@@ -11,7 +12,6 @@ import { MainnetAddresses } from "./../resources/MainnetAddresses.sol";
 import { IIonPool } from "@ion-protocol/interfaces/IIonPool.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
-import "./../../../src/helper/Constants.sol";
 
 contract IonPoolSharedSetup is Test, MainnetAddresses {
     using stdStorage for StdStorage;
