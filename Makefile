@@ -1,7 +1,8 @@
 include .env
 
 check-configs: 
-	bun lzConfigCheck.cjs
+	@echo "l1_file: ${l1_file} l2_file ${l2_file}"
+	bun lzConfigCheck.cjs ${l1_file} ${l2_file}
 
 checkL1:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
