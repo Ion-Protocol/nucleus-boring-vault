@@ -10,13 +10,7 @@ import { BaseScript } from "../../Base.s.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
-
-uint8 constant STRATEGIST_ROLE = 1;
-uint8 constant MANAGER_ROLE = 2;
-uint8 constant TELLER_ROLE = 3;
-uint8 constant UPDATE_EXCHANGE_RATE_ROLE = 4;
-uint8 constant SOLVER_ROLE = 5;
-uint8 constant PAUSER_ROLE = 6;
+import "./../../../src/helper/Constants.sol";
 
 /**
  * NOTE Deploys with `Authority` set to zero bytes.
@@ -28,6 +22,32 @@ contract DeployRolesAuthority is BaseScript {
         return deploy(getConfig());
     }
 
+    // Setup initial roles configurations
+    // --- Roles ---
+    // 1. STRATEGIST_ROLE
+    //     - manager.manageVaultWithMerkleVerification
+    //     - assigned to VAULT_STRATEGIST
+    // 2. MANAGER_ROLE
+    //     - boringVault.manage()
+    //     - assigned to MANAGER
+    // 3. TELLER_ROLE
+    //     - boringVault.enter()
+    //     - boringVault.exit()
+    //     - assigned to TELLER
+    // 4. PAUSER_ROLE
+    //     - teller.pause()
+    //     - accountant.pause()
+    //     - manager.pause()
+    // --- Public Functions ---
+    // 1. teller.deposit()
+    // 2. teller.bridge()
+    // 3. teller.depositAndBridge()
+    // --- Users / Role Assignments ---
+    // STRATEGIST_ROLE -> OWNER (multisig)
+    // MANAGER_ROLE -> MANAGER (contract)
+    // TELLER_ROLE -> TELLER (contract)
+    // UPDATE_EXCHANGE_RATE_ROLE -> EXCHANGE_RATE_BOT (EOA) & OWNER (multisig)
+    // PAUSER_ROLE -> PAUSER (EOA) & OWNER (multisig)
     function deploy(ConfigReader.Config memory config) public virtual override broadcast returns (address) {
         // Require config Values
         require(config.boringVault.code.length != 0, "boringVault must have code");
@@ -54,33 +74,6 @@ contract DeployRolesAuthority is BaseScript {
                 )
             )
         );
-
-        // Setup initial roles configurations
-        // --- Roles ---
-        // 1. STRATEGIST_ROLE
-        //     - manager.manageVaultWithMerkleVerification
-        //     - assigned to VAULT_STRATEGIST
-        // 2. MANAGER_ROLE
-        //     - boringVault.manage()
-        //     - assigned to MANAGER
-        // 3. TELLER_ROLE
-        //     - boringVault.enter()
-        //     - boringVault.exit()
-        //     - assigned to TELLER
-        // 4. PAUSER_ROLE
-        //     - teller.pause()
-        //     - accountant.pause()
-        //     - manager.pause()
-        // --- Public Functions ---
-        // 1. teller.deposit()
-        // 2. teller.bridge()
-        // 3. teller.depositAndBridge()
-        // --- Users / Role Assignments ---
-        // STRATEGIST_ROLE -> OWNER (multisig)
-        // MANAGER_ROLE -> MANAGER (contract)
-        // TELLER_ROLE -> TELLER (contract)
-        // UPDATE_EXCHANGE_RATE_ROLE -> EXCHANGE_RATE_BOT (EOA) & OWNER (multisig)
-        // PAUSER_ROLE -> PAUSER (EOA) & OWNER (multisig)
 
         // --- Set Role Capabilities ---
         rolesAuthority.setRoleCapability(
