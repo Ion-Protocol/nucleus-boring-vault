@@ -25,7 +25,7 @@ live-deployL1:
 
 live-deployL2:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
-	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L2_RPC_URL} --private-key=$(PRIVATE_KEY) --broadcast --slow
+	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L2_RPC_URL} --private-key=$(PRIVATE_KEY) --broadcast --slow --verify
 
 prettier:
 	prettier --write '**/*.{md,yml,yaml,ts,js}'

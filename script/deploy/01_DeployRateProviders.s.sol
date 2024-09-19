@@ -132,8 +132,6 @@ contract DeployRateProviders is BaseScript {
     {
         bytes4 functionSig = bytes4(keccak256(bytes(signature)));
 
-        bytes memory creationCode = type(GenericRateProvider).creationCode;
-
         GenericRateProvider rateProvider =
             new GenericRateProvider(target, functionSig, bytes32(arg), 0, 0, 0, 0, 0, 0, 0);
 

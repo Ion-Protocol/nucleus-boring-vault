@@ -16,6 +16,7 @@ uint8 constant MANAGER_ROLE = 2;
 uint8 constant TELLER_ROLE = 3;
 uint8 constant UPDATE_EXCHANGE_RATE_ROLE = 4;
 uint8 constant SOLVER_ROLE = 5;
+uint8 constant PAUSER_ROLE = 6;
 
 /**
  * NOTE Deploys with `Authority` set to zero bytes.
@@ -55,10 +56,6 @@ contract DeployRolesAuthority is BaseScript {
         );
 
         // Setup initial roles configurations
-        // --- Users ---
-        // 1. VAULT_STRATEGIST (BOT EOA)
-        // 2. MANAGER (CONTRACT)
-        // 3. TELLER (CONTRACT)
         // --- Roles ---
         // 1. STRATEGIST_ROLE
         //     - manager.manageVaultWithMerkleVerification
@@ -70,8 +67,22 @@ contract DeployRolesAuthority is BaseScript {
         //     - boringVault.enter()
         //     - boringVault.exit()
         //     - assigned to TELLER
-        // --- Public ---
-        // 1. teller.deposit
+        // 4. PAUSER_ROLE
+        //     - teller.pause()
+        //     - accountant.pause()
+        //     - manager.pause()
+        // --- Public Functions ---
+        // 1. teller.deposit()
+        // 2. teller.bridge()
+        // 3. teller.depositAndBridge()
+        // --- Users / Role Assignments ---
+        // STRATEGIST_ROLE -> OWNER (multisig)
+        // MANAGER_ROLE -> MANAGER (contract)
+        // TELLER_ROLE -> TELLER (contract)
+        // UPDATE_EXCHANGE_RATE_ROLE -> EXCHANGE_RATE_BOT (EOA) & OWNER (multisig)
+        // PAUSER_ROLE -> PAUSER (EOA) & OWNER (multisig)
+
+        // --- Set Role Capabilities ---
         rolesAuthority.setRoleCapability(
             STRATEGIST_ROLE,
             config.manager,
@@ -94,13 +105,22 @@ contract DeployRolesAuthority is BaseScript {
 
         rolesAuthority.setRoleCapability(TELLER_ROLE, config.boringVault, BoringVault.exit.selector, true);
 
-        rolesAuthority.setPublicCapability(config.teller, TellerWithMultiAssetSupport.deposit.selector, true);
-        rolesAuthority.setPublicCapability(config.teller, CrossChainTellerBase.bridge.selector, true);
-        rolesAuthority.setPublicCapability(config.teller, CrossChainTellerBase.depositAndBridge.selector, true);
-
         rolesAuthority.setRoleCapability(
             UPDATE_EXCHANGE_RATE_ROLE, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector, true
         );
+
+        rolesAuthority.setRoleCapability(PAUSER_ROLE, config.teller, TellerWithMultiAssetSupport.pause.selector, true);
+        rolesAuthority.setRoleCapability(
+            PAUSER_ROLE, config.accountant, AccountantWithRateProviders.pause.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            PAUSER_ROLE, config.manager, ManagerWithMerkleVerification.pause.selector, true
+        );
+
+        // --- Set Public Capabilities ---
+        rolesAuthority.setPublicCapability(config.teller, TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(config.teller, CrossChainTellerBase.bridge.selector, true);
+        rolesAuthority.setPublicCapability(config.teller, CrossChainTellerBase.depositAndBridge.selector, true);
 
         // --- Assign roles to users ---
 
@@ -110,19 +130,45 @@ contract DeployRolesAuthority is BaseScript {
 
         rolesAuthority.setUserRole(config.teller, TELLER_ROLE, true);
 
-        rolesAuthority.setUserRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE, true);
+        rolesAuthority.setUserRole(config.protocolAdmin, UPDATE_EXCHANGE_RATE_ROLE, true);
+        if (config.exchangeRateBot != address(0)) {
+            rolesAuthority.setUserRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE, true);
+        }
+
+        rolesAuthority.setUserRole(config.protocolAdmin, PAUSER_ROLE, true);
+        if (config.pauser != address(0)) {
+            rolesAuthority.setUserRole(config.pauser, PAUSER_ROLE, true);
+        }
 
         // Post Deploy Checks
         require(
             rolesAuthority.doesUserHaveRole(config.strategist, STRATEGIST_ROLE),
             "strategist should have STRATEGIST_ROLE"
         );
+
         require(rolesAuthority.doesUserHaveRole(config.manager, MANAGER_ROLE), "manager should have MANAGER_ROLE");
+
         require(rolesAuthority.doesUserHaveRole(config.teller, TELLER_ROLE), "teller should have TELLER_ROLE");
+
         require(
-            rolesAuthority.doesUserHaveRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE),
-            "exchangeRateBot should have UPDATE_EXCHANGE_RATE_ROLE"
+            rolesAuthority.doesUserHaveRole(config.protocolAdmin, UPDATE_EXCHANGE_RATE_ROLE),
+            "protocolAdmin should have UPDATE_EXCHANGE_RATE_ROLE"
         );
+        require(
+            rolesAuthority.doesUserHaveRole(config.protocolAdmin, PAUSER_ROLE), "protocolAdmin should have PAUSER_ROLE"
+        );
+
+        if (config.exchangeRateBot != address(0)) {
+            require(
+                rolesAuthority.doesUserHaveRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE),
+                "exchangeRateBot should have UPDATE_EXCHANGE_RATE_ROLE"
+            );
+        }
+
+        if (config.pauser != address(0)) {
+            require(rolesAuthority.doesUserHaveRole(config.pauser, PAUSER_ROLE), "pauser should have PAUSER_ROLE");
+        }
+
         require(
             rolesAuthority.canCall(
                 config.strategist,
@@ -160,10 +206,44 @@ contract DeployRolesAuthority is BaseScript {
             "exchangeRateBot should be able to call accountant.updateExchangeRate"
         );
         require(
+            rolesAuthority.canCall(
+                config.protocolAdmin, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector
+            ),
+            "protocolAdmin should be able to call accountant.updateExchangeRate"
+        );
+        require(
             rolesAuthority.canCall(address(1), config.teller, TellerWithMultiAssetSupport.deposit.selector),
             "anyone should be able to call teller.deposit"
         );
 
+        // Pauser Roles
+        _validatePauserRole(config, rolesAuthority, config.protocolAdmin);
+        if (config.pauser != address(0)) {
+            _validatePauserRole(config, rolesAuthority, config.pauser);
+        }
+
         return address(rolesAuthority);
+    }
+
+    function _validatePauserRole(
+        ConfigReader.Config memory config,
+        RolesAuthority rolesAuthority,
+        address user
+    )
+        internal
+        view
+    {
+        require(
+            rolesAuthority.canCall(user, config.teller, TellerWithMultiAssetSupport.pause.selector),
+            "pauser should be able to call teller.pause"
+        );
+        require(
+            rolesAuthority.canCall(user, config.accountant, AccountantWithRateProviders.pause.selector),
+            "pauser should be able to call accountant.pause"
+        );
+        require(
+            rolesAuthority.canCall(user, config.manager, ManagerWithMerkleVerification.pause.selector),
+            "pauser should be able to call manager.pause"
+        );
     }
 }

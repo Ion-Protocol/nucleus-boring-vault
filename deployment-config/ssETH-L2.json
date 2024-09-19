@@ -28,7 +28,9 @@
     "peerEid": 30101,
     "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
     "opMessenger": "0x0000000000000000000000000000000000000000",
-    "assets": [],
+    "assets": [
+      "0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce"
+    ],
     "dvnIfNoDefault": {
       "required": [
         "0x6788f52439aca6bff597d3eec2dc9a44b8fee842"
