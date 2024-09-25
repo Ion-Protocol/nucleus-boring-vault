@@ -12,3 +12,10 @@ IPriceFeed constant ETH_PER_APXETH_REDSTONE = IPriceFeed(0x19219BC90F48DeE4d5cF2
 
 address constant SWBTC = 0x8DB2350D78aBc13f5673A411D4700BCF87864dDE;
 address constant WBTC_ETHEREUM = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+
+uint8 constant STRATEGIST_ROLE = 1;
+uint8 constant MANAGER_ROLE = 2;
+uint8 constant TELLER_ROLE = 3;
+uint8 constant UPDATE_EXCHANGE_RATE_ROLE = 4;
+uint8 constant SOLVER_ROLE = 5;
+uint8 constant PAUSER_ROLE = 6;

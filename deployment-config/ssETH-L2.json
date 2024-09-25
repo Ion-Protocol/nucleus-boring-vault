@@ -1,0 +1,59 @@
+{
+  "protocolAdmin": "0xF2dE1311C5b2C1BD94de996DA13F80010453e505",
+  "base": "0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8",
+  "boringVaultAndBaseDecimals": "18",
+  "boringVault": {
+    "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000011",
+    "boringVaultName": "Sei Native Yield Super Seiyan ETH",
+    "boringVaultSymbol": "ssETH",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000011",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000011",
+    "payoutAddress": "0xF2dE1311C5b2C1BD94de996DA13F80010453e505",
+    "allowedExchangeRateChangeUpper": "10030",
+    "allowedExchangeRateChangeLower": "9980",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000011",
+    "maxGasForPeer": 200000,
+    "minGasForPeer": 60000,
+    "peerEid": 30101,
+    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+    "opMessenger": "0x0000000000000000000000000000000000000000",
+    "assets": [
+      "0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce"
+    ],
+    "dvnIfNoDefault": {
+      "required": [
+        "0x6788f52439aca6bff597d3eec2dc9a44b8fee842"
+      ],
+      "optional": [
+        "0x1feb08b1a53a9710afce82d380b8c2833c69a37e",
+        "0x87048402c32632b7c4d0a892d82bc1160e8b2393",
+        "0xd24972c11f91c1bb9eaee97ec96bb9c33cf7af24",
+        "0xbd00c87850416db0995ef8030b104f875e1bdd15"
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 2
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000011",
+    "strategist": "0xF2dE1311C5b2C1BD94de996DA13F80010453e505",
+    "exchangeRateBot": "0xF2dE1311C5b2C1BD94de996DA13F80010453e505",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000007",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}
