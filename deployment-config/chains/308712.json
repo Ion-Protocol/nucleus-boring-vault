@@ -1,0 +1,64 @@
+{
+    "name": "Ethereum Tenderly",
+    "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+    "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
+    "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
+    "assetToRateProviderAndPriceFeed": {
+      "NOTE_THESE_KEYS_MUST_NOT_BE_CHECKSUMMED": 0,
+      "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee": {
+        "priceFeed": "0x5c9C449BbC9a6075A2c061dF312a35fd1E05fF22",
+        "rateProvider": "0x51a9319B45F41c405eFA1EcbCcE530607A694862",
+        "decimals": 18,
+        "description": "weETH / ETH",
+        "priceFeedType": 0
+      },
+      "0xbf5495efe5db9ce00f80364c8b423567e58d2110": {
+        "priceFeed": "0x636A000262F6aA9e1F094ABF0aD8f645C44f641C",
+        "rateProvider": "0xb9B1eD92d3902eBEca23F931a629343D4C46c38D",
+        "decimals": 18,
+        "description": "ezETH / ETH",
+        "priceFeedType": 0
+      },
+      "0xa1290d69c65a6fe4df752f95823fae25cb99e5a7":{
+        "priceFeed": "0x03c68933f7a3F76875C0bc670a58e69294cDFD01",
+        "rateProvider": "0xB140e881E206E94B18e143f1739d5f212C59C859",
+        "decimals": 18,
+        "description": "RSETH / ETH",
+        "priceFeedType": 0
+      },
+      "0xfae103dc9cf190ed75350761e95403b7b8afa6c0": {
+        "priceFeed": "0xb613CfebD0b6e95abDDe02677d6bC42394FdB857",
+        "rateProvider": "0x4E323185C91Ef73e36f0CD2DdDcE54fb33112949",
+        "decimals": 18,
+        "description": "rswETH / ETH",
+        "priceFeedType": 0
+      },
+      "0xd9a442856c234a39a81a089c06451ebaa4306a72": {
+        "priceFeed": "0x76A495b0bFfb53ef3F0E94ef0763e03cE410835C",
+        "rateProvider": "0xEE8259373fCf5dc12F511867551F7f6FA6fcb0FB",
+        "decimals": 18,
+        "description": "pufETH/ETH",
+        "priceFeedType": 1
+      },
+      "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": {
+        "priceFeed": "0x86392dC19c0b719886221c78AB11eb8Cf5c52812",
+        "rateProvider": "0xa360Df495d0560bDDc5d681B54991629965ae170",
+        "decimals": 18,
+        "description": "STETH / ETH",
+        "priceFeedType": 0
+      },
+      "0x8db2350d78abc13f5673a411d4700bcf87864dde": {
+        "rateProvider": "0x318Da095d602C08eF41319f4c4bA0646d318C906",
+        "decimals": 8
+      },
+      "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6":{
+        "priceFeed": "0x19219bc90f48dee4d5cf202e09c438faacfd8bea",
+        "rateProvider": "0x47c2bDE6E8134BB69BE54ad09684B8CBBb57caC8",
+        "decimals": 18,
+        "description": "apxETH/ETH",
+        "priceFeedType": 1
+  
+      }
+     
+    }
+  }
