@@ -36,7 +36,7 @@ contract DeployRolesAuthority is BaseScript {
     //     - assigned to TELLER
     // 4. UPDATE_EXCHANGE_RATE_ROLE
     //     - accountant.updateExchangeRate()
-    //     - assinged to EXCHHANGE_RATE_BOT & OWNER
+    //     - assigned to EXCHHANGE_RATE_BOT & OWNER
     // 5. SOLVER_ROLE
     //     - Not yet a part of this script
     // 6. PAUSER_ROLE
