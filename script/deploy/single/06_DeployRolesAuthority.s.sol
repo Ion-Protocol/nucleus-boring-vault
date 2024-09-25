@@ -34,7 +34,12 @@ contract DeployRolesAuthority is BaseScript {
     //     - boringVault.enter()
     //     - boringVault.exit()
     //     - assigned to TELLER
-    // 4. PAUSER_ROLE
+    // 4. UPDATE_EXCHANGE_RATE_ROLE
+    //     - accountant.updateExchangeRate()
+    //     - assinged to EXCHHANGE_RATE_BOT & OWNER
+    // 5. SOLVER_ROLE
+    //     - Not yet a part of this script
+    // 6. PAUSER_ROLE
     //     - teller.pause()
     //     - accountant.pause()
     //     - manager.pause()
