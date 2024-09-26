@@ -9,9 +9,9 @@ struct lzTxObj {
     bytes dstNativeAddr;
 }
 
-contract StargateDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    error StargateDecoderAndSanitizer_LzTxParamsNotSupported();
-    error StargateDecoderAndSanitizer_PayloadNotSupported();
+contract StargateV1DecoderAndSanitizer is BaseDecoderAndSanitizer {
+    error StargateV1DecoderAndSanitizer_LzTxParamsNotSupported();
+    error StargateV1DecoderAndSanitizer_PayloadNotSupported();
 
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
@@ -45,10 +45,10 @@ contract StargateDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory)
     {
         if (_lzTxParams.dstGasForCall > 0 || _lzTxParams.dstNativeAmount > 0 || _lzTxParams.dstNativeAddr.length > 0) {
-            revert StargateDecoderAndSanitizer_LzTxParamsNotSupported();
+            revert StargateV1DecoderAndSanitizer_LzTxParamsNotSupported();
         }
         if (_payload.length > 0) {
-            revert StargateDecoderAndSanitizer_PayloadNotSupported();
+            revert StargateV1DecoderAndSanitizer_PayloadNotSupported();
         }
         return abi.encodePacked(_dstChainId, _srcPoolId, _dstPoolId, _to);
     }
