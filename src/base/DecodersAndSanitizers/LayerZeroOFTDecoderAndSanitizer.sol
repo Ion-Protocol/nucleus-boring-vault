@@ -6,6 +6,9 @@ import { SendParam } from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol"
 import { MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 
 contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
+    error LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
+    error LayerZeroOFTDecoderAndSanitizer_OftCmdNotSupported();
+
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
     /*
@@ -22,6 +25,13 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256 lzTokenFee;
     */
     function send(SendParam calldata _sendParam, MessagingFee calldata, address) external pure returns (bytes memory) {
+        if (_sendParam.composeMsg.length > 0) {
+            revert LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
+        }
+        if (_sendParam.oftCmd.length > 0) {
+            revert LayerZeroOFTDecoderAndSanitizer_OftCmdNotSupported();
+        }
+
         return abi.encodePacked(_sendParam.dstEid, _sendParam.to);
     }
 }
