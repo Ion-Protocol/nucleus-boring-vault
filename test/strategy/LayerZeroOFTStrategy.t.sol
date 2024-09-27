@@ -2,13 +2,19 @@ pragma solidity 0.8.21;
 
 import { StrategyBase, Leaf } from "./StrategyBase.t.sol";
 import { LayerZeroOFTDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/LayerZeroOFTDecoderAndSanitizer.sol";
+import { LiveSetup } from "../LiveSetup.t.sol";
 
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
 
-contract LayerZeroOFTStrategy is StrategyBase {
+contract LayerZeroOFTStrategy is StrategyBase, LiveSetup {
     uint256 constant ETH_EID = 30_101;
 
     LayerZeroOFTDecoderAndSanitizer sanitizer;
+
+    function setUp() public override(StrategyBase, LiveSetup) {
+        LiveSetup.setUp();
+        StrategyBase.setUp();
+    }
 
     function setUpDecoderSanitizers() public override {
         sanitizer = new LayerZeroOFTDecoderAndSanitizer(mainConfig.boringVault);

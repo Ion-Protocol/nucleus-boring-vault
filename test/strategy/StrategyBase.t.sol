@@ -4,7 +4,6 @@ pragma solidity 0.8.21;
 import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
-import { LiveSetup } from "../LiveSetup.t.sol";
 
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
@@ -18,9 +17,8 @@ struct Leaf {
 
 uint256 constant EXAMPLE_TREE_SIZE = 8;
 
-abstract contract StrategyBase is LiveSetup {
-    function setUp() public virtual override {
-        super.setUp();
+abstract contract StrategyBase is Test {
+    function setUp() public virtual {
         setUpDecoderSanitizers();
     }
 
