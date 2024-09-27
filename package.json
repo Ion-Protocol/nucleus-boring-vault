@@ -25,6 +25,7 @@
     "@layerzerolabs/lz-evm-oapp-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
+    "@layerzerolabs/oft-evm": "^0.0.11",
     "forge-std": "^1.1.2",
     "prettier": "^3.3.2",
     "solhint": "^5.0.1"
