@@ -25,8 +25,8 @@
     "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000000e",
     "maxGasForPeer": 100000,
     "minGasForPeer": 0,
-    "peerEid": 30280,
-    "tellerContractName": "TellerWithMultiAssetSupport",
+    "peerEid": 30101,
+    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
     "assets": [],
     "dvnIfNoDefault": {
       "required": [
