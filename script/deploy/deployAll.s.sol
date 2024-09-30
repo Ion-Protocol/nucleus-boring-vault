@@ -22,7 +22,7 @@ import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTr
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
 
-string constant OUTPUT_JSON_PATH = "/deployment-config/out.json";
+string constant OUTPUT_JSON_PATH = "./deployment-config/out.json";
 
 error INVALID_TELLER_CONTRACT_NAME();
 
@@ -47,11 +47,23 @@ error INVALID_TELLER_CONTRACT_NAME();
  */
 contract DeployAll is BaseScript {
     using StdJson for string;
+    using Strings for address;
 
     ConfigReader.Config mainConfig;
 
+    // skips the json writing
+    function runLiveTest(string memory deployFile) public {
+        deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
+    }
+
     function run(string memory deployFile) public {
         deploy(ConfigReader.toConfig(vm.readFile(string.concat(CONFIG_PATH_ROOT, deployFile)), getChainConfigFile()));
+        // write everything to an out file
+        mainConfig.boringVault.toHexString().write(OUTPUT_JSON_PATH, ".boringVault");
+        mainConfig.manager.toHexString().write(OUTPUT_JSON_PATH, ".manager");
+        mainConfig.accountant.toHexString().write(OUTPUT_JSON_PATH, ".accountant");
+        mainConfig.teller.toHexString().write(OUTPUT_JSON_PATH, ".teller");
+        mainConfig.rolesAuthority.toHexString().write(OUTPUT_JSON_PATH, ".rolesAuthority");
     }
 
     function deploy(ConfigReader.Config memory config) public override returns (address) {
