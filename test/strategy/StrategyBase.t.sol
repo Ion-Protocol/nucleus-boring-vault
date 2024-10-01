@@ -27,17 +27,21 @@ abstract contract StrategyBase is Test {
 
     function setUpDecoderSanitizers() public virtual;
 
-    function buildExampleTree(Leaf memory leaf) public {
-        Leaf[] memory leafs = new Leaf[](EXAMPLE_TREE_SIZE);
-        // users leaf is first one
-        leafs[0] = leaf;
+    function buildExampleTree(Leaf[] memory leafsIn) public {
+        require(leafsIn.length <= EXAMPLE_TREE_SIZE, "Cannot provide more leafs than EXAMPLE TREE SIZE");
+        Leaf[] memory leafsOut = new Leaf[](EXAMPLE_TREE_SIZE);
+
+        // set the provided leafs in
+        for (uint256 i; i < leafsIn.length; ++i) {
+            leafsOut[i] = leafsIn[i];
+        }
         // fill others with random data
-        for (uint256 i = 1; i < EXAMPLE_TREE_SIZE; ++i) {
-            leafs[i] = Leaf(
+        for (uint256 i = leafsIn.length; i < EXAMPLE_TREE_SIZE; ++i) {
+            leafsOut[i] = Leaf(
                 address(bytes20(bytes32(i))), address(bytes20(bytes32((i * EXAMPLE_TREE_SIZE)))), false, 0x00000000, ""
             );
         }
-        tree = _generateMerkleTree(leafs);
+        tree = _generateMerkleTree(leafsOut);
     }
 
     function _hashLeaf(Leaf memory leaf) internal returns (bytes32 leafHash) {

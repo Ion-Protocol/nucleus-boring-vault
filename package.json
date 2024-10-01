@@ -26,7 +26,10 @@
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
     "@layerzerolabs/oft-evm": "^0.0.11",
+    "@stargatefinance/stg-evm-v2": "^1.0.16",
     "forge-std": "^1.1.2",
+    "i": "^0.3.7",
+    "npm": "^10.8.3",
     "prettier": "^3.3.2",
     "solhint": "^5.0.1"
   }

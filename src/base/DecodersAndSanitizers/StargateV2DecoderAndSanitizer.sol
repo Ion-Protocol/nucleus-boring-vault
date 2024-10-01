@@ -2,13 +2,12 @@
 pragma solidity 0.8.21;
 
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
-import { SendParam } from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
-import { MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
+import { MessagingFee, OFTReceipt, SendParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
 
-contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    error LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
-
+contract StargateV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
+
+    error StargateV2DecoderAndSanitizer_ComposedMsgNotSupported();
 
     /**
      * @dev _sendParam:
@@ -23,19 +22,17 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
      *     uint256 nativeFee;
      *     uint256 lzTokenFee;
      */
-    function send(
-        SendParam calldata _sendParam,
-        MessagingFee calldata,
-        address refundReceiver
+    function sendToken(
+        SendParam memory _sendParam,
+        MessagingFee memory _messagingFee,
+        address _refundAddress
     )
         external
-        pure
         returns (bytes memory)
     {
         if (_sendParam.composeMsg.length > 0) {
-            revert LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
+            revert StargateV2DecoderAndSanitizer_ComposedMsgNotSupported();
         }
-
-        return abi.encodePacked(_sendParam.dstEid, _sendParam.to, refundReceiver);
+        return abi.encodePacked(_sendParam.dstEid, _sendParam.to, _refundAddress);
     }
 }
