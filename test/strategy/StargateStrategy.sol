@@ -112,7 +112,6 @@ contract StargateStrategy is StrategyBase {
         // manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
         console.log("MinAmountLD: ", sp.minAmountLD);
         console.log("AmountLD: ", sp.amountLD);
-        console.log("SEI Spent: ", SEI_TO_MINT - address(boringVault).balance);
         console.log("Value to Send: ", valueToSend);
         uint256 percentLossEther = 1 ether - (sp.minAmountLD * 1 ether / sp.amountLD);
         console.log("Percent Loss: ", percentLossEther);

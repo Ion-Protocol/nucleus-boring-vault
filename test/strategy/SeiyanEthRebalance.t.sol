@@ -16,6 +16,7 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { console } from "@forge-std/Test.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { ERC4626 } from "@solmate/tokens/ERC4626.sol";
 
 address constant ADMIN = 0x0000000000417626Ef34D62C4DC189b021603f2F;
 address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -23,9 +24,8 @@ address constant APX_ETH = 0x9Ba021B0a9b958B5E75cE9f6dff97C7eE52cb3E6;
 address constant PX_ETH = 0x04C154b66CB340F3Ae24111CC767e0184Ed00Cc6;
 address constant PIREX_ETH = 0xD664b74274DfEB538d9baC494F3a4760828B02b0;
 address constant CURVE = 0xC8Eb2Cf2f792F77AF0Cd9e203305a585E588179D;
-uint256 constant SEI_WETH = 93.5214859e18;
 uint256 constant TARGET_APX_ETH = 235.2211814e18;
-uint256 constant ACCEPTED_CURVE_RECEIVE = 10e18;
+uint256 constant ACCEPTED_CURVE_RECEIVE = 268.541877354420659066e18;
 
 contract SeiyanEthRebalanceStrategyTest is StrategyBase {
     using Address for address;
@@ -42,14 +42,11 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
     }
 
     function setUpDecoderSanitizers() public override {
-        decoder = new SeiyanEthRebalanceDecoderAndSanitizer(address(boringVault));
+        decoder = SeiyanEthRebalanceDecoderAndSanitizer(0x08dAbeAC71bcA6987Ec314cE0E532De4b96962b1);
     }
 
     function testRebalance() public {
         uint256 vaultBalance = base.balanceOf(address(boringVault));
-
-        // deal the eth we are expecting to receive
-        deal(address(boringVault), vaultBalance + SEI_WETH);
 
         vaultBalance = address(boringVault).balance;
 
@@ -74,7 +71,7 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
         values[0] = vaultBalance;
 
         // leaf 1 = approve Curve Router to spend all WETH
-        uint256 wethBal = ERC20(WETH).balanceOf(address(boringVault));
+        uint256 wethBal = ERC20(WETH).balanceOf(address(boringVault)) + vaultBalance;
         packedArguments = abi.encodePacked(CURVE);
         myLeafs[1] = Leaf(address(decoder), WETH, false, BaseDecoderAndSanitizer.approve.selector, packedArguments);
         // leaf 1 Calldata
@@ -140,11 +137,18 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
         manager.setManageRoot(ADMIN, _getRoot());
         assertEq(manager.manageRoot(ADMIN), _getRoot(), "Root not set correctly");
 
+        console.log("ROOT:");
+        console.logBytes32(_getRoot());
         _logManageVaultWithMerkleVerification(manager, manageProofs, decodersAndSanitizers, targets, targetData, values);
 
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
         assertGe(ERC20(APX_ETH).balanceOf(address(boringVault)), TARGET_APX_ETH, "APX_ETH balance is less than target");
         vm.stopPrank();
+
+        uint256 pxETHValueOfAssets = ERC4626(APX_ETH).previewRedeem(ERC20(APX_ETH).balanceOf(address(boringVault)));
+        console.log(pxETHValueOfAssets);
+        console.log(ERC20(APX_ETH).balanceOf(address(boringVault)));
+        assertGe(pxETHValueOfAssets, wethBal, "Should get back more APX_ETH than WETH");
     }
 
     function _setUpManager(uint256 depositAmount) internal { }
