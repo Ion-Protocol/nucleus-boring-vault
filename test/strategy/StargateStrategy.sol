@@ -39,9 +39,7 @@ contract StargateStrategy is StrategyBase {
     }
 
     function testSend() external {
-        deal(address(boringVault), SEI_TO_MINT);
         uint256 amountToSend = ERC20(WETH).balanceOf(address(boringVault));
-        // uint256 amountToSend = 0.000019 ether;
         console.log(amountToSend);
         // owner prank
         // deploy sanitizer and build tree
@@ -116,9 +114,9 @@ contract StargateStrategy is StrategyBase {
         console.log("AmountLD: ", sp.amountLD);
         console.log("SEI Spent: ", SEI_TO_MINT - address(boringVault).balance);
         console.log("Value to Send: ", valueToSend);
-        uint256 percentLossEther = sp.minAmountLD * 1 ether / sp.amountLD;
+        uint256 percentLossEther = 1 ether - (sp.minAmountLD * 1 ether / sp.amountLD);
         console.log("Percent Loss: ", percentLossEther);
-        assertApproxEqAbs(1 ether - percentLossEther, 0.0006 ether, 0.0000001 ether, "Invalid slippage");
+        assertApproxEqAbs(percentLossEther, 0.0006 ether, 0.0000001 ether, "Invalid slippage");
         // assertEq(ERC20(WETH).balanceOf(address(boringVault)), 0, "Boring Vault should have no more WETH");
     }
 
