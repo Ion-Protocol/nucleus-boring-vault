@@ -33,7 +33,7 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
         view
         returns (bytes memory)
     {
-        if (bytes32ToAddress(_sendParam.to) != boringVault) {
+        if (bytes32ToAddress(_sendParam.to) != boringVault || refundReceiver != boringVault) {
             revert LayerZeroOFTDecoderAndSanitizer_NotVault();
         }
         if (_sendParam.composeMsg.length > 0) {
