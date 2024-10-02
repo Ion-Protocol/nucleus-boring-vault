@@ -5,11 +5,8 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 import { SendParam } from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
 import { MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 
-contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
+abstract contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
-    error LayerZeroOFTDecoderAndSanitizer_NotVault();
-
-    constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
     /**
      * @dev _sendParam:
@@ -19,7 +16,8 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
      *     uint256 minAmountLD; // Minimum amount to send in local decimals.
      *     bytes extraOptions; // Additional options supplied by the caller to be used in the LayerZero message.
      *     bytes composeMsg; // The composed message for the send() operation.                                     [NONE]
-     *     bytes oftCmd; // The OFT command to be executed, unused in default OFT implementations.                 [NONE]
+     *     bytes oftCmd; // The OFT command to be executed, unused in default OFT implementations. 0 for Taxi (faster,
+     * expensive) 1 for Bus (slower, cheaper)
      * @dev _fee:
      *     uint256 nativeFee;
      *     uint256 lzTokenFee;
@@ -34,7 +32,7 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory)
     {
         if (bytes32ToAddress(_sendParam.to) != boringVault || refundReceiver != boringVault) {
-            revert LayerZeroOFTDecoderAndSanitizer_NotVault();
+            revert NotVault();
         }
         if (_sendParam.composeMsg.length > 0) {
             revert LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
