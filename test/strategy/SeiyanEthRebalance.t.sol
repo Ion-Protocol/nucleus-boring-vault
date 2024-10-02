@@ -5,7 +5,11 @@ import { SeiyanEthRebalanceDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/SeiyanEthRebalanceDecoderAndSanitizer.sol";
 import { NativeWrapperDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/NativeWrapperDecoderAndSanitizer.sol";
-import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PirexEthDecoderAndSanitizer.sol";
+import {
+    PirexEthDecoderAndSanitizer,
+    BaseDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/PirexEthDecoderAndSanitizer.sol";
+
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -15,9 +19,12 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 address constant ADMIN = 0x0000000000417626Ef34D62C4DC189b021603f2F;
 address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 address constant APX_ETH = 0x9Ba021B0a9b958B5E75cE9f6dff97C7eE52cb3E6;
+address constant PX_ETH = 0x04C154b66CB340F3Ae24111CC767e0184Ed00Cc6;
 address constant PIREX_ETH = 0xD664b74274DfEB538d9baC494F3a4760828B02b0;
 uint256 constant SEI_WETH = 93.5214859e18;
 uint256 constant TARGET_APX_ETH = 235.2211814e18;
+uint256 constant CURVE = 0xC8Eb2Cf2f792F77AF0Cd9e203305a585E588179D;
+uint256 constant ACCEPTED_CURVE_RECEIVE = 0;
 
 contract SeiyanEthRebalanceStrategyTest is StrategyBase {
     using Address for address;
@@ -40,28 +47,73 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
     function testRebalance() public {
         uint256 vaultBalance = base.balanceOf(address(boringVault));
 
+        // deal the eth we are expecting to receive
         deal(address(boringVault), vaultBalance + SEI_WETH);
+
         vaultBalance = address(boringVault).balance;
-        _setUpManager(vaultBalance);
-        assertEq(manager.manageRoot(ADMIN), _getRoot(), "Root not set correctly");
 
-        Leaf[] memory myLeafs = _getLeafsForTest(vaultBalance);
+        // construct leafs
+        Leaf[] memory myLeafs = new Leaf[](5);
 
-        bytes32[][] memory manageProofs = new bytes32[][](1);
-        address[] memory decodersAndSanitizers = new address[](1);
-        address[] memory targets = new address[](1);
-        bytes[] memory targetData = new bytes[](1);
-        uint256[] memory values = new uint256[](1);
+        // calldata for leafs
+        bytes32[][] memory manageProofs = new bytes32[][](5);
+        address[] memory decodersAndSanitizers = new address[](5);
+        address[] memory targets = new address[](5);
+        bytes[] memory targetData = new bytes[](5);
+        uint256[] memory values = new uint256[](5);
 
-        manageProofs = _getProofsUsingTree(myLeafs, tree);
+        // leaf 0 = deposit eth into WETH native wrapper
+        bytes memory packedArguments = "";
+        myLeafs[0] = Leaf(address(decoder), WETH, true, PirexEthDecoderAndSanitizer.deposit.selector, packedArguments);
+        // leaf 0 Calldata
         decodersAndSanitizers[0] = myLeafs[0].decoderAndSanitizer;
-
         targets[0] = myLeafs[0].target;
-
-        targetData[0] = abi.encodeWithSelector(myLeafs[0].selector, address(boringVault), true);
-
+        targetData[0] = abi.encodeWithSelector(myLeafs[0].selector, "");
         values[0] = vaultBalance;
 
+        // leaf 1 = approve Curve Router to spend all WETH
+        uint256 wethBal = ERC20(WETH).balanceOf(address(boringVault));
+        packedArguments = abi.encodePacked(CURVE);
+        myLeafs[1] = Leaf(address(decoder), WETH, false, BaseDecoderAndSanitizer.approve.selector, packedArguments);
+        // leaf 1 Calldata
+        decodersAndSanitizers[1] = myLeafs[1].decoderAndSanitizer;
+        targets[1] = myLeafs[1].target;
+        targetData[1] = abi.encodeWithSelector(myLeafs[1].selector, CURVE, wethBal);
+        values[1] = 0;
+
+        // leaf 2 = call Curve exchange
+        int128 i = 0; // index of coin to send
+        int128 j = 1; // index of coin to receive
+        packedArguments = "";
+        myLeafs[2] =
+            Leaf(address(decoder), CURVE, false, PirexEthDecoderAndSanitizer.exchange.selector, packedArguments);
+        // leaf 2 Calldata
+        decodersAndSanitizers[2] = myLeafs[2].decoderAndSanitizer;
+        targets[2] = myLeafs[2].target;
+        targetData[2] = abi.encodeWithSelector(i, j, wethBal, ACCEPTED_CURVE_RECEIVE);
+        values[2] = 0;
+
+        // leaf 3 = approve apxETH to spend all pxETH
+        uint256 pxEthBal = ERC20(PX_ETH).balanceOf(address(boringVault));
+        packedArguments = abi.encodePacked(APX_ETH);
+        myLeafs[3] = Leaf(address(decoder), PX_ETH, false, BaseDecoderAndSanitizer.approve.selector, packedArguments);
+        // leaf 1 Calldata
+        decodersAndSanitizers[3] = myLeafs[3].decoderAndSanitizer;
+        targets[3] = myLeafs[3].target;
+        targetData[3] = abi.encodeWithSelector(myLeafs[3].selector, APX_ETH, pxEthBal);
+        values[3] = 0;
+
+        // leaf 4 = ERC4626 deposit on apxETH of pxETH
+        packedArguments = abi.encodePacked(address(boringVault));
+        myLeafs[4] =
+            Leaf(address(decoder), APX_ETH, false, PirexEthDecoderAndSanitizer.deposit.selector, packedArguments);
+        // leaf 1 Calldata
+        decodersAndSanitizers[3] = myLeafs[3].decoderAndSanitizer;
+        targets[3] = myLeafs[3].target;
+        targetData[3] = abi.encodeWithSelector(myLeafs[3].selector, pxEthBal, address(boringVault));
+        values[3] = 0;
+
+        manageProofs = _getProofsUsingTree(myLeafs, tree);
         // console.log("myLeafs[0]");
         // console.log(myLeafs[0].decoderAndSanitizer);
         // console.log(myLeafs[0].target);
@@ -81,33 +133,19 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
         // console.log(values[0]);
         // console.logBytes4(bytes4(targetData[0]));
         // console.logBytes(vmp_packedArgumentAddresses);
-        vm.prank(ADMIN);
-        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-        assertGe(ERC20(APX_ETH).balanceOf(address(boringVault)), TARGET_APX_ETH, "APX_ETH balance is less than target");
-    }
 
-    function _setUpManager(uint256 depositAmount) internal {
         vm.startPrank(ADMIN);
         // admin allows strategy for deposit to APX ETH returning tokens to boring vault
-        Leaf[] memory myLeafs = _getLeafsForTest(depositAmount);
         buildExampleTree(myLeafs);
-        bytes32 root = _getRoot();
+        manager.setManageRoot(ADMIN, _getRoot());
+        assertEq(manager.manageRoot(ADMIN), _getRoot(), "Root not set correctly");
 
-        manager.setManageRoot(ADMIN, root);
+        _logManageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+
+        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+        assertGe(ERC20(APX_ETH).balanceOf(address(boringVault)), TARGET_APX_ETH, "APX_ETH balance is less than target");
         vm.stopPrank();
     }
 
-    function _getLeafsForTest(uint256 depositAmount) internal returns (Leaf[] memory myLeafs) {
-        // weth -> eth
-        Leaf memory wethForEthLeaf =
-            Leaf(address(decoder), WETH, false, NativeWrapperDecoderAndSanitizer.withdraw.selector, "");
-
-        // eth -> pirexETH for apxETH
-        bytes memory packedArguments = abi.encodePacked(address(boringVault));
-        Leaf memory pirexEthLeaf =
-            Leaf(address(decoder), PIREX_ETH, true, PirexEthDecoderAndSanitizer.deposit.selector, packedArguments);
-        myLeafs = new Leaf[](1);
-
-        myLeafs[0] = pirexEthLeaf;
-    }
+    function _setUpManager(uint256 depositAmount) internal { }
 }

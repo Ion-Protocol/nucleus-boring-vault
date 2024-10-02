@@ -18,7 +18,7 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
      *     uint256 amountLD; // Amount to send in local decimals.
      *     uint256 minAmountLD; // Minimum amount to send in local decimals.
      *     bytes extraOptions; // Additional options supplied by the caller to be used in the LayerZero message.
-     *     bytes composeMsg; // The composed message for the send() operation.                                     [NONE]
+     *     bytes composeMsg; // The composed message for the send() operation.
      *     bytes oftCmd; // The OFT command to be executed, unused in default OFT implementations.                 [NONE]
      * @dev _fee:
      *     uint256 nativeFee;

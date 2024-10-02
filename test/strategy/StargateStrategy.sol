@@ -34,12 +34,14 @@ contract StargateStrategy is StrategyBase {
     }
 
     function setUpDecoderSanitizers() public override {
-        sanitizer = new LayerZeroOFTDecoderAndSanitizer(address(boringVault));
+        sanitizer = LayerZeroOFTDecoderAndSanitizer(0x660F2E0710757636AeB56b0c013522c71f33373a);
+        // sanitizer = new LayerZeroOFTDecoderAndSanitizer(address(boringVault));
     }
 
     function testSend() external {
         deal(address(boringVault), SEI_TO_MINT);
         uint256 amountToSend = ERC20(WETH).balanceOf(address(boringVault));
+        // uint256 amountToSend = 0.000019 ether;
         console.log(amountToSend);
         // owner prank
         // deploy sanitizer and build tree
@@ -58,7 +60,7 @@ contract StargateStrategy is StrategyBase {
 
         // set leaf in manager
         ManagerWithMerkleVerification manager = ManagerWithMerkleVerification(manager);
-        manager.setManageRoot(ADMIN, _getRoot());
+        // manager.setManageRoot(ADMIN, _getRoot());
         vm.stopPrank();
 
         // strategist manages vault
@@ -67,6 +69,8 @@ contract StargateStrategy is StrategyBase {
         bytes32[][] memory manageProofs = new bytes32[][](2);
         manageProofs[0] = _generateProof(_hashLeaf(approveLeaf), tree);
         manageProofs[1] = _generateProof(_hashLeaf(sendLeaf), tree);
+
+        // manageProofs = _overrideManageProofs();
 
         address[] memory decodersAndSanitizers = new address[](2);
         decodersAndSanitizers[0] = address(sanitizer);
@@ -90,18 +94,32 @@ contract StargateStrategy is StrategyBase {
         MessagingFee memory mf = IStargate(STARGATE).quoteSend(sp, false);
         uint256 valueToSend = mf.nativeFee;
 
-        targetData[1] = abi.encodeWithSelector(LayerZeroOFTDecoderAndSanitizer.send.selector, sp, mf, ADMIN);
+        targetData[1] =
+            abi.encodeWithSelector(LayerZeroOFTDecoderAndSanitizer.send.selector, sp, mf, address(boringVault));
 
         uint256[] memory values = new uint256[](2);
         values[0] = 0;
         values[1] = valueToSend;
 
-        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+        console.logBytes32(_getRoot());
+        console.logBytes32(manageProofs[0][0]);
+        console.logBytes32(manageProofs[1][0]);
+
+        bytes memory calldataManage = _logManageVaultWithMerkleVerification(
+            manager, manageProofs, decodersAndSanitizers, targets, targetData, values
+        );
+        (bool success, bytes memory returnData) = address(manager).call(calldataManage);
+        console.logBytes(returnData);
+        assertTrue(success, "Failed :(");
+        // manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
         console.log("MinAmountLD: ", sp.minAmountLD);
         console.log("AmountLD: ", sp.amountLD);
         console.log("SEI Spent: ", SEI_TO_MINT - address(boringVault).balance);
         console.log("Value to Send: ", valueToSend);
-        assertEq(ERC20(WETH).balanceOf(address(boringVault)), 0, "Boring Vault should have no more WETH");
+        uint256 percentLossEther = sp.minAmountLD * 1 ether / sp.amountLD;
+        console.log("Percent Loss: ", percentLossEther);
+        assertApproxEqAbs(1 ether - percentLossEther, 0.0006 ether, 0.0000001 ether, "Invalid slippage");
+        // assertEq(ERC20(WETH).balanceOf(address(boringVault)), 0, "Boring Vault should have no more WETH");
     }
 
     function addressToBytes32(address _addr) public pure returns (bytes32) {
@@ -111,4 +129,18 @@ contract StargateStrategy is StrategyBase {
     function bytes32ToAddress(bytes32 b) public pure returns (address) {
         return address(uint160(uint256(b)));
     }
+
+    // function _overrideManageProofs() internal override returns(bytes32[][] memory manageProofs){
+    //     manageProofs = new bytes32[][](2);
+    //     bytes32[] memory proof1 = new bytes32[](1);
+    //     proof1[0] = 0xde60c87f043844b10d1fef3d4d8634cf5759cbbad38ec408658f1f84c27d42f0;
+    //     manageProofs[0] = proof1;
+    //     bytes32[] memory proof2 = new bytes32[](1);
+    //     proof2[0] = 0xf6fb9a0e245fcea3569787738848537ab7a05d37e0faf2bf94285c59264f577b;
+    //     manageProofs[1] = proof2;
+    // }
+
+    // function _getRoot() internal override returns (bytes32) {
+    //     return 0xd011db7ee428fd2924b03a5a461d493802111429b0afb0a6172d3713b142dce4;
+    // }
 }

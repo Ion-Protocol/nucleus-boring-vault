@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
@@ -18,6 +19,8 @@ struct Leaf {
 uint256 constant EXAMPLE_TREE_SIZE = 8;
 
 abstract contract StrategyBase is Test {
+    using Address for address;
+
     function setUp() public virtual {
         setUpDecoderSanitizers();
     }
@@ -71,7 +74,7 @@ abstract contract StrategyBase is Test {
         }
     }
 
-    function _getRoot() internal returns (bytes32) {
+    function _getRoot() internal virtual returns (bytes32) {
         return tree[tree.length - 1][0];
     }
 
@@ -162,4 +165,59 @@ abstract contract StrategyBase is Test {
             value := keccak256(0x00, 0x40)
         }
     }
+
+    function _logManageVaultWithMerkleVerification(
+        ManagerWithMerkleVerification manager,
+        bytes32[][] memory manageProofs,
+        address[] memory decodersAndSanitizers,
+        address[] memory targets,
+        bytes[] memory targetData,
+        uint256[] memory values
+    )
+        internal
+        virtual
+        returns (bytes memory)
+    {
+        console.log("Manager:\t", address(manager));
+
+        console.log("leaf hashes: ");
+        for (uint256 i; i < manageProofs.length; ++i) {
+            bool valueNonZero = values[i] != 0;
+            bytes memory packedArgumentAddresses =
+                abi.decode(decodersAndSanitizers[i].functionStaticCall(targetData[i]), (bytes));
+            console.log("decoder: ", decodersAndSanitizers[i]);
+            console.log("target: ", targets[i]);
+            console.logBytes4(bytes4(targetData[i]));
+            console.logBytes(packedArgumentAddresses);
+            console.log("Value: ", valueNonZero);
+            console.logBytes32(
+                keccak256(
+                    bytes.concat(
+                        keccak256(
+                            abi.encode(
+                                decodersAndSanitizers[i],
+                                targets[i],
+                                valueNonZero,
+                                bytes4(targetData[i]),
+                                packedArgumentAddresses
+                            )
+                        )
+                    )
+                )
+            );
+        }
+        console.log("calldata to manage: ");
+        bytes memory calldataManage = abi.encodeWithSignature(
+            "manageVaultWithMerkleVerification(bytes32[][],address[],address[],bytes[],uint256[])",
+            manageProofs,
+            decodersAndSanitizers,
+            targets,
+            targetData,
+            values
+        );
+        console.logBytes(calldataManage);
+        return calldataManage;
+    }
+
+    function _overrideManageProofs() internal virtual returns (bytes32[][] memory manageProofs) { }
 }
