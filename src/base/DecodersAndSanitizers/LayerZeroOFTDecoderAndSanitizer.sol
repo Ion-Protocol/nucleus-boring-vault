@@ -7,6 +7,7 @@ import { MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 
 contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
+    error LayerZeroOFTDecoderAndSanitizer_NotVault();
 
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
@@ -29,13 +30,20 @@ contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
         address refundReceiver
     )
         external
-        pure
+        view
         returns (bytes memory)
     {
+        if (bytes32ToAddress(_sendParam.to) != boringVault) {
+            revert LayerZeroOFTDecoderAndSanitizer_NotVault();
+        }
         if (_sendParam.composeMsg.length > 0) {
             revert LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
         }
 
-        return abi.encodePacked(_sendParam.dstEid, _sendParam.to, refundReceiver);
+        return abi.encodePacked(_sendParam.dstEid);
+    }
+
+    function bytes32ToAddress(bytes32 b) internal pure returns (address) {
+        return address(uint160(uint256(b)));
     }
 }

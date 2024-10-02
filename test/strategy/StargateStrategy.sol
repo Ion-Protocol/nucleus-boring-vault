@@ -19,7 +19,7 @@ address constant STARGATE = 0x5c386D85b1B82FD9Db681b9176C8a4248bb6345B;
 uint32 constant ETH_EID = 30_101;
 uint256 constant SEI_TO_MINT = 100 ether;
 
-contract LayerZeroOFTStrategy is StrategyBase {
+contract StargateStrategy is StrategyBase {
     using OptionsBuilder for bytes;
 
     LayerZeroOFTDecoderAndSanitizer sanitizer;
@@ -47,7 +47,7 @@ contract LayerZeroOFTStrategy is StrategyBase {
         bytes memory packedArguments = abi.encodePacked(STARGATE);
         Leaf memory approveLeaf =
             Leaf(address(sanitizer), WETH, false, BaseDecoderAndSanitizer.approve.selector, packedArguments);
-        packedArguments = abi.encodePacked(ETH_EID, addressToBytes32(address(boringVault)), ADMIN);
+        packedArguments = abi.encodePacked(ETH_EID);
         Leaf memory sendLeaf =
             Leaf(address(sanitizer), STARGATE, true, LayerZeroOFTDecoderAndSanitizer.send.selector, packedArguments);
 
@@ -106,5 +106,9 @@ contract LayerZeroOFTStrategy is StrategyBase {
 
     function addressToBytes32(address _addr) public pure returns (bytes32) {
         return bytes32(uint256(uint160(_addr)));
+    }
+
+    function bytes32ToAddress(bytes32 b) public pure returns (address) {
+        return address(uint160(uint256(b)));
     }
 }

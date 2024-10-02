@@ -38,33 +38,29 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
     }
 
     function testRebalance() public {
-        // to-do DEAL new WETH that would be bridged
         uint256 vaultBalance = base.balanceOf(address(boringVault));
-        deal(WETH, address(boringVault), vaultBalance + SEI_WETH);
-        vaultBalance = base.balanceOf(address(boringVault));
+
+        deal(address(boringVault), vaultBalance + SEI_WETH);
+        vaultBalance = address(boringVault).balance;
         _setUpManager(vaultBalance);
         assertEq(manager.manageRoot(ADMIN), _getRoot(), "Root not set correctly");
 
         Leaf[] memory myLeafs = _getLeafsForTest(vaultBalance);
 
-        bytes32[][] memory manageProofs = new bytes32[][](2);
-        address[] memory decodersAndSanitizers = new address[](2);
-        address[] memory targets = new address[](2);
-        bytes[] memory targetData = new bytes[](2);
-        uint256[] memory values = new uint256[](2);
+        bytes32[][] memory manageProofs = new bytes32[][](1);
+        address[] memory decodersAndSanitizers = new address[](1);
+        address[] memory targets = new address[](1);
+        bytes[] memory targetData = new bytes[](1);
+        uint256[] memory values = new uint256[](1);
 
         manageProofs = _getProofsUsingTree(myLeafs, tree);
         decodersAndSanitizers[0] = myLeafs[0].decoderAndSanitizer;
-        decodersAndSanitizers[1] = myLeafs[1].decoderAndSanitizer;
 
         targets[0] = myLeafs[0].target;
-        targets[1] = myLeafs[1].target;
 
-        targetData[0] = abi.encodeWithSelector(myLeafs[0].selector, vaultBalance);
-        targetData[1] = abi.encodeWithSelector(myLeafs[1].selector, address(boringVault), true);
+        targetData[0] = abi.encodeWithSelector(myLeafs[0].selector, address(boringVault), true);
 
-        values[0] = 0;
-        values[1] = vaultBalance;
+        values[0] = vaultBalance;
 
         // console.log("myLeafs[0]");
         // console.log(myLeafs[0].decoderAndSanitizer);
@@ -110,9 +106,8 @@ contract SeiyanEthRebalanceStrategyTest is StrategyBase {
         bytes memory packedArguments = abi.encodePacked(address(boringVault));
         Leaf memory pirexEthLeaf =
             Leaf(address(decoder), PIREX_ETH, true, PirexEthDecoderAndSanitizer.deposit.selector, packedArguments);
-        myLeafs = new Leaf[](2);
+        myLeafs = new Leaf[](1);
 
-        myLeafs[0] = wethForEthLeaf;
-        myLeafs[1] = pirexEthLeaf;
+        myLeafs[0] = pirexEthLeaf;
     }
 }
