@@ -2,9 +2,10 @@ pragma solidity 0.8.21;
 
 import { StrategyBase, Leaf } from "./StrategyBase.t.sol";
 import {
+    SeiyanEthRebalanceDecoderAndSanitizer,
     LayerZeroOFTDecoderAndSanitizer,
     BaseDecoderAndSanitizer
-} from "src/base/DecodersAndSanitizers/LayerZeroOFTDecoderAndSanitizer.sol";
+} from "src/base/DecodersAndSanitizers/SeiyanEthRebalanceDecoderAndSanitizer.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { IStargate } from "@stargatefinance/stg-evm-v2/src/interfaces/IStargate.sol";
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
@@ -22,10 +23,10 @@ uint256 constant SEI_TO_MINT = 100 ether;
 contract StargateStrategy is StrategyBase {
     using OptionsBuilder for bytes;
 
-    LayerZeroOFTDecoderAndSanitizer sanitizer;
+    SeiyanEthRebalanceDecoderAndSanitizer sanitizer;
 
-    ManagerWithMerkleVerification manager = ManagerWithMerkleVerification(0x9B99d4584a3858C639F94fE055DB9E94017fE009);
-    BoringVault boringVault = BoringVault(payable(0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce));
+    ManagerWithMerkleVerification manager = ManagerWithMerkleVerification(0xCaF6FC6BAb79A32a1169Cb6A35bFa1d6B8551Bd2);
+    BoringVault boringVault = BoringVault(payable(0xA8A3A5013104e093245164eA56588DBE10a3Eb48));
 
     function setUp() public override {
         uint256 forkId = vm.createFork(vm.envString("L2_RPC_URL"));
@@ -34,11 +35,15 @@ contract StargateStrategy is StrategyBase {
     }
 
     function setUpDecoderSanitizers() public override {
-        sanitizer = LayerZeroOFTDecoderAndSanitizer(0x660F2E0710757636AeB56b0c013522c71f33373a);
-        // sanitizer = new LayerZeroOFTDecoderAndSanitizer(address(boringVault));
+        // DEPLOY: replace with real sanitizer
+        // sanitizer = LayerZeroOFTDecoderAndSanitizer();
+        sanitizer = new SeiyanEthRebalanceDecoderAndSanitizer(address(boringVault));
     }
 
     function testSend() external {
+        // DEPLOY: send native token to vault and comment out line
+        deal(address(boringVault), SEI_TO_MINT);
+
         uint256 amountToSend = ERC20(WETH).balanceOf(address(boringVault));
         console.log(amountToSend);
         // owner prank
@@ -58,7 +63,10 @@ contract StargateStrategy is StrategyBase {
 
         // set leaf in manager
         ManagerWithMerkleVerification manager = ManagerWithMerkleVerification(manager);
-        // manager.setManageRoot(ADMIN, _getRoot());
+
+        // DEPLOY: set root on chain and comment out line
+        manager.setManageRoot(ADMIN, _getRoot());
+
         vm.stopPrank();
 
         // strategist manages vault
