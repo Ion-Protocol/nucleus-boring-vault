@@ -16,7 +16,7 @@ struct Leaf {
     bytes packedArgumentAddresses;
 }
 
-uint256 constant EXAMPLE_TREE_SIZE = 8;
+uint256 constant EXAMPLE_TREE_SIZE = 16;
 
 abstract contract StrategyBase is Test {
     using Address for address;
@@ -181,7 +181,7 @@ abstract contract StrategyBase is Test {
         console.log("Manager:\t", address(manager));
 
         console.log("leaf hashes: ");
-        for (uint256 i; i < manageProofs.length; ++i) {
+        for (uint256 i; i < decodersAndSanitizers.length; ++i) {
             bool valueNonZero = values[i] != 0;
             bytes memory packedArgumentAddresses =
                 abi.decode(decodersAndSanitizers[i].functionStaticCall(targetData[i]), (bytes));
