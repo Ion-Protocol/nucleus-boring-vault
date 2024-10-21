@@ -7,10 +7,16 @@ import { UniswapV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Pro
 import { MasterChefV3DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/MasterChefV3DecoderAndSanitizer.sol";
 
-contract PancakeSwapDecoderAndSanitizer is
+contract EarnETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer
 {
-    constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
+    constructor(
+        address _boringVault,
+        address _uniswapV3NonFungiblePositionManager
+    )
+        UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
+        BaseDecoderAndSanitizer(_boringVault)
+    { }
 }
