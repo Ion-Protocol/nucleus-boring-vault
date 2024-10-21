@@ -164,4 +164,105 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             addressesFound = abi.encodePacked(addressesFound, markets[i]);
         }
     }
+
+    struct SwapData {
+        SwapType swapType;
+        address extRouter;
+        bytes extCalldata;
+        bool needScale;
+    }
+
+    enum SwapType {
+        NONE,
+        KYBERSWAP,
+        ONE_INCH,
+        // ETH_WETH not used in Aggregator
+        ETH_WETH
+    }
+
+    struct TokenInput {
+        // TOKEN DATA
+        address tokenIn;
+        uint256 netTokenIn;
+        address tokenMintSy;
+        // AGGREGATOR DATA
+        address pendleSwap;
+        SwapData swapData;
+    }
+
+    function addLiquiditySingleTokenKeepYt(
+        address receiver,
+        address market,
+        uint256 minLpOut,
+        uint256 minYtOut,
+        TokenInput calldata input
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(receiver, market, input.tokenIn, input.tokenMintSy);
+    }
+
+    enum OrderType {
+        SY_FOR_PT,
+        PT_FOR_SY,
+        SY_FOR_YT,
+        YT_FOR_SY
+    }
+
+    struct Order {
+        uint256 salt;
+        uint256 expiry;
+        uint256 nonce;
+        OrderType orderType;
+        address token;
+        address YT;
+        address maker;
+        address receiver;
+        uint256 makingAmount;
+        uint256 lnImpliedRate;
+        uint256 failSafeRate;
+        bytes permit;
+    }
+
+    struct FillOrderParams {
+        Order order;
+        bytes signature;
+        uint256 makingAmount;
+    }
+
+    struct TokenOutput {
+        // TOKEN DATA
+        address tokenOut;
+        uint256 minTokenOut;
+        address tokenRedeemSy;
+        // AGGREGATOR DATA
+        address pendleSwap;
+        SwapData swapData;
+    }
+
+    struct LimitOrderData {
+        address limitRouter;
+        uint256 epsSkipMarket; // only used for swap operations, will be ignored otherwise
+        FillOrderParams[] normalFills;
+        FillOrderParams[] flashFills;
+        bytes optData;
+    }
+
+    function removeLiquiditySingleToken(
+        address receiver,
+        address market,
+        uint256 netLpToRemove,
+        TokenOutput calldata output,
+        LimitOrderData calldata limit
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressFound)
+    {
+        addressFound = abi.encodePacked(receiver, market, output.tokenOut, output.tokenRedeemSy);
+    }
 }
