@@ -190,6 +190,16 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         SwapData swapData;
     }
 
+    struct ApproxParams {
+        uint256 guessMin;
+        uint256 guessMax;
+        uint256 guessOffchain; // pass 0 in to skip this variable
+        uint256 maxIteration; // every iteration, the diff between guessMin and guessMax will be divided by 2
+        uint256 eps; // the max eps between the returned result & the correct result, base 1e18. Normally this number
+            // will be set
+            // to 1e15 (1e18/1000 = 0.1%)
+    }
+
     function addLiquiditySingleTokenKeepYt(
         address receiver,
         address market,
@@ -200,6 +210,21 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         external
         pure
         virtual
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(receiver, market, input.tokenIn, input.tokenMintSy);
+    }
+
+    function addLiquiditySingleToken(
+        address receiver,
+        address market,
+        uint256 minLpOut,
+        ApproxParams calldata guessPtReceivedFromSy,
+        TokenInput calldata input,
+        LimitOrderData calldata limit
+    )
+        external
+        pure
         returns (bytes memory addressesFound)
     {
         addressesFound = abi.encodePacked(receiver, market, input.tokenIn, input.tokenMintSy);
