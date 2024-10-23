@@ -19,13 +19,18 @@ interface WarpRoute {
 contract WarpRouteWrapper {
     using SafeTransferLib for ERC20;
 
+    error InvalidDestination();
+
     BoringVault public boringVault;
     TellerWithMultiAssetSupport public teller;
     WarpRoute public warpRoute;
+    uint32 public destination;
 
-    constructor(TellerWithMultiAssetSupport _teller, WarpRoute _warpRoute) {
+    constructor(TellerWithMultiAssetSupport _teller, WarpRoute _warpRoute, uint32 _destination) {
         teller = _teller;
         warpRoute = _warpRoute;
+        destination = _destination;
+
         boringVault = _teller.vault();
 
         // Infinite approvals to the warpRoute okay because this contract will
@@ -52,6 +57,8 @@ contract WarpRouteWrapper {
         external
         returns (uint256 sharesMinted, bytes32 messageId)
     {
+        if (_destination != destination) revert InvalidDestination();
+
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
         if (depositAsset.allowance(address(this), address(boringVault)) < depositAmount) {
