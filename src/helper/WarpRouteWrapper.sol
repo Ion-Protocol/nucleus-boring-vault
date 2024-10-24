@@ -15,16 +15,18 @@ interface WarpRoute {
  * `transferRemote` on a WarpRoute in one transaction. This contract can only be
  * used with a defined Teller. If a new Teller is deployed, a new Wrapper must
  * be deployed.
+ *
+ * @custom:security-contact security@molecularlabs.io
  */
 contract WarpRouteWrapper {
     using SafeTransferLib for ERC20;
 
     error InvalidDestination();
 
-    BoringVault public boringVault;
-    TellerWithMultiAssetSupport public teller;
-    WarpRoute public warpRoute;
-    uint32 public destination;
+    BoringVault public immutable boringVault;
+    TellerWithMultiAssetSupport public immutable teller;
+    WarpRoute public immutable warpRoute;
+    uint32 public immutable destination;
 
     constructor(TellerWithMultiAssetSupport _teller, WarpRoute _warpRoute, uint32 _destination) {
         teller = _teller;
@@ -51,14 +53,11 @@ contract WarpRouteWrapper {
         ERC20 depositAsset,
         uint256 depositAmount,
         uint256 minimumMint,
-        uint32 _destination,
-        bytes32 _recipient
+        bytes32 recipient
     )
         external
         returns (uint256 sharesMinted, bytes32 messageId)
     {
-        if (_destination != destination) revert InvalidDestination();
-
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
         if (depositAsset.allowance(address(this), address(boringVault)) < depositAmount) {
@@ -67,6 +66,6 @@ contract WarpRouteWrapper {
 
         sharesMinted = teller.deposit(depositAsset, depositAmount, minimumMint);
 
-        messageId = warpRoute.transferRemote(_destination, _recipient, sharesMinted);
+        messageId = warpRoute.transferRemote(destination, recipient, sharesMinted);
     }
 }
