@@ -15,6 +15,8 @@ interface WarpRoute {
  * `transferRemote` on a WarpRoute in one transaction. This contract can only be
  * used with a defined Teller. If a new Teller is deployed, a new Wrapper must
  * be deployed.
+ *
+ * @custom:security-contact security@molecularlabs.io
  */
 contract WarpRouteWrapper {
     using SafeTransferLib for ERC20;
