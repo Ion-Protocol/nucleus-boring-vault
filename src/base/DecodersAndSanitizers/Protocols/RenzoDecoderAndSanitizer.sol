@@ -6,6 +6,7 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 abstract contract RenzoDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function depositETH() external returns (bytes memory addressesFound) {
         // nothing to sanitize
+        return addressesFound;
     }
 
     function deposit(
