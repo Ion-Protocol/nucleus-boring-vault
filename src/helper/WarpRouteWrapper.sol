@@ -7,7 +7,14 @@ import { BoringVault } from "../base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "../base/Roles/TellerWithMultiAssetSupport.sol";
 
 interface WarpRoute {
-    function transferRemote(uint32 _destination, bytes32 _recipient, uint256 _amountOrId) external returns (bytes32);
+    function transferRemote(
+        uint32 _destination,
+        bytes32 _recipient,
+        uint256 _amountOrId
+    )
+        external
+        payable
+        returns (bytes32);
 }
 
 /**
@@ -56,6 +63,7 @@ contract WarpRouteWrapper {
         bytes32 recipient
     )
         external
+        payable
         returns (uint256 sharesMinted, bytes32 messageId)
     {
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
@@ -66,6 +74,6 @@ contract WarpRouteWrapper {
 
         sharesMinted = teller.deposit(depositAsset, depositAmount, minimumMint);
 
-        messageId = warpRoute.transferRemote(destination, recipient, sharesMinted);
+        messageId = warpRoute.transferRemote{ value: msg.value }(destination, recipient, sharesMinted);
     }
 }
