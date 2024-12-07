@@ -4,7 +4,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 
 import { IPMarket } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IPMarket.sol";
 
-import { IStandardYield } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IStandardizedYield.sol";
+import { IStandardizedYield } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IStandardizedYield.sol";
 import { IPPtLpOracle } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IPPtLpOracle.sol";
 
 /**
@@ -13,7 +13,7 @@ import { IPPtLpOracle } from "lib/ion-protocol/lib/pendle-core-v2-public/contrac
  */
 contract PendlePTRateProvider is IRateProvider {
     /// @notice constant values
-    IPPtLPOracle public constant ORACLE = IPPtLPOracle(0x14030836AEc15B2ad48bB097bd57032559339c92);
+    IPPtLpOracle public constant ORACLE = IPPtLpOracle(0x14030836AEc15B2ad48bB097bd57032559339c92);
     uint32 public constant DURATION = 1 days;
 
     /// @notice the pendle market this rate provider serves
@@ -26,9 +26,9 @@ contract PendlePTRateProvider is IRateProvider {
 
     /// @notice getRate for a Pendle PT token
     function getRate() external view returns (uint256) {
-        (address sy,,) = market.readTokens();
-        uint256 syRate = IStandardizedYield(sy).exchangeRate();
-        uint256 ptRate = ORACLE.getPtToAssetRate(market, DURATION);
+        (IStandardizedYield sy,,) = market.readTokens();
+        uint256 syRate = sy.exchangeRate();
+        uint256 ptRate = ORACLE.getPtToAssetRate(address(market), DURATION);
 
         return syRate * ptRate / 1e18;
     }
