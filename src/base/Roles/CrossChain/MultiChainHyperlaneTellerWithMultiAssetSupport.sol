@@ -31,8 +31,8 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
 
     //============================== ERRORS ===============================
 
-    error MultiChainHyperlaneTeller_InvalidToken();
-    error MultiChainHyperlaneTeller_CallerMustBeMailbox(address caller);
+    error MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBridgeFeeToken();
+    error MultiChainHyperlaneTellerWithMultiAssetSupport_CallerMustBeMailbox(address caller);
 
     constructor(
         address _owner,
@@ -49,7 +49,6 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
      * @notice function override to return the fee quote
      * @param shareAmount to be sent as a message
      * @param data Bridge data
-     * @returns fee to be paid for bridging
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
         bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver);
@@ -77,13 +76,10 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         // 2. The sender must be the teller from the source chain
         // 3. The origin aka chainSelector must be allowed to send message to this
         // contract through the `Chain` config.
-
-        // TODO How does setting the ISM work? Is it necessary?
         if (msg.sender != address(mailbox)) {
-            revert MultiChainHyperlaneTeller_CallerMustBeMailbox(msg.sender);
+            revert MultiChainHyperlaneTellerWithMultiAssetSupport_CallerMustBeMailbox(msg.sender);
         }
 
-        // TODO check that bytes32 to address works properly
         if (sender != _addressToBytes32(chain.targetTeller)) {
             revert MultiChainTellerBase_MessagesNotAllowedFromSender(uint256(origin), _bytes32ToAddress(sender));
         }
@@ -107,6 +103,10 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns (bytes32 messageId) {
         unchecked {
             messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
+        }
+
+        if (address(data.bridgeFeeToken) != NATIVE) {
+            revert MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBridgeFeeToken();
         }
 
         bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, messageId);
