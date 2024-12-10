@@ -54,8 +54,9 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver);
         bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
 
-        return mailbox.quoteDispatch(data.chainSelector, msgRecipient, _payload); // TODO Should there be hook metadata
-            // for quoteDispatch?
+        return mailbox.quoteDispatch(
+            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas)
+        );
     }
 
     /**
@@ -101,6 +102,9 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
      * @return messageId a unique hash for the message
      */
     function _bridge(uint256 shareAmount, BridgeData calldata data) internal override returns (bytes32 messageId) {
+        // We create our own guid and pass it into the payload for it to be
+        // parsed in `handle`. There is no way to pass the return `messageId`
+        // from `dispatch` to `handle`.
         unchecked {
             messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
         }
@@ -116,7 +120,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         // configuration.
         bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
 
-        bytes32 messageId = mailbox.dispatch{ value: msg.value }(
+        mailbox.dispatch{ value: msg.value }(
             data.chainSelector, // must be `destinationDomain` on hyperlane
             msgRecipient, // must be the teller address left-padded to bytes32
             _payload,
