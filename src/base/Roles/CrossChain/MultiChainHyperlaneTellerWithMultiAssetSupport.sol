@@ -10,6 +10,8 @@ import {
 import { BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
 import { StandardHookMetadata } from "./Hyperlane/StandardHookMetadata.sol";
 import { IMailbox } from "../../../interfaces/hyperlane/IMailbox.sol";
+import { IInterchainSecurityModule } from "../../../interfaces/hyperlane/IInterchainSecurityModule.sol";
+import { IPostDispatchHook } from "../../../interfaces/hyperlane/IPostDispatchHook.sol";
 
 /**
  * @title MultiChainHyperlaneTellerWithMultiAssetSupport
@@ -20,19 +22,37 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
     // ========================================= STATE =========================================
 
     /**
-     * @notice The hyperlane mailbox contract.
+     * @notice The Hyperlane mailbox contract.
      */
     IMailbox public immutable mailbox;
+
+    /**
+     * @notice The Hyperlane interchain security module.
+     * @dev If `address(0)`, uses the mailbox's default ISM.
+     */
+    IInterchainSecurityModule public interchainSecurityModule;
+
+    /**
+     * @notice The hook invoked after `dispatch`.
+     */
+    IPostDispatchHook public hook;
 
     /**
      * @notice A nonce used to generate unique message IDs.
      */
     uint128 public nonce;
 
+    //============================== EVENTS ===============================
+
+    event SetInterChainSecurityModule(address _interchainSecurityModule);
+    event SetPostDispatchHook(address _hook);
+
     //============================== ERRORS ===============================
 
     error MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBridgeFeeToken();
     error MultiChainHyperlaneTellerWithMultiAssetSupport_CallerMustBeMailbox(address caller);
+    error MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBytes32Address(bytes32 _address);
+    error MultiChainHyperlaneTellerWithMultiAssetSupport_ZeroAddressDestinationReceiver();
 
     constructor(
         address _owner,
@@ -43,6 +63,22 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         MultiChainTellerBase(_owner, _vault, _accountant)
     {
         mailbox = _mailbox;
+    }
+
+    /**
+     * @notice Sets the post dispatch hook for Hyperlane mailbox.
+     */
+    function setHook(IPostDispatchHook _hook) external requiresAuth {
+        hook = _hook;
+        emit SetPostDispatchHook(address(_hook));
+    }
+
+    /**
+     * @notice Sets a custom interchain security module for Hyperlane.
+     */
+    function setInterchainSecurityModule(IInterchainSecurityModule _interchainSecurityModule) external requiresAuth {
+        interchainSecurityModule = _interchainSecurityModule;
+        emit SetInterChainSecurityModule(address(_interchainSecurityModule));
     }
 
     /**
@@ -90,6 +126,14 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         }
 
         (uint256 shareAmount, address receiver, bytes32 messageId) = abi.decode(payload, (uint256, address, bytes32));
+
+        // This should never be the case since zero address
+        // `destinationChainReceiver` in `_bridge` is not allowed, but we have
+        // this as a sanity check.
+        if (receiver == address(0)) {
+            revert MultiChainHyperlaneTellerWithMultiAssetSupport_ZeroAddressDestinationReceiver();
+        }
+
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
 
         _afterReceive(shareAmount, receiver, messageId);
@@ -111,6 +155,10 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
 
         if (address(data.bridgeFeeToken) != NATIVE) {
             revert MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBridgeFeeToken();
+        }
+
+        if (data.destinationChainReceiver == address(0)) {
+            revert MultiChainHyperlaneTellerWithMultiAssetSupport_ZeroAddressDestinationReceiver();
         }
 
         bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, messageId);
@@ -135,6 +183,10 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
     }
 
     function _bytes32ToAddress(bytes32 _address) internal pure returns (address) {
+        if (uint256(_address) > uint256(type(uint160).max)) {
+            revert MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBytes32Address(_address);
+        }
+
         return address(uint160(uint256(_address)));
     }
 }

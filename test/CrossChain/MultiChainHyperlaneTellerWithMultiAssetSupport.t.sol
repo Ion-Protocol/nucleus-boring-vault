@@ -226,6 +226,45 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
         vm.stopPrank();
     }
 
+    function testRevertOnInvalidBytes32Address() public {
+        bytes32 invalidSender = bytes32(uint256(type(uint168).max));
+
+        vm.startPrank(address(ETHEREUM_MAILBOX));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultiChainHyperlaneTellerWithMultiAssetSupport
+                    .MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBytes32Address
+                    .selector,
+                invalidSender
+            )
+        );
+        destinationTeller.handle(SOURCE_DOMAIN, invalidSender, "");
+        vm.stopPrank();
+    }
+
+    /**
+     * Trying to bridge token to the zero address should fail as it will simply
+     * burn the token. We don't want to allow this in a bridging context.
+     */
+    function testRevertOnInvalidDestinationReceiver() public {
+        deal(address(WETH), address(this), 1e18);
+
+        sourceTeller.addChain(DESTINATION_DOMAIN, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
+
+        WETH.approve(address(boringVault), 1e18);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultiChainHyperlaneTellerWithMultiAssetSupport
+                    .MultiChainHyperlaneTellerWithMultiAssetSupport_ZeroAddressDestinationReceiver
+                    .selector
+            )
+        );
+        sourceTeller.depositAndBridge(
+            WETH, 1e18, 1e18, BridgeData(DESTINATION_DOMAIN, address(0), ERC20(NATIVE), 80_000, "")
+        );
+    }
+
     function _getTypedTeller(address addr) internal returns (MultiChainHyperlaneTellerWithMultiAssetSupport) {
         return MultiChainHyperlaneTellerWithMultiAssetSupport(addr);
     }
