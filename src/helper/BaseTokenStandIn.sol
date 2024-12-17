@@ -7,5 +7,4 @@ contract BaseTokenStandIn {
     constructor(uint8 _decimals) {
         decimals = _decimals;
     }
-
 }
