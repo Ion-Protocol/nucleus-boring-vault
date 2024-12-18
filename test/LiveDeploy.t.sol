@@ -78,15 +78,23 @@ contract LiveDeploy is ForkTest, DeployAll {
         // check for if all rate providers are deployed, if not error
         for (uint256 i; i < mainConfig.assets.length; ++i) {
             // set the corresponding rate provider
-            string memory key = string(
-                abi.encodePacked(
-                    ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
-                )
+            string memory isPeggedKey = string(
+                abi.encodePacked(".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".isPegged")
             );
 
-            address rateProvider = getChainConfigFile().readAddress(key);
-            assertNotEq(rateProvider, address(0), "Rate provider address is 0");
-            assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+            bool isPegged = getChainConfigFile().readBool(isPeggedKey);
+
+            if (!isPegged) {
+                string memory key = string(
+                    abi.encodePacked(
+                        ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
+                    )
+                );
+
+                address rateProvider = getChainConfigFile().readAddress(key);
+                assertNotEq(rateProvider, address(0), "Rate provider address is 0");
+                assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+            }
         }
 
         // define one share based off of vault decimals
@@ -265,7 +273,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         }
     }
 
-    function testDepositASupportedAsset(uint256 depositAmount, uint256 indexOfSupported) public {
+    function testDepositASupportedAssetWithoutRateUpdate(uint256 depositAmount, uint256 indexOfSupported) public {
         uint256 assetsCount = mainConfig.assets.length;
         indexOfSupported = bound(indexOfSupported, 0, assetsCount);
         depositAmount = bound(depositAmount, 1, 10_000e18);
