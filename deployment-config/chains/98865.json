@@ -1,5 +1,11 @@
 {
     "name": "Plume Mainnet",
     "balancerVault": "0x0000000000000000000000000000000000000000",
-    "lzEndpoint": "0x6F475642a6e85809B1c36Fa62763669b1b48DD5B"
+    "lzEndpoint": "0x6F475642a6e85809B1c36Fa62763669b1b48DD5B",
+    "assetToRateProviderAndPriceFeed": {
+        "0xdddd73f5df1f0dc31373357beac77545dc5a6f3f": {
+            "note": "pUSD",
+            "isPegged": true
+        }
+    }
 }

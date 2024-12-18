@@ -96,6 +96,27 @@
       "expectedMin": "1000000000000000000",
       "expectedMax": "1200000000000000000",
       "rateProvider": "0xa427b23b686986ed993b4ba9ae23bf65022f938a"
+    },
+    "0x866a2bf4e572cbcf37d5071a7a58503bfb36be1b": {
+      "note": "M",
+      "isPegged": true
+    }, 
+    "0x437cc33344a0b27a429f795ff6b469c72698b291": {
+      "note": "wM", 
+      "isPegged": true
+    }, 
+    "0x59d9356e565ab3a36dd77763fc0d87feaf85508c": {
+      "note": "USDM",
+      "isPegged": true
+    },
+    "0x57f5e098cad7a3d1eed53991d4d66c45c9af7812": {
+      "note": "wUSDM", 
+      "isPegged": false, 
+      "rateProvider": "0xd5e8ea00c9d1afd4f84a02cff08203cb2bec4478"
+    },
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "note": "USDT",
+      "isPegged": true
     }
   }
 }
