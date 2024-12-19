@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import { ERC4626DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/ERC4626DecoderAndSanitizer.sol";
 
-abstract contract ERC4626DecoderAndSanitizer is ERC4626DecoderAndSanitizer {
+abstract contract ERC7540DecoderAndSanitizer is ERC4626DecoderAndSanitizer {
     //============================== ERC7540 ===============================
 
     function requestDeposit(
