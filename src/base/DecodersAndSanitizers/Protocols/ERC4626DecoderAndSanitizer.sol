@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
-abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
+abstract contract ERC7540DecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERC4626 ===============================
 
     function deposit(uint256, address receiver) external pure virtual returns (bytes memory addressesFound) {
