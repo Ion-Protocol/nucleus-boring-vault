@@ -1,0 +1,81 @@
+{
+    "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "base": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    "boringVaultAndBaseDecimals": "18",
+
+    "boringVault":{
+        "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000014",
+        "boringVaultName": "Swell Earn ETH",
+        "boringVaultSymbol": "earnETH",
+    
+        "address": "0x9Ed15383940CC380fAEF0a75edacE507cC775f22"    
+    },
+
+    "manager":{
+        "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000014",
+
+        "address": "0x69FC700226E9e12D8c5E46a4b50A78efB64F50C0"
+    },
+    
+    "accountant":{
+        "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000014",
+        "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+        "allowedExchangeRateChangeUpper": "10003",
+        "allowedExchangeRateChangeLower": "10000",
+        "minimumUpdateDelayInSeconds": "3600",
+        "managementFee": "0",
+
+        "address": "0x411c78BC8c36c3c66784514f28c56209e1DF2755"
+    },
+
+    "teller": {
+        "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000015",
+        "maxGasForPeer": 200000,
+        "minGasForPeer": 60000,
+        "peerEid": 30335,
+        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "opMessenger": "0x0000000000000000000000000000000000000000",
+        "assets": [
+            "0xFAe103DC9cf190eD75350761e95403b7b8aFa6c0",
+            "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+            "0x9Ba021B0a9b958B5E75cE9f6dff97C7eE52cb3E6",
+            "0xf951e335afb289353dc249e82926178eac7ded78",
+            "0x04c154b66cb340f3ae24111cc767e0184ed00cc6",
+            "0x6ee2b5E19ECBa773a352E5B21415Dc419A700d1d",
+            "0xf7906F274c174A52d444175729E3fa98f9bde285",
+            "0x5cb12D56F5346a016DBBA8CA90635d82e6D1bcEa",
+            "0xc69Ad9baB1dEE23F4605a82b3354F8E40d1E5966",
+            "0xb26ff591f44b04e78de18f43b46f8b70c6676984",
+            "0x8a053350ca5F9352a16deD26ab333e2D251DAd7c",
+            "0x32bd822d615a3658a68b6fdd30c2fcb2c996d678",
+            "0x49446a0874197839d15395b908328a74ccc96bc0",
+            "0x5fD13359Ba15A84B76f7F87568309040176167cd",
+            "0xc329400492c6ff2438472d4651ad17389fcb843a"
+
+        ],
+        "dvnIfNoDefault": {
+            "required": [
+              "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
+            ],
+            "optional": [
+            ],
+            "blockConfirmationsRequiredIfNoDefault": 15,
+            "optionalThreshold": 0
+          },
+        "address": "0x6d207874ddc8b1c3954a0bb2b21c6fce2aa18dba"
+    },
+    "rolesAuthority": {
+        "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000014",
+        "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+        "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+        "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+        "address": "0x1F5dddF627C3796a589c6271b36A570f18d3a016"
+    },
+
+    "decoder": {
+        "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000000",
+    
+        "address": "0x0000000000000000000000000000000000000000" 
+    }
+
+}

@@ -4,7 +4,8 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 
 import { IPMarket } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IPMarket.sol";
 
-import { IStandardizedYield } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IStandardizedYield.sol";
+import { IStandardizedYield } from
+    "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IStandardizedYield.sol";
 import { IPPtLpOracle } from "lib/ion-protocol/lib/pendle-core-v2-public/contracts/interfaces/IPPtLpOracle.sol";
 
 /**

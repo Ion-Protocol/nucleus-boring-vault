@@ -23,6 +23,7 @@ import { CrossChainOPTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
 import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
+import { STAND_IN_TOKEN_NAME } from "src/helper/Constants.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
@@ -52,6 +53,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
     ERC20 constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     uint256 ONE_SHARE;
+    bool isBaseStandIn;
 
     function setUp() public virtual {
         string memory FILE_NAME;
@@ -89,6 +91,9 @@ contract LiveDeploy is ForkTest, DeployAll {
             assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
         }
 
+        isBaseStandIn =
+            compareStrings(AccountantWithRateProviders(mainConfig.accountant).base().name(), STAND_IN_TOKEN_NAME);
+
         // define one share based off of vault decimals
         ONE_SHARE = 10 ** BoringVault(payable(mainConfig.boringVault)).decimals();
 
@@ -102,7 +107,14 @@ contract LiveDeploy is ForkTest, DeployAll {
         vm.stopPrank();
     }
 
-    function testDepositAndBridge(uint256 amount) public {
+    modifier onlyIfNoBaseStandIn() {
+        if (isBaseStandIn) {
+            return;
+        }
+        _;
+    }
+
+    function testDepositAndBridge(uint256 amount) public onlyIfNoBaseStandIn {
         string memory tellerName = mainConfig.tellerContractName;
         if (compareStrings(tellerName, "CrossChainOPTellerWithMultiAssetSupport")) {
             _testOPDepositAndBridge(ERC20(mainConfig.base), amount);
@@ -111,7 +123,13 @@ contract LiveDeploy is ForkTest, DeployAll {
         } else { }
     }
 
-    function testDepositBaseAssetAndUpdateRate(uint256 depositAmount, uint256 rateChange256) public {
+    function testDepositBaseAssetAndUpdateRate(
+        uint256 depositAmount,
+        uint256 rateChange256
+    )
+        public
+        onlyIfNoBaseStandIn
+    {
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
         // bound and cast since bound does not support uint96
         uint96 rateChange = uint96(
@@ -149,7 +167,13 @@ contract LiveDeploy is ForkTest, DeployAll {
         );
     }
 
-    function testDepositBaseAssetOnStartingRate(uint256 depositAmount, uint256 rateChange256) public {
+    function testDepositBaseAssetOnStartingRate(
+        uint256 depositAmount,
+        uint256 rateChange256
+    )
+        public
+        onlyIfNoBaseStandIn
+    {
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
 
         // bound and cast since bound does not support uint96
@@ -178,7 +202,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         );
     }
 
-    function testDepositBaseAsset(uint256 depositAmount) public {
+    function testDepositBaseAsset(uint256 depositAmount) public onlyIfNoBaseStandIn {
         depositAmount = bound(depositAmount, 1, 10_000e18);
         _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
 
@@ -213,7 +237,10 @@ contract LiveDeploy is ForkTest, DeployAll {
         depositAmount = bound(depositAmount, 0.5e18, 10_000e18);
 
         // mint a bunch of extra tokens to the vault for if rate increased
-        deal(mainConfig.base, mainConfig.boringVault, depositAmount);
+        if (!isBaseStandIn) {
+            deal(mainConfig.base, mainConfig.boringVault, depositAmount);
+        }
+
         uint256 expecteShares;
         uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
         uint256[] memory rateInQuoteBefore = new uint256[](assetsCount);
@@ -424,4 +451,8 @@ contract LiveDeploy is ForkTest, DeployAll {
         vm.stopPrank();
         vm.warp(time);
     }
+
+    // function compareStrings(string memory a, string memory b) internal pure returns (bool) {
+    //     return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
+    // }
 }

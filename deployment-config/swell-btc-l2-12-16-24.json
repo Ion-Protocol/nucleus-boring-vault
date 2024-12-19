@@ -1,6 +1,6 @@
 {
-    "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-    "base": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "protocolAdmin": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
+    "base": "0xB140e881E206E94B18e143f1739d5f212C59C859",
     "boringVaultAndBaseDecimals": "8",
 
     "boringVault":{
@@ -8,35 +8,34 @@
         "boringVaultName": "Swell Earn BTC",
         "boringVaultSymbol": "earnBTC",
     
-        "address": "0x66E47E6957B85Cf62564610B76dD206BB04d831a"    
+        "address": "0x0000000000000000000000000000000000000000"    
     },
 
     "manager":{
         "managerSalt": "0x274b10892d2e9c817f85204f234d65406be964b9ebdb0f8984b4cf7b853d4d25",
 
-        "address": "0x6cEA0a42a44cABcc42b1Ec31c3D714DcAAE91e06"
+        "address": "0x0000000000000000000000000000000000000000"
     },
     
     "accountant":{
         "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000001c",
-        "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+        "payoutAddress": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
         "allowedExchangeRateChangeUpper": "10003",
         "allowedExchangeRateChangeLower": "10000",
         "minimumUpdateDelayInSeconds": "3600",
         "managementFee": "0",
 
-        "address": "0x6bBf58f1A95D22f497fD2e7f640fAE94481b1A08"
+        "address": "0x0000000000000000000000000000000000000000"
     },
 
     "teller": {
         "tellerSalt": "0xbcd1092100c59cb9f6b270377929926e31de85f62cff158bd259bd33141120f2",
         "maxGasForPeer": 200000,
         "minGasForPeer": 60000,
-        "peerEid": 30335,
+        "peerEid": 30101,
         "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
         "opMessenger": "0x0000000000000000000000000000000000000000",
         "assets": [
-            "0x8DB2350D78aBc13f5673A411D4700BCF87864dDE"
         ],
         "dvnIfNoDefault": {
             "required": [
@@ -45,17 +44,17 @@
             "optional": [
             ],
             "blockConfirmationsRequiredIfNoDefault": 15,
-            "optionalThreshold":0
+            "optionalThreshold": 0
         },
         "address": "0x0000000000000000000000000000000000000000"
     },
     "rolesAuthority": {
         "rolesAuthoritySalt": "0x26d58067fee6a2f416fd89ac43456e7f4617e96069cbefa4353704ce84e4b715",
-        "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
-        "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+        "strategist": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
+        "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
         "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
 
-        "address": "0x05FAE28773ab9dAfD5C8997AcEe5099fa0D1f219"
+        "address": "0x0000000000000000000000000000000000000000"
     },
 
     "decoder": {

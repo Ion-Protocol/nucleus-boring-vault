@@ -1,0 +1,66 @@
+{
+    "protocolAdmin": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
+    "base": "0x4200000000000000000000000000000000000006",
+    "boringVaultAndBaseDecimals": "18",
+
+    "boringVault":{
+        "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000014",
+        "boringVaultName": "Swell Earn ETH",
+        "boringVaultSymbol": "earnETH",
+    
+        "address": "0x9Ed15383940CC380fAEF0a75edacE507cC775f22"    
+    },
+
+    "manager":{
+        "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000014",
+
+        "address": "0x69FC700226E9e12D8c5E46a4b50A78efB64F50C0"
+    },
+    
+    "accountant":{
+        "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000014",
+        "payoutAddress": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
+        "allowedExchangeRateChangeUpper": "10003",
+        "allowedExchangeRateChangeLower": "10000",
+        "minimumUpdateDelayInSeconds": "3600",
+        "managementFee": "0",
+
+        "address": "0x411c78BC8c36c3c66784514f28c56209e1DF2755"
+    },
+
+    "teller": {
+        "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000015",
+        "maxGasForPeer": 200000,
+        "minGasForPeer": 60000,
+        "peerEid": 30101,
+        "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+        "opMessenger": "0x0000000000000000000000000000000000000000",
+        "assets": [
+        ],
+        "dvnIfNoDefault": {
+            "required": [
+              "0x6788f52439aca6bff597d3eec2dc9a44b8fee842"
+            ],
+            "optional": [
+            ],
+            "blockConfirmationsRequiredIfNoDefault": 15,
+            "optionalThreshold": 0
+          },
+      
+        "address": "0x6d207874ddc8b1c3954a0bb2b21c6fce2aa18dba"
+    },
+    "rolesAuthority": {
+        "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000014",
+        "strategist": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
+        "exchangeRateBot": "0xc6cC90808A3434DF28028824Fd3cefcaE4A93A88",
+        "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+        "address": "0x1F5dddF627C3796a589c6271b36A570f18d3a016"
+    },
+
+    "decoder": {
+        "decoderSalt": "0x6000000000000000000000000000000000000000000000000000000000000000",
+    
+        "address": "0x0000000000000000000000000000000000000000" 
+    }
+
+}
