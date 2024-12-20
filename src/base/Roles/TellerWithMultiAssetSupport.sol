@@ -244,7 +244,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         uint256 depositAmount,
         uint256 minimumMint
     )
-        external
+        public
         requiresAuth
         nonReentrant
         returns (uint256 shares)
