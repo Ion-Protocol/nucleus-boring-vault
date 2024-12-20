@@ -2,10 +2,7 @@
 pragma solidity ^0.8.21;
 
 import { IComponentToken } from "./IComponentToken.sol";
-import { BoringVault } from "../../BoringVault.sol";
-import { AccountantWithRateProviders } from "../../Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { Auth } from "@solmate/auth/Auth.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 /**
@@ -13,7 +10,7 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
  * @notice Abstract contract that implements in the `ComponentToken` interface
  * @dev This is used to make contracts compliant to the `ComponentToken` interface.
  */
-abstract contract ComponentTokenHelper is Auth, IComponentToken {
+abstract contract ComponentTokenHelper is IComponentToken {
     using FixedPointMathLib for uint256;
 
     // Errors

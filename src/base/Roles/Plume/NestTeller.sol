@@ -27,6 +27,8 @@ contract NestTeller is ComponentTokenHelper, MultiChainLayerZeroTellerWithMultiA
 
     address public asset; // The asset that can be deposited through the ComponentToken `deposit` function.
 
+    uint256 immutable decimals; // Decimals of the vault shares token.
+
     constructor(
         address _owner,
         address _vault,
@@ -39,6 +41,8 @@ contract NestTeller is ComponentTokenHelper, MultiChainLayerZeroTellerWithMultiA
     {
         asset = _asset;
         minimumMintPercentage = _minimumMintPercentage;
+
+        decimals = ERC20(_vault).decimals();
     }
 
     // Admin Setters
@@ -107,10 +111,10 @@ contract NestTeller is ComponentTokenHelper, MultiChainLayerZeroTellerWithMultiA
     }
 
     function convertToShares(uint256 assets) public view override returns (uint256 shares) {
-        return assets.mulDivDown(10 ** vault.decimals(), accountant.getRateInQuote(ERC20(asset)));
+        return assets.mulDivDown(10 ** decimals, accountant.getRateInQuote(ERC20(asset)));
     }
 
     function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-        return shares.mulDivDown(accountant.getRateInQuote(ERC20(asset)), 10 ** vault.decimals());
+        return shares.mulDivDown(accountant.getRateInQuote(ERC20(asset)), 10 ** decimals);
     }
 }
