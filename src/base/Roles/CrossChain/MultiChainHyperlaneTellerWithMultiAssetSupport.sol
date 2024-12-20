@@ -87,11 +87,14 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
      * @param data Bridge data
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
-        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver);
+        bytes32 messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
+
+        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, messageId);
+
         bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
 
         return mailbox.quoteDispatch(
-            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas)
+            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas), hook
         );
     }
 
@@ -172,9 +175,9 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
             data.chainSelector, // must be `destinationDomain` on hyperlane
             msgRecipient, // must be the teller address left-padded to bytes32
             _payload,
-            StandardHookMetadata.overrideGasLimit(data.messageGas) // Sets the refund address to msg.sender, sets
-                // `_msgValue`
-                // to zero
+            StandardHookMetadata.overrideGasLimit(data.messageGas), // Sets the refund address to msg.sender, sets
+                // `_msgValue` to zero
+            hook
         );
     }
 
