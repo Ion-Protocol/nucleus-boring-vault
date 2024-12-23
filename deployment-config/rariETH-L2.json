@@ -1,0 +1,57 @@
+{
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "base": "0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8",
+  "boringVaultAndBaseDecimals": "18",
+  "boringVault": {
+    "boringVaultSalt": "0x1000000000000000000000000000000000000000000000000000000000000015",
+    "boringVaultName": "Rari ETH",
+    "boringVaultSymbol": "rariETH",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x2000000000000000000000000000000000000000000000000000000000000015",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x3000000000000000000000000000000000000000000000000000000000000015",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10030",
+    "allowedExchangeRateChangeLower": "9980",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x4000000000000000000000000000000000000000000000000000000000000015",
+    "maxGasForPeer": 200000,
+    "minGasForPeer": 60000,
+    "peerEid": 30101,
+    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+    "opMessenger": "0x0000000000000000000000000000000000000000",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": [
+        "0x0b5e5452d0c9da1bb5fb0664f48313e9667d7820"
+      ],
+      "optional": [
+        "0xdd7b5e1db4aafd5c8ec3b764efb8ed265aa5445b",
+        "0x2fa870cee4da57de84d1db36759d4716ad7e5038",
+        "0xb53648ca1aa054a80159c1175c03679fdc76bf88"
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 2
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x5000000000000000000000000000000000000000000000000000000000000015",
+    "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "exchangeRateBot": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x600000000000000000000000000000000000000000000000000000000000000b",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}
