@@ -1,3 +1,5 @@
+Updated BoringVault contracts to use solidity version ^0.8.21
+
 ```
  .-. .-..-. .-.  ,--,  ,-.    ,---.  .-. .-.   .---.
  |  \| || | | |.' .')  | |    | .-'  | | | |  ( .-._)
