@@ -1,4 +1,4 @@
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import { BoringVault, ERC20 } from "src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
