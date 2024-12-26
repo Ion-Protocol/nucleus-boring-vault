@@ -20,7 +20,7 @@ The BoringVault architecture is made up of:
 
 - **BoringVault**: A barebones vault contract that outsources complex functionality to external contracts.
 - **Manager**: Limits the possible strategies BoringVaults can use, without large gas overheads, or unnecessary risk.
-- **Teller**: Facilitates user deposits and withdraws in/out of the BoringVault.
+- **Teller**: Facilitates user deposits and withdrawals in/out of the BoringVault.
 - **Accountant**: Provides a safe share price for Teller interactions via offchain oracles.
 
 ## Arctic Architecture
@@ -60,7 +60,7 @@ This Teller was designed to take all the good things about multiple deposit asse
 
 ### AccountantWithRateProviders
 
-This Accountant provides the exchange rate information needed by the Teller to accept multiple deposit assets, and is designed to be manipulation resitant using the following:
+This Accountant provides the exchange rate information needed by the Teller to accept multiple deposit assets, and is designed to be manipulation resistant using the following:
 
 1. The share exchange rate is calculated offchain, because it is possible for attackers to manipulate onchain data sources.
 2. Exchange rates written on chain are rate limited, and bound limited.
