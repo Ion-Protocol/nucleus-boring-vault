@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";

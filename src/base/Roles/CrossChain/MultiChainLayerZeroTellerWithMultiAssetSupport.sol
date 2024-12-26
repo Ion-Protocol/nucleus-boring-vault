@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import { MultiChainTellerBase, MultiChainTellerBase_MessagesNotAllowedFrom } from "./MultiChainTellerBase.sol";
 import { BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
