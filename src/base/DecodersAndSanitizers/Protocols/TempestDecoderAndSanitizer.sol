@@ -27,7 +27,7 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function deposit(
         uint256 amount,
         address receiver,
-        bytes merkleProofs
+        bytes memory merkleProofs
     )
         external
         pure
@@ -96,7 +96,7 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
         uint256 shares,
         address receiver,
         address owner,
-        bytes merkleProofs
+        bytes memory merkleProofs
     )
         external
         pure
