@@ -217,4 +217,14 @@ contract DecoderCustomTypes {
         // Array containing the amount of shares in each Strategy in the `strategies` array
         uint256[] shares;
     }
+
+    // ========================================= EIGEN LAYER =========================================
+
+    struct BridgeData {
+        uint32 chainSelector;
+        address destinationChainReceiver;
+        address bridgeFeeToken;
+        uint64 messageGas;
+        bytes data;
+    }
 }

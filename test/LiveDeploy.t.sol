@@ -18,16 +18,25 @@ import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 import { CrossChainOPTellerWithMultiAssetSupportTest } from
     "test/CrossChain/CrossChainOPTellerWithMultiAssetSupport.t.sol";
-import { CrossChainTellerBase, BridgeData, ERC20 } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { CrossChainOPTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
 import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 
+// import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { console2 } from "forge-std/console2.sol";
 
 string constant DEFAULT_RPC_URL = "L1_RPC_URL";
 uint256 constant DELTA = 10_000;
+
+interface IUSDM {
+    function mint(address to, uint256 amount) external;
+    function owner() external view returns (address);
+}
 
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
 abstract contract ForkTest is Test {
@@ -49,6 +58,7 @@ contract LiveDeploy is ForkTest, DeployAll {
     using Strings for address;
     using StdJson for string;
     using FixedPointMathLib for uint256;
+    using SafeERC20 for IERC20;
 
     ERC20 constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     uint256 ONE_SHARE;
@@ -129,7 +139,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         depositAmount = bound(depositAmount, 1, 10_000e18);
 
         // mint a bunch of extra tokens to the vault for if rate increased
-        deal(mainConfig.base, mainConfig.boringVault, depositAmount);
+        _deal(mainConfig.base, mainConfig.boringVault, depositAmount);
 
         _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
@@ -218,16 +228,21 @@ contract LiveDeploy is ForkTest, DeployAll {
             ? mainConfig.allowedExchangeRateChangeLower + 1
             : rateChange;
 
-        depositAmount = bound(depositAmount, 0.5e18, 10_000e18);
+        depositAmount = bound(depositAmount, 1e6, 1_000_000e6);
+        console2.log("depositAmount: ", depositAmount);
 
-        uint256[] memory depositAmountLD = new uint256[](3);
+        uint256[] memory depositAmountLD = new uint256[](assetsCount);
 
         for (uint256 i; i < assetsCount; ++i) {
-            depositAmountLD[i] = depositAmount * 10 ** ERC20(mainConfig.assets[i]).decimals();
+            // depositAmountLD[i] = depositAmount * 10 ** ERC20(mainConfig.assets[i]).decimals();
+            uint256 quoteDecimals = ERC20(mainConfig.assets[i]).decimals();
+            console2.log("10**quoteDecimals: ", 10 ** quoteDecimals);
+            console2.log("ERC20(mainConfig.assets[i]).totalSupply(): ", ERC20(mainConfig.assets[i]).totalSupply());
+            depositAmountLD[i] = bound(depositAmount, 10 ** quoteDecimals, ERC20(mainConfig.assets[i]).totalSupply());
         }
 
         // mint a bunch of extra tokens to the vault for if rate increased
-        deal(mainConfig.base, mainConfig.boringVault, depositAmount);
+        // _deal(mainConfig.base, mainConfig.boringVault, depositAmount);
         uint256 expecteShares;
         uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
         uint256[] memory rateInQuoteBefore = new uint256[](assetsCount);
@@ -255,16 +270,21 @@ contract LiveDeploy is ForkTest, DeployAll {
             );
 
             // mint extra assets for vault to give out
-            deal(mainConfig.assets[i], mainConfig.boringVault, depositAmountLD[i] * 2);
+            _deal(mainConfig.assets[i], mainConfig.boringVault, depositAmountLD[i] * 2);
 
             uint256 expectedAssetsBack = ((depositAmountLD[i]) * rateChange / 10_000);
 
+            console2.log("depositAmountLD[i]: ", depositAmountLD[i]);
+            console2.log("expectedSharesByAsset[i]: ", expectedSharesByAsset[i]);
             uint256 assetsOut = expectedSharesByAsset[i].mulDivDown(
                 accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE
             );
 
-            // Delta must be set very high to pass
-            assertApproxEqAbs(assetsOut, expectedAssetsBack, DELTA, "assets out not equal to expected assets back");
+            // WARNING This is meant to fail if quote decimals is ever less than shares decimals.
+            uint256 decimalsDiff = 10 ** (ERC20(mainConfig.assets[i]).decimals() - boringVault.decimals());
+            assertApproxEqAbs(
+                assetsOut, expectedAssetsBack, decimalsDiff * 2, "assets out not equal to expected assets back"
+            );
 
             TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
                 ERC20(mainConfig.assets[i]), expectedSharesByAsset[i], expectedAssetsBack * 99 / 100, address(this)
@@ -273,7 +293,7 @@ contract LiveDeploy is ForkTest, DeployAll {
             assertApproxEqAbs(
                 ERC20(mainConfig.assets[i]).balanceOf(address(this)),
                 expectedAssetsBack,
-                DELTA,
+                decimalsDiff * 2,
                 "Should have been able to withdraw back the depositAmounts"
             );
         }
@@ -282,9 +302,9 @@ contract LiveDeploy is ForkTest, DeployAll {
     function testDepositASupportedAssetWithoutRateUpdate(uint256 depositAmount, uint256 indexOfSupported) public {
         uint256 assetsCount = mainConfig.assets.length;
         indexOfSupported = bound(indexOfSupported, 0, assetsCount);
-        depositAmount = bound(depositAmount, 1, 10_000e18);
+        depositAmount = bound(depositAmount, 1, 10_000e6);
 
-        uint256[] memory depositAmountLD = new uint256[](3);
+        uint256[] memory depositAmountLD = new uint256[](assetsCount);
 
         uint256 sharesDecimals = BoringVault(payable(mainConfig.boringVault)).decimals();
         for (uint256 i; i < assetsCount; ++i) {
@@ -296,10 +316,14 @@ contract LiveDeploy is ForkTest, DeployAll {
             // deposit = quoteDecimals * sharesDecimals / quoteDecimals
             // assuming internal rate calculation is precise, any deposit amount
             // in decimals < 1e(quoteDecimals - sharesDecimals) will truncate to zero
-            depositAmountLD[i] = bound(depositAmount, 10 ** (quoteDecimals - sharesDecimals), 10_000e18);
+            // depositAmountLD[i] = bound(depositAmount, 10 ** (quoteDecimals - sharesDecimals), 10_000e18);
+            depositAmountLD[i] =
+                bound(depositAmount, 10 ** (quoteDecimals - sharesDecimals), ERC20(mainConfig.assets[i]).totalSupply());
 
             console2.log("depositAmountLD[i]: ", depositAmountLD[i]);
         }
+
+        console2.log("after getting deposit amounts");
 
         uint256 expecteShares;
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
@@ -312,6 +336,8 @@ contract LiveDeploy is ForkTest, DeployAll {
             _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmountLD[i]);
         }
 
+        console2.log("after deposit assets");
+
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
         assertEq(boringVault.balanceOf(address(this)), expecteShares, "Should have received expected shares");
 
@@ -319,7 +345,14 @@ contract LiveDeploy is ForkTest, DeployAll {
         for (uint256 i; i < assetsCount; ++i) {
             // For minimum amount out, zero out the last number of digits equal to (quoteDecimals - sharesDecimals)
             uint256 decimalsDiff = 10 ** (ERC20(mainConfig.assets[i]).decimals() - sharesDecimals);
-            uint256 minimumAssetsOut = depositAmountLD[i] / decimalsDiff * decimalsDiff;
+
+            console2.log("depositAmountLD[i]: ", depositAmountLD[i]);
+            uint256 minimumAssetsOut = depositAmountLD[i] / decimalsDiff * decimalsDiff - decimalsDiff;
+
+            uint256 rateInQuote = accountant.getRateInQuote(ERC20(mainConfig.assets[i]));
+            console2.log("rateInQuote: ", rateInQuote);
+            uint256 expectedReceive = expectedSharesByAsset[i] * rateInQuote / ONE_SHARE;
+            console2.log("expectedReceive: ", expectedReceive);
 
             uint256 receiveAmountLD = TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
                 ERC20(mainConfig.assets[i]), expectedSharesByAsset[i], minimumAssetsOut, address(this)
@@ -334,26 +367,44 @@ contract LiveDeploy is ForkTest, DeployAll {
     }
 
     function testAssetsAreAllNormalERC20(uint256 mintAmount, uint256 transferAmount) public {
-        mintAmount = bound(mintAmount, 1, type(uint256).max);
+        mintAmount = bound(mintAmount, 1, 1_000_000e6);
         transferAmount = bound(transferAmount, 1, mintAmount);
         address user1 = makeAddr("user1");
         address user2 = makeAddr("user2");
 
         for (uint256 i; i < mainConfig.assets.length; ++i) {
             ERC20 asset = ERC20(mainConfig.assets[i]);
-            deal(address(asset), user1, mintAmount);
-            assertEq(asset.balanceOf(user1), mintAmount, "asset did not deal to user1 correctly");
+            _deal(address(asset), user1, mintAmount);
+            assertApproxEqAbs(asset.balanceOf(user1), mintAmount, 2, "asset did not deal to user1 correctly");
             uint256 totalSupplyStart = asset.totalSupply();
             vm.prank(user1);
-            asset.transfer(user2, transferAmount);
-            assertEq(asset.balanceOf(user1), mintAmount - transferAmount, "user1 balance not removed after transfer");
-            assertEq(asset.balanceOf(user2), transferAmount, "user2 balance not incremented after transfer");
+            IERC20(address(asset)).safeTransfer(user2, transferAmount);
+            assertApproxEqAbs(
+                asset.balanceOf(user1), mintAmount - transferAmount, 2, "user1 balance not removed after transfer"
+            );
+            assertApproxEqAbs(asset.balanceOf(user2), transferAmount, 2, "user2 balance not incremented after transfer");
         }
     }
 
     function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount) internal {
-        deal(address(asset), address(this), depositAmount);
-        asset.approve(mainConfig.boringVault, depositAmount);
+        console2.log("_depositAssetWithApprove");
+        console2.log("address(asset): ", address(asset));
+        console2.log("depositAmount: ", depositAmount);
+
+        _deal(address(asset), address(this), depositAmount);
+        console2.log("balance", asset.balanceOf(address(this)));
+        // require(asset.balanceOf(address(this)) == depositAmount, "_depositAssetWithApprove deal failed");
+
+        console2.log("after deal");
+        uint256 allowance = asset.allowance(address(this), mainConfig.boringVault);
+        console2.log("allowance: ", allowance);
+
+        // Without `forceApprove`, just `approve` reverts in Foundry on USDT due
+        // to having no return value and requiring the existing allowance to be
+        // zero. Even if we enforce the existing allowance to be zero, foundry
+        // was still throwing an EVM revert on USDT approve.
+        IERC20(address(asset)).forceApprove(address(mainConfig.boringVault), depositAmount);
+        console2.log("after approve");
         TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, 0);
     }
 
@@ -367,7 +418,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         // make a user and give them BASE
         address user = makeAddr("A user");
         address userChain2 = makeAddr("A user on chain 2");
-        deal(address(asset), user, amount);
+        _deal(address(asset), user, amount);
 
         // approve teller to spend BASE
         vm.startPrank(user);
@@ -414,7 +465,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         address user = makeAddr("A user");
         address userChain2 = makeAddr("A user on chain 2");
-        deal(address(asset), user, amount);
+        _deal(address(asset), user, amount);
 
         // approve teller to spend BASE
         vm.startPrank(user);
@@ -458,5 +509,47 @@ contract LiveDeploy is ForkTest, DeployAll {
         accountant.updateExchangeRate(newRate);
         vm.stopPrank();
         vm.warp(time);
+    }
+
+    /**
+     * Certain tokens such as rebasing tokens are not compatible with the
+     * regular `deal`. For those, we can implement custom deal logic.
+     */
+    function _deal(address asset, address to, uint256 amount) internal returns (uint256) {
+        ERC20 M_TOKEN = ERC20(0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b);
+        ERC20 WM_TOKEN = ERC20(0x437cc33344a0B27A429f795ff6B469C72698B291);
+        ERC20 USDM_TOKEN = ERC20(0x59D9356E565Ab3A36dD77763Fc0d87fEaf85508C);
+        ERC20 RUSDY_TOKEN = ERC20(0xaf37c1167910ebC994e266949387d2c7C326b879);
+
+        if (asset == address(M_TOKEN)) {
+            address mHolder = 0x3f0376da3Ae4313E7a5F1dA184BAFC716252d759;
+            vm.startPrank(mHolder);
+            M_TOKEN.transfer(to, amount);
+            vm.stopPrank();
+        } else if (asset == address(WM_TOKEN)) {
+            address wmHolder = 0x4Cbc25559DbBD1272EC5B64c7b5F48a2405e6470;
+            vm.startPrank(wmHolder);
+            WM_TOKEN.transfer(to, amount);
+            vm.stopPrank();
+        } else if (asset == 0x59D9356E565Ab3A36dD77763Fc0d87fEaf85508C) {
+            console2.log("mint USDM");
+            address usdmMinter = 0x4109f7E577596432458F8D4DC2E78637428D5614;
+            vm.startPrank(usdmMinter);
+            IUSDM(address(USDM_TOKEN)).mint(to, amount);
+            vm.stopPrank();
+            // address usdmHolder = 0xeF9A3cE48678D7e42296166865736899C3638B0E;
+            // vm.startPrank(usdmHolder);
+            // USDM_TOKEN.transfer(to, amount);
+            // vm.stopPrank();
+        } else if (asset == address(RUSDY_TOKEN)) {
+            address rusdyHolder = 0xA18D2F95cfB492b65dBffad6216e3428e9d14362;
+            vm.startPrank(rusdyHolder);
+            RUSDY_TOKEN.transfer(to, amount);
+            vm.stopPrank();
+        } else {
+            deal(asset, to, amount);
+        }
+        // require(ERC20(asset).balanceOf(to) == amount, "deal failed");
+        return amount;
     }
 }

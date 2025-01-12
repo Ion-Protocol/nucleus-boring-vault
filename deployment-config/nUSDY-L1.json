@@ -1,0 +1,57 @@
+{
+    "base": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0x5b062c75fc0d1762ac7340a1120128edfcc9cd711a519eb73f55234c5bf837ba",
+      "boringVaultName": "Nest USDY Vault",
+      "boringVaultSymbol": "nUSDY",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x4ef11b86b2181794fee924ca2722eb28e2529558f4138d3ec56773eb81ce0afb",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0xfa3695c8cce15cb948cfe1987ce7c60b3c7cfed0a8f064f7442deb3afb082583",
+      "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0x100633b1aa3754845acb212e4f5ba8a22135b5926946b61e1e1b4145ee62a5c4",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 30318,
+      "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+      "assets": [
+        "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "0x96F6eF951840721AdBF46Ac996b59E0235CB985C",
+        "0xaf37c1167910ebC994e266949387d2c7C326b879"
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+          "0x589dedbd617e0cbcb916a9223f4d1300c294236b"
+        ],
+        "optional": [
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 0
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x31e2ff25f1315c92d6826b7f33f10a8cbbba88c3b2bf5159d5471d65cc473bc6",
+      "strategist": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x96f7bb18e81cf457a0ff9907053ac0dede394cf1a159e8c3a8ca07566177a3de",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+  }

@@ -117,6 +117,33 @@
     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
       "note": "USDT",
       "isPegged": true
+    },
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+      "note": "USDe",
+      "isPegged": true
+    },
+    "0x9d39a5de30e57443bff2a8307a4256c8797a3497": {
+      "note": "sUSDe",
+      "isPegged": false,
+      "rateProvider": "0x3D2021776e385601857E7b7649de955525E21d23"
+    },
+    "0x96f6ef951840721adbf46ac996b59e0235cb985c": {
+      "note": "USDY",
+      "isPegged": false,
+      "rateProvider": "0x78Fe29ef4192c9c88B9EA1E708aDB0572f6340B3"
+    },
+    "0xaf37c1167910ebc994e266949387d2c7c326b879": {
+      "note": "rUSDY",
+      "isPegged": true
+    },
+    "0x15700b564ca08d9439c58ca5053166e8317aa138": {
+      "note": "deUSD",
+      "isPegged": true
+    },
+    "0x5C5b196aBE0d54485975D1Ec29617D42D9198326": {
+      "note": "sUSDe",
+      "isPegged": false,
+      "rateProvider": "0x54b97cD6E6474570678a89421136B299709C8245"
     }
   }
 }
