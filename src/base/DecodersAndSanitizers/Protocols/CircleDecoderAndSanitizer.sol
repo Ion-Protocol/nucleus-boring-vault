@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
-abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
+abstract contract CircleDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function depositForBurn(
         uint256 amount,
         uint32 destinationDomain,
