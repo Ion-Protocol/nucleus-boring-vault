@@ -13,6 +13,7 @@ import { OneInchDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Proto
 import { TellerDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/TellerDecoderAndSanitizer.sol";
 import { LayerZeroOFTDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/LayerZeroOFTDecoderAndSanitizer.sol";
+import { CircleDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CircleDecoderAndSanitizer.sol";
 
 contract nTBILLEthereumDecoderAndSanitizer is
     UniswapV3DecoderAndSanitizer,
@@ -22,7 +23,8 @@ contract nTBILLEthereumDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     OneInchDecoderAndSanitizer,
     TellerDecoderAndSanitizer,
-    LayerZeroOFTDecoderAndSanitizer
+    LayerZeroOFTDecoderAndSanitizer,
+    CircleDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
