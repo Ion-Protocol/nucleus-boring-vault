@@ -87,7 +87,8 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
      * @param data Bridge data
      */
     function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
-        bytes32 messageId = keccak256(abi.encodePacked(++nonce, address(this), block.chainid));
+        uint256 nextNonce = nonce + 1;
+        bytes32 messageId = keccak256(abi.encodePacked(nextNonce, address(this), block.chainid));
 
         bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, messageId);
 

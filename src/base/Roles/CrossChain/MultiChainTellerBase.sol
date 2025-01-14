@@ -174,7 +174,7 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase {
      * @param data bridge data
      */
     function _beforeBridge(BridgeData calldata data) internal override {
-        Chain chain = selectorToChains[data.chainSelector];
+        Chain memory chain = selectorToChains[data.chainSelector];
 
         if (!chain.allowMessagesTo) {
             revert MultiChainTellerBase_MessagesNotAllowedTo(data.chainSelector);
