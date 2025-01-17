@@ -13,19 +13,15 @@ import { SwellDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protoco
 import { CrocSwapDexDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/CrocSwapDexDecoderAndSanitizer.sol";
 
+import { TempestDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/TempestDecoderAndSanitizer.sol";
+
 contract EarnETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
-    UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
     PendleRouterDecoderAndSanitizer,
     SwellDecoderAndSanitizer,
-    CrocSwapDexDecoderAndSanitizer
+    CrocSwapDexDecoderAndSanitizer,
+    TempestDecoderAndSanitizer
 {
-    constructor(
-        address _boringVault,
-        address _uniswapV3NonFungiblePositionManager
-    )
-        UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
-        BaseDecoderAndSanitizer(_boringVault)
-    { }
+    constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 }
