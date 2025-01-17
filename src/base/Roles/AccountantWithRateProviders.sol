@@ -6,13 +6,14 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
-
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 /**
  * @title AccountantWithRateProviders
  * @custom:security-contact security@molecularlabs.io
  */
-contract AccountantWithRateProviders is Auth, IRateProvider {
+
+contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
@@ -122,7 +123,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint32 minimumUpdateDelayInSeconds,
         uint16 managementFee
     )
-        Auth(_owner, Authority(address(0)))
+        AuthOwnable2Step(_owner, Authority(address(0)))
     {
         base = ERC20(_base);
         decimals = ERC20(_base).decimals();

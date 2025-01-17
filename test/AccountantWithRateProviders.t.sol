@@ -110,6 +110,17 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         assertTrue(is_paused == false, "Accountant should be unpaused");
     }
 
+    function testTransferOwnership() external {
+        address newOwner = makeAddr("New Owner");
+        accountant.transferOwnership(newOwner);
+        assertEq(accountant.pendingOwner(), newOwner, "Pending owner should be the new owner before acceptance");
+        assertEq(accountant.owner(), address(this), "Real owner should be the deployer before acceptance");
+        vm.prank(newOwner);
+        accountant.acceptOwnership();
+        assertEq(accountant.pendingOwner(), address(0), "Pending owner should be 0 after acceptance");
+        assertEq(accountant.owner(), newOwner, "Real owner should be the new owner after acceptance");
+    }
+
     function testUpdateDelay() external {
         accountant.updateDelay(2);
 

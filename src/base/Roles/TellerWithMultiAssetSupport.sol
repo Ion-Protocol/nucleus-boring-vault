@@ -8,14 +8,15 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 
 /**
  * @title TellerWithMultiAssetSupport
  * @custom:security-contact security@molecularlabs.io
  */
-contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
+contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, ReentrancyGuard {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
     using SafeTransferLib for WETH;
@@ -118,7 +119,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     uint256 internal immutable ONE_SHARE;
 
-    constructor(address _owner, address _vault, address _accountant) Auth(_owner, Authority(address(0))) {
+    constructor(address _owner, address _vault, address _accountant) AuthOwnable2Step(_owner, Authority(address(0))) {
         vault = BoringVault(payable(_vault));
         ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
