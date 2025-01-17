@@ -51,7 +51,7 @@ contract ArcticArchitectureLens {
     {
         uint8 shareDecimals = boringVault.decimals();
 
-        shares = depositAmount.mulDivDown(10 ** shareDecimals, accountant.getRateInQuote(depositAsset));
+        shares = accountant.getSharesForDepositAmount(depositAsset, depositAmount);
     }
 
     /**

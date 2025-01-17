@@ -69,7 +69,7 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         uint256 expectedQuotePerShare = basePerShare * 1e18 / basePerQuote; // (base / share) / (base / quote) = quote /
             // share
 
-        uint256 shares = depositAmt.mulDivDown(1e18, quotePerShare);
+        uint256 shares = accountant.getSharesForDepositAmount(WSTETH, depositAmt);
         // mint amount = deposit amount * exchangeRate
 
         deal(address(WSTETH), address(this), depositAmt);
