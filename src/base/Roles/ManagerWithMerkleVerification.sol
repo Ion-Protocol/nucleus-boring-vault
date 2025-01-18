@@ -291,8 +291,13 @@ contract ManagerWithMerkleVerification is Auth {
     {
         bool valueNonZero = value > 0;
 
-        bytes32 leaf =
-            keccak256(abi.encodePacked(decoderAndSanitizer, target, valueNonZero, selector, packedArgumentAddresses));
+        bytes32 leaf = keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encodePacked(decoderAndSanitizer, target, valueNonZero, selector, packedArgumentAddresses)
+                )
+            )
+        );
 
         return MerkleProofLib.verify(proof, root, leaf);
     }

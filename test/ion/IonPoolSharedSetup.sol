@@ -191,7 +191,7 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
             console2.log("leaf hash");
             console2.logBytes32(keccak256(rawDigest));
 
-            _leafs[0][i] = keccak256(rawDigest);
+            _leafs[0][i] = keccak256(bytes.concat(keccak256(rawDigest)));
         }
         tree = _buildTrees(_leafs);
     }
@@ -251,7 +251,7 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
-            bytes32 leaf = keccak256(rawDigest);
+            bytes32 leaf = keccak256(bytes.concat(keccak256(rawDigest)));
             proofs[i] = _generateProof(leaf, tree);
         }
     }
