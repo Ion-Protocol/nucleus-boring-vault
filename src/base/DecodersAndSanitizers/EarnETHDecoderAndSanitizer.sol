@@ -8,8 +8,12 @@ import { MasterChefV3DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/MasterChefV3DecoderAndSanitizer.sol";
 import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
+import { LidoDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/LidoDecoderAndSanitizer.sol";
+import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
 
 contract EarnETHDecoderAndSanitizer is
+    LidoDecoderAndSanitizer,
+    CurveDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
