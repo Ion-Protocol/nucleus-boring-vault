@@ -26,4 +26,14 @@ contract EarnETHDecoderAndSanitizer is
         UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
         BaseDecoderAndSanitizer(_boringVault)
     { }
+
+    function withdraw(uint256)
+        external
+        pure
+        override(CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        // Nothing to sanitize or return
+        return addressesFound;
+    }
 }
