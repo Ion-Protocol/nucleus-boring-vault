@@ -15,6 +15,7 @@ import { DeployCrossChainOPTellerWithMultiAssetSupport } from
     "./single/05a_DeployCrossChainOPTellerWithMultiAssetSupport.s.sol";
 import { DeployMultiChainLayerZeroTellerWithMultiAssetSupport } from
     "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
+import { DeployMultiChainHyperlaneTeller } from "./single/05c_DeployMultiChainHyperlaneTeller.s.sol";
 import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
 import { TellerSetup } from "./single/07_TellerSetup.s.sol";
 import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTransferOwnerships.s.sol";
@@ -102,6 +103,8 @@ contract DeployAll is BaseScript {
             teller = new DeployCrossChainOPTellerWithMultiAssetSupport().deploy(config);
         } else if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
+        } else if (compareStrings(config.tellerContractName, "MultiChainHyperlaneTellerWithMultiAssetSupport")) {
+            teller = new DeployMultiChainHyperlaneTeller().deploy(config);
         } else if (compareStrings(config.tellerContractName, "TellerWithMultiAssetSupport")) {
             teller = new DeployTellerWithMultiAssetSupport().deploy(config);
         } else {
