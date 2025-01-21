@@ -8,7 +8,7 @@ import {
     Chain
 } from "./MultiChainTellerBase.sol";
 import { BridgeData, ERC20 } from "./CrossChainTellerBase.sol";
-import { StandardHookMetadata } from "./Hyperlane/StandardHookMetadata.sol";
+import { StandardHookMetadata } from "../../../helper/StandardHookMetadata.sol";
 import { IMailbox } from "../../../interfaces/hyperlane/IMailbox.sol";
 import { IInterchainSecurityModule } from "../../../interfaces/hyperlane/IInterchainSecurityModule.sol";
 import { IPostDispatchHook } from "../../../interfaces/hyperlane/IPostDispatchHook.sol";
