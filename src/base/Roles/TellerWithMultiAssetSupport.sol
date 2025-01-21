@@ -35,9 +35,14 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     // ========================================= STATE =========================================
 
     /**
-     * @notice Mapping ERC20s to an isSupported bool.
+     * @notice Mapping withdrawERC20s to an isSupported bool.
      */
-    mapping(ERC20 => bool) public isSupported;
+    mapping(ERC20 => bool) public isWithdrawSupported;
+
+    /**
+     * @notice Mapping depositERC20s to a deposit cap
+     */
+    mapping(ERC20 => uint256) public assetDepositCap;
 
     /**
      * @notice The deposit nonce used to map to a deposit hash.
@@ -74,20 +79,21 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__SharesAreLocked();
     error TellerWithMultiAssetSupport__SharesAreUnLocked();
     error TellerWithMultiAssetSupport__BadDepositHash();
-    error TellerWithMultiAssetSupport__AssetNotSupported();
+    error TellerWithMultiAssetSupport__AssetDepositNotSupported();
+    error TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
     error TellerWithMultiAssetSupport__ZeroAssets();
     error TellerWithMultiAssetSupport__MinimumMintNotMet();
     error TellerWithMultiAssetSupport__MinimumAssetsNotMet();
     error TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
     error TellerWithMultiAssetSupport__ZeroShares();
     error TellerWithMultiAssetSupport__Paused();
+    error TellerWithMultiAssetSupport__InvalidInput();
 
     //============================== EVENTS ===============================
 
     event Paused();
     event Unpaused();
-    event AssetAdded(address indexed asset);
-    event AssetRemoved(address indexed asset);
+    event AssetConfigured(address indexed asset, uint256 newDepositCap, bool isWithdrawSupported);
     event Deposit(
         uint256 indexed nonce,
         address indexed receiver,
@@ -145,22 +151,28 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     }
 
     /**
-     * @notice Adds this asset as a deposit asset.
-     * @dev The accountant must also support pricing this asset, else the `deposit` call will revert.
-     * @dev Callable by OWNER_ROLE.
+     * @notice Configures assets deposit caps (0 if not supported) and withdrawable status
+     * @dev All arrays must be the same length
      */
-    function addAsset(ERC20 asset) external requiresAuth {
-        isSupported[asset] = true;
-        emit AssetAdded(address(asset));
-    }
+    function configureAssets(
+        ERC20[] calldata assets,
+        uint256[] calldata depositCaps,
+        bool[] calldata withdrawStatusByAssets
+    )
+        external
+        requiresAuth
+    {
+        uint256 length = assets.length;
+        if (length != depositCaps.length || length != withdrawStatusByAssets.length) {
+            revert TellerWithMultiAssetSupport__InvalidInput();
+        }
 
-    /**
-     * @notice Removes this asset as a deposit asset.
-     * @dev Callable by OWNER_ROLE.
-     */
-    function removeAsset(ERC20 asset) external requiresAuth {
-        isSupported[asset] = false;
-        emit AssetRemoved(address(asset));
+        for (uint256 i; i < length; ++i) {
+            ERC20 asset = assets[i];
+            isWithdrawSupported[asset] = withdrawStatusByAssets[i];
+            assetDepositCap[asset] = depositCaps[i];
+            emit AssetConfigured(address(asset), depositCaps[i], withdrawStatusByAssets[i]);
+        }
     }
 
     /**
@@ -250,7 +262,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+        if (assetDepositCap[depositAsset] == 0) revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
 
         shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
 
@@ -276,7 +288,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+        if (assetDepositCap[depositAsset] == 0) revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
 
         // solhint-disable-next-line no-empty-blocks
         try depositAsset.permit(msg.sender, address(vault), depositAmount, deadline, v, r, s) { }
@@ -306,7 +318,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         nonReentrant
         returns (uint256 shares)
     {
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+        if (assetDepositCap[depositAsset] == 0) revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
 
         shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
         emit BulkDeposit(address(depositAsset), depositAmount);
@@ -326,7 +338,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         requiresAuth
         returns (uint256 assetsOut)
     {
-        if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+        if (!isWithdrawSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
         assetsOut = shareAmount.mulDivDown(accountant.getRateInQuoteSafe(withdrawAsset), ONE_SHARE);

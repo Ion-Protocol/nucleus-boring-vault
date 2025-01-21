@@ -157,10 +157,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
             address(teller), TellerWithMultiAssetSupport.depositWithPermit.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.addAsset.selector, true
-        );
-        rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.removeAsset.selector, true
+            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.configureAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, address(accountant), AccountantWithRateProviders.pause.selector, true
@@ -222,12 +219,29 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
         accountant.setRateProviderData(ERC20(pendleEethPt), false, address(ptRateProvider));
         accountant.setRateProviderData(ERC20(pendleEethYt), false, address(ytRateProvider));
-        teller.addAsset(WETH);
-        teller.addAsset(NATIVE_ERC20);
-        teller.addAsset(EETH);
-        teller.addAsset(WEETH);
-        teller.addAsset(ERC20(pendleEethPt));
-        teller.addAsset(ERC20(pendleEethYt));
+
+        ERC20[] memory assets = new ERC20[](5);
+        assets[0] = WETH;
+        assets[1] = EETH;
+        assets[2] = WEETH;
+        assets[3] = ERC20(pendleEethPt);
+        assets[4] = ERC20(pendleEethYt);
+
+        uint256[] memory depositCaps = new uint256[](5);
+        depositCaps[0] = type(uint256).max;
+        depositCaps[1] = type(uint256).max;
+        depositCaps[2] = type(uint256).max;
+        depositCaps[3] = type(uint256).max;
+        depositCaps[4] = type(uint256).max;
+
+        bool[] memory withdrawStatusByAssets = new bool[](5);
+        withdrawStatusByAssets[0] = true;
+        withdrawStatusByAssets[1] = true;
+        withdrawStatusByAssets[2] = true;
+        withdrawStatusByAssets[3] = true;
+        withdrawStatusByAssets[4] = true;
+
+        teller.configureAssets(assets, depositCaps, withdrawStatusByAssets);
         vm.stopPrank();
 
         uint256 wETH_amount = 1500e18;

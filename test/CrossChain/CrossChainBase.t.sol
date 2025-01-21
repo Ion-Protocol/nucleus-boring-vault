@@ -72,10 +72,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
 
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAsset.selector, true
-        );
-        rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.removeAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.configureAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
@@ -108,15 +105,22 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(destinationTellerAddr, MINTER_ROLE, true);
         rolesAuthority.setUserRole(destinationTellerAddr, BURNER_ROLE, true);
 
-        sourceTeller.addAsset(WETH);
-        sourceTeller.addAsset(ERC20(NATIVE));
-        sourceTeller.addAsset(EETH);
-        sourceTeller.addAsset(WEETH);
+        ERC20[] memory assets = new ERC20[](3);
+        assets[0] = WETH;
+        assets[1] = EETH;
+        assets[2] = WEETH;
 
-        destinationTeller.addAsset(WETH);
-        destinationTeller.addAsset(ERC20(NATIVE));
-        destinationTeller.addAsset(EETH);
-        destinationTeller.addAsset(WEETH);
+        uint256[] memory depositCaps = new uint256[](3);
+        depositCaps[0] = type(uint256).max;
+        depositCaps[1] = type(uint256).max;
+        depositCaps[2] = type(uint256).max;
+
+        bool[] memory withdrawStatusByAssets = new bool[](3);
+        withdrawStatusByAssets[0] = true;
+        withdrawStatusByAssets[1] = true;
+        withdrawStatusByAssets[2] = true;
+
+        sourceTeller.configureAssets(assets, depositCaps, withdrawStatusByAssets);
 
         accountant.setRateProviderData(EETH, true, address(0));
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));

@@ -46,8 +46,8 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
         requiresAuth
         nonReentrant
     {
-        if (!isSupported[depositAsset]) {
-            revert TellerWithMultiAssetSupport__AssetNotSupported();
+        if (assetDepositCap[depositAsset] == 0) {
+            revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
         }
 
         uint256 shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
