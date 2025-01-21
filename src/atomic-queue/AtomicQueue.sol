@@ -40,6 +40,7 @@ contract AtomicQueue is ReentrancyGuard {
         uint88 atomicPrice; // In terms of want asset decimals
         uint96 offerAmount; // The amount of offer asset the user wants to sell.
         bool inSolve; // Indicates whether this user is currently having their request fulfilled.
+        address recipient; // recipient of want asset
     }
 
     /**
@@ -75,6 +76,7 @@ contract AtomicQueue is ReentrancyGuard {
     error AtomicQueue__RequestDeadlineExceeded(address user);
     error AtomicQueue__UserNotInSolve(address user);
     error AtomicQueue__ZeroOfferAmount(address user);
+    error AtomicQueue__ZeroAddressRecipient();
 
     //============================== EVENTS ===============================
 
@@ -83,6 +85,7 @@ contract AtomicQueue is ReentrancyGuard {
      */
     event AtomicRequestUpdated(
         address user,
+        address recipient,
         address offerToken,
         address wantToken,
         uint256 amount,
@@ -96,6 +99,7 @@ contract AtomicQueue is ReentrancyGuard {
      */
     event AtomicRequestFulfilled(
         address user,
+        address recipient,
         address offerToken,
         address wantToken,
         uint256 offerAmountSpent,
@@ -145,6 +149,8 @@ contract AtomicQueue is ReentrancyGuard {
         if (userRequest.offerAmount == 0) return false;
         // Validate atomicPrice is nonzero.
         if (userRequest.atomicPrice == 0) return false;
+        // Require recipient != 0x0
+        if (userRequest.recipient == address(0)) return false;
 
         return true;
     }
@@ -160,15 +166,26 @@ contract AtomicQueue is ReentrancyGuard {
      * @param userRequest the users request
      */
     function updateAtomicRequest(ERC20 offer, ERC20 want, AtomicRequest calldata userRequest) external nonReentrant {
+        // Validate deadline, approval and recipient are valid.
+        if (
+            block.timestamp > userRequest.deadline
+                || offer.allowance(msg.sender, address(this)) < userRequest.offerAmount
+                || userRequest.recipient == address(0)
+        ) {
+            revert AtomicQueue__ZeroAddressRecipient();
+        }
+
         AtomicRequest storage request = userAtomicRequest[msg.sender][offer][want];
 
         request.deadline = userRequest.deadline;
         request.atomicPrice = userRequest.atomicPrice;
         request.offerAmount = userRequest.offerAmount;
+        request.recipient = userRequest.recipient;
 
         // Emit full amount user has.
         emit AtomicRequestUpdated(
             msg.sender,
+            userRequest.recipient,
             address(offer),
             address(want),
             userRequest.offerAmount,
@@ -236,10 +253,16 @@ contract AtomicQueue is ReentrancyGuard {
                 // Send user their share of assets.
                 uint256 assetsToUser = _calculateAssetAmount(request.offerAmount, request.atomicPrice, offerDecimals);
 
-                want.safeTransferFrom(solver, users[i], assetsToUser);
+                want.safeTransferFrom(solver, request.recipient, assetsToUser);
 
                 emit AtomicRequestFulfilled(
-                    users[i], address(offer), address(want), request.offerAmount, assetsToUser, block.timestamp
+                    users[i],
+                    request.recipient,
+                    address(offer),
+                    address(want),
+                    request.offerAmount,
+                    assetsToUser,
+                    block.timestamp
                 );
 
                 // Set shares to withdraw to 0.

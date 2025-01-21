@@ -343,6 +343,30 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         assertApproxEqAbs(assets_out_2, weETH_amount, 1, "Should have received expected weETH assets");
     }
 
+    function testFailAtomicQueueReceiverZero() external {
+        uint256 amount = 1 ether;
+        address user = vm.addr(9);
+        uint256 wETH_amount = amount;
+        deal(address(WETH), user, wETH_amount);
+
+        vm.startPrank(user);
+        WETH.safeApprove(address(boringVault), wETH_amount);
+
+        uint256 shares = teller.deposit(WETH, wETH_amount, 0);
+
+        // Share lock period is not set, so user can submit withdraw request immediately.
+        AtomicQueue.AtomicRequest memory req = AtomicQueue.AtomicRequest({
+            recipient: address(0),
+            deadline: uint64(block.timestamp + 1 days),
+            atomicPrice: 1e18,
+            offerAmount: uint96(shares),
+            inSolve: false
+        });
+        boringVault.approve(address(atomicQueue), shares);
+        atomicQueue.updateAtomicRequest(boringVault, WETH, req);
+        vm.stopPrank();
+    }
+
     function testWithdrawWithAtomicQueue(uint256 amount) external {
         amount = bound(amount, 0.0001e18, 10_000e18);
 
@@ -357,6 +381,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         // Share lock period is not set, so user can submit withdraw request immediately.
         AtomicQueue.AtomicRequest memory req = AtomicQueue.AtomicRequest({
+            recipient: user,
             deadline: uint64(block.timestamp + 1 days),
             atomicPrice: 1e18,
             offerAmount: uint96(shares),
@@ -374,6 +399,47 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         users[0] = user;
         atomicSolverV3.redeemSolve(atomicQueue, boringVault, WETH, users, 0, type(uint256).max, teller);
         vm.stopPrank();
+        assertEq(WETH.balanceOf(user), wETH_amount, "not withdrawing same amount of wETH deposited");
+    }
+
+    function testWithdrawWithAtomicQueue_DifferentRecipient(uint256 amount) external {
+        amount = bound(amount, 0.0001e18, 10_000e18);
+
+        address user = vm.addr(9);
+        address rec = vm.addr(99);
+        uint256 wETH_amount = amount;
+        deal(address(WETH), user, wETH_amount);
+
+        vm.startPrank(user);
+        WETH.safeApprove(address(boringVault), wETH_amount);
+
+        uint256 shares = teller.deposit(WETH, wETH_amount, 0);
+
+        // Share lock period is not set, so user can submit withdraw request immediately.
+        AtomicQueue.AtomicRequest memory req = AtomicQueue.AtomicRequest({
+            recipient: rec,
+            deadline: uint64(block.timestamp + 1 days),
+            atomicPrice: 1e18,
+            offerAmount: uint96(shares),
+            inSolve: false
+        });
+        boringVault.approve(address(atomicQueue), shares);
+        atomicQueue.updateAtomicRequest(boringVault, WETH, req);
+        vm.stopPrank();
+
+        // Solver approves solver contract to spend enough assets to cover withdraw.
+        vm.startPrank(solver);
+        WETH.safeApprove(address(atomicSolverV3), wETH_amount);
+        // Solve withdraw request.
+        address[] memory users = new address[](1);
+        users[0] = user;
+        atomicSolverV3.redeemSolve(atomicQueue, boringVault, WETH, users, 0, type(uint256).max, teller);
+        vm.stopPrank();
+        assertEq(
+            WETH.balanceOf(rec),
+            wETH_amount,
+            "not withdrawing same amount of wETH deposited (should have been received by receiver)"
+        );
     }
 
     function testAssetIsSupported() external {
