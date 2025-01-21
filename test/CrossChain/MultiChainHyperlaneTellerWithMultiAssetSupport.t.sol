@@ -3,7 +3,8 @@ pragma solidity 0.8.21;
 
 import {
     MultiChainTellerBase_MessagesNotAllowedFrom,
-    MultiChainTellerBase_MessagesNotAllowedFromSender
+    MultiChainTellerBase_MessagesNotAllowedFromSender,
+    MultiChainTellerBase_DestinationChainReceiverIsZeroAddress
 } from "src/base/Roles/CrossChain/MultiChainTellerBase.sol";
 
 import { MultiChainBaseTest, MultiChainTellerBase, ERC20, BridgeData } from "./MultiChainBase.t.sol";
@@ -253,13 +254,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         WETH.approve(address(boringVault), 1e18);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                MultiChainHyperlaneTellerWithMultiAssetSupport
-                    .MultiChainHyperlaneTellerWithMultiAssetSupport_ZeroAddressDestinationReceiver
-                    .selector
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(MultiChainTellerBase_DestinationChainReceiverIsZeroAddress.selector));
         sourceTeller.depositAndBridge(
             WETH, 1e18, 1e18, BridgeData(DESTINATION_DOMAIN, address(0), ERC20(NATIVE), 80_000, "")
         );
