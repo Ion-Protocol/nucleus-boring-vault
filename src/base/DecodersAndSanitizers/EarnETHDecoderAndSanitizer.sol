@@ -10,6 +10,8 @@ import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
 import { LidoDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/LidoDecoderAndSanitizer.sol";
 import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
+import { EigenpieDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EigenpieDecoderAndSanitizer.sol";
+import { MellowDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/MellowDecoderAndSanitizer.sol";
 
 contract EarnETHDecoderAndSanitizer is
     LidoDecoderAndSanitizer,
@@ -17,7 +19,9 @@ contract EarnETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
-    PendleRouterDecoderAndSanitizer
+    PendleRouterDecoderAndSanitizer,
+    EigenpieDecoderAndSanitizer,
+    MellowDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
