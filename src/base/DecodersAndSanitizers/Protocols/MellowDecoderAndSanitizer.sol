@@ -19,7 +19,7 @@ abstract contract MellowDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function registerWithdrawal(
         address to,
         uint256,
-        uint256,
+        uint256[] memory,
         uint256,
         uint256,
         bool
