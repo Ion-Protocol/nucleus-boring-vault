@@ -62,12 +62,13 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     bool public isPaused;
 
-    uint104 rateLimitPeriod;
-    uint152 public constant defaultRateLimit = 100e18;
+    uint32 public rateLimitPeriod = 6000;
+    uint112 public constant defaultRateLimit = 100e18;
 
     struct Cooldown {
-        uint104 lastTimestamp;
-        uint152 rateLimit;
+        uint32 lastTimestamp;
+        uint112 rateLimit;
+        uint112 currentDepositCount;
     }
 
     mapping(address => Cooldown) public rateLimitByAsset;
@@ -98,6 +99,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__ZeroShares();
     error TellerWithMultiAssetSupport__Paused();
     error TellerWithMultiAssetSupport__InvalidInput();
+    error TellerWithMultiAssetSupport__RateLimit();
 
     //============================== EVENTS ===============================
 
@@ -179,6 +181,10 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
 
         for (uint256 i; i < length; ++i) {
             ERC20 asset = assets[i];
+
+            rateLimitByAsset[address(asset)].lastTimestamp = uint32(block.timestamp);
+            rateLimitByAsset[address(asset)].rateLimit = defaultRateLimit;
+
             isWithdrawSupported[asset] = withdrawStatusByAssets[i];
             assetDepositCap[asset] = depositCaps[i];
             emit AssetConfigured(address(asset), depositCaps[i], withdrawStatusByAssets[i]);
@@ -371,6 +377,8 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         internal
         returns (uint256 shares)
     {
+        if (assetDepositCap[depositAsset] == 0) revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
+        _checkRateLimit(address(depositAsset), depositAmount);
         if (depositAmount == 0) revert TellerWithMultiAssetSupport__ZeroAssets();
         shares = depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(depositAsset));
         if (shares < minimumMint) revert TellerWithMultiAssetSupport__MinimumMintNotMet();
@@ -396,5 +404,18 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
             keccak256(abi.encode(user, depositAsset, depositAmount, shares, block.timestamp, currentShareLockPeriod));
         depositNonce++;
         emit Deposit(nonce, user, address(depositAsset), depositAmount, shares, block.timestamp, currentShareLockPeriod);
+    }
+
+    function _checkRateLimit(address asset, uint256 attemptedDeposit) internal {
+        Cooldown memory cooldown = rateLimitByAsset[asset];
+        if (cooldown.lastTimestamp + rateLimitPeriod < block.timestamp) {
+            rateLimitByAsset[asset].currentDepositCount = 0;
+            rateLimitByAsset[asset].lastTimestamp = uint32(block.timestamp);
+        }
+
+        rateLimitByAsset[asset].currentDepositCount += uint112(attemptedDeposit);
+        if (rateLimitByAsset[asset].currentDepositCount > cooldown.rateLimit) {
+            revert TellerWithMultiAssetSupport__RateLimit();
+        }
     }
 }

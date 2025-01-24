@@ -161,7 +161,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
     function testDepositRateLimit() external {
         uint256 wETH_amount = 50e18;
-        deal(address(WETH), address(this), wETH_amount);
+        deal(address(WETH), address(this), wETH_amount + 51e18);
 
         WETH.safeApprove(address(boringVault), wETH_amount + 51e18);
         uint256 shares0 = teller.deposit(WETH, wETH_amount, 0);
@@ -174,7 +174,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         );
         uint256 shares1 = teller.deposit(WETH, wETH_amount, 0);
 
-        vm.warp(block.timestamp + teller.rateLimitPeriod);
+        vm.warp(block.timestamp + 1 + teller.rateLimitPeriod());
         uint256 shares2 = teller.deposit(WETH, wETH_amount, 0);
         assertGt(shares2, 0, "should have received shares after warp past rate limit period");
     }
