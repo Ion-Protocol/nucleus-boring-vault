@@ -62,6 +62,16 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     bool public isPaused;
 
+    uint104 rateLimitPeriod;
+    uint152 public constant defaultRateLimit = 100e18;
+
+    struct Cooldown {
+        uint104 lastTimestamp;
+        uint152 rateLimit;
+    }
+
+    mapping(address => Cooldown) public rateLimitByAsset;
+
     /**
      * @dev Maps deposit nonce to keccak256(address receiver, address depositAsset, uint256 depositAmount, uint256
      * shareAmount, uint256 timestamp, uint256 shareLockPeriod).
