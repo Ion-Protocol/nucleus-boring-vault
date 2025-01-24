@@ -62,15 +62,24 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     bool public isPaused;
 
-    uint32 public rateLimitPeriod = 6000;
-    uint112 public constant defaultRateLimit = 100e18;
+    /**
+     * @notice rate limit period, applies to all assets and defaults to 1 day
+     */
+    uint32 public rateLimitPeriod = 1 days;
 
+    /**
+     * @notice contains necessary values for a rate limit. The last time it was updated, the rate limit for this asset
+     * and the deposits counted since last update
+     */
     struct Cooldown {
         uint32 lastTimestamp;
         uint112 rateLimit;
         uint112 currentDepositCount;
     }
 
+    /**
+     * @notice Maps asset addresses to the Cooldown struct for rate limits
+     */
     mapping(address => Cooldown) public rateLimitByAsset;
 
     /**
@@ -169,21 +178,27 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     function configureAssets(
         ERC20[] calldata assets,
         uint256[] calldata depositCaps,
+        uint112[] calldata rateLimits,
         bool[] calldata withdrawStatusByAssets
     )
         external
         requiresAuth
     {
         uint256 length = assets.length;
-        if (length != depositCaps.length || length != withdrawStatusByAssets.length) {
+        if (length != depositCaps.length || length != withdrawStatusByAssets.length || length != rateLimits.length) {
             revert TellerWithMultiAssetSupport__InvalidInput();
         }
 
         for (uint256 i; i < length; ++i) {
             ERC20 asset = assets[i];
+            // ensure 0 addresses and values are not passed in
+            if (address(asset) == address(0) || rateLimits[i] == 0) {
+                revert TellerWithMultiAssetSupport__InvalidInput();
+            }
+            Cooldown storage cooldown = rateLimitByAsset[address(asset)];
 
-            rateLimitByAsset[address(asset)].lastTimestamp = uint32(block.timestamp);
-            rateLimitByAsset[address(asset)].rateLimit = defaultRateLimit;
+            cooldown.lastTimestamp = uint32(block.timestamp);
+            cooldown.rateLimit = rateLimits[i];
 
             isWithdrawSupported[asset] = withdrawStatusByAssets[i];
             assetDepositCap[asset] = depositCaps[i];
@@ -408,13 +423,15 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
 
     function _checkRateLimit(address asset, uint256 attemptedDeposit) internal {
         Cooldown memory cooldown = rateLimitByAsset[asset];
+        Cooldown storage storageCooldown = rateLimitByAsset[asset];
+
         if (cooldown.lastTimestamp + rateLimitPeriod < block.timestamp) {
-            rateLimitByAsset[asset].currentDepositCount = 0;
-            rateLimitByAsset[asset].lastTimestamp = uint32(block.timestamp);
+            storageCooldown.currentDepositCount = 0;
+            storageCooldown.lastTimestamp = uint32(block.timestamp);
         }
 
-        rateLimitByAsset[asset].currentDepositCount += uint112(attemptedDeposit);
-        if (rateLimitByAsset[asset].currentDepositCount > cooldown.rateLimit) {
+        storageCooldown.currentDepositCount += uint112(attemptedDeposit);
+        if (storageCooldown.currentDepositCount > cooldown.rateLimit) {
             revert TellerWithMultiAssetSupport__RateLimit();
         }
     }

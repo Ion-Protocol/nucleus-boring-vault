@@ -31,6 +31,9 @@ contract TellerSetup is BaseScript {
         uint256[] memory depositCaps = new uint256[](len);
         depositCaps[0] = type(uint256).max;
 
+        uint112[] memory rateLimits = new uint112[](len);
+        rateLimits[0] = type(uint112).max;
+
         bool[] memory withdrawStatusByAssets = new bool[](len);
         withdrawStatusByAssets[0] = true;
 
@@ -48,6 +51,6 @@ contract TellerSetup is BaseScript {
             teller.accountant().setRateProviderData(ERC20(config.assets[i]), false, rateProvider);
         }
 
-        teller.configureAssets(assets, depositCaps, withdrawStatusByAssets);
+        teller.configureAssets(assets, depositCaps, rateLimits, withdrawStatusByAssets);
     }
 }

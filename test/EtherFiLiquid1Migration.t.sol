@@ -234,6 +234,13 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
         depositCaps[3] = type(uint256).max;
         depositCaps[4] = type(uint256).max;
 
+        uint112[] memory rateLimits = new uint112[](5);
+        rateLimits[0] = type(uint112).max;
+        rateLimits[1] = type(uint112).max;
+        rateLimits[2] = type(uint112).max;
+        rateLimits[3] = type(uint112).max;
+        rateLimits[4] = type(uint112).max;
+
         bool[] memory withdrawStatusByAssets = new bool[](5);
         withdrawStatusByAssets[0] = true;
         withdrawStatusByAssets[1] = true;
@@ -241,7 +248,7 @@ contract EtherFiLiquid1MigrationTest is Test, MainnetAddresses {
         withdrawStatusByAssets[3] = true;
         withdrawStatusByAssets[4] = true;
 
-        teller.configureAssets(assets, depositCaps, withdrawStatusByAssets);
+        teller.configureAssets(assets, depositCaps, rateLimits, withdrawStatusByAssets);
         vm.stopPrank();
 
         uint256 wETH_amount = 1500e18;
