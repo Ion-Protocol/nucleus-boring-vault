@@ -110,11 +110,6 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         assets[1] = EETH;
         assets[2] = WEETH;
 
-        uint256[] memory depositCaps = new uint256[](3);
-        depositCaps[0] = type(uint256).max;
-        depositCaps[1] = type(uint256).max;
-        depositCaps[2] = type(uint256).max;
-
         uint112[] memory rateLimits = new uint112[](3);
         rateLimits[0] = type(uint112).max;
         rateLimits[1] = type(uint112).max;
@@ -125,7 +120,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         withdrawStatusByAssets[1] = true;
         withdrawStatusByAssets[2] = true;
 
-        sourceTeller.configureAssets(assets, depositCaps, rateLimits, withdrawStatusByAssets);
+        sourceTeller.configureAssets(assets, rateLimits, withdrawStatusByAssets);
 
         accountant.setRateProviderData(EETH, true, address(0));
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));

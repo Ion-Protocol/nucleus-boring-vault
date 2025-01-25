@@ -27,10 +27,6 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         assets[0] = WETH;
         assets[1] = WSTETH;
 
-        uint256[] memory depositCaps = new uint256[](2);
-        depositCaps[0] = type(uint256).max;
-        depositCaps[1] = type(uint256).max;
-
         uint112[] memory rateLimits = new uint112[](2);
         rateLimits[0] = type(uint112).max;
         rateLimits[1] = type(uint112).max;
@@ -39,7 +35,7 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         withdrawStatusByAssets[0] = true;
         withdrawStatusByAssets[1] = true;
 
-        teller.configureAssets(assets, depositCaps, rateLimits, withdrawStatusByAssets);
+        teller.configureAssets(assets, rateLimits, withdrawStatusByAssets);
 
         vm.stopPrank();
 
