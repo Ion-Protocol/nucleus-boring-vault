@@ -10,19 +10,14 @@ import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
 
 import { TempestDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/TempestDecoderAndSanitizer.sol";
+import { SwellDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/SwellDecoderAndSanitizer.sol";
 
 contract EarnETHSwellDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
-    UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
     PendleRouterDecoderAndSanitizer,
-    TempestDecoderAndSanitizer
+    TempestDecoderAndSanitizer,
+    SwellDecoderAndSanitizer
 {
-    constructor(
-        address _boringVault,
-        address _uniswapV3NonFungiblePositionManager
-    )
-        UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
-        BaseDecoderAndSanitizer(_boringVault)
-    { }
+    constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 }

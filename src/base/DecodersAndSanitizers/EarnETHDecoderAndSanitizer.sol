@@ -8,16 +8,12 @@ import { MasterChefV3DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/MasterChefV3DecoderAndSanitizer.sol";
 import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
-
-import { SwellDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/SwellDecoderAndSanitizer.sol";
 import { TempestDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/TempestDecoderAndSanitizer.sol";
 
 contract EarnETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
-    PendleRouterDecoderAndSanitizer,
-    SwellDecoderAndSanitizer,
-    TempestDecoderAndSanitizer
+    PendleRouterDecoderAndSanitizer
 {
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 }
