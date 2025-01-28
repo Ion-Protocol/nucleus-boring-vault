@@ -327,8 +327,6 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      *
      * D_f > D_b:
      *  feesOwedInFeeAsset = F * 10^( 2 * D_f ) / ( 10^D_b * R )
-     * D_b >= D_f:
-     *  feesOwedInFeeAsset = ( F * 10^( ( 2 * D_f ) - D_b ) ) / R
      *
      * The function is derived from the formula: F * 10^( D_f - D_b ) * 10^D_f / R
      * This was the previous implementation that stored the feesOwedInBase in the decimal adjusted version (10^( D_f -
@@ -356,11 +354,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             uint256 rate = (data.isPeggedToBase) ? 10 ** feeAssetDecimals : data.rateProvider.getRate();
 
             // calculate the fees owed in fee asset
-            if (feeAssetDecimals > decimals) {
-                feesOwedInFeeAsset = (state.feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
-            } else {
-                feesOwedInFeeAsset = (state.feesOwedInBase * (10 ** ((2 * feeAssetDecimals)))) / (rate * 10 ** decimals);
-            }
+            feesOwedInFeeAsset = (state.feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
         }
 
         // Zero out fees owed.
