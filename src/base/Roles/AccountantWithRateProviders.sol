@@ -357,8 +357,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * However, the above function had a tendency to produce rounding errors. As truncation and division was done in
      * intermediate steps.
      * To make it more accurate we have derived the following formula:
-     * shares = x * q / e * 10^(2*(Q-B))     {Q > B}
-     * shares = x * q * 10^(2*(B-Q)) / e     {B >= Q}
+     * shares = x * q * 10^(2*B) / (e * 10**(2*Q))
      */
     function getSharesForDepositAmount(
         ERC20 depositAsset,
@@ -374,11 +373,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         RateProviderData memory data = rateProviderData[depositAsset];
         uint256 q = (data.isPeggedToBase || depositAsset == base) ? 10 ** Q : data.rateProvider.getRate();
 
-        if (Q > B) {
-            shares = depositAmount * q / (e * 10 ** (2 * (Q - B)));
-        } else {
-            shares = depositAmount * q * 10 ** (2 * (B - Q)) / e;
-        }
+        shares = (depositAmount * q * 10 ** (2 * B)) / (e * 10 ** (2 * Q));
     }
 
     /**
@@ -400,8 +395,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * However, the above function had a tendency to produce rounding errors. As truncation and division was done in
      * intermediate steps.
      * To make it more accurate we have derived the following formula:
-     * assets = S * e * 10^(2*(Q-B)) / q     {Q > B}
-     * shares = S * e / q * 10^(2*(B-Q))     {B >= Q}
+     * assets = S * e * 10^(2*Q) / (q * 10**(2*B))
      */
     function getAssetsOutForShares(
         ERC20 withdrawAsset,
@@ -417,11 +411,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         RateProviderData memory data = rateProviderData[withdrawAsset];
         uint256 q = (data.isPeggedToBase || withdrawAsset == base) ? 10 ** Q : data.rateProvider.getRate();
 
-        if (Q > B) {
-            assetsOut = shareAmount * e * 10 ** (2 * (Q - B)) / q;
-        } else {
-            assetsOut = shareAmount * e / q * 10 ** (2 * (B - Q));
-        }
+        assetsOut = shareAmount * e * 10 ** (2 * Q) / (q * 10 ** (2 * B));
     }
 
     /**
