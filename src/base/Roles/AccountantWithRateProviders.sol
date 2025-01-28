@@ -79,6 +79,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     error AccountantWithRateProviders__ZeroFeesOwed();
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
+    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
 
     //============================== EVENTS ===============================
 
@@ -93,6 +94,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event RateProviderUpdated(address asset, bool isPegged, address rateProvider);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
+    event HighestExchangeRateReset();
 
     //============================== IMMUTABLES ===============================
 
@@ -250,6 +252,23 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         rateProviderData[asset] =
             RateProviderData({ isPeggedToBase: isPeggedToBase, rateProvider: IRateProvider(rateProvider) });
         emit RateProviderUpdated(address(asset), isPeggedToBase, rateProvider);
+    }
+
+    /**
+     * @notice Reset the highest exchange rate to the current exchange rate.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function resetHighestExchangeRate() external virtual requiresAuth {
+        AccountantState storage state = accountantState;
+        if (state.isPaused) revert AccountantWithRateProviders__Paused();
+
+        if (state.exchangeRate > state.highestExchangeRate) {
+            revert AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+        }
+
+        state.highestExchangeRate = state.exchangeRate;
+
+        emit HighestExchangeRateReset();
     }
 
     // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS

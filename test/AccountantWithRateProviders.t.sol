@@ -220,13 +220,22 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
         expected_fees_owed += uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
+        skip(1 days / 24);
+        expected_fees_owed += uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
+
         // increase the exchange rate a little but not past the highest
         new_exchange_rate = uint96(1.0007e18);
+        accountant.updateExchangeRate(new_exchange_rate);
+        (,,,, highestExchangeRate,,,, is_paused,,,) = accountant.accountantState();
         assertEq(highestExchangeRate, 1.001e18, "highestExchangeRate should still be the old one");
-        (,,,, highestExchangeRate,,,,,,,) = accountant.accountantState();
-        new_exchange_rate = uint96(1.0005e18);
 
-        // do not accrue performance fee as the rate has gone down
+        // reset the highest exchange rate then increase a little but not past the last highest
+        accountant.resetHighestExchangeRate();
+        // new_exchange_rate = uint96(1.0008e18);
+        // accountant.updateExchangeRate(new_exchange_rate);
+
+        (,,,, highestExchangeRate,,,,,,,) = accountant.accountantState();
+        assertEq(highestExchangeRate, 1.0007e18, "highestExchangeRate should be the new one after reset");
 
         (, fees_owed, total_shares, current_exchange_rate,,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
