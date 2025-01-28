@@ -9,29 +9,23 @@ import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/Cros
  * @custom:security-contact security@molecularlabs.io
  */
 contract OneInchWrapper {
-    CrossChainTellerBase public immutable teller;
-    ERC20 public immutable supportedAsset;
     AggregationRouterV6 immutable aggregator;
 
     error OneInchWrapper__InvalidSwapDescription();
 
     /**
-     * @param _supportedAsset is the asset to swap
-     * @param _teller is the teller this wrapper supports
      * @param _aggregator is the AggregationRouterV6 oneInch contract
      */
-    constructor(ERC20 _supportedAsset, CrossChainTellerBase _teller, AggregationRouterV6 _aggregator) {
-        supportedAsset = _supportedAsset;
-        teller = _teller;
+    constructor(AggregationRouterV6 _aggregator) {
         aggregator = _aggregator;
-
-        supportedAsset.approve(address(teller.vault()), type(uint256).max);
     }
 
     /**
      * @notice deposit wrapper, swaps into the supported asset with One Inch
      */
     function deposit(
+        ERC20 supportedAsset,
+        CrossChainTellerBase teller,
         uint256 minimumMint,
         address executor,
         AggregationRouterV6.SwapDescription calldata desc,
@@ -43,6 +37,7 @@ contract OneInchWrapper {
         if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
             revert OneInchWrapper__InvalidSwapDescription();
         }
+
         ERC20 depositAsset = desc.srcToken;
         uint256 depositAmount = desc.amount;
 
@@ -51,6 +46,7 @@ contract OneInchWrapper {
         depositAsset.approve(address(aggregator), depositAmount);
         (uint256 supportedAssetAmount,) = aggregator.swap(executor, desc, data);
 
+        supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint);
         teller.vault().transfer(msg.sender, shares);
     }
@@ -59,6 +55,8 @@ contract OneInchWrapper {
      * @notice depositAndBridge wrapper, swaps into the supported asset with One Inch
      */
     function depositAndBridge(
+        ERC20 supportedAsset,
+        CrossChainTellerBase teller,
         uint256 minimumMint,
         BridgeData calldata bridgeData,
         address executor,
@@ -79,6 +77,7 @@ contract OneInchWrapper {
         depositAsset.approve(address(aggregator), depositAmount);
         (uint256 supportedAssetAmount,) = aggregator.swap(executor, desc, data);
 
+        supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
         teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
     }
 }

@@ -22,8 +22,6 @@ contract OneInchWrapperTest is Test {
         _startFork(DEFAULT_RPC_URL);
 
         wrapper = new OneInchWrapper(
-            ERC20(dstToken), // srcToken
-            teller, // earnETH Teller
             AggregationRouterV6(agg) // OneInch Aggregator
         );
         console.log("construction complete");
@@ -51,7 +49,7 @@ contract OneInchWrapperTest is Test {
         console.log("post approve");
 
         console.log("Fails here?:");
-        wrapper.deposit(0, executor, desc, data);
+        wrapper.deposit(ERC20(dstToken), teller, 0, executor, desc, data);
         console.log("No");
         uint256 endShareBal = teller.vault().balanceOf(address(this));
         console.log("Balance of shares: ", endShareBal);
