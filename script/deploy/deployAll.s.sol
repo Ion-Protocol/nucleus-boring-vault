@@ -11,8 +11,6 @@ import { DeployIonBoringVaultScript } from "./single/02_DeployBoringVault.s.sol"
 import { DeployManagerWithMerkleVerification } from "./single/03_DeployManagerWithMerkleVerification.s.sol";
 import { DeployAccountantWithRateProviders } from "./single/04_DeployAccountantWithRateProviders.s.sol";
 import { DeployTellerWithMultiAssetSupport } from "./single/05_DeployTellerWithMultiAssetSupport.s.sol";
-import { DeployCrossChainOPTellerWithMultiAssetSupport } from
-    "./single/05a_DeployCrossChainOPTellerWithMultiAssetSupport.s.sol";
 import { DeployMultiChainLayerZeroTellerWithMultiAssetSupport } from
     "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
 import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
@@ -98,9 +96,7 @@ contract DeployAll is BaseScript {
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {
-        if (compareStrings(config.tellerContractName, "CrossChainOPTellerWithMultiAssetSupport")) {
-            teller = new DeployCrossChainOPTellerWithMultiAssetSupport().deploy(config);
-        } else if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
+        if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
         } else if (compareStrings(config.tellerContractName, "TellerWithMultiAssetSupport")) {
             teller = new DeployTellerWithMultiAssetSupport().deploy(config);
