@@ -16,6 +16,14 @@ abstract contract MellowDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
+    function withdraw(uint256, address receiver, address) external view virtual returns (bytes memory addressesFound) {
+        if (receiver != boringVault) {
+            revert MellowDecoderAndSanitizer__IncorrectRecipient();
+        }
+
+        return addressesFound;
+    }
+
     function registerWithdrawal(
         address to,
         uint256,
