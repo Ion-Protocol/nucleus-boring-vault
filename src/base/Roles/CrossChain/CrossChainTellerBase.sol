@@ -17,8 +17,8 @@ struct BridgeData {
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
  */
 abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
-    event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
-    event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
+    event MessageSent(bytes32 messageId, uint32 destinationId, uint256 shareAmount, address to);
+    event MessageReceived(bytes32 messageId, uint32 sourceId, uint256 shareAmount, address to);
 
     constructor(
         address _owner,
@@ -118,7 +118,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
      * @param messageId message id returned when bridged
      */
     function _afterBridge(uint256 shareAmount, BridgeData calldata data, bytes32 messageId) internal virtual {
-        emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
+        emit MessageSent(messageId, data.chainSelector, shareAmount, data.destinationChainReceiver);
     }
 
     /**
@@ -134,7 +134,15 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
      * @param destinationChainReceiver the receiver of the shares
      * @param messageId the message ID
      */
-    function _afterReceive(uint256 shareAmount, address destinationChainReceiver, bytes32 messageId) internal virtual {
-        emit MessageReceived(messageId, shareAmount, destinationChainReceiver);
+    function _afterReceive(
+        uint256 shareAmount,
+        uint32 sourceId,
+        address destinationChainReceiver,
+        bytes32 messageId
+    )
+        internal
+        virtual
+    {
+        emit MessageReceived(messageId, sourceId, shareAmount, destinationChainReceiver);
     }
 }
