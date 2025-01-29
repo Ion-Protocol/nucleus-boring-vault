@@ -35,4 +35,11 @@ abstract contract MellowDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
         return addressesFound;
     }
+
+    function claim(address, address recipient, uint256) external view virtual returns (bytes memory addressesFound) {
+        if (recipient != boringVault) {
+            revert MellowDecoderAndSanitizer__IncorrectRecipient();
+        }
+        return addressesFound;
+    }
 }
