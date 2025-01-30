@@ -22,6 +22,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @param payoutAddress the address `claimFees` sends fees to
      * @param feesOwedInBase total pending fees owed in terms of base
      * @param totalSharesLastUpdate total amount of shares the last exchange rate update
+     * @param highestExchangeRate the highest the exchange rate has gone
      * @param exchangeRate the current exchange rate in terms of base
      * @param allowedExchangeRateChangeUpper the max allowed change to exchange rate from an update
      * @param allowedExchangeRateChangeLower the min allowed change to exchange rate from an update
@@ -30,18 +31,21 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @param minimumUpdateDelayInSeconds the minimum amount of time that must pass between
      *        exchange rate updates, such that the update won't trigger the contract to be paused
      * @param managementFee the management fee
+     * @param performanceFee the performance fee
      */
     struct AccountantState {
         address payoutAddress;
         uint128 feesOwedInBase;
         uint128 totalSharesLastUpdate;
         uint96 exchangeRate;
+        uint96 highestExchangeRate;
         uint16 allowedExchangeRateChangeUpper;
         uint16 allowedExchangeRateChangeLower;
         uint64 lastUpdateTimestamp;
         bool isPaused;
         uint32 minimumUpdateDelayInSeconds;
         uint16 managementFee;
+        uint16 performanceFee;
     }
 
     /**
@@ -70,10 +74,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     error AccountantWithRateProviders__UpperBoundTooSmall();
     error AccountantWithRateProviders__LowerBoundTooLarge();
     error AccountantWithRateProviders__ManagementFeeTooLarge();
+    error AccountantWithRateProviders__PerformanceFeeTooLarge();
     error AccountantWithRateProviders__Paused();
     error AccountantWithRateProviders__ZeroFeesOwed();
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
+    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
 
     //============================== EVENTS ===============================
 
@@ -83,10 +89,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
     event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
     event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
+    event performanceFeeUpdated(uint16 oldFee, uint16 newFee);
     event PayoutAddressUpdated(address oldPayout, address newPayout);
     event RateProviderUpdated(address asset, bool isPegged, address rateProvider);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
+    event HighestExchangeRateReset();
 
     //============================== IMMUTABLES ===============================
 
@@ -120,7 +128,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint16 allowedExchangeRateChangeUpper,
         uint16 allowedExchangeRateChangeLower,
         uint32 minimumUpdateDelayInSeconds,
-        uint16 managementFee
+        uint16 managementFee,
+        uint16 performanceFee
     )
         Auth(_owner, Authority(address(0)))
     {
@@ -133,12 +142,14 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             feesOwedInBase: 0,
             totalSharesLastUpdate: uint128(vault.totalSupply()),
             exchangeRate: startingExchangeRate,
+            highestExchangeRate: startingExchangeRate,
             allowedExchangeRateChangeUpper: allowedExchangeRateChangeUpper,
             allowedExchangeRateChangeLower: allowedExchangeRateChangeLower,
             lastUpdateTimestamp: uint64(block.timestamp),
             isPaused: false,
             minimumUpdateDelayInSeconds: minimumUpdateDelayInSeconds,
-            managementFee: managementFee
+            managementFee: managementFee,
+            performanceFee: performanceFee
         });
     }
 
@@ -210,6 +221,17 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     }
 
     /**
+     * @notice Update the performance fee to a new value.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function updatePerformanceFee(uint16 performanceFee) external requiresAuth {
+        if (performanceFee > 0.2e4) revert AccountantWithRateProviders__PerformanceFeeTooLarge();
+        uint16 oldFee = accountantState.performanceFee;
+        accountantState.performanceFee = performanceFee;
+        emit performanceFeeUpdated(oldFee, performanceFee);
+    }
+
+    /**
      * @notice Update the payout address fees are sent to.
      * @dev Callable by OWNER_ROLE.
      */
@@ -230,6 +252,23 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         rateProviderData[asset] =
             RateProviderData({ isPeggedToBase: isPeggedToBase, rateProvider: IRateProvider(rateProvider) });
         emit RateProviderUpdated(address(asset), isPeggedToBase, rateProvider);
+    }
+
+    /**
+     * @notice Reset the highest exchange rate to the current exchange rate.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function resetHighestExchangeRate() external virtual requiresAuth {
+        AccountantState storage state = accountantState;
+        if (state.isPaused) revert AccountantWithRateProviders__Paused();
+
+        if (state.exchangeRate > state.highestExchangeRate) {
+            revert AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+        }
+
+        state.highestExchangeRate = state.exchangeRate;
+
+        emit HighestExchangeRateReset();
     }
 
     // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS
@@ -273,6 +312,16 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
             uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
 
+            if (newExchangeRate > state.highestExchangeRate) {
+                if (state.performanceFee > 0) {
+                    uint256 changeInAssets =
+                        uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
+                    uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
+                    newFeesOwedInBase += performanceFees;
+                }
+                state.highestExchangeRate = newExchangeRate;
+            }
+
             state.feesOwedInBase += uint128(newFeesOwedInBase);
         }
 
@@ -288,6 +337,21 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @dev This function must be called by the BoringVault.
      * @dev This function will lose precision if the exchange rate
      *      decimals is greater than the feeAsset's decimals.
+     * @dev to avoid intermediary rounding errors the following function is used to calculate the rate with decimal
+     * changes:
+     * F = feesOwedInFeeAsset
+     * D_f = feeAssetDecimals
+     * D_b = decimals
+     * R = rate
+     *
+     * D_f > D_b:
+     *  feesOwedInFeeAsset = F * 10^( 2 * D_f ) / ( 10^D_b * R )
+     *
+     * The function is derived from the formula: F * 10^( D_f - D_b ) * 10^D_f / R
+     * This was the previous implementation that stored the feesOwedInBase in the decimal adjusted version (10^( D_f -
+     * D_b )) before dividing by rate
+     * The above formula is fundamentally the same but includes the decimal conversion to avoid rounding errors
+     * compounding in an intermediate step
      */
     function claimFees(ERC20 feeAsset) external {
         if (msg.sender != address(vault)) revert AccountantWithRateProviders__OnlyCallableByBoringVault();
@@ -299,19 +363,19 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         // Determine amount of fees owed in feeAsset.
         uint256 feesOwedInFeeAsset;
         RateProviderData memory data = rateProviderData[feeAsset];
+
+        // if fee asset is the base asset avoid the calculation
         if (address(feeAsset) == address(base)) {
             feesOwedInFeeAsset = state.feesOwedInBase;
         } else {
             uint8 feeAssetDecimals = ERC20(feeAsset).decimals();
-            uint256 feesOwedInBaseUsingFeeAssetDecimals =
-                changeDecimals(state.feesOwedInBase, decimals, feeAssetDecimals);
-            if (data.isPeggedToBase) {
-                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals;
-            } else {
-                uint256 rate = data.rateProvider.getRate();
-                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDivDown(10 ** feeAssetDecimals, rate);
-            }
+            // if the free asset is pegged to base then just set the rate to 1 in the decimals of the fee asset
+            uint256 rate = (data.isPeggedToBase) ? 10 ** feeAssetDecimals : data.rateProvider.getRate();
+
+            // calculate the fees owed in fee asset
+            feesOwedInFeeAsset = (state.feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
         }
+
         // Zero out fees owed.
         state.feesOwedInBase = 0;
         // Transfer fee asset to payout address.
