@@ -47,10 +47,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     /**
      * @param isPeggedToBase whether or not the asset is 1:1 with the base asset
      * @param rateProvider the rate provider for this asset if `isPeggedToBase` is false
+     * @param functionCalldata to call the rateProvider in order to get the rate
      */
     struct RateProviderData {
         bool isPeggedToBase;
-        IRateProvider rateProvider;
+        address rateProvider;
+        bytes functionCalldata;
     }
 
     // ========================================= STATE =========================================
@@ -63,7 +65,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     /**
      * @notice Maps ERC20s to their RateProviderData.
      */
-    mapping(ERC20 => RateProviderData) public rateProviderData;
+    mapping(ERC20 => RateProviderData[]) public rateProviderData;
 
     //============================== ERRORS ===============================
 
@@ -74,7 +76,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     error AccountantWithRateProviders__ZeroFeesOwed();
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
-
+    error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
     //============================== EVENTS ===============================
 
     event Paused();
@@ -226,10 +228,9 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * as `asset`.
      * @dev Callable by OWNER_ROLE.
      */
-    function setRateProviderData(ERC20 asset, bool isPeggedToBase, address rateProvider) external requiresAuth {
-        rateProviderData[asset] =
-            RateProviderData({ isPeggedToBase: isPeggedToBase, rateProvider: IRateProvider(rateProvider) });
-        emit RateProviderUpdated(address(asset), isPeggedToBase, rateProvider);
+    function setRateProviderData(ERC20 asset, RateProviderData _rateProviderData) external requiresAuth {
+        rateProviderData[asset] = _rateProviderData;
+        emit RateProviderUpdated(address(asset), _rateProviderData.isPeggedToBase, _rateProviderData.rateProvider);
     }
 
     // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS
@@ -383,5 +384,50 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         } else {
             return amount / 10 ** (fromDecimals - toDecimals);
         }
+    }
+
+    function getMaxRate(address asset) internal view returns (uint256 maxRate) {
+        RateProviderData[] memory data = rateProviderData[asset];
+
+        if (data.length == 0) {
+            revert AccountantWithRateProviders__RateProviderDataEmpty();
+        }
+
+        for (uint256 i; i < data.length; ++i) {
+            uint256 rate = getRateFromRateProvider(data[i]);
+            if (rate > maxRate) {
+                maxRate = rate;
+            }
+        }
+    }
+
+    function getMinRate(address asset) internal view returns (uint256 minRate) {
+        RateProviderData[] memory data = rateProviderData[asset];
+        minRate = type(uint256).max();
+
+        if (data.length == 0) {
+            revert AccountantWithRateProviders__RateProviderDataEmpty();
+        }
+
+        minRate = getRateFromRateProvider(data[0]);
+
+        if (data.length == 1) {
+            return minRate;
+        }
+
+        for (uint256 i = 1; i < data.length; ++i) {
+            uint256 rate = getRateFromRateProvider(data[i]);
+            if (rate < minRate) {
+                minRate = rate;
+            }
+        }
+    }
+
+    function getRateFromRateProvider(RateProviderData data) internal view returns (uint256 rate) {
+        (bytes memory returnBytes, bool success) = data.rateProvider.call(data.functionCalldata);
+        if (!success) {
+            revert AccountantWithRateProviders__RateProviderCallFailed(data.rateProvider);
+        }
+        rate = abi.decode(returnBytes, (uint256));
     }
 }
