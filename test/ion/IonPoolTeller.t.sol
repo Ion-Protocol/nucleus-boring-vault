@@ -7,7 +7,7 @@ import { ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS } from "@ion-protocol/Constants
 import { IonPoolSharedSetup } from "./IonPoolSharedSetup.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
-
+import { AccountantWithRateProviders } from "./../../src/base/Roles/AccountantWithRateProviders.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract IonPoolTellerTest is IonPoolSharedSetup {
@@ -33,9 +33,12 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         bool isPeggedToBase = false;
 
         vm.prank(ACCOUNTANT_OWNER);
-        accountant.setRateProviderData(
-            ERC20(address(WSTETH_ADDRESS)), isPeggedToBase, address(ethPerWstEthRateProvider)
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(
+            isPeggedToBase, address(ethPerWstEthRateProvider), hex"679aefce"
         );
+        accountant.setRateProviderData(ERC20(address(WSTETH_ADDRESS)), rateProviderData);
     }
 
     function test_Deposit_BaseAsset() public {
@@ -43,7 +46,7 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         uint256 minimumMint = 100 ether;
 
         // base / deposit asset
-        uint256 exchangeRate = accountant.getRateInQuoteSafe(WETH);
+        uint256 exchangeRate = accountant.getDepositRate(WETH);
 
         uint256 shares = depositAmt.mulDivDown(1e18, exchangeRate);
 
@@ -63,13 +66,13 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
 
         // base / deposit asset
         uint256 basePerQuote = ethPerWstEthRateProvider.getRate(); // base / quote
-        uint256 quotePerShare = accountant.getRateInQuoteSafe(WSTETH); // quote / share
+        uint256 quotePerShare = accountant.getWithdrawRate(WSTETH); // quote / share
 
         uint256 basePerShare = accountant.getRate();
         uint256 expectedQuotePerShare = basePerShare * 1e18 / basePerQuote; // (base / share) / (base / quote) = quote /
             // share
 
-        uint256 shares = depositAmt.mulDivDown(1e18, quotePerShare);
+        uint256 shares = accountant.getSharesForDepositAmount(WSTETH, depositAmt);
         // mint amount = deposit amount * exchangeRate
 
         deal(address(WSTETH), address(this), depositAmt);

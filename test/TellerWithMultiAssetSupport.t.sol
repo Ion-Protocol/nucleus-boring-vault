@@ -12,7 +12,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { ILiquidityPool } from "src/interfaces/IStaking.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { AtomicSolverV3, AtomicQueue } from "src/atomic-queue/AtomicSolverV3.sol";
-
+import { ETH_PER_WEETH_CHAINLINK } from "src/helper/Constants.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
@@ -44,14 +44,14 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
-        uint256 blockNumber = 19_363_419;
+        uint256 blockNumber = 21_769_049;
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
         ONE_SHARE = 10 ** boringVault.decimals();
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         teller = new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));
@@ -106,8 +106,17 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         teller.addAsset(EETH);
         teller.addAsset(WEETH);
 
-        accountant.setRateProviderData(EETH, true, address(0));
-        accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+        accountant.setRateProviderData(EETH, rateProviderData);
+        rateProviderData = new AccountantWithRateProviders.RateProviderData[](2);
+        // WEETH rate provider getRate()
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce");
+        // ETH_PER_WEETH_CHAINLINK latestAnswer()
+        rateProviderData[1] =
+            AccountantWithRateProviders.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd");
+        accountant.setRateProviderData(WEETH, rateProviderData);
     }
 
     function testDepositReverting(uint256 amount) external {
@@ -181,7 +190,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         teller.deposit(WEETH, weETH_amount, 0);
 
-        uint256 expected_shares = amount;
+        uint256 expected_shares = teller.accountant().getSharesForDepositAmount(WEETH, weETH_amount);
 
         assertApproxEqRel(
             boringVault.balanceOf(address(this)), expected_shares, 0.000001e18, "Should have received expected shares"
@@ -297,7 +306,8 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         uint256 eETH_amount = amount;
         deal(address(this), eETH_amount + 1);
         ILiquidityPool(EETH_LIQUIDITY_POOL).deposit{ value: eETH_amount + 1 }();
-        uint256 weETH_amount = amount.mulDivDown(1e18, IRateProvider(WEETH_RATE_PROVIDER).getRate());
+        uint256 depositRate = teller.accountant().getDepositRate(WEETH);
+        uint256 weETH_amount = amount.mulDivDown(1e18, depositRate);
         deal(address(WEETH), address(this), weETH_amount);
 
         WETH.safeApprove(address(boringVault), wETH_amount);
@@ -340,7 +350,12 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertApproxEqAbs(assets_out_0, wETH_amount, 1, "Should have received expected wETH assets");
         assertApproxEqAbs(assets_out_1, eETH_amount, 1, "Should have received expected eETH assets");
-        assertApproxEqAbs(assets_out_2, weETH_amount, 1, "Should have received expected weETH assets");
+        assertApproxEqRel(assets_out_2, weETH_amount, 0.25e18, "Should have received expected weETH assets");
+        assertLt(
+            assets_out_2,
+            weETH_amount,
+            "Should have received less than weETH assets due to the rate being in protocol favor"
+        );
     }
 
     function testWithdrawWithAtomicQueue(uint256 amount) external {

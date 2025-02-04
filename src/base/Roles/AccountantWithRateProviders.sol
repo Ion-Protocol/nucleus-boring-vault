@@ -22,6 +22,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @param payoutAddress the address `claimFees` sends fees to
      * @param feesOwedInBase total pending fees owed in terms of base
      * @param totalSharesLastUpdate total amount of shares the last exchange rate update
+     * @param highestExchangeRate the highest the exchange rate has gone
      * @param exchangeRate the current exchange rate in terms of base
      * @param allowedExchangeRateChangeUpper the max allowed change to exchange rate from an update
      * @param allowedExchangeRateChangeLower the min allowed change to exchange rate from an update
@@ -30,18 +31,21 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @param minimumUpdateDelayInSeconds the minimum amount of time that must pass between
      *        exchange rate updates, such that the update won't trigger the contract to be paused
      * @param managementFee the management fee
+     * @param performanceFee the performance fee
      */
     struct AccountantState {
         address payoutAddress;
         uint128 feesOwedInBase;
         uint128 totalSharesLastUpdate;
         uint96 exchangeRate;
+        uint96 highestExchangeRate;
         uint16 allowedExchangeRateChangeUpper;
         uint16 allowedExchangeRateChangeLower;
         uint64 lastUpdateTimestamp;
         bool isPaused;
         uint32 minimumUpdateDelayInSeconds;
         uint16 managementFee;
+        uint16 performanceFee;
     }
 
     /**
@@ -72,11 +76,15 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     error AccountantWithRateProviders__UpperBoundTooSmall();
     error AccountantWithRateProviders__LowerBoundTooLarge();
     error AccountantWithRateProviders__ManagementFeeTooLarge();
+    error AccountantWithRateProviders__PerformanceFeeTooLarge();
     error AccountantWithRateProviders__Paused();
     error AccountantWithRateProviders__ZeroFeesOwed();
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
     error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
+    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+    error AccountantWithRateProviders__RateProviderDataEmpty();
+
     //============================== EVENTS ===============================
 
     event Paused();
@@ -85,10 +93,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
     event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
     event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
+    event performanceFeeUpdated(uint16 oldFee, uint16 newFee);
     event PayoutAddressUpdated(address oldPayout, address newPayout);
     event RateProviderUpdated(address asset, bool isPegged, address rateProvider);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
+    event HighestExchangeRateReset();
 
     //============================== IMMUTABLES ===============================
 
@@ -122,7 +132,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint16 allowedExchangeRateChangeUpper,
         uint16 allowedExchangeRateChangeLower,
         uint32 minimumUpdateDelayInSeconds,
-        uint16 managementFee
+        uint16 managementFee,
+        uint16 performanceFee
     )
         Auth(_owner, Authority(address(0)))
     {
@@ -135,19 +146,20 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             feesOwedInBase: 0,
             totalSharesLastUpdate: uint128(vault.totalSupply()),
             exchangeRate: startingExchangeRate,
+            highestExchangeRate: startingExchangeRate,
             allowedExchangeRateChangeUpper: allowedExchangeRateChangeUpper,
             allowedExchangeRateChangeLower: allowedExchangeRateChangeLower,
             lastUpdateTimestamp: uint64(block.timestamp),
             isPaused: false,
             minimumUpdateDelayInSeconds: minimumUpdateDelayInSeconds,
-            managementFee: managementFee
+            managementFee: managementFee,
+            performanceFee: performanceFee
         });
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
     /**
-     * @notice Pause this contract, which prevents future calls to `updateExchangeRate`, and any safe rate
-     *         calls will revert.
+     * @notice Pause this contract, which prevents future calls to `updateExchangeRate`
      * @dev Callable by MULTISIG_ROLE.
      */
     function pause() external requiresAuth {
@@ -156,8 +168,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     }
 
     /**
-     * @notice Unpause this contract, which allows future calls to `updateExchangeRate`, and any safe rate
-     *         calls will stop reverting.
+     * @notice Unpause this contract, which allows future calls to `updateExchangeRate`
      * @dev Callable by MULTISIG_ROLE.
      */
     function unpause() external requiresAuth {
@@ -212,6 +223,17 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     }
 
     /**
+     * @notice Update the performance fee to a new value.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function updatePerformanceFee(uint16 performanceFee) external requiresAuth {
+        if (performanceFee > 0.2e4) revert AccountantWithRateProviders__PerformanceFeeTooLarge();
+        uint16 oldFee = accountantState.performanceFee;
+        accountantState.performanceFee = performanceFee;
+        emit performanceFeeUpdated(oldFee, performanceFee);
+    }
+
+    /**
      * @notice Update the payout address fees are sent to.
      * @dev Callable by OWNER_ROLE.
      */
@@ -227,10 +249,35 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * an asset pegged to base and they must use the same decimals
      * as `asset`.
      * @dev Callable by OWNER_ROLE.
+     * @dev Setting rate provider data will clear existing data for this asset
      */
-    function setRateProviderData(ERC20 asset, RateProviderData _rateProviderData) external requiresAuth {
-        rateProviderData[asset] = _rateProviderData;
-        emit RateProviderUpdated(address(asset), _rateProviderData.isPeggedToBase, _rateProviderData.rateProvider);
+    function setRateProviderData(ERC20 asset, RateProviderData[] calldata _rateProviderData) external requiresAuth {
+        // Clear existing data
+        delete rateProviderData[asset];
+
+        for (uint256 i; i < _rateProviderData.length; ++i) {
+            rateProviderData[asset].push(_rateProviderData[i]);
+            emit RateProviderUpdated(
+                address(asset), _rateProviderData[i].isPeggedToBase, _rateProviderData[i].rateProvider
+            );
+        }
+    }
+
+    /**
+     * @notice Reset the highest exchange rate to the current exchange rate.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function resetHighestExchangeRate() external virtual requiresAuth {
+        AccountantState storage state = accountantState;
+        if (state.isPaused) revert AccountantWithRateProviders__Paused();
+
+        if (state.exchangeRate > state.highestExchangeRate) {
+            revert AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+        }
+
+        state.highestExchangeRate = state.exchangeRate;
+
+        emit HighestExchangeRateReset();
     }
 
     // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS
@@ -274,6 +321,16 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
             uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
 
+            if (newExchangeRate > state.highestExchangeRate) {
+                if (state.performanceFee > 0) {
+                    uint256 changeInAssets =
+                        uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
+                    uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
+                    newFeesOwedInBase += performanceFees;
+                }
+                state.highestExchangeRate = newExchangeRate;
+            }
+
             state.feesOwedInBase += uint128(newFeesOwedInBase);
         }
 
@@ -289,6 +346,21 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @dev This function must be called by the BoringVault.
      * @dev This function will lose precision if the exchange rate
      *      decimals is greater than the feeAsset's decimals.
+     * @dev to avoid intermediary rounding errors the following function is used to calculate the rate with decimal
+     * changes:
+     * F = feesOwedInFeeAsset
+     * D_f = feeAssetDecimals
+     * D_b = decimals
+     * R = rate
+     *
+     * D_f > D_b:
+     *  feesOwedInFeeAsset = F * 10^( 2 * D_f ) / ( 10^D_b * R )
+     *
+     * The function is derived from the formula: F * 10^( D_f - D_b ) * 10^D_f / R
+     * This was the previous implementation that stored the feesOwedInBase in the decimal adjusted version (10^( D_f -
+     * D_b )) before dividing by rate
+     * The above formula is fundamentally the same but includes the decimal conversion to avoid rounding errors
+     * compounding in an intermediate step
      */
     function claimFees(ERC20 feeAsset) external {
         if (msg.sender != address(vault)) revert AccountantWithRateProviders__OnlyCallableByBoringVault();
@@ -299,20 +371,19 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
         // Determine amount of fees owed in feeAsset.
         uint256 feesOwedInFeeAsset;
-        RateProviderData memory data = rateProviderData[feeAsset];
+
+        // if fee asset is the base asset avoid the calculation
         if (address(feeAsset) == address(base)) {
             feesOwedInFeeAsset = state.feesOwedInBase;
         } else {
-            uint8 feeAssetDecimals = ERC20(feeAsset).decimals();
-            uint256 feesOwedInBaseUsingFeeAssetDecimals =
-                changeDecimals(state.feesOwedInBase, decimals, feeAssetDecimals);
-            if (data.isPeggedToBase) {
-                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals;
-            } else {
-                uint256 rate = data.rateProvider.getRate();
-                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDivDown(10 ** feeAssetDecimals, rate);
-            }
+            uint8 feeAssetDecimals = feeAsset.decimals();
+            // use the max rate for fees
+            uint256 rate = getMaxRate(feeAsset);
+
+            // calculate the fees owed in fee asset
+            feesOwedInFeeAsset = (state.feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
         }
+
         // Zero out fees owed.
         state.feesOwedInBase = 0;
         // Transfer fee asset to payout address.
@@ -331,100 +402,135 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     }
 
     /**
-     * @notice Get this BoringVault's current rate in the base.
-     * @dev Revert if paused.
+     * @notice helper function to return the shares out for 1 deposit asset
      */
-    function getRateSafe() external view returns (uint256 rate) {
-        if (accountantState.isPaused) revert AccountantWithRateProviders__Paused();
-        rate = getRate();
+    function getDepositRate(ERC20 depositAsset) external view returns (uint256 rate) {
+        rate = getSharesForDepositAmount(depositAsset, 10 ** depositAsset.decimals());
     }
 
     /**
-     * @notice Get this BoringVault's current rate in the provided quote.
-     * @dev `quote` must have its RateProviderData set, else this will revert.
-     * @dev This function will lose precision if the exchange rate
-     *      decimals is greater than the quote's decimals.
+     * @notice Return the shares output for a given deposit amount of a token
+     * @dev Math is used to compute this value among assets with varying decimals with minimal rounding errors
+     * Key:
+     *   - Q: Quote asset decimals
+     *   - B: Base asset decimals
+     *   - x: depositAmount provided in quote decimals
+     *   - e: exchangeRate of the accountant returned in base decimals
+     *   - q: QuoteRate returned by the asset rate provider returned in quote decimals. If asset is pegged short circuit
+     * and set this as 10^Q
+     *
+     * The math is based on the old way of computing this value where shares is the deposit amount multiplied by a rate
+     * computed from quote and exchange rates
+     * shares = x * 10^B / RIQ()
+     * RIQ (rate in quote) = 10**Q * e * 10^(Q-B) / q
+     *
+     * However, the above function had a tendency to produce rounding errors. As truncation and division was done in
+     * intermediate steps.
+     * To make it more accurate we have derived the following formula:
+     * shares = x * q * 10^(2*B) / (e * 10**(2*Q))
      */
-    function getRateInQuote(ERC20 quote) public view returns (uint256 rateInQuote) {
-        if (address(quote) == address(base)) {
-            rateInQuote = accountantState.exchangeRate;
-        } else {
-            RateProviderData memory data = rateProviderData[quote];
-            uint8 quoteDecimals = ERC20(quote).decimals();
-            uint256 exchangeRateInQuoteDecimals = changeDecimals(accountantState.exchangeRate, decimals, quoteDecimals);
-            if (data.isPeggedToBase) {
-                rateInQuote = exchangeRateInQuoteDecimals;
-            } else {
-                uint256 quoteRate = data.rateProvider.getRate();
-                uint256 oneQuote = 10 ** quoteDecimals;
-                rateInQuote = oneQuote.mulDivDown(exchangeRateInQuoteDecimals, quoteRate);
-            }
-        }
+    function getSharesForDepositAmount(
+        ERC20 depositAsset,
+        uint256 depositAmount
+    )
+        public
+        view
+        returns (uint256 shares)
+    {
+        uint256 Q = depositAsset.decimals();
+        uint256 B = decimals;
+        uint256 e = accountantState.exchangeRate;
+        uint256 q = getMinRate(depositAsset);
+
+        shares = (depositAmount * q * 10 ** (2 * B)) / (e * 10 ** (2 * Q));
     }
 
     /**
-     * @notice Get this BoringVault's current rate in the provided quote.
-     * @dev `quote` must have its RateProviderData set, else this will revert.
-     * @dev Revert if paused.
+     * @notice Return the asset output for a given amount of shares redeemed for withdraw
+     * @dev Math is used to compute this value among assets with varying decimals with minimal rounding errors
+     * Key:
+     *   - Q: Quote asset decimals
+     *   - B: Base asset decimals
+     *   - S: shareAmount provided in base decimals
+     *   - e: exchangeRate of the accountant returned in base decimals
+     *   - q: QuoteRate returned by the asset rate provider returned in quote decimals. If asset is pegged short circuit
+     * and set this as 10^Q
+     *
+     * The math is based on the old way of computing this value where assets is the deposit amount multiplied by a rate
+     * computed from quote and exchange rates
+     * assets = S* RIQ() / 10^B
+     * RIQ (rate in quote) = 10**Q * e * 10^(Q-B) / q
+     *
+     * However, the above function had a tendency to produce rounding errors. As truncation and division was done in
+     * intermediate steps.
+     * To make it more accurate we have derived the following formula:
+     * assets = S * e * 10^(2*Q) / (q * 10**(2*B))
      */
-    function getRateInQuoteSafe(ERC20 quote) external view returns (uint256 rateInQuote) {
-        if (accountantState.isPaused) revert AccountantWithRateProviders__Paused();
-        rateInQuote = getRateInQuote(quote);
+    function getAssetsOutForShares(ERC20 withdrawAsset, uint256 shareAmount) public view returns (uint256 assetsOut) {
+        uint256 Q = withdrawAsset.decimals();
+        uint256 B = decimals;
+        uint256 e = accountantState.exchangeRate;
+        uint256 q = getMaxRate(withdrawAsset);
+
+        assetsOut = shareAmount * e * 10 ** (2 * Q) / (q * 10 ** (2 * B));
+    }
+
+    /**
+     * @notice helper function to return the assets out for 1 share
+     */
+    function getWithdrawRate(ERC20 withdrawAsset) external view returns (uint256 rate) {
+        rate = getAssetsOutForShares(withdrawAsset, ONE_SHARE);
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
-    /**
-     * @notice Used to change the decimals of precision used for an amount.
-     */
-    function changeDecimals(uint256 amount, uint8 fromDecimals, uint8 toDecimals) internal pure returns (uint256) {
-        if (fromDecimals == toDecimals) {
-            return amount;
-        } else if (fromDecimals < toDecimals) {
-            return amount * 10 ** (toDecimals - fromDecimals);
-        } else {
-            return amount / 10 ** (fromDecimals - toDecimals);
-        }
-    }
 
-    function getMaxRate(address asset) internal view returns (uint256 maxRate) {
+    function getMaxRate(ERC20 asset) internal view returns (uint256 maxRate) {
         RateProviderData[] memory data = rateProviderData[asset];
+
+        if (asset == base) {
+            return 10 ** decimals;
+        }
 
         if (data.length == 0) {
             revert AccountantWithRateProviders__RateProviderDataEmpty();
         }
 
         for (uint256 i; i < data.length; ++i) {
-            uint256 rate = getRateFromRateProvider(data[i]);
+            uint256 rate = data[i].isPeggedToBase ? 10 ** asset.decimals() : getRateFromRateProvider(data[i]);
             if (rate > maxRate) {
                 maxRate = rate;
             }
         }
     }
 
-    function getMinRate(address asset) internal view returns (uint256 minRate) {
+    function getMinRate(ERC20 asset) internal view returns (uint256 minRate) {
         RateProviderData[] memory data = rateProviderData[asset];
-        minRate = type(uint256).max();
+        minRate = type(uint256).max;
+
+        if (asset == base) {
+            return 10 ** decimals;
+        }
 
         if (data.length == 0) {
             revert AccountantWithRateProviders__RateProviderDataEmpty();
         }
 
-        minRate = getRateFromRateProvider(data[0]);
+        minRate = data[0].isPeggedToBase ? 10 ** asset.decimals() : getRateFromRateProvider(data[0]);
 
         if (data.length == 1) {
             return minRate;
         }
 
         for (uint256 i = 1; i < data.length; ++i) {
-            uint256 rate = getRateFromRateProvider(data[i]);
+            uint256 rate = data[i].isPeggedToBase ? 10 ** asset.decimals() : getRateFromRateProvider(data[i]);
             if (rate < minRate) {
                 minRate = rate;
             }
         }
     }
 
-    function getRateFromRateProvider(RateProviderData data) internal view returns (uint256 rate) {
-        (bytes memory returnBytes, bool success) = data.rateProvider.call(data.functionCalldata);
+    function getRateFromRateProvider(RateProviderData memory data) internal view returns (uint256 rate) {
+        (bool success, bytes memory returnBytes) = data.rateProvider.staticcall(data.functionCalldata);
         if (!success) {
             revert AccountantWithRateProviders__RateProviderCallFailed(data.rateProvider);
         }

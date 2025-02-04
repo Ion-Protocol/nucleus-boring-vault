@@ -41,6 +41,26 @@ contract RateMath is Test {
         _exchangeRate = bound(startExchangeRate, 8 * e(baseDecimals - 1), 2 * e(baseDecimals));
     }
 
+    function testFeeDecimals(uint256 feesOwedInBase, uint256 decimals, uint256 feeAssetDecimals, uint256 rate) public {
+        feesOwedInBase = bound(feesOwedInBase, 0, 100_000_000e18);
+        decimals = uint8(bound(decimals, 1, 24));
+        feeAssetDecimals = uint8(bound(feeAssetDecimals, 4, 24));
+        rate = bound(rate, 10 ** (uint256(feeAssetDecimals) - 2), 10 * 10 ** uint256(feeAssetDecimals));
+        uint256 feesOwedInBaseUsingFeeAssetDecimals = changeDecimals(feesOwedInBase, decimals, feeAssetDecimals);
+
+        // (F_b * 10 ^(D_f - D_b)) * 10^D_f / R
+        uint256 feesOwedInFeeAssetCurrent = feesOwedInBaseUsingFeeAssetDecimals.mulDivDown(10 ** feeAssetDecimals, rate);
+
+        uint256 feesOwedInFeeAsset;
+        if (feeAssetDecimals > decimals) {
+            feesOwedInFeeAsset = (feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
+        } else {
+            feesOwedInFeeAsset = (feesOwedInBase * (10 ** ((2 * feeAssetDecimals)))) / (rate * 10 ** decimals);
+        }
+
+        assertApproxEqAbs(feesOwedInFeeAsset, feesOwedInFeeAssetCurrent, 100, "not equal");
+    }
+
     function testAtomicDepositAndWithdraw_18Decimals(
         uint256 depositAmount,
         uint256 startQuoteRate,

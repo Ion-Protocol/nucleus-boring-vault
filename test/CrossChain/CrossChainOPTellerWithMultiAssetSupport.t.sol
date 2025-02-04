@@ -144,7 +144,7 @@ contract CrossChainOPTellerWithMultiAssetSupportTest is CrossChainBaseTest {
 
         uint256 ONE_SHARE = 10 ** boringVault.decimals();
 
-        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint256 shares = accountant.getSharesForDepositAmount(WETH, amount);
         uint256 quote = 0;
 
         uint256 wethBefore = WETH.balanceOf(address(boringVault));

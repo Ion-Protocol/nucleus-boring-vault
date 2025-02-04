@@ -11,7 +11,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
-
+import { ETH_PER_WEETH_CHAINLINK } from "src/helper/Constants.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 abstract contract CrossChainBaseTest is Test, MainnetAddresses {
@@ -53,7 +53,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         _deploySourceAndDestinationTeller();
@@ -118,8 +118,17 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         destinationTeller.addAsset(EETH);
         destinationTeller.addAsset(WEETH);
 
-        accountant.setRateProviderData(EETH, true, address(0));
-        accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+        accountant.setRateProviderData(EETH, rateProviderData);
+        rateProviderData = new AccountantWithRateProviders.RateProviderData[](2);
+        // WEETH rate provider getRate()
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce");
+        // ETH_PER_WEETH_CHAINLINK latestAnswer()
+        rateProviderData[1] =
+            AccountantWithRateProviders.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd");
+        accountant.setRateProviderData(WEETH, rateProviderData);
 
         // Give BoringVault some WETH, and this address some shares, and LINK.
         deal(address(WETH), address(boringVault), 1000e18);

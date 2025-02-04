@@ -70,7 +70,8 @@ contract IonPoolSharedSetup is Test, MainnetAddresses {
             ALLOWED_EXCHANGE_RATE_CHANGE_UPPER,
             ALLOWED_EXCHANGE_RATE_CHANGE_LOWER,
             MINIMUM_UPDATE_DELAY_IN_SECONDS,
-            MANAGEMENT_FEE
+            MANAGEMENT_FEE,
+            0
         );
 
         teller = new TellerWithMultiAssetSupport(TELLER_OWNER, address(boringVault), address(accountant));

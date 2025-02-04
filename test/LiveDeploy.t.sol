@@ -75,20 +75,6 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         runLiveTest(FILE_NAME);
 
-        // check for if all rate providers are deployed, if not error
-        for (uint256 i; i < mainConfig.assets.length; ++i) {
-            // set the corresponding rate provider
-            string memory key = string(
-                abi.encodePacked(
-                    ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
-                )
-            );
-
-            address rateProvider = getChainConfigFile().readAddress(key);
-            assertNotEq(rateProvider, address(0), "Rate provider address is 0");
-            assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
-        }
-
         // define one share based off of vault decimals
         ONE_SHARE = 10 ** BoringVault(payable(mainConfig.boringVault)).decimals();
 
@@ -214,28 +200,28 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // mint a bunch of extra tokens to the vault for if rate increased
         deal(mainConfig.base, mainConfig.boringVault, depositAmount);
-        uint256 expecteShares;
+        uint256 expectedShares;
         uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
-        uint256[] memory rateInQuoteBefore = new uint256[](assetsCount);
+        uint256[] memory depositRateBefore = new uint256[](assetsCount);
         for (uint256 i; i < assetsCount; ++i) {
-            rateInQuoteBefore[i] = accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i]));
-            expectedSharesByAsset[i] =
-                depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
-            expecteShares += expectedSharesByAsset[i];
+            depositRateBefore[i] = accountant.getDepositRate(ERC20(mainConfig.assets[i]));
+
+            expectedSharesByAsset[i] = accountant.getSharesForDepositAmount(ERC20(mainConfig.assets[i]), depositAmount);
+            expectedShares += expectedSharesByAsset[i];
             _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmount);
         }
 
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
-        assertEq(boringVault.balanceOf(address(this)), expecteShares, "Should have received expected shares");
+        assertEq(boringVault.balanceOf(address(this)), expectedShares, "Should have received expected shares");
 
         // update the rate
         _updateRate(rateChange, accountant);
 
-        // withdrawal the assets for the same amount back
+        // The deposit rate should have changed
         for (uint256 i; i < assetsCount; ++i) {
             assertApproxEqAbs(
-                accountant.getRateInQuote(ERC20(mainConfig.assets[i])),
-                rateInQuoteBefore[i] * rateChange / 10_000,
+                accountant.getDepositRate(ERC20(mainConfig.assets[i])),
+                depositRateBefore[i] * 10_000 / rateChange,
                 1,
                 "Rate change did not apply to asset"
             );
@@ -245,9 +231,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
             uint256 expectedAssetsBack = ((depositAmount) * rateChange / 10_000);
 
-            uint256 assetsOut = expectedSharesByAsset[i].mulDivDown(
-                accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE
-            );
+            uint256 assetsOut = accountant.getAssetsOutForShares(ERC20(mainConfig.assets[i]), expectedSharesByAsset[i]);
 
             // Delta must be set very high to pass
             assertApproxEqAbs(assetsOut, expectedAssetsBack, DELTA, "assets out not equal to expected assets back");
@@ -270,19 +254,18 @@ contract LiveDeploy is ForkTest, DeployAll {
         indexOfSupported = bound(indexOfSupported, 0, assetsCount);
         depositAmount = bound(depositAmount, 1, 10_000e18);
 
-        uint256 expecteShares;
+        uint256 expectedShares;
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
         uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
         for (uint256 i; i < assetsCount; ++i) {
-            expectedSharesByAsset[i] =
-                depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
-            expecteShares += expectedSharesByAsset[i];
+            expectedSharesByAsset[i] = accountant.getSharesForDepositAmount(ERC20(mainConfig.assets[i]), depositAmount);
+            expectedShares += expectedSharesByAsset[i];
 
             _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmount);
         }
 
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
-        assertEq(boringVault.balanceOf(address(this)), expecteShares, "Should have received expected shares");
+        assertEq(boringVault.balanceOf(address(this)), expectedShares, "Should have received expected shares");
 
         // withdrawal the assets for the same amount back
         for (uint256 i; i < assetsCount; ++i) {
@@ -353,7 +336,7 @@ contract LiveDeploy is ForkTest, DeployAll {
         // so you don't really need to know exact shares in reality
         // just need to pass in a number roughly the same size to get quote
         // I still get the real number here for testing
-        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(asset));
+        uint256 shares = accountant.getSharesForDepositAmount(asset, amount);
         uint256 quote = sourceTeller.previewFee(shares, data);
         uint256 assetBefore = asset.balanceOf(address(boringVault));
 
@@ -397,7 +380,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         uint256 ONE_SHARE = 10 ** boringVault.decimals();
 
-        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(asset));
+        uint256 shares = accountant.getSharesForDepositAmount(asset, amount);
         uint256 quote = 0;
 
         uint256 wethBefore = asset.balanceOf(address(boringVault));

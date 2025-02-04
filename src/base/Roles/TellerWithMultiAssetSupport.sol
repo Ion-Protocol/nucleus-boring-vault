@@ -329,7 +329,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
-        assetsOut = shareAmount.mulDivDown(accountant.getRateInQuoteSafe(withdrawAsset), ONE_SHARE);
+
+        assetsOut = accountant.getAssetsOutForShares(withdrawAsset, shareAmount);
+
         if (assetsOut < minimumAssets) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
         vault.exit(to, withdrawAsset, assetsOut, msg.sender, shareAmount);
         emit BulkWithdraw(address(withdrawAsset), shareAmount);
@@ -350,7 +352,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         returns (uint256 shares)
     {
         if (depositAmount == 0) revert TellerWithMultiAssetSupport__ZeroAssets();
-        shares = depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(depositAsset));
+
+        shares = accountant.getSharesForDepositAmount(depositAsset, depositAmount);
+
         if (shares < minimumMint) revert TellerWithMultiAssetSupport__MinimumMintNotMet();
         vault.enter(msg.sender, depositAsset, depositAmount, to, shares);
     }
