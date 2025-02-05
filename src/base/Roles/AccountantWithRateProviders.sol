@@ -282,7 +282,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      */
     function updateExchangeRate(uint96 newExchangeRate) external requiresAuth {
         AccountantState storage state = accountantState;
-        
+
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         uint64 currentTime = uint64(block.timestamp);
         uint256 currentExchangeRate = state.exchangeRate;
@@ -299,7 +299,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         } else {
             // Only update fees if we are not paused.
             // Update fee accounting.
-            uint256 shareSupplyToUse = state.totalSharesLastUpdate < currentTotalShares ? state.totalSharesLastUpdate : currentTotalShares;
+            uint256 shareSupplyToUse =
+                state.totalSharesLastUpdate < currentTotalShares ? state.totalSharesLastUpdate : currentTotalShares;
             // Use the minimum between current total supply and total supply for last update.
 
             // Determine management fees owned.
