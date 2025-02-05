@@ -95,6 +95,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
+    event FeesCalculated(uint256 managementFeesOwed, uint256 performanceFeesOwed);
 
     //============================== IMMUTABLES ===============================
 
@@ -296,33 +297,54 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             // to a better value, and pause it.
             state.isPaused = true;
         } else {
-            // Only update fees if we are not paused.
-            // Update fee accounting.
+            // Store raw exchange rate in memory
+            uint256 rawExchangeRate = newExchangeRate;
             uint256 shareSupplyToUse = currentTotalShares;
-            // Use the minimum between current total supply and total supply for last update.
+
+            // Use minimum between current and last update total supply
             if (state.totalSharesLastUpdate < shareSupplyToUse) {
                 shareSupplyToUse = state.totalSharesLastUpdate;
             }
 
-            // Determine management fees owned.
+            // Calculate time delta for management fee
             uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
-            uint256 minimumAssets = newExchangeRate > currentExchangeRate
-                ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-                : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-            uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-            uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
 
-            if (newExchangeRate > state.highestExchangeRate) {
-                if (state.performanceFee > 0) {
-                    uint256 changeInAssets =
-                        uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
-                    uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
-                    newFeesOwedInBase += performanceFees;
-                }
-                state.highestExchangeRate = newExchangeRate;
+            // Calculate total AUM based on raw exchange rate
+            uint256 rawAUM = shareSupplyToUse.mulDivDown(rawExchangeRate, ONE_SHARE);
+
+            // Calculate management fees based on raw AUM
+            uint256 managementFeesAnnual = rawAUM.mulDivDown(state.managementFee, 1e4);
+            uint256 managementFeesOwed = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+
+            // Calculate intermediate exchange rate after management fees
+            // intermediateRate = rawRate * (1 - managementFee)
+            uint256 managementFeeImpact = managementFeesOwed.mulDivDown(ONE_SHARE, shareSupplyToUse);
+            uint256 intermediateRate = rawExchangeRate - managementFeeImpact;
+
+            // Initialize performance fees
+            uint256 performanceFeesOwed = 0;
+
+            // Check if intermediate rate exceeds high water mark
+            if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
+                uint256 profitDelta = uint256(intermediateRate - state.highestExchangeRate);
+                performanceFeesOwed =
+                    profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
+
+                // Update high water mark with rate used for highwater mark
+                state.highestExchangeRate = intermediateRate;
             }
 
-            state.feesOwedInBase += uint128(newFeesOwedInBase);
+            // Calculate final exchange rate
+            // newRate = rawRate * (1 - mf) * (1 - pf) + pf * oldRate
+            // if management fee is 0, then newRate = rawRate * (1 - pf) + pf * oldRate
+            uint256 performanceFeeImpact = performanceFeesOwed.mulDivDown(ONE_SHARE, shareSupplyToUse);
+            newExchangeRate = intermediateRate - performanceFeeImpact;
+
+            // Update total fees owed
+            state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
+
+            // Optional: you might want to emit an event with separated fee components
+            emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
         }
 
         state.exchangeRate = newExchangeRate;
