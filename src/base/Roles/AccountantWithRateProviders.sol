@@ -95,6 +95,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
+    event FeesCalculated(uint256 managementFeesOwed, uint256 performanceFeesOwed);
 
     //============================== IMMUTABLES ===============================
 
@@ -296,33 +297,55 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             // to a better value, and pause it.
             state.isPaused = true;
         } else {
-            // Only update fees if we are not paused.
-            // Update fee accounting.
+            // Store raw exchange rate in memory
+            uint256 rawExchangeRate = newExchangeRate;
             uint256 shareSupplyToUse = currentTotalShares;
-            // Use the minimum between current total supply and total supply for last update.
+
+            // Use minimum between current and last update total supply
             if (state.totalSharesLastUpdate < shareSupplyToUse) {
                 shareSupplyToUse = state.totalSharesLastUpdate;
             }
 
-            // Determine management fees owned.
+            // Calculate time delta for fee collection
             uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
-            uint256 minimumAssets = newExchangeRate > currentExchangeRate
-                ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-                : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-            uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-            uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
 
-            if (newExchangeRate > state.highestExchangeRate) {
-                if (state.performanceFee > 0) {
-                    uint256 changeInAssets =
-                        uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
-                    uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
-                    newFeesOwedInBase += performanceFees;
-                }
-                state.highestExchangeRate = newExchangeRate;
+            // Calculate intermediate rate directly using the fee percentage
+            // intermediateRate = rawRate * (1 - mf)
+            uint256 intermediateRate = rawExchangeRate.mulDivDown(uint256(1e4 - state.managementFee), 1e4);
+
+            // Calculate management fees for accounting/collection separately with AUM before fees
+            uint256 rawAUM = shareSupplyToUse.mulDivDown(rawExchangeRate, ONE_SHARE);
+            uint256 managementFeesAnnual = rawAUM.mulDivDown(state.managementFee, 1e4);
+            uint256 managementFeesOwed = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+
+            // Initialize performance fees
+            uint256 performanceFeesOwed = 0;
+            newExchangeRate = uint96(intermediateRate);
+
+            // Check if intermediate rate exceeds high water mark
+            if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
+                uint256 oldHighWaterMark = state.highestExchangeRate;  // Store old HWM
+                uint256 profitDelta = uint256(intermediateRate - oldHighWaterMark);
+                performanceFeesOwed = 
+                    profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
+    
+                // Update high water mark
+                state.highestExchangeRate = intermediateRate;
+
+                // Only apply performance fee weighted average if we actually take performance fees
+                // Use old high water mark for weighted average to calculate final exchange rate
+                // newRate = intermediateRate * (1 - pf) + pf * oldHighWaterMark
+                newExchangeRate = uint96(
+                    intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
+                        oldHighWaterMark.mulDivDown(state.performanceFee, 1e4)
+                    )
+                );
             }
 
-            state.feesOwedInBase += uint128(newFeesOwedInBase);
+            // Update total fees owed
+            state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
+
+            emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
         }
 
         state.exchangeRate = newExchangeRate;
