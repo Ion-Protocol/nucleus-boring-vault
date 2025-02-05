@@ -324,19 +324,20 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
             // Check if intermediate rate exceeds high water mark
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
-                uint256 profitDelta = uint256(intermediateRate - state.highestExchangeRate);
-                performanceFeesOwed =
+                uint256 oldHighWaterMark = state.highestExchangeRate;  // Store old HWM
+                uint256 profitDelta = uint256(intermediateRate - oldHighWaterMark);
+                performanceFeesOwed = 
                     profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
-
+    
                 // Update high water mark
                 state.highestExchangeRate = intermediateRate;
 
                 // Only apply performance fee weighted average if we actually take performance fees
-                // Calculate final exchange rate
-                // newRate = intermediateRate * (1 - pf) + pf * oldRate
+                // Use old high water mark for weighted average to calculate final exchange rate
+                // newRate = intermediateRate * (1 - pf) + pf * oldHighWaterMark
                 newExchangeRate = uint96(
                     intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
-                        currentExchangeRate.mulDivDown(state.performanceFee, 1e4)
+                        oldHighWaterMark.mulDivDown(state.performanceFee, 1e4)
                     )
                 );
             }
