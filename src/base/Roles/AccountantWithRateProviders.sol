@@ -306,20 +306,17 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 shareSupplyToUse = state.totalSharesLastUpdate;
             }
 
-            // Calculate time delta for management fee
+            // Calculate time delta for fee collection
             uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
 
-            // Calculate total AUM based on raw exchange rate
-            uint256 rawAUM = shareSupplyToUse.mulDivDown(rawExchangeRate, ONE_SHARE);
+            // Calculate intermediate rate directly using the fee percentage
+            // intermediateRate = rawRate * (1 - mf)
+            uint256 intermediateRate = rawExchangeRate.mulDivDown(uint256(1e4 - state.managementFee), 1e4);
 
-            // Calculate management fees based on raw AUM
+            // Calculate management fees for accounting/collection separately with AUM before fees
+            uint256 rawAUM = shareSupplyToUse.mulDivDown(rawExchangeRate, ONE_SHARE);
             uint256 managementFeesAnnual = rawAUM.mulDivDown(state.managementFee, 1e4);
             uint256 managementFeesOwed = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
-
-            // Calculate intermediate exchange rate after management fees
-            // intermediateRate = rawRate * (1 - managementFee)
-            uint256 managementFeeImpact = managementFeesOwed.mulDivDown(ONE_SHARE, shareSupplyToUse);
-            uint256 intermediateRate = rawExchangeRate - managementFeeImpact;
 
             // Initialize performance fees
             uint256 performanceFeesOwed = 0;
@@ -330,20 +327,19 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 performanceFeesOwed =
                     profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
 
-                // Update high water mark with rate used for highwater mark
+                // Update high water mark
                 state.highestExchangeRate = intermediateRate;
             }
 
             // Calculate final exchange rate
-            // newRate = rawRate * (1 - mf) * (1 - pf) + pf * oldRate
-            // if management fee is 0, then newRate = rawRate * (1 - pf) + pf * oldRate
-            uint256 performanceFeeImpact = performanceFeesOwed.mulDivDown(ONE_SHARE, shareSupplyToUse);
-            newExchangeRate = intermediateRate - performanceFeeImpact;
+            // newRate = intermediateRate * (1 - pf) + pf * oldRate
+            newExchangeRate = intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
+                currentExchangeRate.mulDivDown(state.performanceFee, 1e4)
+            );
 
             // Update total fees owed
             state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
 
-            // Optional: you might want to emit an event with separated fee components
             emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
         }
 
