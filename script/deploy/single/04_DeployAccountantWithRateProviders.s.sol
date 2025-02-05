@@ -30,6 +30,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(config.allowedExchangeRateChangeLower >= 0.997e4, "allowedExchangeRateChangeLower lower bound");
             require(config.minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
             require(config.managementFee < 1e4, "managementFee");
+            require(config.performanceFee < 1e4, "performanceFee is too large");
             require(
                 startingExchangeRate == 10 ** config.boringVaultAndBaseDecimals,
                 "starting exchange rate must be equal to the boringVault and base decimals"
@@ -80,12 +81,14 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 uint128 _feesOwedInBase,
                 uint128 _totalSharesLastUpdate,
                 uint96 _exchangeRate,
+                uint96 _highestExchangeRate,
                 uint16 _allowedExchangeRateChangeUpper,
                 uint16 _allowedExchangeRateChangeLower,
                 uint64 _lastUpdateTimestamp,
                 bool _isPaused,
                 uint32 _minimumUpdateDelayInSeconds,
-                uint16 _managementFee
+                uint16 _managementFee,
+                uint16 _performanceFee
             ) = accountant.accountantState();
 
             // Post Deploy Checks
@@ -93,6 +96,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(_feesOwedInBase == 0, "fees owed in base");
             require(_totalSharesLastUpdate == 0, "total shares last update");
             require(_exchangeRate == startingExchangeRate, "exchange rate");
+            require(_highestExchangeRate == startingExchangeRate, "highest exchange rate not set properly");
             require(
                 _allowedExchangeRateChangeUpper == config.allowedExchangeRateChangeUpper,
                 "allowed exchange rate change upper"
@@ -107,6 +111,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 _minimumUpdateDelayInSeconds == config.minimumUpdateDelayInSeconds, "minimum update delay in seconds"
             );
             require(_managementFee == config.managementFee, "management fee");
+            require(_performanceFee == config.performanceFee, "performance fee doesn't match");
             require(address(accountant.vault()) == config.boringVault, "vault");
             require(address(accountant.base()) == config.base, "base");
             require(accountant.decimals() == ERC20(config.base).decimals(), "decimals");
