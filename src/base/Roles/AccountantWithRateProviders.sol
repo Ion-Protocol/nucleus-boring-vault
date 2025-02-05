@@ -320,6 +320,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
             // Initialize performance fees
             uint256 performanceFeesOwed = 0;
+            newExchangeRate = uint96(intermediateRate);
 
             // Check if intermediate rate exceeds high water mark
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
@@ -329,13 +330,16 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
                 // Update high water mark
                 state.highestExchangeRate = intermediateRate;
-            }
 
-            // Calculate final exchange rate
-            // newRate = intermediateRate * (1 - pf) + pf * oldRate
-            newExchangeRate = intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
-                currentExchangeRate.mulDivDown(state.performanceFee, 1e4)
-            );
+                // Only apply performance fee weighted average if we actually take performance fees
+                // Calculate final exchange rate
+                // newRate = intermediateRate * (1 - pf) + pf * oldRate
+                newExchangeRate = uint96(
+                    intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
+                        currentExchangeRate.mulDivDown(state.performanceFee, 1e4)
+                    )
+                );
+            }
 
             // Update total fees owed
             state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
