@@ -324,11 +324,11 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
             // Check if intermediate rate exceeds high water mark
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
-                uint256 oldHighWaterMark = state.highestExchangeRate;  // Store old HWM
+                uint256 oldHighWaterMark = state.highestExchangeRate; // Store old HWM
                 uint256 profitDelta = uint256(intermediateRate - oldHighWaterMark);
-                performanceFeesOwed = 
+                performanceFeesOwed =
                     profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
-    
+
                 // Update high water mark
                 state.highestExchangeRate = intermediateRate;
 
