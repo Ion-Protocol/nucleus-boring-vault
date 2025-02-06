@@ -75,6 +75,9 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.configureAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAssets.selector, true
+        );
+        rolesAuthority.setRoleCapability(
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
         );
         rolesAuthority.setRoleCapability(
@@ -110,17 +113,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         assets[1] = EETH;
         assets[2] = WEETH;
 
-        uint112[] memory rateLimits = new uint112[](3);
-        rateLimits[0] = type(uint112).max;
-        rateLimits[1] = type(uint112).max;
-        rateLimits[2] = type(uint112).max;
-
-        bool[] memory withdrawStatusByAssets = new bool[](3);
-        withdrawStatusByAssets[0] = true;
-        withdrawStatusByAssets[1] = true;
-        withdrawStatusByAssets[2] = true;
-
-        sourceTeller.configureAssets(assets, rateLimits, withdrawStatusByAssets);
+        sourceTeller.addAssets(assets);
 
         accountant.setRateProviderData(EETH, true, address(0));
         accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
