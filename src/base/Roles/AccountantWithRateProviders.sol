@@ -80,6 +80,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
     error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+    error AccountantWithRateProviders__InvalidTimeDelta(uint64 currentTime, uint64 proposedUpdateTime);
 
     //============================== EVENTS ===============================
 
@@ -281,14 +282,21 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      *      will pause the contract, and this function will NOT calculate fees owed.
      * @dev Callable by UPDATE_EXCHANGE_RATE_ROLE.
      */
-    function updateExchangeRate(uint96 newExchangeRate) external requiresAuth {
+    function updateExchangeRate(uint96 newExchangeRate, uint64 timeDeltaSeconds) external requiresAuth {
         AccountantState storage state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         uint64 currentTime = uint64(block.timestamp);
+        uint64 proposedUpdateTime = state.lastUpdateTimestamp + timeDeltaSeconds;
+
+        // Check if proposed time is within acceptable threshold of current time
+        // here, allowing ±1 hour deviation
+        if (proposedUpdateTime > currentTime + 1 hours || proposedUpdateTime < currentTime - 1 hours) {
+            revert AccountantWithRateProviders__InvalidTimeDelta(currentTime, proposedUpdateTime);
+        }
         uint256 currentExchangeRate = state.exchangeRate;
         uint256 currentTotalShares = vault.totalSupply();
         if (
-            currentTime < state.lastUpdateTimestamp + state.minimumUpdateDelayInSeconds
+            proposedUpdateTime < state.lastUpdateTimestamp + state.minimumUpdateDelayInSeconds
                 || newExchangeRate > currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeUpper, 1e4)
                 || newExchangeRate < currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeLower, 1e4)
         ) {
@@ -306,25 +314,22 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 shareSupplyToUse = state.totalSharesLastUpdate;
             }
 
-            // Calculate time delta for fee collection
-            uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
+            // Calculate intermediate rate directly with management fee time impact
+            // intermediateRate = rawRate - rawRate * (managementFee * timeDelta)/(year * 1e4)
+            uint256 intermediateRate =
+                rawExchangeRate - rawExchangeRate.mulDivDown(state.managementFee * timeDeltaSeconds, 365 days * 1e4);
 
-            // Calculate intermediate rate directly using the fee percentage
-            // intermediateRate = rawRate * (1 - mf)
-            uint256 intermediateRate = rawExchangeRate.mulDivDown(uint256(1e4 - state.managementFee), 1e4);
-
-            // Calculate management fees for accounting/collection separately with AUM before fees
+            // Calculate management fees for accounting using same formula
             uint256 rawAUM = shareSupplyToUse.mulDivDown(rawExchangeRate, ONE_SHARE);
-            uint256 managementFeesAnnual = rawAUM.mulDivDown(state.managementFee, 1e4);
-            uint256 managementFeesOwed = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+            uint256 managementFeesOwed = rawAUM.mulDivDown(state.managementFee * timeDeltaSeconds, 365 days * 1e4);
 
-            // Initialize performance fees
+            // Initialize performance fees and set initial new rate
             uint256 performanceFeesOwed = 0;
             newExchangeRate = uint96(intermediateRate);
 
             // Check if intermediate rate exceeds high water mark
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
-                uint256 oldHighWaterMark = state.highestExchangeRate; // Store old HWM
+                uint256 oldHighWaterMark = state.highestExchangeRate;
                 uint256 profitDelta = uint256(intermediateRate - oldHighWaterMark);
                 performanceFeesOwed =
                     profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
@@ -333,19 +338,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 state.highestExchangeRate = intermediateRate;
 
                 // Only apply performance fee weighted average if we actually take performance fees
-                // Use old high water mark for weighted average to calculate final exchange rate
-                // newRate = intermediateRate * (1 - pf) + pf * oldHighWaterMark
                 newExchangeRate = uint96(
                     intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
                         oldHighWaterMark.mulDivDown(state.performanceFee, 1e4)
                     )
                 );
             }
-
-            // Update total fees owed
-            state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
-
-            emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
         }
 
         state.exchangeRate = newExchangeRate;
