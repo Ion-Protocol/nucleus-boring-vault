@@ -331,8 +331,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
                 uint256 oldHighWaterMark = state.highestExchangeRate;
                 uint256 profitDelta = uint256(intermediateRate - oldHighWaterMark);
-                performanceFeesOwed =
-                    profitDelta.mulDivDown(shareSupplyToUse, ONE_SHARE).mulDivDown(state.performanceFee, 1e4);
+                performanceFeesOwed = profitDelta.mulDivDown(shareSupplyToUse * state.performanceFee, ONE_SHARE * 1e4);
 
                 // Update high water mark
                 state.highestExchangeRate = intermediateRate;
