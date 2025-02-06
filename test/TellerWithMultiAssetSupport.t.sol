@@ -155,6 +155,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     function testSupplyCap() external {
         ERC20[] memory assets = new ERC20[](1);
         assets[0] = WETH;
+        deal(address(WETH), address(this), 1e18);
 
         teller.setSupplyCap(1e18);
         WETH.approve(address(boringVault), 1e18);
