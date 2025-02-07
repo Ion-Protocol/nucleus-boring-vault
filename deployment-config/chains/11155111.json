@@ -1,5 +1,6 @@
 {
     "name": "Ethereum Sepolia",
     "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
-    "lzEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f"
+    "lzEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "mailbox": "0xfFAEF09B3cd11D9b20d1a19bECca54EEC2884766"
   }
