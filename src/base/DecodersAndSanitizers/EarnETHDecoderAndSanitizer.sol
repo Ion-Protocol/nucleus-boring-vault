@@ -9,15 +9,18 @@ import { MasterChefV3DecoderAndSanitizer } from
 import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
 
+import { EulerDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EulerDecoderAndSanitizer.sol";
+
 contract EarnETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
-    PendleRouterDecoderAndSanitizer
+    PendleRouterDecoderAndSanitizer,
+    EulerDecoderAndSanitizer
 {
     constructor(
-        address _boringVault,
-        address _uniswapV3NonFungiblePositionManager
+        address _uniswapV3NonFungiblePositionManager,
+        address _boringVault
     )
         UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
         BaseDecoderAndSanitizer(_boringVault)
