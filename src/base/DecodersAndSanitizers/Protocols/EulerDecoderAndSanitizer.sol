@@ -22,7 +22,7 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(item.tokenContract, item.value);
 
         bytes4 selector = abi.decode(items[0].data[:4], (bytes4));
-        // withdraw(uint256 amount, address receiver)
+        // withdraw(uint256 amount, address receiver, address owner)
         if (selector == bytes4(0xb460af94)) {
             (, address receiver, address owner) = abi.decode(items[0].data[4:], (uint256, address, address));
             if (owner != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
