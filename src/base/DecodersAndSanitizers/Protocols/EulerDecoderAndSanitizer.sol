@@ -19,6 +19,24 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(vault);
     }
 
+    function withdraw(
+        uint256 amount,
+        address receiver,
+        address owner
+    )
+        external
+        view
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        if (owner != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
+        if (receiver != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
+    }
+
+    function repay(uint256 amount, address receiver) external view virtual returns (bytes memory addressesFound) {
+        if (receiver != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
+    }
+
     function deposit(uint256 amount, address receiver) external view virtual returns (bytes memory addressesFound) {
         if (receiver != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
     }
