@@ -13,6 +13,7 @@ struct BatchItem {
 abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error EulerDecoderAndSanitizer__BoringVaultOnly();
     error EulerDecoderAndSanitizer__InvalidBatchLength();
+    error EulerDecoderAndSanitizer__InvalidSelector();
 
     function batch(BatchItem[] calldata items) external view virtual returns (bytes memory addressesFound) {
         if (items.length != 1) revert EulerDecoderAndSanitizer__InvalidBatchLength();
@@ -34,6 +35,8 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         else if (selector == bytes4(0x4b3fd148) || selector == bytes4(0xacb70815) || selector == bytes4(0x6e553f65)) {
             (, address receiver) = abi.decode(items[0].data[4:], (uint256, address));
             if (receiver != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
+        } else {
+            revert EulerDecoderAndSanitizer__InvalidSelector();
         }
     }
 
