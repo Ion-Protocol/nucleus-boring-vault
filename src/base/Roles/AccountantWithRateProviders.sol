@@ -319,36 +319,50 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             uint256 intermediateRate =
                 rawExchangeRate - rawExchangeRate.mulDivDown(state.managementFee * timeDeltaSeconds, 365 days * 1e4);
 
-            // Calculate management fees for accounting using same formula
+            // Calculate management fees for accounting raw AUM and post management fee AUM
+            // rawAUM = shareSupplyToUse * rawExchangeRate
+            // postManagementFeeAUM = shareSupplyToUse * intermediateRate
+            // managementFeesOwed = rawAUM - postManagementFeeAUM
             uint256 rawAUM = shareSupplyToUse.mulDivDown(rawExchangeRate, ONE_SHARE);
-            uint256 managementFeesOwed = rawAUM.mulDivDown(state.managementFee * timeDeltaSeconds, 365 days * 1e4);
+            uint256 postManagementFeeAUM = shareSupplyToUse.mulDivDown(intermediateRate, ONE_SHARE);
+            uint256 managementFeesOwed = rawAUM - postManagementFeeAUM;
 
             // Initialize performance fees and set initial new rate
             uint256 performanceFeesOwed = 0;
             newExchangeRate = uint96(intermediateRate);
 
             // Check if intermediate rate exceeds high water mark
+            // If so, calculate performance fees and update new rate
+            // Performance fees are calculated as the difference in AUM between the post management fee AUM and the post
+            // performance fee AUM
+            // postPerformanceFeeAUM = postManagementFeeAUM - performanceFeesOwed
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
+                // cache old high water mark
                 uint256 oldHighWaterMark = state.highestExchangeRate;
-                uint256 profitDelta = uint256(intermediateRate - oldHighWaterMark);
-                performanceFeesOwed = profitDelta.mulDivDown(shareSupplyToUse * state.performanceFee, ONE_SHARE * 1e4);
 
-                // Update high water mark
+                // Update new high water mark
                 state.highestExchangeRate = intermediateRate;
 
-                // Only apply performance fee weighted average if we actually take performance fees
+                // newExchangeRate = intermediateRate * (1 - pf) + oldHighWaterMark * pf
+                // where pf is the performance fee as a ratio
                 newExchangeRate = uint96(
                     intermediateRate.mulDivDown(uint256(1e4 - state.performanceFee), 1e4).add(
                         oldHighWaterMark.mulDivDown(state.performanceFee, 1e4)
                     )
                 );
+
+                // Calculate performance fees as AUM difference
+                uint256 postAllFeesAUM = shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
+                performanceFeesOwed = postManagementFeeAUM - postAllFeesAUM;
             }
         }
 
         state.exchangeRate = newExchangeRate;
         state.totalSharesLastUpdate = uint128(currentTotalShares);
         state.lastUpdateTimestamp = currentTime;
+        state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
 
+        emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
         emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
     }
 
