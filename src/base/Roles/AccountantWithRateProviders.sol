@@ -314,7 +314,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 shareSupplyToUse = state.totalSharesLastUpdate;
             }
 
-            // Calculate intermediate rate directly with management fee time impact
+            // Calculate intermediate rate directly with (time-weighted) management fee
             // intermediateRate = rawRate - rawRate * (managementFee * timeDelta)/(year * 1e4)
             uint256 intermediateRate =
                 rawExchangeRate - rawExchangeRate.mulDivDown(state.managementFee * timeDeltaSeconds, 365 days * 1e4);
@@ -333,8 +333,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
             // Check if intermediate rate exceeds high water mark
             // If so, calculate performance fees and update new rate
-            // Performance fees are calculated as the difference in AUM between the post management fee AUM and the post
-            // performance fee AUM
+            // Performance fees are calculated as difference between post management fee AUM
+            // and post performance fee AUM
             // postPerformanceFeeAUM = postManagementFeeAUM - performanceFeesOwed
             if (intermediateRate > state.highestExchangeRate && state.performanceFee > 0) {
                 // cache old high water mark
