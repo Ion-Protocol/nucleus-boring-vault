@@ -355,15 +355,15 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 uint256 postAllFeesAUM = shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
                 performanceFeesOwed = postManagementFeeAUM - postAllFeesAUM;
             }
+            // update state and emit events
+            state.exchangeRate = newExchangeRate;
+            state.totalSharesLastUpdate = uint128(currentTotalShares);
+            state.lastUpdateTimestamp = currentTime;
+            state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
+
+            emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
+            emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
         }
-
-        state.exchangeRate = newExchangeRate;
-        state.totalSharesLastUpdate = uint128(currentTotalShares);
-        state.lastUpdateTimestamp = currentTime;
-        state.feesOwedInBase += uint128(managementFeesOwed + performanceFeesOwed);
-
-        emit FeesCalculated(managementFeesOwed, performanceFeesOwed);
-        emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
     }
 
     /**
