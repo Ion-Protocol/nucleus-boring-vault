@@ -8,13 +8,14 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 
 /**
  * @title ManagerWithMerkleVerification
  * @custom:security-contact security@molecularlabs.io
  */
-contract ManagerWithMerkleVerification is Auth {
+contract ManagerWithMerkleVerification is AuthOwnable2Step {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
     using Address for address;
@@ -85,7 +86,13 @@ contract ManagerWithMerkleVerification is Auth {
      */
     BalancerVault public immutable balancerVault;
 
-    constructor(address _owner, address _vault, address _balancerVault) Auth(_owner, Authority(address(0))) {
+    constructor(
+        address _owner,
+        address _vault,
+        address _balancerVault
+    )
+        AuthOwnable2Step(_owner, Authority(address(0)))
+    {
         vault = BoringVault(payable(_vault));
         balancerVault = BalancerVault(_balancerVault);
     }

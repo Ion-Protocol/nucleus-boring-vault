@@ -9,7 +9,7 @@ import { OAppAuthCore } from "./OAppAuthCore.sol";
  * @title OAppAuthReceiver
  * @dev Abstract contract implementing the ILayerZeroReceiver interface and extending OAppCore for OApp receivers.
  *
- * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
+ * @dev This AuthOwnable2Step version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
     // Custom error message for when the caller is not the registered endpoint/

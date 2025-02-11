@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 import { CREATE3 } from "@solmate/utils/CREATE3.sol";
 
-contract Deployer is Auth {
+contract Deployer is AuthOwnable2Step {
     mapping(address => bool) public isDeployer;
 
     error Deployer__NotADeployer();
@@ -18,7 +19,7 @@ contract Deployer is Auth {
      */
     event ContractDeployed(string name, address contractAddress, bytes32 creationCodeHash);
 
-    constructor(address _owner, Authority _auth) Auth(_owner, _auth) { }
+    constructor(address _owner, Authority _auth) AuthOwnable2Step(_owner, _auth) { }
 
     /**
      * @notice Deploy some contract to a deterministic address.
