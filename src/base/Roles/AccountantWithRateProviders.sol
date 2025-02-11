@@ -93,6 +93,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event PayoutAddressUpdated(address oldPayout, address newPayout);
     event RateProviderUpdated(address asset, bool isPegged, address rateProvider);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
+    event PerformanceFeesAccrued(uint256 performanceFees);
+    event ManagementFeesAccrued(uint256 managementFees);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
 
@@ -314,6 +316,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
             uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
             uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+            emit ManagementFeesAccrued(managementFeesAnnual);
 
             if (newExchangeRate > state.highestExchangeRate) {
                 unchecked {
@@ -322,6 +325,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                             uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
                         uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
                         newFeesOwedInBase += performanceFees;
+                        emit PerformanceFeesAccrued(performanceFees);
                     }
                 }
                 state.highestExchangeRate = newExchangeRate;
