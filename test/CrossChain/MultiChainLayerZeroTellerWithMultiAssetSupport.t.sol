@@ -92,7 +92,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         // so you don't really need to know exact shares in reality
         // just need to pass in a number roughly the same size to get quote
         // I still get the real number here for testing
-        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint256 shares = accountant.getSharesForDepositAmount(WETH, amount);
         uint256 quote = sourceTeller.previewFee(shares, data);
 
         vm.expectRevert(
@@ -139,7 +139,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         // so you don't really need to know exact shares in reality
         // just need to pass in a number roughly the same size to get quote
         // I still get the real number here for testing
-        uint256 shares = amount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(WETH));
+        uint256 shares = accountant.getSharesForDepositAmount(WETH, amount);
         uint256 quote = sourceTeller.previewFee(shares, data);
         uint256 wethBefore = WETH.balanceOf(address(boringVault));
 

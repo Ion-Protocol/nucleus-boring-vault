@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title AccountantWithRateProviders
  * @custom:security-contact security@molecularlabs.io
  */
 contract AccountantWithRateProviders is Auth, IRateProvider {
-    using FixedPointMathLib for uint256;
+    using Math for uint256;
     using SafeTransferLib for ERC20;
 
     // ========================================= STRUCTS =========================================
@@ -249,8 +249,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint256 currentTotalShares = vault.totalSupply();
         if (
             currentTime < state.lastUpdateTimestamp + state.minimumUpdateDelayInSeconds
-                || newExchangeRate > currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeUpper, 1e4)
-                || newExchangeRate < currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeLower, 1e4)
+                || newExchangeRate > currentExchangeRate.mulDiv(state.allowedExchangeRateChangeUpper, 1e4)
+                || newExchangeRate < currentExchangeRate.mulDiv(state.allowedExchangeRateChangeLower, 1e4)
         ) {
             // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
             // exchange rate
@@ -268,10 +268,10 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             // Determine management fees owned.
             uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
             uint256 minimumAssets = newExchangeRate > currentExchangeRate
-                ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-                : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-            uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-            uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+                ? shareSupplyToUse.mulDiv(currentExchangeRate, ONE_SHARE)
+                : shareSupplyToUse.mulDiv(newExchangeRate, ONE_SHARE);
+            uint256 managementFeesAnnual = minimumAssets.mulDiv(state.managementFee, 1e4);
+            uint256 newFeesOwedInBase = managementFeesAnnual.mulDiv(timeDelta, 365 days);
 
             state.feesOwedInBase += uint128(newFeesOwedInBase);
         }
@@ -309,7 +309,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals;
             } else {
                 uint256 rate = data.rateProvider.getRate();
-                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDivDown(10 ** feeAssetDecimals, rate);
+                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDiv(10 ** feeAssetDecimals, rate);
             }
         }
         // Zero out fees owed.
@@ -339,6 +339,82 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     }
 
     /**
+     * @notice Return the shares output for a given deposit amount of a token
+     * @dev Math is used to compute this value among assets with varying decimals with minimal rounding errors
+     * Key:
+     *   - Q: Quote asset decimals
+     *   - B: Base asset decimals
+     *   - x: depositAmount provided in quote decimals
+     *   - e: exchangeRate of the accountant returned in base decimals
+     *   - q: QuoteRate returned by the asset rate provider returned in quote decimals. If asset is pegged short circuit
+     * and set this as 10^Q
+     *
+     * The math is based on the old way of computing this value where shares is the deposit amount multiplied by a rate
+     * computed from quote and exchange rates
+     * shares = x * 10^B / RIQ()
+     * RIQ (rate in quote) = 10**Q * e * 10^(Q-B) / q
+     *
+     * However, the above function had a tendency to produce rounding errors. As truncation and division was done in
+     * intermediate steps.
+     * To make it more accurate we have derived the following formula:
+     * shares = x * q * 10^(2*B) / (e * 10**(2*Q))
+     */
+    function getSharesForDepositAmount(
+        ERC20 depositAsset,
+        uint256 depositAmount
+    )
+        external
+        view
+        returns (uint256 shares)
+    {
+        uint256 Q = depositAsset.decimals();
+        uint256 B = decimals;
+        uint256 e = accountantState.exchangeRate;
+        RateProviderData memory data = rateProviderData[depositAsset];
+        uint256 q = (data.isPeggedToBase || depositAsset == base) ? 10 ** Q : data.rateProvider.getRate();
+
+        shares = (depositAmount * q * 10 ** (2 * B)) / (e * 10 ** (2 * Q));
+    }
+
+    /**
+     * @notice Return the asset output for a given amount of shares redeemed for withdraw
+     * @dev Math is used to compute this value among assets with varying decimals with minimal rounding errors
+     * Key:
+     *   - Q: Quote asset decimals
+     *   - B: Base asset decimals
+     *   - S: shareAmount provided in base decimals
+     *   - e: exchangeRate of the accountant returned in base decimals
+     *   - q: QuoteRate returned by the asset rate provider returned in quote decimals. If asset is pegged short circuit
+     * and set this as 10^Q
+     *
+     * The math is based on the old way of computing this value where assets is the deposit amount multiplied by a rate
+     * computed from quote and exchange rates
+     * assets = S* RIQ() / 10^B
+     * RIQ (rate in quote) = 10**Q * e * 10^(Q-B) / q
+     *
+     * However, the above function had a tendency to produce rounding errors. As truncation and division was done in
+     * intermediate steps.
+     * To make it more accurate we have derived the following formula:
+     * assets = S * e * 10^(2*Q) / (q * 10**(2*B))
+     */
+    function getAssetsOutForShares(
+        ERC20 withdrawAsset,
+        uint256 shareAmount
+    )
+        external
+        view
+        returns (uint256 assetsOut)
+    {
+        uint256 Q = withdrawAsset.decimals();
+        uint256 B = decimals;
+        uint256 e = accountantState.exchangeRate;
+        RateProviderData memory data = rateProviderData[withdrawAsset];
+        uint256 q = (data.isPeggedToBase || withdrawAsset == base) ? 10 ** Q : data.rateProvider.getRate();
+
+        assetsOut = shareAmount * e * 10 ** (2 * Q) / (q * 10 ** (2 * B));
+    }
+
+    /**
      * @notice Get this BoringVault's current rate in the provided quote.
      * @dev `quote` must have its RateProviderData set, else this will revert.
      * @dev This function will lose precision if the exchange rate
@@ -356,7 +432,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             } else {
                 uint256 quoteRate = data.rateProvider.getRate();
                 uint256 oneQuote = 10 ** quoteDecimals;
-                rateInQuote = oneQuote.mulDivDown(exchangeRateInQuoteDecimals, quoteRate);
+                rateInQuote = oneQuote.mulDiv(exchangeRateInQuoteDecimals, quoteRate);
             }
         }
     }

@@ -5,7 +5,6 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { WETH } from "@solmate/tokens/WETH.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
@@ -16,7 +15,6 @@ import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
-    using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
     using SafeTransferLib for WETH;
 
@@ -329,7 +327,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
-        assetsOut = shareAmount.mulDivDown(accountant.getRateInQuoteSafe(withdrawAsset), ONE_SHARE);
+
+        assetsOut = accountant.getAssetsOutForShares(withdrawAsset, shareAmount);
+
         if (assetsOut < minimumAssets) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
         vault.exit(to, withdrawAsset, assetsOut, msg.sender, shareAmount);
         emit BulkWithdraw(address(withdrawAsset), shareAmount);
@@ -350,7 +350,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         returns (uint256 shares)
     {
         if (depositAmount == 0) revert TellerWithMultiAssetSupport__ZeroAssets();
-        shares = depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(depositAsset));
+
+        shares = accountant.getSharesForDepositAmount(depositAsset, depositAmount);
+
         if (shares < minimumMint) revert TellerWithMultiAssetSupport__MinimumMintNotMet();
         vault.enter(msg.sender, depositAsset, depositAmount, to, shares);
     }
