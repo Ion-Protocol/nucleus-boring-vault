@@ -34,6 +34,8 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
     uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 3;
     uint8 public constant BORING_VAULT_ROLE = 4;
 
+    event Paused();
+
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
@@ -263,14 +265,17 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
         // Trying to update before the minimum time should succeed but, pause the contract.
         new_exchange_rate = uint96(1.0e18);
+        vm.expectEmit();
+        emit Paused();
         accountant.updateExchangeRate(new_exchange_rate);
 
         (, fees_owed, total_shares, current_exchange_rate,,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
-        assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
+        assertEq(current_exchange_rate, 1.0005e18, "Current exchange rate should NOT be updated");
+        uint64 timestampBefore = uint64(block.timestamp);
+        assertEq(last_update_timestamp, timestampBefore, "Last update timestamp should be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
 
         accountant.unpause();
@@ -278,14 +283,16 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         // Or if the next update is outside the accepted bounds it will pause.
         skip((1 days / 24));
         new_exchange_rate = uint96(10.0e18);
+        vm.expectEmit();
+        emit Paused();
         accountant.updateExchangeRate(new_exchange_rate);
 
         (, fees_owed, total_shares, current_exchange_rate,,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
-        assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
+        assertEq(current_exchange_rate, 1.0005e18, "Current exchange rate should NOT be updated");
+        assertEq(last_update_timestamp, timestampBefore, "Last update timestamp should NOT be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
     }
 
