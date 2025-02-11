@@ -49,10 +49,6 @@ contract CheckTellerUpgrade is BaseScript {
             "oldTeller depositWithPermit must not be public"
         );
         require(
-            !authority.isCapabilityPublic(oldTeller, TellerWithMultiAssetSupport.bulkDeposit.selector),
-            "oldTeller bulkDeposit must not be public"
-        );
-        require(
             !authority.isCapabilityPublic(oldTeller, TellerWithMultiAssetSupport.bulkWithdraw.selector),
             "oldTeller bulkWithdraw must not be public"
         );
@@ -89,10 +85,6 @@ contract CheckTellerUpgrade is BaseScript {
         require(
             !authority.isCapabilityPublic(newTeller, TellerWithMultiAssetSupport.depositWithPermit.selector),
             "newTeller depositWithPermit must not be public"
-        );
-        require(
-            !authority.isCapabilityPublic(newTeller, TellerWithMultiAssetSupport.bulkDeposit.selector),
-            "newTeller bulkDeposit must not be public"
         );
         require(
             !authority.isCapabilityPublic(newTeller, TellerWithMultiAssetSupport.bulkWithdraw.selector),
