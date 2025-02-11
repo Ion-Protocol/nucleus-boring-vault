@@ -5,7 +5,6 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { WETH } from "@solmate/tokens/WETH.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
@@ -16,7 +15,6 @@ import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
-    using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
     using SafeTransferLib for WETH;
 

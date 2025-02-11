@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title AccountantWithRateProviders
  * @custom:security-contact security@molecularlabs.io
  */
 contract AccountantWithRateProviders is Auth, IRateProvider {
-    using FixedPointMathLib for uint256;
+    using Math for uint256;
     using SafeTransferLib for ERC20;
 
     // ========================================= STRUCTS =========================================
@@ -249,8 +249,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint256 currentTotalShares = vault.totalSupply();
         if (
             currentTime < state.lastUpdateTimestamp + state.minimumUpdateDelayInSeconds
-                || newExchangeRate > currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeUpper, 1e4)
-                || newExchangeRate < currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeLower, 1e4)
+                || newExchangeRate > currentExchangeRate.mulDiv(state.allowedExchangeRateChangeUpper, 1e4)
+                || newExchangeRate < currentExchangeRate.mulDiv(state.allowedExchangeRateChangeLower, 1e4)
         ) {
             // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
             // exchange rate
@@ -268,10 +268,10 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             // Determine management fees owned.
             uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
             uint256 minimumAssets = newExchangeRate > currentExchangeRate
-                ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-                : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-            uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-            uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+                ? shareSupplyToUse.mulDiv(currentExchangeRate, ONE_SHARE)
+                : shareSupplyToUse.mulDiv(newExchangeRate, ONE_SHARE);
+            uint256 managementFeesAnnual = minimumAssets.mulDiv(state.managementFee, 1e4);
+            uint256 newFeesOwedInBase = managementFeesAnnual.mulDiv(timeDelta, 365 days);
 
             state.feesOwedInBase += uint128(newFeesOwedInBase);
         }
@@ -309,7 +309,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals;
             } else {
                 uint256 rate = data.rateProvider.getRate();
-                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDivDown(10 ** feeAssetDecimals, rate);
+                feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDiv(10 ** feeAssetDecimals, rate);
             }
         }
         // Zero out fees owed.
@@ -432,7 +432,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             } else {
                 uint256 quoteRate = data.rateProvider.getRate();
                 uint256 oneQuote = 10 ** quoteDecimals;
-                rateInQuote = oneQuote.mulDivDown(exchangeRateInQuoteDecimals, quoteRate);
+                rateInQuote = oneQuote.mulDiv(exchangeRateInQuoteDecimals, quoteRate);
             }
         }
     }
