@@ -84,6 +84,9 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
     error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
     error AccountantWithRateProviders__RateProviderDataEmpty();
+    error AccountantWithRateProviders__InvalidRateReturned();
+    error AccountantWithRateProviders__ZeroRate();
+    error AccountantWithRateProviders__ZeroQuoteRate();
 
     //============================== EVENTS ===============================
 
@@ -95,13 +98,18 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
     event performanceFeeUpdated(uint16 oldFee, uint16 newFee);
     event PayoutAddressUpdated(address oldPayout, address newPayout);
-    event RateProviderUpdated(address asset, bool isPegged, address rateProvider);
+    event RateProviderDataUpdated(address indexed asset, RateProviderData[] newRateProviderData);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
 
-    //============================== IMMUTABLES ===============================
+    //============================== CONSTANTS ===============================
+    uint8 constant MIN_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 - 1) is the minimum accepted rate from a rate
+        // provider with 18 decimals
+    uint8 constant MAX_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 + 1) is the maximum accepted rate from a rate
+        // provider with 18 decimals
 
+    //============================== IMMUTABLES ===============================
     /**
      * @notice The base asset rates are provided in.
      */
@@ -257,10 +265,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
         for (uint256 i; i < _rateProviderData.length; ++i) {
             rateProviderData[asset].push(_rateProviderData[i]);
-            emit RateProviderUpdated(
-                address(asset), _rateProviderData[i].isPeggedToBase, _rateProviderData[i].rateProvider
-            );
         }
+        emit RateProviderDataUpdated(address(asset), _rateProviderData);
     }
 
     /**
@@ -379,6 +385,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             uint8 feeAssetDecimals = feeAsset.decimals();
             // use the max rate for fees
             uint256 rate = getMaxRate(feeAsset);
+            if (rate == 0) revert AccountantWithRateProviders__ZeroRate();
 
             // calculate the fees owed in fee asset
             feesOwedInFeeAsset = (state.feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
@@ -428,6 +435,10 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * intermediate steps.
      * To make it more accurate we have derived the following formula:
      * shares = x * q * 10^(2*B) / (e * 10**(2*Q))
+     *
+     * @param depositAsset the asset being deposited
+     * @param depositAmount the amount of the asset being deposited
+     * @return shares the amount of shares returned for the given deposit amount
      */
     function getSharesForDepositAmount(
         ERC20 depositAsset,
@@ -441,6 +452,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint256 B = decimals;
         uint256 e = accountantState.exchangeRate;
         uint256 q = getMinRate(depositAsset);
+
+        if (q == 0) revert AccountantWithRateProviders__ZeroRate();
 
         shares = (depositAmount * q * 10 ** (2 * B)) / (e * 10 ** (2 * Q));
     }
@@ -465,6 +478,10 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * intermediate steps.
      * To make it more accurate we have derived the following formula:
      * assets = S * e * 10^(2*Q) / (q * 10**(2*B))
+     *
+     * @param withdrawAsset the asset being withdrawn
+     * @param shareAmount the amount of shares being withdrawn
+     * @return assetsOut the amount of assets out for the given share amount
      */
     function getAssetsOutForShares(ERC20 withdrawAsset, uint256 shareAmount) public view returns (uint256 assetsOut) {
         uint256 Q = withdrawAsset.decimals();
@@ -472,20 +489,40 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         uint256 e = accountantState.exchangeRate;
         uint256 q = getMaxRate(withdrawAsset);
 
+        if (q == 0) revert AccountantWithRateProviders__ZeroQuoteRate();
+
         assetsOut = shareAmount * e * 10 ** (2 * Q) / (q * 10 ** (2 * B));
     }
 
     /**
      * @notice helper function to return the assets out for 1 share
+     * @param withdrawAsset the asset to get the withdraw rate for
+     * @return rate the assets out for 1 share withdrawn
      */
     function getWithdrawRate(ERC20 withdrawAsset) external view returns (uint256 rate) {
         rate = getAssetsOutForShares(withdrawAsset, ONE_SHARE);
     }
 
-    // ========================================= INTERNAL HELPER FUNCTIONS =========================================
-
-    function getMaxRate(ERC20 asset) internal view returns (uint256 maxRate) {
+    /**
+     * @notice helper function to return the rate for a given asset using a particular rate provider by index
+     * @param asset the asset to get the rate for
+     * @param index the index of the rate provider to use
+     * @return rate the rate for the asset using the given rate provider
+     */
+    function getRateForAsset(ERC20 asset, uint256 index) public view returns (uint256 rate) {
         RateProviderData[] memory data = rateProviderData[asset];
+        uint8 assetDecimals = asset.decimals();
+        rate = data[index].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[index], assetDecimals);
+    }
+
+    /**
+     * @notice helper function to return the max rate for a given asset among all rate providers
+     * @param asset the asset to get the max rate for
+     * @return maxRate the max rate for the asset
+     */
+    function getMaxRate(ERC20 asset) public view returns (uint256 maxRate) {
+        RateProviderData[] memory data = rateProviderData[asset];
+        uint8 assetDecimals = asset.decimals();
 
         if (asset == base) {
             return 10 ** decimals;
@@ -496,16 +533,23 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         }
 
         for (uint256 i; i < data.length; ++i) {
-            uint256 rate = data[i].isPeggedToBase ? 10 ** asset.decimals() : getRateFromRateProvider(data[i]);
+            uint256 rate =
+                data[i].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[i], assetDecimals);
             if (rate > maxRate) {
                 maxRate = rate;
             }
         }
     }
 
-    function getMinRate(ERC20 asset) internal view returns (uint256 minRate) {
+    /**
+     * @notice helper function to return the min rate for a given asset among all rate providers
+     * @param asset the asset to get the min rate for
+     * @return minRate the min rate for the asset
+     */
+    function getMinRate(ERC20 asset) public view returns (uint256 minRate) {
         RateProviderData[] memory data = rateProviderData[asset];
         minRate = type(uint256).max;
+        uint8 assetDecimals = asset.decimals();
 
         if (asset == base) {
             return 10 ** decimals;
@@ -515,25 +559,58 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             revert AccountantWithRateProviders__RateProviderDataEmpty();
         }
 
-        minRate = data[0].isPeggedToBase ? 10 ** asset.decimals() : getRateFromRateProvider(data[0]);
+        minRate = data[0].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[0], assetDecimals);
 
         if (data.length == 1) {
             return minRate;
         }
 
         for (uint256 i = 1; i < data.length; ++i) {
-            uint256 rate = data[i].isPeggedToBase ? 10 ** asset.decimals() : getRateFromRateProvider(data[i]);
+            uint256 rate =
+                data[i].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[i], assetDecimals);
             if (rate < minRate) {
                 minRate = rate;
             }
         }
     }
 
-    function getRateFromRateProvider(RateProviderData memory data) internal view returns (uint256 rate) {
+    // ========================================= INTERNAL HELPER FUNCTIONS =========================================
+
+    /**
+     * @notice helper function to check if the rate is within the accepted bounds
+     * @dev if the rate is not within the accepted bounds, revert, this is to prevent any mistakes regarding rate
+     * incorrectly provided rate providers or their return types being mismatched
+     * @param rate the rate to check
+     * @param assetDecimals the decimals of the asset
+     */
+    function _checkRate(uint256 rate, uint8 assetDecimals) internal pure {
+        if (
+            assetDecimals < MIN_RATE_DECIMALS_DEVIATION || rate < 10 ** (assetDecimals - MIN_RATE_DECIMALS_DEVIATION)
+                || rate > 10 ** (assetDecimals + MIN_RATE_DECIMALS_DEVIATION)
+        ) {
+            revert AccountantWithRateProviders__InvalidRateReturned();
+        }
+    }
+
+    /**
+     * @notice helper function to get the rate from a rate provider
+     * @param data the rate provider data
+     * @param assetDecimals the decimals of the asset
+     * @return rate the rate from the rate provider
+     */
+    function _getRateFromRateProvider(
+        RateProviderData memory data,
+        uint8 assetDecimals
+    )
+        internal
+        view
+        returns (uint256 rate)
+    {
         (bool success, bytes memory returnBytes) = data.rateProvider.staticcall(data.functionCalldata);
         if (!success) {
             revert AccountantWithRateProviders__RateProviderCallFailed(data.rateProvider);
         }
         rate = abi.decode(returnBytes, (uint256));
+        _checkRate(rate, assetDecimals);
     }
 }
