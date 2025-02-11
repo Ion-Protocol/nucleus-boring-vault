@@ -49,7 +49,7 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
 
         // mint amount = deposit amount * exchangeRate
         deal(address(WETH), address(this), depositAmt);
-        teller.deposit(WETH, depositAmt, minimumMint);
+        teller.deposit(WETH, depositAmt, minimumMint, address(this));
 
         assertEq(exchangeRate, 1e18, "base asset exchange rate must be pegged");
         assertEq(boringVault.balanceOf(address(this)), shares, "shares minted");
@@ -73,7 +73,7 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         // mint amount = deposit amount * exchangeRate
 
         deal(address(WSTETH), address(this), depositAmt);
-        teller.deposit(WSTETH, depositAmt, minimumMint);
+        teller.deposit(WSTETH, depositAmt, minimumMint, address(this));
 
         assertEq(quotePerShare, expectedQuotePerShare, "exchange rate must read from price oracle");
         assertEq(boringVault.balanceOf(address(this)), shares, "shares minted");
