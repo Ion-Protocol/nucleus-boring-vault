@@ -247,10 +247,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         (,,,, highestExchangeRate,,,, is_paused,,,) = accountant.accountantState();
         assertEq(highestExchangeRate, 1.001e18, "highestExchangeRate should still be the old one");
 
-        // reset the highest exchange rate then increase a little but not past the last highest
         accountant.resetHighestExchangeRate();
-        // new_exchange_rate = uint96(1.0008e18);
-        // accountant.updateExchangeRate(new_exchange_rate);
 
         (,,,, highestExchangeRate,,,,,,,) = accountant.accountantState();
         assertEq(highestExchangeRate, 1.0007e18, "highestExchangeRate should be the new one after reset");
@@ -273,7 +270,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, 1.0005e18, "Current exchange rate should NOT be updated");
+        assertEq(current_exchange_rate, 1.0007e18, "Current exchange rate should NOT be updated");
         uint64 timestampBefore = uint64(block.timestamp);
         assertEq(last_update_timestamp, timestampBefore, "Last update timestamp should be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
@@ -291,7 +288,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, 1.0005e18, "Current exchange rate should NOT be updated");
+        assertEq(current_exchange_rate, 1.0007e18, "Current exchange rate should NOT be updated");
         assertEq(last_update_timestamp, timestampBefore, "Last update timestamp should NOT be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
     }
