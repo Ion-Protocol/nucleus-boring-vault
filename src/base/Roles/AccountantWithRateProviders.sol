@@ -100,6 +100,8 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
     event PayoutAddressUpdated(address oldPayout, address newPayout);
     event RateProviderDataUpdated(address indexed asset, RateProviderData[] newRateProviderData);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
+    event PerformanceFeesAccrued(uint256 performanceFees);
+    event ManagementFeesAccrued(uint256 managementFees);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
 
@@ -297,6 +299,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      */
     function updateExchangeRate(uint96 newExchangeRate) external requiresAuth {
         AccountantState storage state = accountantState;
+
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         uint64 currentTime = uint64(block.timestamp);
         uint256 currentExchangeRate = state.exchangeRate;
@@ -313,31 +316,39 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         } else {
             // Only update fees if we are not paused.
             // Update fee accounting.
-            uint256 shareSupplyToUse = currentTotalShares;
+            uint256 shareSupplyToUse =
+                state.totalSharesLastUpdate < currentTotalShares ? state.totalSharesLastUpdate : currentTotalShares;
             // Use the minimum between current total supply and total supply for last update.
-            if (state.totalSharesLastUpdate < shareSupplyToUse) {
-                shareSupplyToUse = state.totalSharesLastUpdate;
-            }
 
             // Determine management fees owned.
-            uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
+            uint256 timeDelta;
+            // time delta should always be positive as block.timestamp is the only source for this value
+            unchecked {
+                timeDelta = currentTime - state.lastUpdateTimestamp;
+            }
             uint256 minimumAssets = newExchangeRate > currentExchangeRate
                 ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
                 : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
             uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
             uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+            emit ManagementFeesAccrued(managementFeesAnnual);
 
             if (newExchangeRate > state.highestExchangeRate) {
-                if (state.performanceFee > 0) {
-                    uint256 changeInAssets =
-                        uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
-                    uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
-                    newFeesOwedInBase += performanceFees;
+                unchecked {
+                    if (state.performanceFee > 0) {
+                        uint256 changeInAssets =
+                            uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
+                        uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
+                        newFeesOwedInBase += performanceFees;
+                        emit PerformanceFeesAccrued(performanceFees);
+                    }
                 }
                 state.highestExchangeRate = newExchangeRate;
             }
 
-            state.feesOwedInBase += uint128(newFeesOwedInBase);
+            unchecked {
+                state.feesOwedInBase += uint128(newFeesOwedInBase);
+            }
         }
 
         state.exchangeRate = newExchangeRate;
@@ -354,12 +365,11 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      *      decimals is greater than the feeAsset's decimals.
      * @dev to avoid intermediary rounding errors the following function is used to calculate the rate with decimal
      * changes:
-     * F = feesOwedInFeeAsset
+     * F = feesOwedInBaseAsset
      * D_f = feeAssetDecimals
      * D_b = decimals
      * R = rate
      *
-     * D_f > D_b:
      *  feesOwedInFeeAsset = F * 10^( 2 * D_f ) / ( 10^D_b * R )
      *
      * The function is derived from the formula: F * 10^( D_f - D_b ) * 10^D_f / R
