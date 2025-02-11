@@ -72,10 +72,10 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
 
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.configureAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.removeAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
@@ -108,15 +108,12 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(destinationTellerAddr, MINTER_ROLE, true);
         rolesAuthority.setUserRole(destinationTellerAddr, BURNER_ROLE, true);
 
-        sourceTeller.addAsset(WETH);
-        sourceTeller.addAsset(ERC20(NATIVE));
-        sourceTeller.addAsset(EETH);
-        sourceTeller.addAsset(WEETH);
+        ERC20[] memory assets = new ERC20[](3);
+        assets[0] = WETH;
+        assets[1] = EETH;
+        assets[2] = WEETH;
 
-        destinationTeller.addAsset(WETH);
-        destinationTeller.addAsset(ERC20(NATIVE));
-        destinationTeller.addAsset(EETH);
-        destinationTeller.addAsset(WEETH);
+        sourceTeller.addAssets(assets);
 
         AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
             new AccountantWithRateProviders.RateProviderData[](1);

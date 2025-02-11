@@ -22,8 +22,13 @@ contract IonPoolTellerTest is IonPoolSharedSetup {
         WSTETH.approve(address(boringVault), type(uint256).max);
 
         vm.startPrank(TELLER_OWNER);
-        teller.addAsset(WETH);
-        teller.addAsset(WSTETH);
+
+        ERC20[] memory assets = new ERC20[](2);
+        assets[0] = WETH;
+        assets[1] = WSTETH;
+
+        teller.addAssets(assets);
+
         vm.stopPrank();
 
         // Setup accountant

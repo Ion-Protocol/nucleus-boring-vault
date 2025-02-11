@@ -27,11 +27,14 @@ contract TellerSetup is BaseScript {
 
         TellerWithMultiAssetSupport teller = TellerWithMultiAssetSupport(config.teller);
 
-        // add the base asset by default for all configurations
-        teller.addAsset(ERC20(config.base));
+        uint256 len = config.assets.length + 1;
+        ERC20[] memory assets = new ERC20[](len);
+        assets[0] = ERC20(config.base);
 
         for (uint256 i; i < config.assets.length; ++i) {
-            require(config.assets[i].code.length > 0, "asset must have code");
+            // add asset
+            assets[i + 1] = ERC20(config.assets[i]);
+
             string memory assetKey =
                 string(abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString()));
 
@@ -61,8 +64,7 @@ contract TellerSetup is BaseScript {
             }
 
             teller.accountant().setRateProviderData(ERC20(config.assets[i]), rateProviderData);
-
-            teller.addAsset(ERC20(config.assets[i]));
         }
+        teller.addAssets(assets);
     }
 }

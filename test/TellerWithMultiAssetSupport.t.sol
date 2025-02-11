@@ -33,7 +33,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     AccountantWithRateProviders public accountant;
     address public payout_address = vm.addr(7_777_777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
     AtomicQueue public atomicQueue;
     AtomicSolverV3 public atomicSolverV3;
@@ -68,10 +67,10 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(MINTER_ROLE, address(boringVault), BoringVault.enter.selector, true);
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.addAsset.selector, true
+            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.configureAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.removeAsset.selector, true
+            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.addAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.bulkDeposit.selector, true
@@ -101,10 +100,12 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(address(atomicQueue), QUEUE_ROLE, true);
         rolesAuthority.setUserRole(solver, CAN_SOLVE_ROLE, true);
 
-        teller.addAsset(WETH);
-        teller.addAsset(ERC20(NATIVE));
-        teller.addAsset(EETH);
-        teller.addAsset(WEETH);
+        ERC20[] memory assets = new ERC20[](3);
+        assets[0] = WETH;
+        assets[1] = EETH;
+        assets[2] = WEETH;
+
+        teller.addAssets(assets);
 
         AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
             new AccountantWithRateProviders.RateProviderData[](1);
@@ -158,6 +159,90 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__BadDepositHash.selector)
         );
         teller.refundDeposit(2, address(this), address(EETH), eETH_amount, shares1, secondDepositTimestamp, 1 days);
+    }
+
+    function testSupplyCap() external {
+        ERC20[] memory assets = new ERC20[](1);
+        assets[0] = WETH;
+        deal(address(WETH), address(this), 1e18);
+
+        teller.setSupplyCap(1e18);
+        WETH.approve(address(boringVault), 1e18);
+
+        teller.deposit(WETH, 0.5e18, 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__SupplyCapReached.selector)
+        );
+        teller.deposit(WETH, 0.51e18, 0);
+    }
+
+    function testDepositCap() external {
+        ERC20[] memory assets = new ERC20[](1);
+        assets[0] = WETH;
+
+        uint112[] memory rateLimits = new uint112[](1);
+        rateLimits[0] = type(uint112).max;
+
+        uint128[] memory depositCaps = new uint128[](1);
+        depositCaps[0] = 100e18;
+
+        bool[] memory withdrawStatusByAssets = new bool[](1);
+        withdrawStatusByAssets[0] = true;
+
+        teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
+        uint256 wETH_amount = 50e18;
+        deal(address(WETH), address(this), wETH_amount + 51e18);
+
+        WETH.safeApprove(address(boringVault), wETH_amount + 51e18);
+        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0);
+
+        assertGt(shares0, 0, "should have received shares");
+
+        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        vm.expectRevert(
+            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
+        );
+        uint256 shares1 = teller.deposit(WETH, wETH_amount, 0);
+
+        vm.warp(block.timestamp + 1 + teller.rateLimitPeriod());
+        // unlike with rate limit, deposit cap is not reset after rate limit period
+        vm.expectRevert(
+            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
+        );
+        uint256 shares2 = teller.deposit(WETH, wETH_amount, 0);
+    }
+
+    function testDepositRateLimit() external {
+        ERC20[] memory assets = new ERC20[](1);
+        assets[0] = WETH;
+
+        uint112[] memory rateLimits = new uint112[](1);
+        rateLimits[0] = 100e18;
+
+        uint128[] memory depositCaps = new uint128[](1);
+        depositCaps[0] = type(uint128).max;
+
+        bool[] memory withdrawStatusByAssets = new bool[](1);
+        withdrawStatusByAssets[0] = true;
+
+        teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
+        uint256 wETH_amount = 50e18;
+        deal(address(WETH), address(this), wETH_amount + 51e18);
+
+        WETH.safeApprove(address(boringVault), wETH_amount + 51e18);
+        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0);
+
+        assertGt(shares0, 0, "should have received shares");
+
+        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        vm.expectRevert(
+            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__RateLimit.selector)
+        );
+        uint256 shares1 = teller.deposit(WETH, wETH_amount, 0);
+
+        vm.warp(block.timestamp + 1 + teller.rateLimitPeriod());
+        uint256 shares2 = teller.deposit(WETH, wETH_amount, 0);
+        assertGt(shares2, 0, "should have received shares after warp past rate limit period");
     }
 
     function testUserDepositPeggedAssets(uint256 amount) external {
@@ -392,15 +477,32 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     }
 
     function testAssetIsSupported() external {
-        assertTrue(teller.isSupported(WETH) == true, "WETH should be supported");
+        assertTrue(teller.isWithdrawSupported(WETH) == true, "WETH withdraw should be supported");
 
-        teller.removeAsset(WETH);
+        ERC20[] memory assets = new ERC20[](1);
+        assets[0] = WETH;
 
-        assertTrue(teller.isSupported(WETH) == false, "WETH should not be supported");
+        uint112[] memory rateLimits = new uint112[](1);
+        rateLimits[0] = 0;
 
-        teller.addAsset(WETH);
+        uint128[] memory depositCaps = new uint128[](1);
+        depositCaps[0] = type(uint128).max;
 
-        assertTrue(teller.isSupported(WETH) == true, "WETH should be supported");
+        bool[] memory withdrawStatusByAssets = new bool[](1);
+        withdrawStatusByAssets[0] = false;
+
+        teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
+        assertTrue(teller.isWithdrawSupported(WETH) == false, "WETH should not be supported");
+
+        (, uint112 rateLimit,,,) = teller.limitByAsset(address(WETH));
+
+        assertEq(rateLimit, 0, "Should have 0 rate limit");
+
+        rateLimits[0] = type(uint112).max;
+        withdrawStatusByAssets[0] = true;
+        teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
+
+        assertTrue(teller.isWithdrawSupported(WETH) == true, "WETH withdraw should be supported");
     }
 
     function testReverts() external {
@@ -419,14 +521,29 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         teller.unpause();
 
-        teller.removeAsset(WETH);
+        ERC20[] memory assets = new ERC20[](1);
+        assets[0] = WETH;
+
+        uint112[] memory rateLimits = new uint112[](1);
+        rateLimits[0] = 0;
+
+        uint128[] memory depositCaps = new uint128[](1);
+        depositCaps[0] = type(uint128).max;
+
+        bool[] memory withdrawStatusByAssets = new bool[](1);
+        withdrawStatusByAssets[0] = true;
+
+        teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__AssetNotSupported.selector)
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__AssetDepositNotSupported.selector
+            )
         );
         teller.deposit(WETH, 0, 0);
 
-        teller.addAsset(WETH);
+        rateLimits[0] = type(uint112).max;
+        teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
 
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__ZeroAssets.selector)
@@ -437,11 +554,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MinimumMintNotMet.selector)
         );
         teller.deposit(WETH, 1, type(uint256).max);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__ZeroAssets.selector)
-        );
-        teller.deposit(NATIVE_ERC20, 0, 0);
 
         // bulkDeposit reverts
         vm.expectRevert(
