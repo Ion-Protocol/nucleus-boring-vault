@@ -29,10 +29,7 @@ abstract contract CurveDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
-    function deposit(uint256, address receiver) external view virtual returns (bytes memory addressesFound) {
-        if (receiver != boringVault) {
-            revert NotVault();
-        }
+    function deposit(uint256, address receiver) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(receiver);
     }
 

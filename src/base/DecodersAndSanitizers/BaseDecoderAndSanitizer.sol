@@ -5,8 +5,6 @@ pragma solidity 0.8.21;
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 contract BaseDecoderAndSanitizer {
-    error NotVault();
-
     //============================== IMMUTABLES ===============================
 
     /**
