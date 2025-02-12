@@ -24,11 +24,6 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     // ========================================= CONSTANTS =========================================
 
     /**
-     * @notice Native address used to tell the contract to handle native asset deposits.
-     */
-    address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
-    /**
      * @notice The maximum possible share lock period.
      */
     uint256 internal constant MAX_SHARE_LOCK_PERIOD = 3 days;
@@ -315,7 +310,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     function deposit(
         ERC20 depositAsset,
         uint256 depositAmount,
-        uint256 minimumMint
+        uint256 minimumMint,
+        address to
     )
         external
         requiresAuth
@@ -324,9 +320,9 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
 
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
 
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
+        _afterPublicDeposit(to, depositAsset, depositAmount, shares, shareLockPeriod);
     }
 
     /**
@@ -338,6 +334,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         uint256 depositAmount,
         uint256 minimumMint,
         uint256 deadline,
+        address to,
         uint8 v,
         bytes32 r,
         bytes32 s
@@ -356,29 +353,9 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
                 revert TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
             }
         }
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
-    }
-
-    /**
-     * @notice Allows on ramp role to deposit into this contract.
-     * @dev Does NOT support native deposits.
-     * @dev Callable by SOLVER_ROLE.
-     */
-    function bulkDeposit(
-        ERC20 depositAsset,
-        uint256 depositAmount,
-        uint256 minimumMint,
-        address to
-    )
-        external
-        requiresAuth
-        nonReentrant
-        returns (uint256 shares)
-    {
         shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
-        emit BulkDeposit(address(depositAsset), depositAmount);
+
+        _afterPublicDeposit(to, depositAsset, depositAmount, shares, shareLockPeriod);
     }
 
     /**

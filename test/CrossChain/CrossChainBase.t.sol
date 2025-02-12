@@ -78,9 +78,6 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
-        );
-        rolesAuthority.setRoleCapability(
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         rolesAuthority.setRoleCapability(

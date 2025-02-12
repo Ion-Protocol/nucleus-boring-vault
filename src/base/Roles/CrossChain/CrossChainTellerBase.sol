@@ -17,6 +17,11 @@ struct BridgeData {
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
  */
 abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
+    /**
+     * @notice Native address, used for handling fees
+     */
+    address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     event MessageSent(
         bytes32 messageId, uint32 indexed destinationId, uint256 shareAmount, address indexed from, address indexed to
     );

@@ -33,6 +33,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     AccountantWithRateProviders public accountant;
     address public payout_address = vm.addr(7_777_777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    ERC20 internal constant NATIVE_ERC20 = ERC20(NATIVE);
     RolesAuthority public rolesAuthority;
     AtomicQueue public atomicQueue;
     AtomicSolverV3 public atomicSolverV3;
@@ -68,12 +69,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.configureAssets.selector, true
-        );
-        rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.addAssets.selector, true
-        );
-        rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.bulkDeposit.selector, true
         );
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, address(teller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
@@ -135,11 +130,11 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         WETH.safeApprove(address(boringVault), wETH_amount);
         EETH.safeApprove(address(boringVault), eETH_amount);
-        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0, address(this));
         uint256 firstDepositTimestamp = block.timestamp;
         // Skip 1 days to finalize first deposit.
         skip(1 days + 1);
-        uint256 shares1 = teller.deposit(EETH, eETH_amount, 0);
+        uint256 shares1 = teller.deposit(EETH, eETH_amount, 0, address(this));
         uint256 secondDepositTimestamp = block.timestamp;
 
         // Even if setShareLockPeriod is set to 2 days, first deposit is still not revertable.
@@ -169,11 +164,11 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         teller.setSupplyCap(1e18);
         WETH.approve(address(boringVault), 1e18);
 
-        teller.deposit(WETH, 0.5e18, 0);
+        teller.deposit(WETH, 0.5e18, 0, address(this));
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__SupplyCapReached.selector)
         );
-        teller.deposit(WETH, 0.51e18, 0);
+        teller.deposit(WETH, 0.51e18, 0, address(this));
     }
 
     function testDepositCap() external {
@@ -194,7 +189,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), address(this), wETH_amount + 51e18);
 
         WETH.safeApprove(address(boringVault), wETH_amount + 51e18);
-        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0, address(this));
 
         assertGt(shares0, 0, "should have received shares");
 
@@ -202,14 +197,14 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
         );
-        uint256 shares1 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares1 = teller.deposit(WETH, wETH_amount, 0, address(this));
 
         vm.warp(block.timestamp + 1 + teller.rateLimitPeriod());
         // unlike with rate limit, deposit cap is not reset after rate limit period
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
         );
-        uint256 shares2 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares2 = teller.deposit(WETH, wETH_amount, 0, address(this));
     }
 
     function testDepositRateLimit() external {
@@ -230,7 +225,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), address(this), wETH_amount + 51e18);
 
         WETH.safeApprove(address(boringVault), wETH_amount + 51e18);
-        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares0 = teller.deposit(WETH, wETH_amount, 0, address(this));
 
         assertGt(shares0, 0, "should have received shares");
 
@@ -238,10 +233,10 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__RateLimit.selector)
         );
-        uint256 shares1 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares1 = teller.deposit(WETH, wETH_amount, 0, address(this));
 
         vm.warp(block.timestamp + 1 + teller.rateLimitPeriod());
-        uint256 shares2 = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares2 = teller.deposit(WETH, wETH_amount, 0, address(this));
         assertGt(shares2, 0, "should have received shares after warp past rate limit period");
     }
 
@@ -257,8 +252,8 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         WETH.safeApprove(address(boringVault), wETH_amount);
         EETH.safeApprove(address(boringVault), eETH_amount);
 
-        teller.deposit(WETH, wETH_amount, 0);
-        teller.deposit(EETH, eETH_amount, 0);
+        teller.deposit(WETH, wETH_amount, 0, address(this));
+        teller.deposit(EETH, eETH_amount, 0, address(this));
 
         uint256 expected_shares = 2 * amount;
 
@@ -273,7 +268,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         WEETH.safeApprove(address(boringVault), weETH_amount);
 
-        teller.deposit(WEETH, weETH_amount, 0);
+        teller.deposit(WEETH, weETH_amount, 0, address(this));
 
         uint256 expected_shares = teller.accountant().getSharesForDepositAmount(WEETH, weETH_amount);
 
@@ -310,7 +305,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userKey, digest);
 
         vm.startPrank(user);
-        teller.depositWithPermit(WEETH, weETH_amount, 0, block.timestamp, v, r, s);
+        teller.depositWithPermit(WEETH, weETH_amount, 0, block.timestamp, user, v, r, s);
         vm.stopPrank();
 
         // and if user supplied wrong permit data, deposit will fail.
@@ -338,7 +333,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
                 TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow.selector
             )
         );
-        teller.depositWithPermit(WEETH, weETH_amount, 0, block.timestamp, v, r, s);
+        teller.depositWithPermit(WEETH, weETH_amount, 0, block.timestamp, user, v, r, s);
         vm.stopPrank();
     }
 
@@ -377,7 +372,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         // Users TX is still successful.
         vm.startPrank(user);
-        teller.depositWithPermit(WEETH, weETH_amount, 0, block.timestamp, v, r, s);
+        teller.depositWithPermit(WEETH, weETH_amount, 0, block.timestamp, user, v, r, s);
         vm.stopPrank();
 
         assertTrue(boringVault.balanceOf(user) > 0, "Should have received shares");
@@ -399,9 +394,9 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         EETH.safeApprove(address(boringVault), eETH_amount);
         WEETH.safeApprove(address(boringVault), weETH_amount);
 
-        teller.bulkDeposit(WETH, wETH_amount, 0, address(this));
-        teller.bulkDeposit(EETH, eETH_amount, 0, address(this));
-        teller.bulkDeposit(WEETH, weETH_amount, 0, address(this));
+        teller.deposit(WETH, wETH_amount, 0, address(this));
+        teller.deposit(EETH, eETH_amount, 0, address(this));
+        teller.deposit(WEETH, weETH_amount, 0, address(this));
 
         uint256 expected_shares = 3 * amount;
 
@@ -425,9 +420,9 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         EETH.safeApprove(address(boringVault), eETH_amount);
         WEETH.safeApprove(address(boringVault), weETH_amount);
 
-        uint256 shares_0 = teller.bulkDeposit(WETH, wETH_amount, 0, address(this));
-        uint256 shares_1 = teller.bulkDeposit(EETH, eETH_amount, 0, address(this));
-        uint256 shares_2 = teller.bulkDeposit(WEETH, weETH_amount, 0, address(this));
+        uint256 shares_0 = teller.deposit(WETH, wETH_amount, 0, address(this));
+        uint256 shares_1 = teller.deposit(EETH, eETH_amount, 0, address(this));
+        uint256 shares_2 = teller.deposit(WEETH, weETH_amount, 0, address(this));
 
         uint256 assets_out_0 = teller.bulkWithdraw(WETH, shares_0, 0, address(this));
         uint256 assets_out_1 = teller.bulkWithdraw(EETH, shares_1, 0, address(this));
@@ -453,7 +448,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         vm.startPrank(user);
         WETH.safeApprove(address(boringVault), wETH_amount);
 
-        uint256 shares = teller.deposit(WETH, wETH_amount, 0);
+        uint256 shares = teller.deposit(WETH, wETH_amount, 0, user);
 
         // Share lock period is not set, so user can submit withdraw request immediately.
         AtomicQueue.AtomicRequest memory req = AtomicQueue.AtomicRequest({
@@ -512,12 +507,12 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector)
         );
-        teller.deposit(WETH, 0, 0);
+        teller.deposit(WETH, 0, 0, address(this));
 
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector)
         );
-        teller.depositWithPermit(WETH, 0, 0, 0, 0, bytes32(0), bytes32(0));
+        teller.depositWithPermit(WETH, 0, 0, 0, address(this), 0, bytes32(0), bytes32(0));
 
         teller.unpause();
 
@@ -540,7 +535,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
                 TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__AssetDepositNotSupported.selector
             )
         );
-        teller.deposit(WETH, 0, 0);
+        teller.deposit(WETH, 0, 0, address(this));
 
         rateLimits[0] = type(uint112).max;
         teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
@@ -548,23 +543,19 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__ZeroAssets.selector)
         );
-        teller.deposit(WETH, 0, 0);
+        teller.deposit(WETH, 0, 0, address(this));
 
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MinimumMintNotMet.selector)
         );
-        teller.deposit(WETH, 1, type(uint256).max);
-
-        // bulkDeposit reverts
-        vm.expectRevert(
-            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__ZeroAssets.selector)
-        );
-        teller.bulkDeposit(WETH, 0, 0, address(this));
+        teller.deposit(WETH, 1, type(uint256).max, address(this));
 
         vm.expectRevert(
-            abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MinimumMintNotMet.selector)
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__AssetDepositNotSupported.selector
+            )
         );
-        teller.bulkDeposit(WETH, 1, type(uint256).max, address(this));
+        teller.deposit(NATIVE_ERC20, 0, 0, address(this));
 
         // bulkWithdraw reverts
         vm.expectRevert(
@@ -597,7 +588,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         deal(address(WETH), user, wETH_amount);
         WETH.safeApprove(address(boringVault), wETH_amount);
 
-        teller.deposit(WETH, wETH_amount, 0);
+        teller.deposit(WETH, wETH_amount, 0, user);
 
         // Trying to transfer shares should revert.
         vm.expectRevert(

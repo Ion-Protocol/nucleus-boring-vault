@@ -14,6 +14,7 @@ import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
  * @title BoringVault
  * @custom:security-contact security@molecularlabs.io
  */
+
 contract BoringVault is ERC20, AuthOwnable2Step, ERC721Holder, ERC1155Holder {
     using Address for address;
     using SafeTransferLib for ERC20;

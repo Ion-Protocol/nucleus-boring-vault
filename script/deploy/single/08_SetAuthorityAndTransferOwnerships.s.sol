@@ -9,6 +9,7 @@ import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
  * Update `rolesAuthority` and transfer ownership from deployer EOA to the
  * protocol.
  */
+
 contract SetAuthorityAndTransferOwnerships is BaseScript {
     using StdJson for string;
 
