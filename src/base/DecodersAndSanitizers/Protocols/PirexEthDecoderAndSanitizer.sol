@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract PirexEthDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    function deposit(address receiver, bool) external returns (bytes memory) {
+    function deposit(address receiver, bool) external view returns (bytes memory) {
         if (receiver != boringVault) {
             revert NotVault();
         }
