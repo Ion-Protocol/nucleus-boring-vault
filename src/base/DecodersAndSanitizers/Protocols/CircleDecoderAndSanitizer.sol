@@ -26,5 +26,6 @@ abstract contract CircleDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory addressesFound)
     {
         // nothing to sanitize
+        return addressesFound;
     }
 }
