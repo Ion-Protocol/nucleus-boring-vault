@@ -179,6 +179,18 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         emit Unpaused();
     }
 
+    /**
+     * @notice Sets the rate limit period.
+     * @dev Callable by OWNER_ROLE.
+     */
+    function setRateLimitPeriod(uint32 _rateLimitPeriod) external requiresAuth {
+        rateLimitPeriod = _rateLimitPeriod;
+    }
+
+    /**
+     * @notice Adds assets to the teller.
+     * @dev Callable by OWNER_ROLE.
+     */
     function addAssets(ERC20[] calldata assets) external requiresAuth {
         uint256 length = assets.length;
         for (uint256 i; i < length; ++i) {

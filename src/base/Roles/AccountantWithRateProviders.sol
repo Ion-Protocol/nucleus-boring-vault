@@ -97,7 +97,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
     event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
     event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
-    event performanceFeeUpdated(uint16 oldFee, uint16 newFee);
+    event PerformanceFeeUpdated(uint16 oldFee, uint16 newFee);
     event PayoutAddressUpdated(address oldPayout, address newPayout);
     event RateProviderDataUpdated(address indexed asset, RateProviderData[] newRateProviderData);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
@@ -241,7 +241,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         if (performanceFee > 0.2e4) revert AccountantWithRateProviders__PerformanceFeeTooLarge();
         uint16 oldFee = accountantState.performanceFee;
         accountantState.performanceFee = performanceFee;
-        emit performanceFeeUpdated(oldFee, performanceFee);
+        emit PerformanceFeeUpdated(oldFee, performanceFee);
     }
 
     /**
