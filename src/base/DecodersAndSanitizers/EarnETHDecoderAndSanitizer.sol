@@ -8,12 +8,20 @@ import { MasterChefV3DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/MasterChefV3DecoderAndSanitizer.sol";
 import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
+import { LidoDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/LidoDecoderAndSanitizer.sol";
+import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
+import { EigenpieDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EigenpieDecoderAndSanitizer.sol";
+import { MellowDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/MellowDecoderAndSanitizer.sol";
 
 contract EarnETHDecoderAndSanitizer is
+    LidoDecoderAndSanitizer,
+    CurveDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
-    PendleRouterDecoderAndSanitizer
+    PendleRouterDecoderAndSanitizer,
+    EigenpieDecoderAndSanitizer,
+    MellowDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
@@ -22,4 +30,14 @@ contract EarnETHDecoderAndSanitizer is
         UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
         BaseDecoderAndSanitizer(_boringVault)
     { }
+
+    function withdraw(uint256)
+        external
+        pure
+        override(CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        // Nothing to sanitize or return
+        return addressesFound;
+    }
 }

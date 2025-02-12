@@ -7,6 +7,7 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
 
     error PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+    error PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
 
     //============================== PENDLEROUTER ===============================
 
@@ -163,5 +164,91 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         for (uint256 i; i < marketsLength; ++i) {
             addressesFound = abi.encodePacked(addressesFound, markets[i]);
         }
+    }
+
+    function addLiquiditySingleTokenKeepYt(
+        address receiver,
+        address market,
+        uint256 minLpOut,
+        uint256 minYtOut,
+        DecoderCustomTypes.TokenInput calldata input
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        if (
+            input.swapData.swapType != DecoderCustomTypes.SwapType.NONE || input.swapData.extRouter != address(0)
+                || input.pendleSwap != address(0) || input.tokenIn != input.tokenMintSy
+        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+
+        addressesFound = abi.encodePacked(receiver, market, input.tokenIn);
+    }
+
+    function addLiquiditySingleToken(
+        address receiver,
+        address market,
+        uint256 minLpOut,
+        DecoderCustomTypes.ApproxParams calldata guessPtReceivedFromSy,
+        DecoderCustomTypes.TokenInput calldata input,
+        DecoderCustomTypes.LimitOrderData calldata limit
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
+        if (
+            input.swapData.swapType != DecoderCustomTypes.SwapType.NONE || input.swapData.extRouter != address(0)
+                || input.pendleSwap != address(0) || input.tokenIn != input.tokenMintSy
+        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+
+        if (limit.limitRouter != address(0)) {
+            revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
+        }
+
+        addressesFound = abi.encodePacked(receiver, market);
+    }
+
+    function removeLiquiditySingleToken(
+        address receiver,
+        address market,
+        uint256 netLpToRemove,
+        DecoderCustomTypes.TokenOutput calldata output,
+        DecoderCustomTypes.LimitOrderData calldata limit
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressFound)
+    {
+        if (
+            output.swapData.swapType != DecoderCustomTypes.SwapType.NONE || output.swapData.extRouter != address(0)
+                || output.pendleSwap != address(0) || output.tokenOut != output.tokenRedeemSy
+        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+
+        if (limit.limitRouter != address(0)) {
+            revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
+        }
+
+        addressFound = abi.encodePacked(receiver, market);
+    }
+
+    function exitPostExpToToken(
+        address receiver,
+        address market,
+        uint256 netPtIn,
+        uint256 netLpIn,
+        DecoderCustomTypes.TokenOutput calldata output
+    )
+        external
+        returns (bytes memory addressFound)
+    {
+        if (
+            output.swapData.swapType != DecoderCustomTypes.SwapType.NONE || output.swapData.extRouter != address(0)
+                || output.pendleSwap != address(0)
+        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+
+        addressFound = abi.encodePacked(receiver, market, output.tokenOut, output.tokenRedeemSy);
     }
 }
