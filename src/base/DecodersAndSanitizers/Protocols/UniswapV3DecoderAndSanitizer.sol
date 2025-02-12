@@ -104,17 +104,4 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Return addresses found
         addressesFound = abi.encodePacked(params.recipient);
     }
-
-    function safeTransferFrom(
-        address,
-        address to,
-        uint256
-    )
-        external
-        pure
-        virtual
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encodePacked(to);
-    }
 }

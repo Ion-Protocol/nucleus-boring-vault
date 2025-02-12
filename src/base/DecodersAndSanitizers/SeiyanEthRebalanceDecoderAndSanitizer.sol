@@ -8,7 +8,6 @@ import { NativeWrapperDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/NativeWrapperDecoderAndSanitizer.sol";
 import { ERC4626DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/ERC4626DecoderAndSanitizer.sol";
 import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
-import { LidoDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/LidoDecoderAndSanitizer.sol";
 
 contract SeiyanEthRebalanceDecoderAndSanitizer is
     BaseDecoderAndSanitizer,
@@ -16,8 +15,7 @@ contract SeiyanEthRebalanceDecoderAndSanitizer is
     LayerZeroOFTDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
     ERC4626DecoderAndSanitizer,
-    CurveDecoderAndSanitizer,
-    LidoDecoderAndSanitizer
+    CurveDecoderAndSanitizer
 {
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
