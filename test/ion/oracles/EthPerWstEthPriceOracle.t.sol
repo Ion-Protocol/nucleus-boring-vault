@@ -3,14 +3,16 @@ pragma solidity 0.8.21;
 
 import { EthPerWstEthRateProvider } from "./../../../src/oracles/EthPerWstEthRateProvider.sol";
 import { ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS } from "@ion-protocol/Constants.sol";
-import { IonPoolSharedSetup } from "../IonPoolSharedSetup.sol";
+import { Test } from "@forge-std/Test.sol";
 
-contract EthPerWstEthRateProviderTest is IonPoolSharedSetup {
+contract EthPerWstEthRateProviderTest is Test{
     uint256 MAX_TIME_FROM_LAST_UPDATE = 1 days;
     EthPerWstEthRateProvider ethPerWstEthRateProvider;
 
-    function setUp() public override {
-        super.setUp();
+    function setUp() public {
+        string memory rpcKey = "MAINNET_RPC_URL";
+        uint256 blockNumber = 19_827_152;
+        _startFork(rpcKey, blockNumber);
 
         ethPerWstEthRateProvider = new EthPerWstEthRateProvider(
             address(ETH_PER_STETH_CHAINLINK), address(WSTETH_ADDRESS), MAX_TIME_FROM_LAST_UPDATE
@@ -30,5 +32,10 @@ contract EthPerWstEthRateProviderTest is IonPoolSharedSetup {
             )
         );
         ethPerWstEthRateProvider.getRate();
+    }
+
+    function _startFork(string memory rpcKey, uint256 blockNumber) internal returns (uint256 forkId) {
+        forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
+        vm.selectFork(forkId);
     }
 }

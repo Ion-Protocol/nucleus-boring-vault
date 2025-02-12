@@ -4,9 +4,10 @@ pragma solidity 0.8.21;
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 
-abstract contract UManager is Auth {
+abstract contract UManager is AuthOwnable2Step {
     using FixedPointMathLib for uint256;
 
     // ========================================= STATE =========================================
@@ -62,7 +63,13 @@ abstract contract UManager is Auth {
      */
     address internal immutable boringVault;
 
-    constructor(address _owner, address _manager, address _boringVault) Auth(_owner, Authority(address(0))) {
+    constructor(
+        address _owner,
+        address _manager,
+        address _boringVault
+    )
+        AuthOwnable2Step(_owner, Authority(address(0)))
+    {
         manager = ManagerWithMerkleVerification(_manager);
         boringVault = _boringVault;
     }

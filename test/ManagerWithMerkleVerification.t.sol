@@ -1735,7 +1735,13 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         // Set the manage root to be the leaf of the USDC approve function
         bytes32 manageRoot = keccak256(
-            abi.encodePacked(rawDataDecoderAndSanitizer, targets[0], false, bytes4(targetData[0]), address(this))
+            bytes.concat(
+                keccak256(
+                    abi.encodePacked(
+                        rawDataDecoderAndSanitizer, targets[0], false, bytes4(targetData[0]), address(this)
+                    )
+                )
+            )
         );
         manager.setManageRoot(address(this), manageRoot);
 
@@ -3169,7 +3175,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
-            bytes32 leaf = keccak256(rawDigest);
+            bytes32 leaf = keccak256(bytes.concat(keccak256(rawDigest)));
             proofs[i] = _generateProof(leaf, tree);
         }
     }
@@ -3229,7 +3235,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
-            leafs[0][i] = keccak256(rawDigest);
+            leafs[0][i] = keccak256(bytes.concat(keccak256(rawDigest)));
         }
         tree = _buildTrees(leafs);
     }
