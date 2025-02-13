@@ -13,6 +13,11 @@ import { OneInchDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Proto
 import { BalancerV2DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/BalancerV2DecoderAndSanitizer.sol";
 import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
+import { NativeWrapperDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/NativeWrapperDecoderAndSanitizer.sol";
+import { ERC4626DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/ERC4626DecoderAndSanitizer.sol";
+import { EigenpieDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EigenpieDecoderAndSanitizer.sol";
+import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PirexEthDecoderAndSanitizer.sol";
 
 contract earnBTCDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -21,7 +26,11 @@ contract earnBTCDecoderAndSanitizer is
     UniswapV3DecoderAndSanitizer,
     OneInchDecoderAndSanitizer,
     BalancerV2DecoderAndSanitizer,
-    CurveDecoderAndSanitizer
+    CurveDecoderAndSanitizer,
+    NativeWrapperDecoderAndSanitizer,
+    ERC4626DecoderAndSanitizer,
+    EigenpieDecoderAndSanitizer,
+    PirexEthDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
@@ -37,7 +46,9 @@ contract earnBTCDecoderAndSanitizer is
     )
         external
         pure
-        override(BalancerV2DecoderAndSanitizer, swBTCDecoderAndSanitizer, CurveDecoderAndSanitizer)
+        override(
+            BalancerV2DecoderAndSanitizer, swBTCDecoderAndSanitizer, CurveDecoderAndSanitizer, ERC4626DecoderAndSanitizer
+        )
         returns (bytes memory addressesFound)
     {
         addressesFound = abi.encodePacked(receiver);
@@ -46,7 +57,7 @@ contract earnBTCDecoderAndSanitizer is
     function withdraw(uint256)
         external
         pure
-        override(BalancerV2DecoderAndSanitizer, CurveDecoderAndSanitizer)
+        override(BalancerV2DecoderAndSanitizer, CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer)
         returns (bytes memory addressesFound)
     {
         // Nothing to sanitize or return
