@@ -7,7 +7,7 @@ import { MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 
 abstract contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
-
+    error LayerZeroOFTDecoderAndSanitizer_OnlyBoringVault();
     /**
      * @dev _sendParam:
      *     uint32 dstEid; // Destination endpoint ID.                                                              [VERIFY]
@@ -22,6 +22,7 @@ abstract contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
      *     uint256 nativeFee;
      *     uint256 lzTokenFee;
      */
+
     function send(
         SendParam calldata _sendParam,
         MessagingFee calldata,
@@ -32,7 +33,7 @@ abstract contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory)
     {
         if (bytes32ToAddress(_sendParam.to) != boringVault || refundReceiver != boringVault) {
-            revert NotVault();
+            revert LayerZeroOFTDecoderAndSanitizer_OnlyBoringVault();
         }
         if (_sendParam.composeMsg.length > 0) {
             revert LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();

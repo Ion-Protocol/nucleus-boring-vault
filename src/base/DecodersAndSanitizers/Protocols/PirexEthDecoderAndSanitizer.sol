@@ -4,9 +4,11 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract PirexEthDecoderAndSanitizer is BaseDecoderAndSanitizer {
+    error PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
+
     function deposit(address receiver, bool) external returns (bytes memory) {
         if (receiver != boringVault) {
-            revert NotVault();
+            revert PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
         }
         return abi.encodePacked(receiver);
     }

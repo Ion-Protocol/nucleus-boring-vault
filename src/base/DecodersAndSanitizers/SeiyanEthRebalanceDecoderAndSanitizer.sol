@@ -17,6 +17,8 @@ contract SeiyanEthRebalanceDecoderAndSanitizer is
     ERC4626DecoderAndSanitizer,
     CurveDecoderAndSanitizer
 {
+    error SeiyanEthRebalanceDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
+
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
     function deposit(
@@ -29,7 +31,7 @@ contract SeiyanEthRebalanceDecoderAndSanitizer is
         returns (bytes memory addressesFound)
     {
         if (receiver != boringVault) {
-            revert NotVault();
+            revert SeiyanEthRebalanceDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
         }
         addressesFound = abi.encodePacked(receiver);
     }
