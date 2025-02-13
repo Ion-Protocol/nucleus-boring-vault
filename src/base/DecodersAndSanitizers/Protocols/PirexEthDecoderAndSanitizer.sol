@@ -12,4 +12,41 @@ abstract contract PirexEthDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
         return abi.encodePacked(receiver);
     }
+
+    function initiateRedemption(
+        uint256 _assets,
+        address _receiver,
+        bool _shouldTriggerValidatorExit
+    )
+        external
+        view
+        returns (bytes memory)
+    {
+        if (_receiver != boringVault) {
+            revert PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
+        }
+        return abi.encodePacked(_receiver);
+    }
+
+    function redeemWithUpxEth(
+        uint256 _tokenId,
+        uint256 _assets,
+        address _receiver
+    )
+        external
+        view
+        returns (bytes memory)
+    {
+        if (_receiver != boringVault) {
+            revert PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
+        }
+        return abi.encodePacked(_receiver);
+    }
+
+    function instantRedeemWithPxEth(uint256 _assets, address _receiver) external view returns (bytes memory) {
+        if (_receiver != boringVault) {
+            revert PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
+        }
+        return abi.encodePacked(_receiver);
+    }
 }
