@@ -242,7 +242,8 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     function deposit(
         ERC20 depositAsset,
         uint256 depositAmount,
-        uint256 minimumMint
+        uint256 minimumMint,
+        address to
     )
         external
         requiresAuth
@@ -252,9 +253,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
 
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
+        _afterPublicDeposit(to, depositAsset, depositAmount, shares, shareLockPeriod);
     }
 
     /**
@@ -266,6 +267,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         uint256 depositAmount,
         uint256 minimumMint,
         uint256 deadline,
+        address to,
         uint8 v,
         bytes32 r,
         bytes32 s
@@ -285,31 +287,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
                 revert TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
             }
         }
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
-    }
-
-    /**
-     * @notice Allows on ramp role to deposit into this contract.
-     * @dev Does NOT support native deposits.
-     * @dev Callable by SOLVER_ROLE.
-     */
-    function bulkDeposit(
-        ERC20 depositAsset,
-        uint256 depositAmount,
-        uint256 minimumMint,
-        address to
-    )
-        external
-        requiresAuth
-        nonReentrant
-        returns (uint256 shares)
-    {
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
-
         shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
-        emit BulkDeposit(address(depositAsset), depositAmount);
+
+        _afterPublicDeposit(to, depositAsset, depositAmount, shares, shareLockPeriod);
     }
 
     /**

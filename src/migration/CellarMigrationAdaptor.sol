@@ -143,16 +143,6 @@ contract CellarMigrationAdaptor {
     //============================================ Strategist Functions ===========================================
 
     /**
-     * @notice Allows strategist to perform a bulkDeposit into Teller.
-     */
-    function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint) external {
-        depositAmount = _maxAvailable(depositAsset, depositAmount);
-        depositAsset.safeApprove(address(boringVault), depositAmount);
-        teller.bulkDeposit(depositAsset, depositAmount, minimumMint, address(this));
-        _revokeExternalApproval(depositAsset, address(boringVault));
-    }
-
-    /**
      * @notice Allows strategist to perform a bulkWithdraw from Teller.
      */
     function withdraw(ERC20 withdrawAsset, uint256 shareAmount, uint256 minimumAssets) external {
