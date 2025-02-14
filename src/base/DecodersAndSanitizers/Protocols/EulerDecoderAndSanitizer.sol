@@ -65,4 +65,17 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (account != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
         addressesFound = abi.encodePacked(vault);
     }
+
+    function enableController(
+        address account,
+        address vault
+    )
+        external
+        view
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        if (account != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
+        addressesFound = abi.encodePacked(vault);
+    }
 }

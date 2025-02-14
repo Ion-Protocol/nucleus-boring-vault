@@ -12,8 +12,11 @@ import { PendleRouterDecoderAndSanitizer } from
 import { TempestDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/TempestDecoderAndSanitizer.sol";
 import { SwellDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/SwellDecoderAndSanitizer.sol";
 import { EulerDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EulerDecoderAndSanitizer.sol";
+import { OPStandardL2BridgeDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/OPStandardL2BridgeDecoderAndSanitizer.sol";
 
 contract EarnETHSwellDecoderAndSanitizer is
+    OPStandardL2BridgeDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
     PendleRouterDecoderAndSanitizer,
