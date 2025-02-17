@@ -5,7 +5,7 @@ import { EthPerWstEthRateProvider } from "./../../../src/oracles/EthPerWstEthRat
 import { ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS } from "@ion-protocol/Constants.sol";
 import { Test } from "@forge-std/Test.sol";
 
-contract EthPerWstEthRateProviderTest is Test{
+contract EthPerWstEthRateProviderTest is Test {
     uint256 MAX_TIME_FROM_LAST_UPDATE = 1 days;
     EthPerWstEthRateProvider ethPerWstEthRateProvider;
 

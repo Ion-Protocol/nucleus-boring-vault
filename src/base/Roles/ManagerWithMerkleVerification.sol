@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { MerkleProofLib } from "@solmate/utils/MerkleProofLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -16,7 +15,6 @@ import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract ManagerWithMerkleVerification is AuthOwnable2Step {
-    using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
     using Address for address;
 

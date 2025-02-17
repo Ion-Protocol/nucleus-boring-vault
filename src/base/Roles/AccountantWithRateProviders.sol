@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
-import { Authority } from "@solmate/auth/Auth.sol";
-import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
+import { AuthOwnable2Step, Authority } from "src/helper/AuthOwnable2Step.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
 /**
  * @title AccountantWithRateProviders
  * @custom:security-contact security@molecularlabs.io
  */
-
 contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
-    using FixedPointMathLib for uint256;
+    using Math for uint256;
     using SafeTransferLib for ERC20;
 
     // ========================================= STRUCTS =========================================
@@ -307,8 +306,8 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         uint256 currentTotalShares = vault.totalSupply();
         if (
             currentTime < state.lastUpdateTimestamp + state.minimumUpdateDelayInSeconds
-                || newExchangeRate > currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeUpper, 1e4)
-                || newExchangeRate < currentExchangeRate.mulDivDown(state.allowedExchangeRateChangeLower, 1e4)
+                || newExchangeRate > currentExchangeRate.mulDiv(state.allowedExchangeRateChangeUpper, 1e4)
+                || newExchangeRate < currentExchangeRate.mulDiv(state.allowedExchangeRateChangeLower, 1e4)
         ) {
             // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
             // exchange rate
@@ -330,18 +329,18 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
                 timeDelta = currentTime - state.lastUpdateTimestamp;
             }
             uint256 minimumAssets = newExchangeRate > currentExchangeRate
-                ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-                : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-            uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-            uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+                ? shareSupplyToUse.mulDiv(currentExchangeRate, ONE_SHARE)
+                : shareSupplyToUse.mulDiv(newExchangeRate, ONE_SHARE);
+            uint256 managementFeesAnnual = minimumAssets.mulDiv(state.managementFee, 1e4);
+            uint256 newFeesOwedInBase = managementFeesAnnual.mulDiv(timeDelta, 365 days);
             emit ManagementFeesAccrued(managementFeesAnnual);
 
             if (newExchangeRate > state.highestExchangeRate) {
                 unchecked {
                     if (state.performanceFee > 0) {
                         uint256 changeInAssets =
-                            uint256(newExchangeRate - state.highestExchangeRate).mulDivDown(shareSupplyToUse, ONE_SHARE);
-                        uint256 performanceFees = changeInAssets.mulDivDown(state.performanceFee, 1e4);
+                            uint256(newExchangeRate - state.highestExchangeRate).mulDiv(shareSupplyToUse, ONE_SHARE);
+                        uint256 performanceFees = changeInAssets.mulDiv(state.performanceFee, 1e4);
                         newFeesOwedInBase += performanceFees;
                         emit PerformanceFeesAccrued(performanceFees);
                     }
@@ -401,7 +400,11 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
             if (rate == 0) revert AccountantWithRateProviders__ZeroRate();
 
             // calculate the fees owed in fee asset
-            feesOwedInFeeAsset = (state.feesOwedInBase * 10 ** (feeAssetDecimals * 2)) / ((10 ** decimals) * rate);
+            uint256 _feesOwedInFeeAsset =
+                uint256(state.feesOwedInBase).mulDiv(10 ** (feeAssetDecimals * 2), (10 ** decimals) * rate);
+            assert(_feesOwedInFeeAsset < 2 ** 128);
+
+            feesOwedInFeeAsset = uint128(_feesOwedInFeeAsset);
         }
 
         // Zero out fees owed.
@@ -468,7 +471,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
 
         if (q == 0) revert AccountantWithRateProviders__ZeroRate();
 
-        shares = (depositAmount * q * 10 ** (2 * B)) / (e * 10 ** (2 * Q));
+        shares = depositAmount.mulDiv(q * 10 ** (2 * B), e * 10 ** (2 * Q));
     }
 
     /**
@@ -504,7 +507,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
 
         if (q == 0) revert AccountantWithRateProviders__ZeroQuoteRate();
 
-        assetsOut = shareAmount * e * 10 ** (2 * Q) / (q * 10 ** (2 * B));
+        assetsOut = shareAmount.mulDiv(e * 10 ** (2 * Q), q * 10 ** (2 * B));
     }
 
     /**
