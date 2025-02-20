@@ -13,6 +13,7 @@ import { DeployAccountantWithRateProviders } from "./single/04_DeployAccountantW
 import { DeployTellerWithMultiAssetSupport } from "./single/05_DeployTellerWithMultiAssetSupport.s.sol";
 import { DeployMultiChainLayerZeroTellerWithMultiAssetSupport } from
     "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
+import { DeployMultiChainHyperlaneTeller } from "./single/05c_DeployMultiChainHyperlaneTeller.s.sol";
 import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
 import { TellerSetup } from "./single/07_TellerSetup.s.sol";
 import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTransferOwnerships.s.sol";
@@ -98,6 +99,8 @@ contract DeployAll is BaseScript {
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {
         if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
+        } else if (compareStrings(config.tellerContractName, "MultiChainHyperlaneTellerWithMultiAssetSupport")) {
+            teller = new DeployMultiChainHyperlaneTeller().deploy(config);
         } else if (compareStrings(config.tellerContractName, "TellerWithMultiAssetSupport")) {
             teller = new DeployTellerWithMultiAssetSupport().deploy(config);
         } else {
