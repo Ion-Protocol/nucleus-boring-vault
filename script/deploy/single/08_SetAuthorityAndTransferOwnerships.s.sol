@@ -4,11 +4,12 @@ pragma solidity 0.8.21;
 import { BaseScript } from "./../../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader, IAuthority } from "../../ConfigReader.s.sol";
-
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 /**
  * Update `rolesAuthority` and transfer ownership from deployer EOA to the
  * protocol.
  */
+
 contract SetAuthorityAndTransferOwnerships is BaseScript {
     using StdJson for string;
 
@@ -41,9 +42,9 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
 
         // Post Configuration Check
-        require(IAuthority(config.boringVault).owner() == config.protocolAdmin, "boringVault");
-        require(IAuthority(config.manager).owner() == config.protocolAdmin, "manager");
-        require(IAuthority(config.accountant).owner() == config.protocolAdmin, "accountant");
-        require(IAuthority(config.teller).owner() == config.protocolAdmin, "teller");
+        require(AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin, "boringVault");
+        require(AuthOwnable2Step(config.manager).pendingOwner() == config.protocolAdmin, "manager");
+        require(AuthOwnable2Step(config.accountant).pendingOwner() == config.protocolAdmin, "accountant");
+        require(AuthOwnable2Step(config.teller).pendingOwner() == config.protocolAdmin, "teller");
     }
 }

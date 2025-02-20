@@ -15,12 +15,7 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
-
-import { CrossChainOPTellerWithMultiAssetSupportTest } from
-    "test/CrossChain/CrossChainOPTellerWithMultiAssetSupport.t.sol";
 import { CrossChainTellerBase, BridgeData, ERC20 } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
-import { CrossChainOPTellerWithMultiAssetSupport } from
-    "src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
 import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
     "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 
@@ -75,20 +70,6 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         runLiveTest(FILE_NAME);
 
-        // check for if all rate providers are deployed, if not error
-        for (uint256 i; i < mainConfig.assets.length; ++i) {
-            // set the corresponding rate provider
-            string memory key = string(
-                abi.encodePacked(
-                    ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
-                )
-            );
-
-            address rateProvider = getChainConfigFile().readAddress(key);
-            assertNotEq(rateProvider, address(0), "Rate provider address is 0");
-            assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
-        }
-
         // define one share based off of vault decimals
         ONE_SHARE = 10 ** BoringVault(payable(mainConfig.boringVault)).decimals();
 
@@ -104,9 +85,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
     function testDepositAndBridge(uint256 amount) public {
         string memory tellerName = mainConfig.tellerContractName;
-        if (compareStrings(tellerName, "CrossChainOPTellerWithMultiAssetSupport")) {
-            _testOPDepositAndBridge(ERC20(mainConfig.base), amount);
-        } else if (compareStrings(tellerName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
+        if (compareStrings(tellerName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
             _testLZDepositAndBridge(ERC20(mainConfig.base), amount);
         } else { }
     }
@@ -216,9 +195,9 @@ contract LiveDeploy is ForkTest, DeployAll {
         deal(mainConfig.base, mainConfig.boringVault, depositAmount);
         uint256 expectedShares;
         uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
-        uint256[] memory rateInQuoteBefore = new uint256[](assetsCount);
+        uint256[] memory depositRateBefore = new uint256[](assetsCount);
         for (uint256 i; i < assetsCount; ++i) {
-            rateInQuoteBefore[i] = accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i]));
+            depositRateBefore[i] = accountant.getDepositRate(ERC20(mainConfig.assets[i]));
 
             expectedSharesByAsset[i] = accountant.getSharesForDepositAmount(ERC20(mainConfig.assets[i]), depositAmount);
             expectedShares += expectedSharesByAsset[i];
@@ -231,11 +210,11 @@ contract LiveDeploy is ForkTest, DeployAll {
         // update the rate
         _updateRate(rateChange, accountant);
 
-        // withdrawal the assets for the same amount back
+        // The deposit rate should have changed
         for (uint256 i; i < assetsCount; ++i) {
             assertApproxEqAbs(
-                accountant.getRateInQuote(ERC20(mainConfig.assets[i])),
-                rateInQuoteBefore[i] * rateChange / 10_000,
+                accountant.getDepositRate(ERC20(mainConfig.assets[i])),
+                depositRateBefore[i] * 10_000 / rateChange,
                 1,
                 "Rate change did not apply to asset"
             );
@@ -316,7 +295,7 @@ contract LiveDeploy is ForkTest, DeployAll {
     function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount) internal {
         deal(address(asset), address(this), depositAmount);
         asset.approve(mainConfig.boringVault, depositAmount);
-        TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, 0);
+        TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, 0, address(this));
     }
 
     function _testLZDepositAndBridge(ERC20 asset, uint256 amount) internal {
@@ -363,47 +342,6 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         assertEq(asset.balanceOf(address(boringVault)), assetBefore + shares, "boring vault should have shares");
         vm.stopPrank();
-    }
-
-    function _testOPDepositAndBridge(ERC20 asset, uint256 amount) internal {
-        CrossChainOPTellerWithMultiAssetSupport sourceTeller =
-            CrossChainOPTellerWithMultiAssetSupport(mainConfig.teller);
-        BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
-        AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
-
-        amount = bound(amount, 0.0001e18, 10_000e18);
-        // make a user and give them BASE
-
-        address user = makeAddr("A user");
-        address userChain2 = makeAddr("A user on chain 2");
-        deal(address(asset), user, amount);
-
-        // approve teller to spend BASE
-        vm.startPrank(user);
-        vm.deal(user, 10e18);
-        asset.approve(mainConfig.boringVault, amount);
-
-        // perform depositAndBridge
-        BridgeData memory data = BridgeData({
-            chainSelector: 0,
-            destinationChainReceiver: userChain2,
-            bridgeFeeToken: NATIVE_ERC20,
-            messageGas: 100_000,
-            data: ""
-        });
-
-        uint256 ONE_SHARE = 10 ** boringVault.decimals();
-
-        uint256 shares = accountant.getSharesForDepositAmount(asset, amount);
-        uint256 quote = 0;
-
-        uint256 wethBefore = asset.balanceOf(address(boringVault));
-
-        sourceTeller.depositAndBridge{ value: quote }(asset, amount, shares, data);
-
-        assertEq(boringVault.balanceOf(user), 0, "Should have burned shares.");
-
-        assertEq(asset.balanceOf(address(boringVault)), wethBefore + shares, "boring vault should have shares");
     }
 
     function addressToBytes32(address _addr) internal pure returns (bytes32) {

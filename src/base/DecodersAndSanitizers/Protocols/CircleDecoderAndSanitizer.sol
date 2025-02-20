@@ -17,7 +17,15 @@ abstract contract CircleDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(destinationDomain, mintRecipient, burnToken);
     }
 
-    function receiveMessage(bytes memory message, bytes memory attestation) external view returns (bytes memory addressesFound) {
+    function receiveMessage(
+        bytes memory message,
+        bytes memory attestation
+    )
+        external
+        view
+        returns (bytes memory addressesFound)
+    {
         // nothing to sanitize
+        return addressesFound;
     }
 }

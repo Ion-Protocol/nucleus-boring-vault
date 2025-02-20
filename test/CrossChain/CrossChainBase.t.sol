@@ -11,7 +11,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
-
+import { ETH_PER_WEETH_CHAINLINK } from "src/helper/Constants.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 abstract contract CrossChainBaseTest is Test, MainnetAddresses {
@@ -53,7 +53,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         _deploySourceAndDestinationTeller();
@@ -72,13 +72,10 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
 
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAsset.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.configureAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.removeAsset.selector, true
-        );
-        rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkDeposit.selector, true
+            ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.addAssets.selector, true
         );
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, sourceTellerAddr, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
@@ -108,18 +105,24 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(destinationTellerAddr, MINTER_ROLE, true);
         rolesAuthority.setUserRole(destinationTellerAddr, BURNER_ROLE, true);
 
-        sourceTeller.addAsset(WETH);
-        sourceTeller.addAsset(ERC20(NATIVE));
-        sourceTeller.addAsset(EETH);
-        sourceTeller.addAsset(WEETH);
+        ERC20[] memory assets = new ERC20[](3);
+        assets[0] = WETH;
+        assets[1] = EETH;
+        assets[2] = WEETH;
 
-        destinationTeller.addAsset(WETH);
-        destinationTeller.addAsset(ERC20(NATIVE));
-        destinationTeller.addAsset(EETH);
-        destinationTeller.addAsset(WEETH);
+        sourceTeller.addAssets(assets);
 
-        accountant.setRateProviderData(EETH, true, address(0));
-        accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+        accountant.setRateProviderData(EETH, rateProviderData);
+        rateProviderData = new AccountantWithRateProviders.RateProviderData[](2);
+        // WEETH rate provider getRate()
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce");
+        // ETH_PER_WEETH_CHAINLINK latestAnswer()
+        rateProviderData[1] =
+            AccountantWithRateProviders.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd");
+        accountant.setRateProviderData(WEETH, rateProviderData);
 
         // Give BoringVault some WETH, and this address some shares, and LINK.
         deal(address(WETH), address(boringVault), 1000e18);

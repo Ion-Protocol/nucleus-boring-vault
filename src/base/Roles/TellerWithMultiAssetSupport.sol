@@ -7,23 +7,19 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 
 /**
  * @title TellerWithMultiAssetSupport
  * @custom:security-contact security@molecularlabs.io
  */
-contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
+contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, ReentrancyGuard {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for WETH;
 
     // ========================================= CONSTANTS =========================================
-
-    /**
-     * @notice Native address used to tell the contract to handle native asset deposits.
-     */
-    address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /**
      * @notice The maximum possible share lock period.
@@ -33,9 +29,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     // ========================================= STATE =========================================
 
     /**
-     * @notice Mapping ERC20s to an isSupported bool.
+     * @notice Mapping withdrawERC20s to an isSupported bool.
      */
-    mapping(ERC20 => bool) public isSupported;
+    mapping(ERC20 => bool) public isWithdrawSupported;
 
     /**
      * @notice The deposit nonce used to map to a deposit hash.
@@ -56,6 +52,34 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     bool public isPaused;
 
     /**
+     * @notice The supply cap for the vault.
+     * @dev Defaults to no cap
+     */
+    uint256 public supplyCap = type(uint256).max;
+
+    /**
+     * @notice rate limit period, applies to all assets and defaults to 1 day
+     */
+    uint32 public rateLimitPeriod = 1 days;
+
+    /**
+     * @notice contains necessary values for a rate limit. The last time it was updated, the rate limit for this asset
+     * and the deposits counted since last update
+     */
+    struct LimitData {
+        uint32 lastTimestamp;
+        uint112 rateLimit;
+        uint112 currentDepositCount;
+        uint128 depositCap;
+        uint128 totalDepositCount;
+    }
+
+    /**
+     * @notice Maps asset addresses to the LimitData struct for rate limits and deposit caps
+     */
+    mapping(address => LimitData) public limitByAsset;
+
+    /**
      * @dev Maps deposit nonce to keccak256(address receiver, address depositAsset, uint256 depositAmount, uint256
      * shareAmount, uint256 timestamp, uint256 shareLockPeriod).
      */
@@ -72,20 +96,23 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__SharesAreLocked();
     error TellerWithMultiAssetSupport__SharesAreUnLocked();
     error TellerWithMultiAssetSupport__BadDepositHash();
-    error TellerWithMultiAssetSupport__AssetNotSupported();
+    error TellerWithMultiAssetSupport__AssetDepositNotSupported();
+    error TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
     error TellerWithMultiAssetSupport__ZeroAssets();
     error TellerWithMultiAssetSupport__MinimumMintNotMet();
     error TellerWithMultiAssetSupport__MinimumAssetsNotMet();
     error TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
     error TellerWithMultiAssetSupport__ZeroShares();
     error TellerWithMultiAssetSupport__Paused();
-
+    error TellerWithMultiAssetSupport__InvalidInput();
+    error TellerWithMultiAssetSupport__RateLimit();
+    error TellerWithMultiAssetSupport__DepositCapReached();
+    error TellerWithMultiAssetSupport__SupplyCapReached();
     //============================== EVENTS ===============================
 
     event Paused();
     event Unpaused();
-    event AssetAdded(address indexed asset);
-    event AssetRemoved(address indexed asset);
+    event AssetConfigured(address indexed asset, uint112 newRateLimit, uint256 newSupplyCap, bool isWithdrawSupported);
     event Deposit(
         uint256 indexed nonce,
         address indexed receiver,
@@ -116,13 +143,21 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      */
     uint256 internal immutable ONE_SHARE;
 
-    constructor(address _owner, address _vault, address _accountant) Auth(_owner, Authority(address(0))) {
+    constructor(address _owner, address _vault, address _accountant) AuthOwnable2Step(_owner, Authority(address(0))) {
         vault = BoringVault(payable(_vault));
         ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
+
+    /**
+     * @notice Sets the supply cap for the vault.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function setSupplyCap(uint256 _supplyCap) external requiresAuth {
+        supplyCap = _supplyCap;
+    }
 
     /**
      * @notice Pause this contract, which prevents future calls to `deposit` and `depositWithPermit`.
@@ -143,22 +178,67 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     }
 
     /**
-     * @notice Adds this asset as a deposit asset.
-     * @dev The accountant must also support pricing this asset, else the `deposit` call will revert.
+     * @notice Sets the rate limit period.
      * @dev Callable by OWNER_ROLE.
      */
-    function addAsset(ERC20 asset) external requiresAuth {
-        isSupported[asset] = true;
-        emit AssetAdded(address(asset));
+    function setRateLimitPeriod(uint32 _rateLimitPeriod) external requiresAuth {
+        rateLimitPeriod = _rateLimitPeriod;
     }
 
     /**
-     * @notice Removes this asset as a deposit asset.
+     * @notice Adds assets to the teller.
      * @dev Callable by OWNER_ROLE.
      */
-    function removeAsset(ERC20 asset) external requiresAuth {
-        isSupported[asset] = false;
-        emit AssetRemoved(address(asset));
+    function addAssets(ERC20[] calldata assets) external requiresAuth {
+        uint256 length = assets.length;
+        for (uint256 i; i < length; ++i) {
+            ERC20 asset = assets[i];
+            // ensure 0 addresses and values are not passed in
+            if (address(asset) == address(0)) {
+                revert TellerWithMultiAssetSupport__InvalidInput();
+            }
+            LimitData storage limitData = limitByAsset[address(asset)];
+            limitData.lastTimestamp = uint32(block.timestamp);
+            limitData.rateLimit = type(uint112).max;
+            limitData.depositCap = type(uint128).max;
+            isWithdrawSupported[asset] = true;
+            emit AssetConfigured(address(asset), type(uint112).max, type(uint128).max, true);
+        }
+    }
+
+    /**
+     * @notice Configures assets deposit caps (0 if not supported) and withdrawable status
+     * @dev All arrays must be the same length
+     */
+    function configureAssets(
+        ERC20[] calldata assets,
+        uint112[] calldata rateLimits,
+        uint128[] calldata depositCaps,
+        bool[] calldata withdrawStatusByAssets
+    )
+        external
+        requiresAuth
+    {
+        uint256 length = assets.length;
+        if (length != withdrawStatusByAssets.length || length != rateLimits.length || length != depositCaps.length) {
+            revert TellerWithMultiAssetSupport__InvalidInput();
+        }
+
+        for (uint256 i; i < length; ++i) {
+            ERC20 asset = assets[i];
+            // ensure 0 addresses and values are not passed in
+            if (address(asset) == address(0)) {
+                revert TellerWithMultiAssetSupport__InvalidInput();
+            }
+            LimitData storage limitData = limitByAsset[address(asset)];
+
+            limitData.lastTimestamp = uint32(block.timestamp);
+            limitData.rateLimit = rateLimits[i];
+            limitData.depositCap = depositCaps[i];
+
+            isWithdrawSupported[asset] = withdrawStatusByAssets[i];
+            emit AssetConfigured(address(asset), rateLimits[i], depositCaps[i], withdrawStatusByAssets[i]);
+        }
     }
 
     /**
@@ -240,7 +320,8 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     function deposit(
         ERC20 depositAsset,
         uint256 depositAmount,
-        uint256 minimumMint
+        uint256 minimumMint,
+        address to
     )
         external
         requiresAuth
@@ -248,11 +329,10 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
 
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
+        _afterPublicDeposit(to, depositAsset, depositAmount, shares, shareLockPeriod);
     }
 
     /**
@@ -264,6 +344,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         uint256 depositAmount,
         uint256 minimumMint,
         uint256 deadline,
+        address to,
         uint8 v,
         bytes32 r,
         bytes32 s
@@ -274,7 +355,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
         // solhint-disable-next-line no-empty-blocks
         try depositAsset.permit(msg.sender, address(vault), depositAmount, deadline, v, r, s) { }
@@ -283,31 +363,9 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
                 revert TellerWithMultiAssetSupport__PermitFailedAndAllowanceTooLow();
             }
         }
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
-    }
-
-    /**
-     * @notice Allows on ramp role to deposit into this contract.
-     * @dev Does NOT support native deposits.
-     * @dev Callable by SOLVER_ROLE.
-     */
-    function bulkDeposit(
-        ERC20 depositAsset,
-        uint256 depositAmount,
-        uint256 minimumMint,
-        address to
-    )
-        external
-        requiresAuth
-        nonReentrant
-        returns (uint256 shares)
-    {
-        if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
-
         shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
-        emit BulkDeposit(address(depositAsset), depositAmount);
+
+        _afterPublicDeposit(to, depositAsset, depositAmount, shares, shareLockPeriod);
     }
 
     /**
@@ -324,7 +382,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         requiresAuth
         returns (uint256 assetsOut)
     {
-        if (!isSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
+        if (!isWithdrawSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
 
@@ -349,11 +407,22 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         internal
         returns (uint256 shares)
     {
+        if (limitByAsset[address(depositAsset)].rateLimit == 0) {
+            revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
+        }
+        _checkRateLimit(address(depositAsset), depositAmount);
+        limitByAsset[address(depositAsset)].totalDepositCount += uint128(depositAmount);
+        if (limitByAsset[address(depositAsset)].depositCap < limitByAsset[address(depositAsset)].totalDepositCount) {
+            revert TellerWithMultiAssetSupport__DepositCapReached();
+        }
+
         if (depositAmount == 0) revert TellerWithMultiAssetSupport__ZeroAssets();
 
         shares = accountant.getSharesForDepositAmount(depositAsset, depositAmount);
 
         if (shares < minimumMint) revert TellerWithMultiAssetSupport__MinimumMintNotMet();
+
+        if (shares + vault.totalSupply() > supplyCap) revert TellerWithMultiAssetSupport__SupplyCapReached();
         vault.enter(msg.sender, depositAsset, depositAmount, to, shares);
     }
 
@@ -376,5 +445,20 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
             keccak256(abi.encode(user, depositAsset, depositAmount, shares, block.timestamp, currentShareLockPeriod));
         depositNonce++;
         emit Deposit(nonce, user, address(depositAsset), depositAmount, shares, block.timestamp, currentShareLockPeriod);
+    }
+
+    function _checkRateLimit(address asset, uint256 attemptedDeposit) internal {
+        LimitData memory limitData = limitByAsset[asset];
+        LimitData storage storageLimitData = limitByAsset[asset];
+
+        if (limitData.lastTimestamp + rateLimitPeriod < block.timestamp) {
+            storageLimitData.currentDepositCount = 0;
+            storageLimitData.lastTimestamp = uint32(block.timestamp);
+        }
+
+        storageLimitData.currentDepositCount += uint112(attemptedDeposit);
+        if (storageLimitData.currentDepositCount > limitData.rateLimit) {
+            revert TellerWithMultiAssetSupport__RateLimit();
+        }
     }
 }

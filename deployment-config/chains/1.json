@@ -3,99 +3,118 @@
   "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
   "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
   "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
+  "mailbox": "0xc005dc82818d67AF737725bD4bf75435d065D239",
   "assetToRateProviderAndPriceFeed": {
     "NOTE_0_CHAINLINK_1_REDSTONE_2_GENERIC": 0,
     "NOTE_THESE_KEYS_MUST_NOT_BE_CHECKSUMMED": 0,
     "maxTimeFromLastUpdate": "86400",
     "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": {
       "denomination": "stETH/wstETH",
-      "priceFeedType": 2,
-      "target": "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",
-      "signature": "stEthPerToken()",
-      "arg": 0,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",
+        "signature": "stEthPerToken()",
+        "args": [],
+        "calldata": "0x035faf82"
+      }], 
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0xf7c9c121b09cd45591554eb8419a4e8a47e7b0a8"
+      "expectedMax": "1200000000000000000"
     },
     "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee": {
       "denomination": "eeETH/weETH",
-      "priceFeedType": 2,
-      "target": "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee",
-      "signature": "getEETHByWeETH(uint256)",
-      "arg": 1000000000000000000,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee",
+        "signature": "getEETHByWeETH(uint256)",
+        "args": [1000000000000000000],
+        "calldata": "0x946260440000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000"
+      }], 
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0x7d3b0ce57842b01abf6c490646fbb694dfa389e4"
+      "expectedMax": "1200000000000000000"
     },
     "0xbf5495efe5db9ce00f80364c8b423567e58d2110": {
       "denomination": "ETH/ezETH",
-      "priceFeedType": 2,
-      "target": "0x3239396B740cD6BBABb42196A03f7B77fA7102C9",
-      "signature": "getProtocolExchangeRate()",
-      "arg": 0,
-      "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0x0852be00fa37fc24fb34111e3a4e44a28fb76106"
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0x3239396B740cD6BBABb42196A03f7B77fA7102C9",
+        "signature": "getProtocolExchangeRate()",
+        "args": [],
+        "calldata": "0xf13597a6"
+      }],
+      "expectedMin": "1000000000000000000", 
+      "expectedMax": "1200000000000000000"
     },
     "0xa1290d69c65a6fe4df752f95823fae25cb99e5a7": {
       "denomination": "ETH/rsETH",
-      "priceFeedType": 2,
-      "target": "0x349A73444b1a310BAe67ef67973022020d70020d",
-      "signature": "rsETHPrice()",
-      "arg": 0,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0x349A73444b1a310BAe67ef67973022020d70020d",
+        "signature": "rsETHPrice()",
+        "args": [],
+        "calldata": "0xb4b46434"
+      }],
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0x6aeea90872fcfb5a45befd070adc3fcd8e71c067"
+      "expectedMax": "1200000000000000000"
     },
     "0xfae103dc9cf190ed75350761e95403b7b8afa6c0": {
       "denomination": "ETH/rswETH",
-      "priceFeedType": 2,
-      "target": "0xfae103dc9cf190ed75350761e95403b7b8afa6c0",
-      "signature": "getRate()",
-      "arg": 0,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0xfae103dc9cf190ed75350761e95403b7b8afa6c0",
+        "signature": "getRate()",
+        "args": [],
+        "calldata": "0x679aefce"
+      }],
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0x99554bbcb88c2a26897e77686ee5425cebfb4f01"
+      "expectedMax": "1200000000000000000"
     },
     "0xd9a442856c234a39a81a089c06451ebaa4306a72": {
       "denomination": "ETH/pufETH",
-      "priceFeedType": 2,
-      "target": "0xd9a442856c234a39a81a089c06451ebaa4306a72",
-      "signature": "previewRedeem(uint256)",
-      "arg": 1000000000000000000,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0xd9a442856c234a39a81a089c06451ebaa4306a72",
+        "signature": "previewRedeem(uint256)",
+        "args": [1000000000000000000],
+        "calldata": "0x4cdad5060000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000"
+      }],
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0xbda3cfa3be083f4087cb3b647da8dfca51bdaa6a"
+      "expectedMax": "1200000000000000000"
     },
     "0x8db2350d78abc13f5673a411d4700bcf87864dde": {
       "denomination": "WBTC/swBTC",
-      "priceFeedType": 2,
-      "target": "0x8DB2350D78aBc13f5673A411D4700BCF87864dDE",
-      "signature": "pricePerShare()",
-      "arg": 0,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0x8DB2350D78aBc13f5673A411D4700BCF87864dDE",
+        "signature": "pricePerShare()",
+        "args": [],
+        "calldata": "0x99530b06"
+      }],
       "expectedMin": "100000000",
-      "expectedMax": "100000000",
-      "rateProvider": "0x318Da095d602C08eF41319f4c4bA0646d318C906"
+      "expectedMax": "100000000"
     },
     "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6": {
       "denomination": "ETH/apxETH",
-      "priceFeedType": 2,
-      "target": "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6",
-      "signature": "assetsPerShare()",
-      "arg": 0,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0x9ba021b0a9b958b5e75ce9f6dff97c7ee52cb3e6",
+        "signature": "assetsPerShare()",
+        "args": [],
+        "calldata": "0x35d16e17"
+      }],
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0x9a044a83ddd7de8cafd8ecbf70bf7dad4865cf44"
+      "expectedMax": "1200000000000000000"
     },
     "0xac3e018457b222d93114458476f3e3416abbe38f": {
       "denomination": "ETH/sfrxETH",
-      "priceFeedType": 2,
-      "target": "0xac3e018457b222d93114458476f3e3416abbe38f",
-      "signature": "pricePerShare()",
-      "arg": 0,
+      "numberOfRateProviders": 1,
+      "rateProviders": [{
+        "target": "0xac3e018457b222d93114458476f3e3416abbe38f",
+        "signature": "pricePerShare()",
+        "args": [],
+        "calldata": "0x99530b06"
+      }],
       "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000",
-      "rateProvider": "0xa427b23b686986ed993b4ba9ae23bf65022f938a"
+      "expectedMax": "1200000000000000000"
     }
   }
 }

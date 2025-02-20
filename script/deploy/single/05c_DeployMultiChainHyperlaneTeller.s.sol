@@ -2,14 +2,15 @@
 pragma solidity 0.8.21;
 
 import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import { CrossChainOPTellerWithMultiAssetSupport } from
-    "./../../../src/base/Roles/CrossChain/CrossChainOPTellerWithMultiAssetSupport.sol";
+import { MultiChainHyperlaneTellerWithMultiAssetSupport } from
+    "./../../../src/base/Roles/CrossChain/MultiChainHyperlaneTellerWithMultiAssetSupport.sol";
+import { IMailbox } from "./../../../src/interfaces/hyperlane/IMailbox.sol";
 import { BaseScript } from "./../../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
-import { console } from "forge-std/Test.sol";
+import { console2 } from "@forge-std/console2.sol";
 
-contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
+contract DeployMultiChainHyperlaneTeller is BaseScript {
     using StdJson for string;
 
     function run() public returns (address teller) {
@@ -25,19 +26,19 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
         require(config.accountant != address(0), "accountant");
 
         // Create Contract
-        bytes memory creationCode = type(CrossChainOPTellerWithMultiAssetSupport).creationCode;
-        CrossChainOPTellerWithMultiAssetSupport teller = CrossChainOPTellerWithMultiAssetSupport(
+        bytes memory creationCode = type(MultiChainHyperlaneTellerWithMultiAssetSupport).creationCode;
+        MultiChainHyperlaneTellerWithMultiAssetSupport teller = MultiChainHyperlaneTellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 config.tellerSalt,
                 abi.encodePacked(
-                    creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.opMessenger)
+                    creationCode, abi.encode(broadcaster, config.boringVault, config.accountant, config.mailbox)
                 )
             )
         );
 
-        // configure the crosschain functionality
-        require(teller.owner() == broadcaster, "teller owner must be broadcaster");
-        teller.setGasBounds(uint32(config.minGasForPeer), uint32(config.maxGasForPeer));
+        teller.addChain(config.peerDomainId, true, true, address(teller), config.maxGasForPeer, config.minGasForPeer);
+
+        IMailbox mailbox = teller.mailbox();
 
         // Post Deploy Checks
         require(teller.shareLockPeriod() == 0, "share lock period must be zero");
@@ -46,7 +47,7 @@ contract DeployCrossChainOPTellerWithMultiAssetSupport is BaseScript {
             AccountantWithRateProviders(teller.accountant()).vault() == teller.vault(),
             "the accountant vault must be the teller vault"
         );
-        require(address(teller.messenger()) == config.opMessenger, "OP Teller must have messenger set");
+        require(address(mailbox) == config.mailbox, "mailbox must be set");
 
         return address(teller);
     }

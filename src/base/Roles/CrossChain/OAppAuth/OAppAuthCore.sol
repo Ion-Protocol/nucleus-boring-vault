@@ -2,16 +2,16 @@
 
 pragma solidity ^0.8.20;
 
-import { Auth } from "@solmate/auth/Auth.sol";
 import { IOAppCore, ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/interfaces/IOAppCore.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 
 /**
  * @title OAppAuthCore
  * @dev Abstract contract implementing the IOAppCore interface with basic OApp configurations.
  *
- * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
+ * @dev This AuthOwnable2Step version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
-abstract contract OAppAuthCore is IOAppCore, Auth {
+abstract contract OAppAuthCore is IOAppCore, AuthOwnable2Step {
     // The LayerZero endpoint associated with the given OApp
     ILayerZeroEndpointV2 public immutable endpoint;
 

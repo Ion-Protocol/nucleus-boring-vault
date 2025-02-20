@@ -10,8 +10,12 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
-
+import { ETH_PER_WEETH_CHAINLINK } from "src/helper/Constants.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
+
+interface IChainlink {
+    function latestAnswer() external view returns (uint256);
+}
 
 contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -30,6 +34,8 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
     uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 3;
     uint8 public constant BORING_VAULT_ROLE = 4;
 
+    event Paused();
+
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
@@ -39,7 +45,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
@@ -93,71 +99,102 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         WETH.safeApprove(address(boringVault), 1000e18);
         boringVault.enter(address(this), WETH, 1000e18, address(address(this)), 1000e18);
 
-        accountant.setRateProviderData(EETH, true, address(0));
-        accountant.setRateProviderData(WEETH, false, address(WEETH_RATE_PROVIDER));
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+        accountant.setRateProviderData(EETH, rateProviderData);
+        rateProviderData = new AccountantWithRateProviders.RateProviderData[](2);
+        // getRate() on WEETH rate provider
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce");
+        // latestAnswer() on ETH_PER_WEETH_CHAINLINK
+        rateProviderData[1] =
+            AccountantWithRateProviders.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd");
+        accountant.setRateProviderData(WEETH, rateProviderData);
     }
 
     function testPause() external {
         accountant.pause();
 
-        (,,,,,,, bool is_paused,,) = accountant.accountantState();
+        (,,,,,,,, bool is_paused,,,) = accountant.accountantState();
         assertTrue(is_paused == true, "Accountant should be paused");
 
         accountant.unpause();
 
-        (,,,,,,, is_paused,,) = accountant.accountantState();
+        (,,,,,,,, is_paused,,,) = accountant.accountantState();
 
         assertTrue(is_paused == false, "Accountant should be unpaused");
+    }
+
+    function testTransferOwnership() external {
+        address newOwner = makeAddr("New Owner");
+        accountant.transferOwnership(newOwner);
+        assertEq(accountant.pendingOwner(), newOwner, "Pending owner should be the new owner before acceptance");
+        assertEq(accountant.owner(), address(this), "Real owner should be the deployer before acceptance");
+        vm.prank(newOwner);
+        accountant.acceptOwnership();
+        assertEq(accountant.pendingOwner(), address(0), "Pending owner should be 0 after acceptance");
+        assertEq(accountant.owner(), newOwner, "Real owner should be the new owner after acceptance");
     }
 
     function testUpdateDelay() external {
         accountant.updateDelay(2);
 
-        (,,,,,,,, uint32 delay_in_seconds,) = accountant.accountantState();
+        (,,,,,,,,, uint32 delay_in_seconds,,) = accountant.accountantState();
 
         assertEq(delay_in_seconds, 2, "Delay should be 2 seconds");
     }
 
     function testUpdateUpper() external {
         accountant.updateUpper(1.002e4);
-        (,,,, uint16 upper_bound,,,,,) = accountant.accountantState();
+        (,,,,, uint16 upper_bound,,,,,,) = accountant.accountantState();
 
         assertEq(upper_bound, 1.002e4, "Upper bound should be 1.002e4");
     }
 
     function testUpdateLower() external {
         accountant.updateLower(0.998e4);
-        (,,,,, uint16 lower_bound,,,,) = accountant.accountantState();
+        (,,,,,, uint16 lower_bound,,,,,) = accountant.accountantState();
 
         assertEq(lower_bound, 0.998e4, "Lower bound should be 0.9980e4");
     }
 
     function testUpdateManagementFee() external {
         accountant.updateManagementFee(0.09e4);
-        (,,,,,,,,, uint16 management_fee) = accountant.accountantState();
+        (,,,,,,,,,, uint16 management_fee,) = accountant.accountantState();
 
         assertEq(management_fee, 0.09e4, "Management Fee should be 0.09e4");
     }
 
+    function testUpdatePerformanceFee() external {
+        accountant.updatePerformanceFee(0.2e4);
+        (,,,,,,,,,,, uint16 performance_fee) = accountant.accountantState();
+
+        assertEq(performance_fee, 0.2e4, "Performance Fee should be 0.2e4");
+    }
+
     function testUpdatePayoutAddress() external {
-        (address payout,,,,,,,,,) = accountant.accountantState();
+        (address payout,,,,,,,,,,,) = accountant.accountantState();
         assertEq(payout, payout_address, "Payout address should be the same");
 
         address new_payout_address = vm.addr(8_888_888);
         accountant.updatePayoutAddress(new_payout_address);
 
-        (payout,,,,,,,,,) = accountant.accountantState();
+        (payout,,,,,,,,,,,) = accountant.accountantState();
         assertEq(payout, new_payout_address, "Payout address should be the same");
     }
 
     function testUpdateRateProvider() external {
-        (bool is_pegged_to_base, IRateProvider rate_provider) = accountant.rateProviderData(WEETH);
-        assertTrue(is_pegged_to_base == false, "WEETH should not be pegged to base");
-        assertEq(address(rate_provider), WEETH_RATE_PROVIDER, "WEETH rate provider should be set");
+        (bool isPeggedToBase, address rateProvider,) = accountant.rateProviderData(WEETH, 0);
+        assertTrue(isPeggedToBase == false, "WEETH 1 should not be pegged to base");
+        assertEq(rateProvider, WEETH_RATE_PROVIDER, "WEETH rate provider 1 should be set");
+        (isPeggedToBase, rateProvider,) = accountant.rateProviderData(WEETH, 1);
+        assertTrue(isPeggedToBase == false, "WEETH 2 should not be pegged to base");
+        assertEq(rateProvider, address(ETH_PER_WEETH_CHAINLINK), "WEETH rate provider 2 should be set");
     }
 
     function testUpdateExchangeRateAndFeeLogic() external {
         accountant.updateManagementFee(0.01e4);
+        accountant.updatePerformanceFee(0.2e4);
 
         skip(1 days / 24);
         // Increase exchange rate by 5 bps.
@@ -169,15 +206,18 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             uint128 fees_owed,
             uint128 total_shares,
             uint96 current_exchange_rate,
+            uint96 highestExchangeRate,
             ,
             ,
             uint64 last_update_timestamp,
             bool is_paused,
             ,
+            ,
         ) = accountant.accountantState();
         assertEq(fees_owed, 0, "Fees owed should be 0");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
+        assertEq(highestExchangeRate, new_exchange_rate, "highestExchangeRate should be the current one");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == false, "Accountant should not be paused");
 
@@ -186,14 +226,19 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         new_exchange_rate = uint96(1.001e18);
         accountant.updateExchangeRate(new_exchange_rate);
 
+        // management fee
         uint256 expected_fees_owed =
             uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
-        (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
+        // performance fee
+        expected_fees_owed += uint256(0.2e4).mulDivDown(1001e18 - 1000.5e18, 1e4);
+
+        (, fees_owed, total_shares, current_exchange_rate, highestExchangeRate,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
         assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
+        assertEq(highestExchangeRate, new_exchange_rate, "highestExchangeRate should be the current one");
         assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
         assertTrue(is_paused == false, "Accountant should not be paused");
 
@@ -204,7 +249,21 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
         expected_fees_owed += uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
-        (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
+        skip(1 days / 24);
+        expected_fees_owed += uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
+
+        // increase the exchange rate a little but not past the highest
+        new_exchange_rate = uint96(1.0007e18);
+        accountant.updateExchangeRate(new_exchange_rate);
+        (,,,, highestExchangeRate,,,, is_paused,,,) = accountant.accountantState();
+        assertEq(highestExchangeRate, 1.001e18, "highestExchangeRate should still be the old one");
+
+        accountant.resetHighestExchangeRate();
+
+        (,,,, highestExchangeRate,,,,,,,) = accountant.accountantState();
+        assertEq(highestExchangeRate, 1.0007e18, "highestExchangeRate should be the new one after reset");
+
+        (, fees_owed, total_shares, current_exchange_rate,,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
@@ -214,14 +273,17 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
         // Trying to update before the minimum time should succeed but, pause the contract.
         new_exchange_rate = uint96(1.0e18);
+        vm.expectEmit();
+        emit Paused();
         accountant.updateExchangeRate(new_exchange_rate);
 
-        (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
+        (, fees_owed, total_shares, current_exchange_rate,,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
-        assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
+        assertEq(current_exchange_rate, 1.0007e18, "Current exchange rate should NOT be updated");
+        uint64 timestampBefore = uint64(block.timestamp);
+        assertEq(last_update_timestamp, timestampBefore, "Last update timestamp should be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
 
         accountant.unpause();
@@ -229,26 +291,29 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         // Or if the next update is outside the accepted bounds it will pause.
         skip((1 days / 24));
         new_exchange_rate = uint96(10.0e18);
+        vm.expectEmit();
+        emit Paused();
         accountant.updateExchangeRate(new_exchange_rate);
 
-        (, fees_owed, total_shares, current_exchange_rate,,, last_update_timestamp, is_paused,,) =
+        (, fees_owed, total_shares, current_exchange_rate,,,, last_update_timestamp, is_paused,,,) =
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, new_exchange_rate, "Current exchange rate should be updated");
-        assertEq(last_update_timestamp, uint64(block.timestamp), "Last update timestamp should be updated");
+        assertEq(current_exchange_rate, 1.0007e18, "Current exchange rate should NOT be updated");
+        assertEq(last_update_timestamp, timestampBefore, "Last update timestamp should NOT be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
     }
 
     function testClaimFees() external {
         accountant.updateManagementFee(0.01e4);
+        accountant.updatePerformanceFee(0.2e4);
 
         skip(1 days / 24);
         // Increase exchange rate by 5 bps.
         uint96 new_exchange_rate = uint96(1.0005e18);
         accountant.updateExchangeRate(new_exchange_rate);
 
-        (, uint128 fees_owed,,,,,,,,) = accountant.accountantState();
+        (, uint128 fees_owed,,,,,,,,,,) = accountant.accountantState();
         assertEq(fees_owed, 0, "Fees owed should be 0");
 
         skip(1 days / 24);
@@ -259,7 +324,10 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         uint256 expected_fees_owed =
             uint256(0.01e4).mulDivDown(uint256(1 days / 24).mulDivDown(1000.5e18, 365 days), 1e4);
 
-        (, fees_owed,,,,,,,,) = accountant.accountantState();
+        // performance fee
+        expected_fees_owed += uint256(0.2e4).mulDivDown(1001e18 - 1000.5e18, 1e4);
+
+        (, fees_owed,,,,,,,,,,) = accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
 
         vm.startPrank(address(boringVault));
@@ -286,35 +354,42 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         uint256 rate = accountant.getRate();
         uint256 expected_rate = 1e18;
         assertEq(rate, expected_rate, "Rate should be expected rate");
-        rate = accountant.getRateSafe();
-        assertEq(rate, expected_rate, "Rate should be expected rate");
 
-        uint256 rate_in_quote = accountant.getRateInQuote(WEETH);
-        expected_rate = uint256(1e18).mulDivDown(1e18, IRateProvider(address(WEETH_RATE_PROVIDER)).getRate());
-        assertEq(rate_in_quote, expected_rate, "Rate should be expected rate");
-        rate_in_quote = accountant.getRateInQuoteSafe(WEETH);
-        assertEq(rate_in_quote, expected_rate, "Rate should be expected rate");
+        // Get deposit and withdraw rates from accountant
+        uint256 depositRate = accountant.getDepositRate(WEETH);
+        uint256 withdrawRate = accountant.getWithdrawRate(WEETH);
+
+        // Get rates directly from providers
+        uint256 chainlinkRate = IChainlink(address(ETH_PER_WEETH_CHAINLINK)).latestAnswer();
+        uint256 weethRate = IRateProvider(address(WEETH_RATE_PROVIDER)).getRate();
+
+        // Verify withdraw rate is lower than deposit rate
+        assertLt(withdrawRate, depositRate, "Withdraw rate should be lower than deposit rate");
+
+        // Verify rates match either Chainlink or WEETH provider
+        bool matchesChainlink = depositRate == chainlinkRate || withdrawRate == chainlinkRate;
+        bool matchesWeeth = depositRate == weethRate || withdrawRate == weethRate;
+        assertTrue(matchesChainlink || matchesWeeth, "Rates should match either Chainlink or WEETH provider");
     }
 
     function testMETHRateProvider() external {
         // Deploy GenericRateProvider for mETH.
-        bytes4 selector = bytes4(keccak256(abi.encodePacked("mETHToETH(uint256)")));
         uint256 amount = 1e18;
-        mETHRateProvider = new GenericRateProvider(mantleLspStaking, selector, bytes32(amount), 0, 0, 0, 0, 0, 0, 0);
-
-        uint256 expectedRate = MantleLspStaking(mantleLspStaking).mETHToETH(1e18);
+        bytes memory rateCalldata = abi.encodeWithSignature("mETHToETH(uint256)", amount);
+        uint256 rate = MantleLspStaking(mantleLspStaking).mETHToETH(1e18);
         uint256 gas = gasleft();
-        uint256 rate = mETHRateProvider.getRate();
         console.log("Gas used: ", gas - gasleft());
 
-        assertEq(rate, expectedRate, "Rate should be expected rate");
-
         // Setup rate in accountant.
-        accountant.setRateProviderData(METH, false, address(mETHRateProvider));
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(false, mantleLspStaking, rateCalldata);
+        accountant.setRateProviderData(METH, rateProviderData);
 
+        console.log("accountant.getRate()", accountant.getRate());
         uint256 expectedRateInMeth = accountant.getRate().mulDivDown(1e18, rate);
 
-        uint256 rateInMeth = accountant.getRateInQuote(METH);
+        uint256 rateInMeth = accountant.getWithdrawRate(METH);
 
         assertEq(rateInMeth, expectedRateInMeth, "Rate should be expected rate");
 
@@ -323,24 +398,23 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
     function testPtRateProvider() external {
         // Deploy GenericRateProvider for mETH.
-        bytes4 selector = bytes4(keccak256(abi.encodePacked("getValue(address,uint256,address)")));
         uint256 amount = 1e18;
         bytes32 pt = 0x000000000000000000000000c69Ad9baB1dEE23F4605a82b3354F8E40d1E5966; // pendleEethPt
         bytes32 quote = 0x000000000000000000000000C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; // wETH
-        ptRateProvider =
-            new GenericRateProvider(liquidV1PriceRouter, selector, pt, bytes32(amount), quote, 0, 0, 0, 0, 0);
-
-        uint256 expectedRate = PriceRouter(liquidV1PriceRouter).getValue(pendleEethPt, 1e18, address(WETH));
-        uint256 rate = ptRateProvider.getRate();
-
-        assertEq(rate, expectedRate, "Rate should be expected rate");
+        bytes memory rateCalldata =
+            abi.encodeWithSignature("getValue(address,uint256,address)", pt, bytes32(amount), quote);
 
         // Setup rate in accountant.
-        accountant.setRateProviderData(ERC20(pendleEethPt), false, address(ptRateProvider));
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] =
+            AccountantWithRateProviders.RateProviderData(false, address(liquidV1PriceRouter), rateCalldata);
+        accountant.setRateProviderData(ERC20(pendleEethPt), rateProviderData);
 
+        uint256 rate = PriceRouter(address(liquidV1PriceRouter)).getValue(pendleEethPt, 1e18, address(WETH));
         uint256 expectedRateInPt = accountant.getRate().mulDivDown(1e18, rate);
 
-        uint256 rateInPt = accountant.getRateInQuote(ERC20(pendleEethPt));
+        uint256 rateInPt = accountant.getWithdrawRate(ERC20(pendleEethPt));
 
         assertEq(rateInPt, expectedRateInPt, "Rate should be expected rate");
 
@@ -392,16 +466,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         vm.expectRevert(
             abi.encodeWithSelector(AccountantWithRateProviders.AccountantWithRateProviders__Paused.selector)
         );
-        accountant.getRateSafe();
-
-        vm.expectRevert(
-            abi.encodeWithSelector(AccountantWithRateProviders.AccountantWithRateProviders__Paused.selector)
-        );
-        accountant.getRateInQuoteSafe(WEETH);
-
-        // Trying to getRateInQuote with unsupported token should revert.
-        vm.expectRevert();
-        accountant.getRateInQuoteSafe(ETHX);
+        accountant.updateExchangeRate(0);
 
         // Updating bounds, and management fee reverts.
         vm.expectRevert(

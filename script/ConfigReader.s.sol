@@ -23,6 +23,7 @@ library ConfigReader {
         uint16 allowedExchangeRateChangeLower;
         uint32 minimumUpdateDelayInSeconds;
         uint16 managementFee;
+        uint16 performanceFee;
         bytes32 boringVaultSalt;
         string boringVaultName;
         string boringVaultSymbol;
@@ -39,6 +40,8 @@ library ConfigReader {
         uint64 maxGasForPeer;
         uint64 minGasForPeer;
         address lzEndpoint;
+        address mailbox;
+        uint32 peerDomainId;
         bytes32 rolesAuthoritySalt;
         address manager;
         address teller;
@@ -52,7 +55,6 @@ library ConfigReader {
         bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
         address[] assets;
-        address[] rateProviders;
         address[] priceFeeds;
     }
 
@@ -70,6 +72,7 @@ library ConfigReader {
         config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
         config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
         config.managementFee = uint16(_config.readUint(".accountant.managementFee"));
+        config.performanceFee = uint16(_config.readUint(".accountant.performanceFee"));
 
         // Reading from the 'boringVault' section
         config.boringVault = _config.readAddress(".boringVault.address");
@@ -88,13 +91,21 @@ library ConfigReader {
         config.minGasForPeer = uint64(_config.readUint(".teller.minGasForPeer"));
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
-        config.peerEid = uint32(_config.readUint(".teller.peerEid"));
 
-        config.requiredDvns = _config.readAddressArray(".teller.dvnIfNoDefault.required");
-        config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optional");
-        config.dvnBlockConfirmationsRequired =
-            uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
-        config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalThreshold"));
+        // layerzero
+        if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
+            config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
+
+            config.peerEid = uint32(_config.readUint(".teller.peerEid"));
+            config.requiredDvns = _config.readAddressArray(".teller.dvnIfNoDefault.required");
+            config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optional");
+            config.dvnBlockConfirmationsRequired =
+                uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
+            config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalThreshold"));
+        } else if (compareStrings(config.tellerContractName, "MultiChainHyperlaneTellerWithMultiAssetSupport")) {
+            config.mailbox = _chainConfig.readAddress(".mailbox");
+            config.peerDomainId = uint32(_config.readUint(".teller.peerDomainId"));
+        }
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
@@ -109,8 +120,11 @@ library ConfigReader {
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
-        config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
 
         return config;
+    }
+
+    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
 }
