@@ -1,0 +1,53 @@
+{
+    "base": "0x5555555555555555555555555555555555555555",
+    "protocolAdmin": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+    "boringVaultAndBaseDecimals": "18",
+    "boringVault": {
+      "boringVaultSalt": "0x096f0b9f6d11d68c128ccf0f1bbe02fb75386da891f9eae1467c6277937298d3",
+      "boringVaultName": "Looped HYPE",
+      "boringVaultSymbol": "loopedHYPE",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x3fa599752c15852dfdee8e2eb83ef433e3a09f193488145b494dfd67a7803d91",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0xffa07f3c9f31085a64ee6861f012ff142bfe795c3172792826692411b1003b71",
+      "payoutAddress": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0xdf21ba063d0d9bf4335621b087138f7cd34d443d2c45dfd31d9b5df7ef93507e",
+      "maxGasForPeer": 0,
+      "minGasForPeer": 0,
+      "peerEid": 0,
+      "tellerContractName": "TellerWithMultiAssetSupport",
+      "assets": [
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+        ],
+        "optional": [
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 0,
+        "optionalThreshold": 0
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0xef48451a0cd3c77dd4c17ebedc766a0a488e75f4a41517c347f2d1d17ddad5d6",
+      "strategist": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x925c2347deb909f104e46b9917ffb7db72529a1f273615c8c700d7a7e2888964",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+  }
