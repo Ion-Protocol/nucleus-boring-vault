@@ -25,6 +25,7 @@ contract OneInchWrapper {
      */
     function deposit(
         ERC20 supportedAsset,
+        address recipient,
         CrossChainTellerBase teller,
         uint256 minimumMint,
         address executor,
@@ -47,7 +48,7 @@ contract OneInchWrapper {
         (uint256 supportedAssetAmount,) = aggregator.swap(executor, desc, data);
 
         supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
-        shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint);
+        shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
         teller.vault().transfer(msg.sender, shares);
     }
 

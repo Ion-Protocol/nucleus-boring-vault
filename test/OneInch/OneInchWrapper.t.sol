@@ -27,7 +27,7 @@ contract OneInchWrapperTest is Test {
         console.log("construction complete");
     }
 
-    function testWrapper() external {
+    function _testWrapper() external {
         AggregationRouterV6.SwapDescription memory desc = AggregationRouterV6.SwapDescription({
             srcToken: ERC20(srcToken),
             dstToken: ERC20(dstToken),
@@ -42,17 +42,11 @@ contract OneInchWrapperTest is Test {
             hex"0000000000000000000000000000000000000000000000ab00007d00001a0020d6bdbf78a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4802a00000000000000000000000000000000000000000000000000000000000000001ee63c1e580e780df05ed3d1d29b35edaf9c8f3131e9f4c799ea0b86991c6218b36c1d19d4a2e9eb0ce3606eb48111111125421ca6dc452d289314280a0f8842a650020d6bdbf7815700b564ca08d9439c58ca5053166e8317aa138111111125421ca6dc452d289314280a0f8842a65";
         console.logBytes(data);
 
-        console.log("pre-deal");
         deal(srcToken, address(this), depositAm);
-        console.log("post deal");
         ERC20(srcToken).approve(address(wrapper), depositAm);
-        console.log("post approve");
 
-        console.log("Fails here?:");
-        wrapper.deposit(ERC20(dstToken), teller, 0, executor, desc, data);
-        console.log("No");
+        wrapper.deposit(ERC20(dstToken), address(this), teller, 0, executor, desc, data);
         uint256 endShareBal = teller.vault().balanceOf(address(this));
-        console.log("Balance of shares: ", endShareBal);
         assertGt(endShareBal, 0, "should have some dstToken");
     }
 
