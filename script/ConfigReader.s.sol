@@ -40,6 +40,8 @@ library ConfigReader {
         uint64 maxGasForPeer;
         uint64 minGasForPeer;
         address lzEndpoint;
+        address mailbox;
+        uint32 peerDomainId;
         bytes32 rolesAuthoritySalt;
         address manager;
         address teller;
@@ -89,13 +91,21 @@ library ConfigReader {
         config.minGasForPeer = uint64(_config.readUint(".teller.minGasForPeer"));
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
-        config.peerEid = uint32(_config.readUint(".teller.peerEid"));
 
-        config.requiredDvns = _config.readAddressArray(".teller.dvnIfNoDefault.required");
-        config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optional");
-        config.dvnBlockConfirmationsRequired =
-            uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
-        config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalThreshold"));
+        // layerzero
+        if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
+            config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
+
+            config.peerEid = uint32(_config.readUint(".teller.peerEid"));
+            config.requiredDvns = _config.readAddressArray(".teller.dvnIfNoDefault.required");
+            config.optionalDvns = _config.readAddressArray(".teller.dvnIfNoDefault.optional");
+            config.dvnBlockConfirmationsRequired =
+                uint64(_config.readUint(".teller.dvnIfNoDefault.blockConfirmationsRequiredIfNoDefault"));
+            config.optionalDvnThreshold = uint8(_config.readUint(".teller.dvnIfNoDefault.optionalThreshold"));
+        } else if (compareStrings(config.tellerContractName, "MultiChainHyperlaneTellerWithMultiAssetSupport")) {
+            config.mailbox = _chainConfig.readAddress(".mailbox");
+            config.peerDomainId = uint32(_config.readUint(".teller.peerDomainId"));
+        }
 
         // Reading from the 'rolesAuthority' section
         config.rolesAuthority = _config.readAddress(".rolesAuthority.address");
@@ -110,8 +120,11 @@ library ConfigReader {
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
-        config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
 
         return config;
+    }
+
+    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
 }

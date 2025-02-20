@@ -26,7 +26,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(config.base != address(0), "base address must not be zero");
             require(config.allowedExchangeRateChangeUpper > 1e4, "allowedExchangeRateChangeUpper");
             require(config.allowedExchangeRateChangeUpper <= 1.003e4, "allowedExchangeRateChangeUpper upper bound");
-            require(config.allowedExchangeRateChangeLower < 1e4, "allowedExchangeRateChangeLower");
+            require(config.allowedExchangeRateChangeLower <= 1e4, "allowedExchangeRateChangeLower");
             require(config.allowedExchangeRateChangeLower >= 0.997e4, "allowedExchangeRateChangeLower lower bound");
             require(config.minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
             require(config.managementFee < 1e4, "managementFee");
