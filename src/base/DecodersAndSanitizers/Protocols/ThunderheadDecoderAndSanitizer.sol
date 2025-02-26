@@ -3,19 +3,19 @@ pragma solidity ^0.8.0;
 
 import { BaseDecoderAndSanitizer } from "../BaseDecoderAndSanitizer.sol";
 
-abstract contract StakingRewardsDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    error StakingRewardsDecoderAndSanitizer__InvalidReceiver();
+abstract contract ThunderheadDecoderAndSanitizer is BaseDecoderAndSanitizer {
+    error ThunderheadDecoderAndSanitizer__InvalidReceiver();
 
     function mint(address to, string calldata communityCode) external view returns (bytes memory addressesFound) {
         if (to != boringVault) {
-            revert StakingRewardsDecoderAndSanitizer__InvalidReceiver();
+            revert ThunderheadDecoderAndSanitizer__InvalidReceiver();
         }
         return addressesFound;
     }
 
     function mint(address to) external view returns (bytes memory addressesFound) {
         if (to != boringVault) {
-            revert StakingRewardsDecoderAndSanitizer__InvalidReceiver();
+            revert ThunderheadDecoderAndSanitizer__InvalidReceiver();
         }
         return addressesFound;
     }
@@ -30,14 +30,14 @@ abstract contract StakingRewardsDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory addressesFound)
     {
         if (to != boringVault) {
-            revert StakingRewardsDecoderAndSanitizer__InvalidReceiver();
+            revert ThunderheadDecoderAndSanitizer__InvalidReceiver();
         }
         return addressesFound;
     }
 
     function burnAndRedeemIfPossible(address to, uint256 amount) external view returns (bytes memory addressesFound) {
         if (to != boringVault) {
-            revert StakingRewardsDecoderAndSanitizer__InvalidReceiver();
+            revert ThunderheadDecoderAndSanitizer__InvalidReceiver();
         }
         return addressesFound;
     }
