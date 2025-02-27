@@ -224,7 +224,4 @@ contract DexAggregatorWrapper {
         // Deposit and bridge the assets
         teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
     }
-
-    // Function to receive ETH
-    receive() external payable { }
 }
