@@ -347,13 +347,15 @@ contract DexAggregatorWrapperTest is Test {
         vm.startPrank(recipient);
         ERC20(srcToken).approve(address(wrapper), depositAm);
 
+        uint256 minimumMint = 99_970_000; // 0.9997 USDC at accountant 1:1 rate
+
         // Call the wrapper contract from the recipient
-        wrapper.depositOneInch(ERC20(dstToken), recipient, usdTeller, 0, executor, desc, data);
+        wrapper.depositOneInch(ERC20(dstToken), recipient, usdTeller, minimumMint, executor, desc, data);
 
         // Check the share balance of the recipient
         uint256 endShareBal = usdTeller.vault().balanceOf(recipient);
         console.log("endShareBal", endShareBal);
-        assertGt(endShareBal, 0, "should have some vault shares");
+        assertGe(endShareBal, minimumMint, "should have greater than or equal to minimum mint vault shares");
         assertGt(
             ERC20(dstToken).balanceOf(address(usdTeller.vault())),
             startVaultDstBal + 99_927_739_338_702_407_010,
@@ -363,18 +365,12 @@ contract DexAggregatorWrapperTest is Test {
         vm.stopPrank();
     }
 
-    function testOkxWrapperWithRealDataCustomBlock(uint256 blockNumber) external {
-        // If provided block number is 0, use a default one
-        if (blockNumber == 0) {
-            blockNumber = 21_800_000; // Example custom block
-        }
-
-        // Reset the fork to the custom block number
-        uint256 newForkId = _switchToBlockNumber(blockNumber);
+    function testOkxWrapperWithRealDataCustomBlock() external {
+        uint256 newForkId = _switchToBlockNumber(DEFAULT_BLOCK_NUMBER);
 
         // Re-initialize the test with the new block number and a test-specific wrapper
         isSetupComplete = false; // Force re-initialization
-        _initializeTest(blockNumber, false); // false = use test-specific wrapper
+        _initializeTest(DEFAULT_BLOCK_NUMBER, false); // false = use test-specific wrapper
 
         // This would be the transaction data from the OKX API
         bytes memory realOkxTxData =
@@ -383,16 +379,23 @@ contract DexAggregatorWrapperTest is Test {
         // Deal tokens to custom recipient
         deal(okxSrcToken, recipient, okxDepositAm);
 
+        uint256 startShareBal = btcTeller.vault().balanceOf(recipient);
+        uint256 startVaultDstBal = ERC20(okxDstToken).balanceOf(address(btcTeller.vault()));
+        console.log("startShareBal", startShareBal);
+        console.log("startVaultDstBal", startVaultDstBal);
+
         // Impersonate the recipient to approve tokens
         vm.startPrank(recipient);
         ERC20(okxSrcToken).approve(address(wrapper), okxDepositAm);
+
+        uint256 minimumMint = 500_200_000; // 5.002 WBTC at accountant 1:1 rate
 
         // Execute the swap with real transaction data
         wrapper.depositOkxUniversal(
             ERC20(okxDstToken),
             recipient, // Use custom recipient
             btcTeller,
-            0, // minimumMint
+            minimumMint,
             okxSrcToken,
             okxDepositAm,
             realOkxTxData
@@ -400,7 +403,14 @@ contract DexAggregatorWrapperTest is Test {
 
         // Check the share balance of the recipient
         uint256 endShareBal = btcTeller.vault().balanceOf(recipient);
-        assertGt(endShareBal, 0, "should have some vault shares");
+        console.log("endShareBal", endShareBal);
+        assertGe(endShareBal, minimumMint, "should have greater than or equal to minimum mint vault shares");
+        assertGt(
+            ERC20(okxDstToken).balanceOf(address(btcTeller.vault())),
+            startVaultDstBal + 500_000_000,
+            "should have deposited tokens greater than expected wbtc return"
+        );
+        assertEq(ERC20(okxSrcToken).balanceOf(recipient), 0, "should have no source tokens left");
         vm.stopPrank();
     }
 }

@@ -6,11 +6,12 @@ import { IOKXRouter } from "src/interfaces/IOKXRouter.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 
 /**
  * @custom:security-contact security@molecularlabs.io
  */
-contract DexAggregatorWrapper {
+contract DexAggregatorWrapper is ReentrancyGuard {
     AggregationRouterV6 immutable aggregator;
     IOKXRouter immutable okxRouter;
     address immutable okxApprover;
@@ -30,6 +31,7 @@ contract DexAggregatorWrapper {
     error DexAggregatorWrapper__InvalidFromToken();
 
     /**
+     * @notice Initializes the DexAggregatorWrapper with necessary contract addresses
      * @param _aggregator is the AggregationRouterV6 oneInch contract
      * @param _okxRouter The address of the OKX DEX Router contract
      * @param _okxApprover The address of the OKX token approver contract
@@ -41,7 +43,15 @@ contract DexAggregatorWrapper {
     }
 
     /**
-     * @notice deposit wrapper, swaps into the supported asset with One Inch
+     * @notice Allows users to swap tokens via 1inch and deposit the result into a vault
+     * @param supportedAsset The asset accepted by the Teller
+     * @param recipient The address to receive the share tokens
+     * @param teller The Teller contract that will receive the supported asset
+     * @param minimumMint The minimum number of shares that must be minted
+     * @param executor The address executing the 1inch swap
+     * @param desc The 1inch swap description containing trade details
+     * @param data Additional data required by the 1inch aggregator
+     * @return shares The amount of shares minted to the recipient
      */
     function depositOneInch(
         ERC20 supportedAsset,
@@ -53,26 +63,24 @@ contract DexAggregatorWrapper {
         bytes calldata data
     )
         external
+        nonReentrant
         returns (uint256 shares)
     {
-        if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
-            revert DexAggregatorWrapper__InvalidSwapDescription();
-        }
+        uint256 supportedAssetAmount = _oneInchHelper(supportedAsset, address(teller), executor, desc, data);
 
-        ERC20 depositAsset = desc.srcToken;
-        uint256 depositAmount = desc.amount;
-
-        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
-        // perform swap
-        depositAsset.approve(address(aggregator), depositAmount);
-        (uint256 supportedAssetAmount,) = aggregator.swap(executor, desc, data);
-
-        supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
+        // Deposit into the vault
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
     }
 
     /**
-     * @notice depositAndBridge wrapper, swaps into the supported asset with One Inch
+     * @notice Swaps tokens via 1inch, deposits the result into a vault, and bridges the shares
+     * @param supportedAsset The asset accepted by the Teller
+     * @param teller The CrossChainTellerBase contract that will receive the supported asset
+     * @param minimumMint The minimum number of shares that must be minted
+     * @param bridgeData Data required for the bridge operation
+     * @param executor The address executing the 1inch swap
+     * @param desc The 1inch swap description containing trade details
+     * @param data Additional data required by the 1inch aggregator
      */
     function depositAndBridgeOneInch(
         ERC20 supportedAsset,
@@ -85,19 +93,11 @@ contract DexAggregatorWrapper {
     )
         external
         payable
+        nonReentrant
     {
-        if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
-            revert DexAggregatorWrapper__InvalidSwapDescription();
-        }
-        ERC20 depositAsset = desc.srcToken;
-        uint256 depositAmount = desc.amount;
+        uint256 supportedAssetAmount = _oneInchHelper(supportedAsset, address(teller), executor, desc, data);
 
-        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
-        // perform swap
-        depositAsset.approve(address(aggregator), depositAmount);
-        (uint256 supportedAssetAmount,) = aggregator.swap(executor, desc, data);
-
-        supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
+        // Deposit and bridge assets
         teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
     }
 
@@ -123,6 +123,7 @@ contract DexAggregatorWrapper {
     )
         external
         payable
+        nonReentrant
         returns (uint256 shares)
     {
         uint256 supportedAssetAmount =
@@ -153,6 +154,7 @@ contract DexAggregatorWrapper {
     )
         external
         payable
+        nonReentrant
     {
         // We want to use the majority of our ETH balance for the swap
         // but reserve msg.value for the bridge operation
@@ -165,6 +167,55 @@ contract DexAggregatorWrapper {
         teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
     }
 
+    /**
+     * @notice Helper function to execute 1inch swaps and prepare for deposit
+     * @param supportedAsset The asset to be used for deposit after swapping
+     * @param teller The address of the teller contract
+     * @param executor The address executing the 1inch swap
+     * @param desc The 1inch swap description containing trade details
+     * @param data Additional data required by the 1inch aggregator
+     * @return supportedAssetAmount The amount of supported asset received after the swap
+     */
+    function _oneInchHelper(
+        ERC20 supportedAsset,
+        address teller,
+        address executor,
+        AggregationRouterV6.SwapDescription calldata desc,
+        bytes calldata data
+    )
+        internal
+        returns (uint256 supportedAssetAmount)
+    {
+        if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
+            revert DexAggregatorWrapper__InvalidSwapDescription();
+        }
+
+        ERC20 depositAsset = desc.srcToken;
+        uint256 depositAmount = desc.amount;
+
+        // Transfer tokens from sender to this contract
+        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+
+        // Perform swap
+        depositAsset.approve(address(aggregator), depositAmount);
+        (supportedAssetAmount,) = aggregator.swap(executor, desc, data);
+
+        // Approve teller's vault to spend the supported asset
+        supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
+
+        return supportedAssetAmount;
+    }
+
+    /**
+     * @notice Helper function to execute OKX swaps and prepare for deposit
+     * @param supportedAsset The asset to be used for deposit after swapping
+     * @param teller The address of the teller contract
+     * @param fromToken The token to swap from
+     * @param fromTokenAmount The amount of tokens to swap
+     * @param okxCallData The encoded function call for OKX router
+     * @param value The ETH value to send with the OKX swap
+     * @return supportedAssetAmount The amount of supported asset received after the swap
+     */
     function _okxHelper(
         ERC20 supportedAsset,
         address teller,
@@ -182,6 +233,9 @@ contract DexAggregatorWrapper {
             selector := calldataload(okxCallData.offset)
         }
 
+        // Check that selector is supported
+        // Note: unlike in decoded 1-inch txn, we don't check swap receiver address here
+        // but if there is a mismatch, the deposit will fail later on
         if (
             selector == SMART_SWAP_BY_ORDER_ID_SELECTOR || selector == SMART_SWAP_TO_SELECTOR
                 || selector == UNISWAP_V3_SWAP_TO_SELECTOR || selector == UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR
