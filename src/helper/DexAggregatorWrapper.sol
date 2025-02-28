@@ -29,6 +29,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     error DexAggregatorWrapper__UnsupportedOkxFunction();
     error DexAggregatorWrapper__OkxSwapFailed();
     error DexAggregatorWrapper__InvalidFromToken();
+    error DexAggregatorWrapper__InsufficientEthForSwap();
 
     /**
      * @notice Initializes the DexAggregatorWrapper with necessary contract addresses
@@ -142,6 +143,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param fromToken The token to swap from
      * @param fromTokenAmount The amount of tokens to swap
      * @param okxCallData The encoded function call for OKX router
+     * @param swapValue The amount of ETH to send with the OKX swap
      */
     function depositAndBridgeOkxUniversal(
         ERC20 supportedAsset,
@@ -150,21 +152,23 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         BridgeData calldata bridgeData,
         address fromToken,
         uint256 fromTokenAmount,
-        bytes calldata okxCallData
+        bytes calldata okxCallData,
+        uint256 swapValue
     )
         external
         payable
         nonReentrant
     {
-        // We want to use the majority of our ETH balance for the swap
-        // but reserve msg.value for the bridge operation
-        uint256 swapValue = address(this).balance - msg.value;
-
+        if (swapValue > msg.value) {
+            revert DexAggregatorWrapper__InsufficientEthForSwap();
+        }
         uint256 supportedAssetAmount =
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, swapValue);
 
         // Deposit and bridge the assets
-        teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
+        teller.depositAndBridge{ value: msg.value - swapValue }(
+            supportedAsset, supportedAssetAmount, minimumMint, bridgeData
+        );
     }
 
     /**
