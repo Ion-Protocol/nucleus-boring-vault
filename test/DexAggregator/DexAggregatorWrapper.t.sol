@@ -27,7 +27,7 @@ contract DexAggregatorWrapperTest is Test {
     address constant executor = 0x5141B82f5fFDa4c6fE1E372978F1C5427640a190;
 
     // OKX specific addresses
-    address constant okxRouter = 0x3b3ae790Df4F312e745D270119c6052904FB6790;
+    address constant okxRouter = 0x7D0CcAa3Fac1e5A943c5168b6CEd828691b46B36;
     address constant okxApprover = 0x40aA958dd87FC8305b97f2BA922CDdCa374bcD7f;
     address constant okxSrcToken = 0x8236a87084f8B84306f72007F36F2618A5634494; // LBTC
     address constant okxDstToken = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599; // WBTC

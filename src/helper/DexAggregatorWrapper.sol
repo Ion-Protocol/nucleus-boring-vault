@@ -16,10 +16,12 @@ contract DexAggregatorWrapper {
     address immutable okxApprover;
 
     // Function selectors for OKX router functions
-    bytes4 private constant SMART_SWAP_TO_SELECTOR = 0xb80c2f09;
-    bytes4 private constant UNXSWAP_TO_SELECTOR = 0xe987197c;
-    bytes4 private constant UNISWAP_V3_SWAP_TO_SELECTOR = 0xfe4681d8;
-    bytes4 private constant UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR = 0x64466805;
+    bytes4 private constant SMART_SWAP_BY_ORDER_ID_SELECTOR = 0xb80c2f09;
+    bytes4 private constant SMART_SWAP_TO_SELECTOR = 0x03b87e5f;
+    bytes4 private constant UNISWAP_V3_SWAP_TO_SELECTOR = 0x0d5f0e3b;
+    bytes4 private constant UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR = 0xf3e144b6;
+    bytes4 private constant UNXSWAP_BY_ORDER_ID_SELECTOR = 0x9871efa4;
+    bytes4 private constant UNXSWAP_TO_SELECTOR = 0x08298b5a;
 
     error DexAggregatorWrapper__InvalidSwapDescription();
     error DexAggregatorWrapper__InvalidOkxSwapDescription();
@@ -123,39 +125,8 @@ contract DexAggregatorWrapper {
         payable
         returns (uint256 shares)
     {
-        // Check that the function selector is supported
-        bytes4 selector;
-        assembly {
-            selector := calldataload(okxCallData.offset)
-        }
-
-        if (
-            selector != SMART_SWAP_TO_SELECTOR && selector != UNXSWAP_TO_SELECTOR
-                && selector != UNISWAP_V3_SWAP_TO_SELECTOR && selector != UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR
-        ) {
-            revert DexAggregatorWrapper__UnsupportedOkxFunction();
-        }
-
-        // Transfer tokens from sender to this contract
-        ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
-
-        // Approve OKX token approver to spend tokens (not the router directly)
-        ERC20(fromToken).approve(okxApprover, fromTokenAmount);
-
-        // Execute the swap with the provided calldata
-        (bool success, bytes memory result) = address(okxRouter).call{ value: msg.value }(okxCallData);
-        if (!success) {
-            // If the call failed, try to extract the revert reason
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
-
-        // Decode the return value (all functions return uint256)
-        uint256 supportedAssetAmount = abi.decode(result, (uint256));
-
-        // Approve teller's vault to spend the supported asset
-        supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
+        uint256 supportedAssetAmount =
+            _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, msg.value);
 
         // Deposit assets
         teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
@@ -183,6 +154,28 @@ contract DexAggregatorWrapper {
         external
         payable
     {
+        // We want to use the majority of our ETH balance for the swap
+        // but reserve msg.value for the bridge operation
+        uint256 swapValue = address(this).balance - msg.value;
+
+        uint256 supportedAssetAmount =
+            _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, swapValue);
+
+        // Deposit and bridge the assets
+        teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
+    }
+
+    function _okxHelper(
+        ERC20 supportedAsset,
+        address teller,
+        address fromToken,
+        uint256 fromTokenAmount,
+        bytes calldata okxCallData,
+        uint256 value
+    )
+        internal
+        returns (uint256 supportedAssetAmount)
+    {
         // Check that the function selector is supported
         bytes4 selector;
         assembly {
@@ -190,38 +183,32 @@ contract DexAggregatorWrapper {
         }
 
         if (
-            selector != SMART_SWAP_TO_SELECTOR && selector != UNXSWAP_TO_SELECTOR
-                && selector != UNISWAP_V3_SWAP_TO_SELECTOR && selector != UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR
+            selector == SMART_SWAP_BY_ORDER_ID_SELECTOR || selector == SMART_SWAP_TO_SELECTOR
+                || selector == UNISWAP_V3_SWAP_TO_SELECTOR || selector == UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR
+                || selector == UNXSWAP_BY_ORDER_ID_SELECTOR || selector == UNXSWAP_TO_SELECTOR
         ) {
+            // Transfer tokens from sender to this contract
+            ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
+
+            // Approve OKX token approver to spend tokens (not the router directly)
+            ERC20(fromToken).approve(okxApprover, fromTokenAmount);
+
+            // Execute the swap with the provided calldata
+            (bool success, bytes memory result) = address(okxRouter).call{ value: value }(okxCallData);
+            if (!success) {
+                // If the call failed, try to extract the revert reason
+                assembly {
+                    revert(add(result, 32), mload(result))
+                }
+            }
+
+            // Decode the return value (all functions return uint256)
+            supportedAssetAmount = abi.decode(result, (uint256));
+
+            // Approve teller's vault to spend the supported asset
+            supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
+        } else {
             revert DexAggregatorWrapper__UnsupportedOkxFunction();
         }
-
-        // Transfer tokens from sender to this contract
-        ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
-
-        // Approve OKX token approver to spend tokens (not the router directly)
-        ERC20(fromToken).approve(okxApprover, fromTokenAmount);
-
-        // We want to use the majority of our ETH balance for the swap
-        // but reserve msg.value for the bridge operation
-        uint256 swapValue = address(this).balance - msg.value;
-
-        // Execute the swap with the provided calldata
-        (bool success, bytes memory result) = address(okxRouter).call{ value: swapValue }(okxCallData);
-        if (!success) {
-            // If the call failed, try to extract the revert reason
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
-
-        // Decode the return value (all functions return uint256)
-        uint256 supportedAssetAmount = abi.decode(result, (uint256));
-
-        // Approve teller's vault to spend the supported asset
-        supportedAsset.approve(address(teller.vault()), supportedAssetAmount);
-
-        // Deposit and bridge the assets
-        teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
     }
 }
