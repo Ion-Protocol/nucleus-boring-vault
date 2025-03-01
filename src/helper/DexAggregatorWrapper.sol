@@ -7,6 +7,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
+import { WETH } from "@solmate/tokens/WETH.sol";
 
 /**
  * @custom:security-contact security@molecularlabs.io
@@ -15,6 +16,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     AggregationRouterV6 immutable aggregator;
     IOKXRouter immutable okxRouter;
     address immutable okxApprover;
+    WETH immutable canonicalWrapToken;
 
     // Function selectors for OKX router functions
     bytes4 private constant SMART_SWAP_BY_ORDER_ID_SELECTOR = 0xb80c2f09;
@@ -36,11 +38,18 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param _aggregator is the AggregationRouterV6 oneInch contract
      * @param _okxRouter The address of the OKX DEX Router contract
      * @param _okxApprover The address of the OKX token approver contract
+     * @param _canonicalWrapToken The address of the canonical wrap token
      */
-    constructor(AggregationRouterV6 _aggregator, IOKXRouter _okxRouter, address _okxApprover) {
+    constructor(
+        AggregationRouterV6 _aggregator,
+        IOKXRouter _okxRouter,
+        address _okxApprover,
+        WETH _canonicalWrapToken
+    ) {
         aggregator = _aggregator;
         okxRouter = _okxRouter;
         okxApprover = _okxApprover;
+        canonicalWrapToken = _canonicalWrapToken;
     }
 
     /**
@@ -52,6 +61,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param executor The address executing the 1inch swap
      * @param desc The 1inch swap description containing trade details
      * @param data Additional data required by the 1inch aggregator
+     * @param nativeValueToWrap The amount of native token to wrap for the swap (if any)
      * @return shares The amount of shares minted to the recipient
      */
     function depositOneInch(
@@ -61,13 +71,16 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         uint256 minimumMint,
         address executor,
         AggregationRouterV6.SwapDescription calldata desc,
-        bytes calldata data
+        bytes calldata data,
+        uint256 nativeValueToWrap
     )
         external
+        payable
         nonReentrant
         returns (uint256 shares)
     {
-        uint256 supportedAssetAmount = _oneInchHelper(supportedAsset, address(teller), executor, desc, data);
+        uint256 supportedAssetAmount =
+            _oneInchHelper(supportedAsset, address(teller), executor, desc, data, nativeValueToWrap);
 
         // Deposit into the vault
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
@@ -82,6 +95,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param executor The address executing the 1inch swap
      * @param desc The 1inch swap description containing trade details
      * @param data Additional data required by the 1inch aggregator
+     * @param nativeValueToWrap The amount of native token to wrap for the swap (if any)
      */
     function depositAndBridgeOneInch(
         ERC20 supportedAsset,
@@ -90,16 +104,20 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         BridgeData calldata bridgeData,
         address executor,
         AggregationRouterV6.SwapDescription calldata desc,
-        bytes calldata data
+        bytes calldata data,
+        uint256 nativeValueToWrap
     )
         external
         payable
         nonReentrant
     {
-        uint256 supportedAssetAmount = _oneInchHelper(supportedAsset, address(teller), executor, desc, data);
+        uint256 supportedAssetAmount =
+            _oneInchHelper(supportedAsset, address(teller), executor, desc, data, nativeValueToWrap);
 
         // Deposit and bridge assets
-        teller.depositAndBridge{ value: msg.value }(supportedAsset, supportedAssetAmount, minimumMint, bridgeData);
+        teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
+            supportedAsset, supportedAssetAmount, minimumMint, bridgeData
+        );
     }
 
     /**
@@ -111,6 +129,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param fromToken The token to swap from
      * @param fromTokenAmount The amount of tokens to swap
      * @param okxCallData The encoded function call for OKX router
+     * @param nativeValueToWrap The amount of native token to wrap for the swap (if any)
      * @return shares The amount of shares minted
      */
     function depositOkxUniversal(
@@ -120,7 +139,8 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         uint256 minimumMint,
         address fromToken,
         uint256 fromTokenAmount,
-        bytes calldata okxCallData
+        bytes calldata okxCallData,
+        uint256 nativeValueToWrap
     )
         external
         payable
@@ -128,7 +148,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         returns (uint256 shares)
     {
         uint256 supportedAssetAmount =
-            _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, msg.value);
+            _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit assets
         teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
@@ -143,7 +163,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param fromToken The token to swap from
      * @param fromTokenAmount The amount of tokens to swap
      * @param okxCallData The encoded function call for OKX router
-     * @param swapValue The amount of ETH to send with the OKX swap
+     * @param nativeValueToWrap The amount of native token to wrap for the swap (if any)
      */
     function depositAndBridgeOkxUniversal(
         ERC20 supportedAsset,
@@ -153,20 +173,17 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         address fromToken,
         uint256 fromTokenAmount,
         bytes calldata okxCallData,
-        uint256 swapValue
+        uint256 nativeValueToWrap
     )
         external
         payable
         nonReentrant
     {
-        if (swapValue > msg.value) {
-            revert DexAggregatorWrapper__InsufficientEthForSwap();
-        }
         uint256 supportedAssetAmount =
-            _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, swapValue);
+            _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit and bridge the assets
-        teller.depositAndBridge{ value: msg.value - swapValue }(
+        teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
         );
     }
@@ -178,6 +195,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param executor The address executing the 1inch swap
      * @param desc The 1inch swap description containing trade details
      * @param data Additional data required by the 1inch aggregator
+     * @param nativeValueToWrap The amount of native token to wrap for the swap (if any)
      * @return supportedAssetAmount The amount of supported asset received after the swap
      */
     function _oneInchHelper(
@@ -185,23 +203,33 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         address teller,
         address executor,
         AggregationRouterV6.SwapDescription calldata desc,
-        bytes calldata data
+        bytes calldata data,
+        uint256 nativeValueToWrap
     )
         internal
         returns (uint256 supportedAssetAmount)
     {
+        bool useNative = _checkAndMintNativeAmount(nativeValueToWrap);
         if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
             revert DexAggregatorWrapper__InvalidSwapDescription();
         }
 
-        ERC20 depositAsset = desc.srcToken;
-        uint256 depositAmount = desc.amount;
+        if (useNative) {
+            if (desc.srcToken != canonicalWrapToken || desc.amount != nativeValueToWrap) {
+                revert DexAggregatorWrapper__InvalidSwapDescription();
+            }
+            canonicalWrapToken.approve(address(aggregator), nativeValueToWrap);
+        } else {
+            ERC20 depositAsset = desc.srcToken;
+            uint256 depositAmount = desc.amount;
 
-        // Transfer tokens from sender to this contract
-        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+            // Transfer tokens from sender to this contract
+            depositAsset.transferFrom(msg.sender, address(this), depositAmount);
 
-        // Perform swap
-        depositAsset.approve(address(aggregator), depositAmount);
+            // Perform swap
+            depositAsset.approve(address(aggregator), depositAmount);
+        }
+
         (supportedAssetAmount,) = aggregator.swap(executor, desc, data);
 
         // Approve teller's vault to spend the supported asset
@@ -217,7 +245,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
      * @param fromToken The token to swap from
      * @param fromTokenAmount The amount of tokens to swap
      * @param okxCallData The encoded function call for OKX router
-     * @param value The ETH value to send with the OKX swap
+     * @param nativeValueToWrap The amount of native token to wrap for the swap (if any)
      * @return supportedAssetAmount The amount of supported asset received after the swap
      */
     function _okxHelper(
@@ -226,7 +254,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         address fromToken,
         uint256 fromTokenAmount,
         bytes calldata okxCallData,
-        uint256 value
+        uint256 nativeValueToWrap
     )
         internal
         returns (uint256 supportedAssetAmount)
@@ -245,14 +273,22 @@ contract DexAggregatorWrapper is ReentrancyGuard {
                 || selector == UNISWAP_V3_SWAP_TO_SELECTOR || selector == UNISWAP_V3_SWAP_TO_WITH_PERMIT_SELECTOR
                 || selector == UNXSWAP_BY_ORDER_ID_SELECTOR || selector == UNXSWAP_TO_SELECTOR
         ) {
-            // Transfer tokens from sender to this contract
-            ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
+            bool useNative = _checkAndMintNativeAmount(nativeValueToWrap);
+            if (useNative) {
+                if (fromToken != address(canonicalWrapToken) || fromTokenAmount != nativeValueToWrap) {
+                    revert DexAggregatorWrapper__OkxSwapFailed();
+                }
+                canonicalWrapToken.approve(okxApprover, nativeValueToWrap);
+            } else {
+                // Transfer tokens from sender to this contract
+                ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
 
-            // Approve OKX token approver to spend tokens (not the router directly)
-            ERC20(fromToken).approve(okxApprover, fromTokenAmount);
+                // Approve OKX token approver to spend tokens (not the router directly)
+                ERC20(fromToken).approve(okxApprover, fromTokenAmount);
+            }
 
             // Execute the swap with the provided calldata
-            (bool success, bytes memory result) = address(okxRouter).call{ value: value }(okxCallData);
+            (bool success, bytes memory result) = address(okxRouter).call(okxCallData);
             if (!success) {
                 // If the call failed, try to extract the revert reason
                 assembly {
@@ -267,6 +303,16 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
         } else {
             revert DexAggregatorWrapper__UnsupportedOkxFunction();
+        }
+    }
+
+    function _checkAndMintNativeAmount(uint256 nativeAmount) internal returns (bool useNative) {
+        if (nativeAmount > msg.value) {
+            revert DexAggregatorWrapper__InsufficientEthForSwap();
+        }
+        if (nativeAmount > 0) {
+            canonicalWrapToken.deposit{ value: nativeAmount }();
+            useNative = true;
         }
     }
 }
