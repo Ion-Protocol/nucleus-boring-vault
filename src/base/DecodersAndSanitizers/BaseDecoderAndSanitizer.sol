@@ -19,4 +19,12 @@ contract BaseDecoderAndSanitizer {
     function approve(address spender, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(spender);
     }
+
+    function acceptOwnership() external pure returns (bytes memory addressesFound){
+        // Nothing to decode
+    }
+
+    function transferOwnership(address newOwner) external pure returns(bytes memory addressesFound){
+        addressesFound = abi.encodePacked(newOwner);
+    }
 }
