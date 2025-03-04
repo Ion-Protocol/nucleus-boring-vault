@@ -14,10 +14,11 @@ import { NativeWrapperDecoderAndSanitizer } from
 import { ERC4626DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/ERC4626DecoderAndSanitizer.sol";
 import { EigenpieDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EigenpieDecoderAndSanitizer.sol";
 import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PirexEthDecoderAndSanitizer.sol";
-import { StakingRewardsDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/StakingRewardsDecoderAndSanitizer.sol";
+import { ThunderheadDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/ThunderheadDecoderAndSanitizer.sol";
+import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
 
-contract HyperliquidDecoderAndSanitizer is
+contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     OneInchDecoderAndSanitizer,
@@ -26,7 +27,8 @@ contract HyperliquidDecoderAndSanitizer is
     ERC4626DecoderAndSanitizer,
     EigenpieDecoderAndSanitizer,
     PirexEthDecoderAndSanitizer,
-    StakingRewardsDecoderAndSanitizer
+    ThunderheadDecoderAndSanitizer,
+    AaveV3DecoderAndSanitizer
 {
     constructor(
         address _boringVault,
