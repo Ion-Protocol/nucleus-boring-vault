@@ -14,33 +14,38 @@ struct AssetValue {
 }
 
 abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    
-    function deposit(AssetValue[] memory amounts) external pure returns(bytes memory addressesFound){
+    function deposit(AssetValue[] memory amounts) external pure returns (bytes memory addressesFound) {
         // Requirements: check that provided amounts are sorted by asset and unique.
-        for(uint i = 0; i < amounts.length; ){
+        for (uint256 i = 0; i < amounts.length;) {
             addressesFound = abi.encodePacked(addressesFound, amounts[i].asset);
-            unchecked{
-                ++i;
-            }
-        }   
-    }
-
-    function withdraw(AssetValue[] memory amounts) external pure returns(bytes memory amountsFound){
-        // Requirements: check that provided amounts are sorted by asset and unique.
-        for(uint i = 0; i < amounts.length; ){
-            amountsFound = abi.encodePacked(amountsFound, amounts[i].value);
-            unchecked{
+            unchecked {
                 ++i;
             }
         }
     }
 
-    function setGuardianAndFeeRecipient (address guardian, address feeRecipient) external pure returns(bytes memory addressesFound){
+    function withdraw(AssetValue[] memory amounts) external pure returns (bytes memory amountsFound) {
+        // Requirements: check that provided amounts are sorted by asset and unique.
+        for (uint256 i = 0; i < amounts.length;) {
+            amountsFound = abi.encodePacked(amountsFound, amounts[i].value);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function setGuardianAndFeeRecipient(
+        address guardian,
+        address feeRecipient
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         addressesFound = abi.encodePacked(guardian, feeRecipient);
     }
 
-    function resume() external pure returns(bytes memory addressesFound){
+    function resume() external pure returns (bytes memory addressesFound) {
         // Nothing to decode
     }
-
 }
