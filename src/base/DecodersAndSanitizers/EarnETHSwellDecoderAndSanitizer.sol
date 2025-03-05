@@ -14,6 +14,7 @@ import { SwellDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protoco
 import { EulerDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EulerDecoderAndSanitizer.sol";
 import { OPStandardL2BridgeDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/OPStandardL2BridgeDecoderAndSanitizer.sol";
+import { VelodromeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/VelodromeDecoderAndSanitizer.sol";
 
 contract EarnETHSwellDecoderAndSanitizer is
     OPStandardL2BridgeDecoderAndSanitizer,
@@ -22,7 +23,14 @@ contract EarnETHSwellDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
     TempestDecoderAndSanitizer,
     SwellDecoderAndSanitizer,
-    EulerDecoderAndSanitizer
+    EulerDecoderAndSanitizer,
+    VelodromeDecoderAndSanitizer
 {
-    constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
+    constructor(
+        address _boringVault,
+        address _velodromeNonFungiblePositionManager
+    )
+        BaseDecoderAndSanitizer(_boringVault)
+        VelodromeDecoderAndSanitizer(_velodromeNonFungiblePositionManager)
+    { }
 }

@@ -21,7 +21,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         velodromeNonFungiblePositionManager = IVelodromeNonFungiblePositionManager(_velodromeNonFungiblePositionManager);
     }
 
-    //============================== UNISWAP V3 ===============================
+    //============================== Velodrome ===============================
 
     function mint(DecoderCustomTypes.VelodromeMintParams calldata params)
         external
