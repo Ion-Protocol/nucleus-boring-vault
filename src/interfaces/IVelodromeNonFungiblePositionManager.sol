@@ -1,27 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity >=0.7.5;
-pragma abicoder v2;
-
-import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Enumerable.sol";
-
-import "./IERC721Permit.sol";
-import "./IERC4906.sol";
-import "./IPeripheryPayments.sol";
-import "./IPeripheryImmutableState.sol";
-import "../libraries/PoolAddress.sol";
+pragma solidity 0.8.21;
 
 /// @title Non-fungible token for positions
 /// @notice Wraps CL positions in a non-fungible token interface which allows for them to be transferred
 /// and authorized.
-interface IVelodromeNonFungiblePositionManager is
-    IPeripheryPayments,
-    IPeripheryImmutableState,
-    IERC721Metadata,
-    IERC721Enumerable,
-    IERC721Permit,
-    IERC4906
-{
+interface IVelodromeNonFungiblePositionManager {
+    function ownerOf(uint256 tokenId) external view returns (address);
+
     /// @notice Emitted when liquidity is increased for a position NFT
     /// @dev Also emitted when a token is minted
     /// @param tokenId The ID of the token for which liquidity was increased

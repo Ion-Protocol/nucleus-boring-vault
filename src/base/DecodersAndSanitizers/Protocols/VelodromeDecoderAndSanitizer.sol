@@ -41,12 +41,12 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory addressesFound)
     {
         // Sanitize raw data
-        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+        if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
             revert UniswapV3DecoderAndSanitizer__BadTokenId();
         }
-        // Extract addresses from uniswapV3NonFungiblePositionManager.positions(params.tokenId).
+        // Extract addresses from velodromeNonFungiblePositionManager.positions(params.tokenId).
         (, address operator, address token0, address token1,,,,,,,,) =
-            uniswapV3NonFungiblePositionManager.positions(params.tokenId);
+            velodromeNonFungiblePositionManager.positions(params.tokenId);
         addressesFound = abi.encodePacked(operator, token0, token1);
     }
 
@@ -59,7 +59,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Sanitize raw data
         // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
         // just for completeness.
-        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+        if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
             revert UniswapV3DecoderAndSanitizer__BadTokenId();
         }
 
@@ -76,7 +76,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Sanitize raw data
         // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
         // just for completeness.
-        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+        if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
             revert UniswapV3DecoderAndSanitizer__BadTokenId();
         }
 
