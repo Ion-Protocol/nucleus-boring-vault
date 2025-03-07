@@ -28,7 +28,6 @@ contract EarnETHSwellDecoderAndSanitizer is
     EulerDecoderAndSanitizer,
     LidoDecoderAndSanitizer,
     VelodromeDecoderAndSanitizer,
-    VelodromeDecoderAndSanitizer,
     LayerZeroOFTDecoderAndSanitizer
 {
     constructor(
