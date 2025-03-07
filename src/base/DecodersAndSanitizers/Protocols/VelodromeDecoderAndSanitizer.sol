@@ -96,4 +96,16 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encodePacked(to);
     }
+
+    function deposit(uint256) external pure virtual returns (bytes memory addressesFound) {
+        // Just the NFT ID
+        // No addresses in data
+        return addressesFound;
+    }
+
+    function withdraw(uint256) external pure virtual returns (bytes memory addressesFound) {
+        // Just the NFT ID
+        // No addresses in data
+        return addressesFound;
+    }
 }
