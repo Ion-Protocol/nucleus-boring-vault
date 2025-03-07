@@ -49,4 +49,20 @@ abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Nothing to sanitize or return
         return addressesFound;
     }
+
+    function depositERC20To(
+        address l1Token_,
+        address l2Token_,
+        address to_,
+        uint256,
+        uint32,
+        bytes calldata
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(l1Token_, l2Token_, to_);
+    }
 }
