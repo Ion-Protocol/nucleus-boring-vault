@@ -12,6 +12,8 @@ contract BaseDecoderAndSanitizer {
      */
     address internal immutable boringVault;
 
+    error BaseDecoderAndSanitizer__FunctionNotImplemented(bytes _calldata);
+
     constructor(address _boringVault) {
         boringVault = _boringVault;
     }
@@ -26,5 +28,9 @@ contract BaseDecoderAndSanitizer {
 
     function transferOwnership(address newOwner) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(newOwner);
+    }
+
+    fallback() external {
+        revert BaseDecoderAndSanitizer__FunctionNotImplemented(msg.data);
     }
 }
