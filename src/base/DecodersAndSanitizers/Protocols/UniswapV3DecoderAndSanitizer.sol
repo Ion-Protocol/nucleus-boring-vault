@@ -105,6 +105,15 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.recipient);
     }
 
+    function burn(uint256 tokenId) external view virtual returns (bytes memory addressesFound) {
+        // Sanitize raw data
+        // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
+        // just for completeness.
+        if (uniswapV3NonFungiblePositionManager.ownerOf(tokenId) != boringVault) {
+            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+        }
+    }
+
     function safeTransferFrom(
         address,
         address to,
