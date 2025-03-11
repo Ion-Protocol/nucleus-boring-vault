@@ -23,6 +23,9 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== Velodrome ===============================
 
+    // @tag token0:address
+    // @tag token1:address
+    // @tag recipient:address
     function mint(DecoderCustomTypes.VelodromeMintParams calldata params)
         external
         pure
@@ -34,6 +37,10 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.token0, params.token1, params.recipient);
     }
 
+    // @desc Specify the operator and tokens that can increase liquidity, boringVault must always be the token ID owner
+    // @tag operator:address
+    // @tag token0:address
+    // @tag token1:address
     function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
         external
         view
@@ -50,6 +57,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(operator, token0, token1);
     }
 
+    // @desc BoringVault must always be the token ID owner
     function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
         external
         view
@@ -67,6 +75,8 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
+    // @desc BoringVault must always be the token ID owner
+    // @tag recipient:address
     function collect(DecoderCustomTypes.CollectParams calldata params)
         external
         view
@@ -84,6 +94,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.recipient);
     }
 
+    // @tag to:address
     function safeTransferFrom(
         address,
         address to,

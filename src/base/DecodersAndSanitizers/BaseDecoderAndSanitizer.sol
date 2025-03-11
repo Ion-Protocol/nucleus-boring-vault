@@ -18,6 +18,8 @@ contract BaseDecoderAndSanitizer {
         boringVault = _boringVault;
     }
 
+    // @desc The spender address to approve
+    // @tag spender:address
     function approve(address spender, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(spender);
     }
@@ -26,6 +28,8 @@ contract BaseDecoderAndSanitizer {
         // Nothing to decode
     }
 
+    // @desc The new owner address
+    // @tag newOwner:address
     function transferOwnership(address newOwner) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(newOwner);
     }
