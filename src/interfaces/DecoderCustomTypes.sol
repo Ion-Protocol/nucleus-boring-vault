@@ -233,4 +233,14 @@ contract DecoderCustomTypes {
         // Array containing the amount of shares in each Strategy in the `strategies` array
         uint256[] shares;
     }
+
+    /// @notice Minimal market data to be provided by the user when setting markets.
+    struct MarketData {
+        /// @notice Morpho Market ID.
+        bytes32 id;
+        /// @notice Address of the price feed used to convert the value of the market's loan token to the numeraire.
+        address priceFeed;
+        /// @notice Indicates whether the price feed value should be inverted (e.g. USD/WETH -> WETH/USD).
+        bool invertPrice;
+    }
 }

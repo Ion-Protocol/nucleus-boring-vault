@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @notice Struct encapulating an asset and an associated value.
@@ -24,10 +24,10 @@ abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
-    function withdraw(AssetValue[] memory amounts) external pure returns (bytes memory amountsFound) {
+    function withdraw(AssetValue[] memory amounts) external pure returns (bytes memory addressesFound) {
         // Requirements: check that provided amounts are sorted by asset and unique.
         for (uint256 i = 0; i < amounts.length;) {
-            amountsFound = abi.encodePacked(amountsFound, amounts[i].value);
+            addressesFound = abi.encodePacked(addressesFound, amounts[i].asset);
             unchecked {
                 ++i;
             }
