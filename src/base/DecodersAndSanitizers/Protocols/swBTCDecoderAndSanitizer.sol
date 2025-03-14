@@ -8,14 +8,34 @@ abstract contract swBTCDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     error swBTCDecoderAndSanitizer_ThirdPartyNotSupported();
 
+    // @desc function to deposit to swBTC, decode the receiver address only (likely boringVault)
+    // @tag receiver:address
     function deposit(uint256, address receiver) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(receiver);
     }
 
+    // @desc function to claim the withdraw of WBTC from swBTC withdraw queue, decode the asset (WBTC) and the account
+    // (boringVault)
+    // @tag asset:address
+    // @tag account:address
+    function completeWithdraw(
+        address asset,
+        address account,
+        uint256
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(asset, account);
+    }
+
+    // @desc function to request the withdraw of WBTC from swBTC withdraw queue, decode the asset (WBTC)
+    // @tag asset:address
     function requestWithdraw(
         address asset,
         uint96 shares,
-        uint16 maxLoss,
         bool allowThirdPartyToComplete
     )
         external
