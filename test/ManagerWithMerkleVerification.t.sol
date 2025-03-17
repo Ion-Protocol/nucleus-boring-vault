@@ -46,6 +46,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
     address public weEthOracle = 0x3fa58b74e9a8eA8768eb33c8453e9C2Ed089A40a;
     address public weEthIrm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    address public constant USDC_WETH_POOL = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640; // USDC/WETH 0.05% pool on
+        // Mainnet
 
     function setUp() external {
         // Setup forked environment.
@@ -3106,6 +3108,309 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             )
         );
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+    }
+
+    // Add these functions to your ManagerWithMerkleVerificationTest contract
+
+    // Test all flash loan protocols
+    function testAllFlashLoans() external {
+        // --- Shared setup for all tests ---
+        ManageLeaf[] memory leafs = new ManageLeaf[](16);
+        // Balancer flash loan
+        leafs[0] = ManageLeaf(
+            address(manager), false, "flashLoanBalancer(address,address,address[],uint256[],bytes)", new address[](2)
+        );
+        leafs[0].argumentAddresses[0] = vault; // Balancer vault
+        leafs[0].argumentAddresses[1] = address(USDC);
+
+        // Aave flash loan
+        leafs[1] = ManageLeaf(
+            address(manager), false, "flashLoanAave(address,address[],uint256[],uint256[],bytes)", new address[](2)
+        );
+        leafs[1].argumentAddresses[0] = v3Pool; // Aave lending pool
+        leafs[1].argumentAddresses[1] = address(USDC);
+
+        // Morpho flash loan
+        leafs[2] =
+            ManageLeaf(address(manager), false, "flashLoanMorpho(address,address,uint256,bytes)", new address[](2));
+        leafs[2].argumentAddresses[0] = morphoBlue; // Morpho pool
+        leafs[2].argumentAddresses[1] = address(USDC);
+
+        // Uniswap V3 swap
+        leafs[3] = ManageLeaf(address(manager), false, "swapUniswapV3(address,bool,int256,bytes)", new address[](1));
+        leafs[3].argumentAddresses[0] = USDC_WETH_POOL; // Example pool address
+
+        // Approve USDC for callbacks
+        leafs[4] = ManageLeaf(address(USDC), false, "approve(address,uint256)", new address[](1));
+        leafs[4].argumentAddresses[0] = address(this);
+
+        // Generate Merkle tree
+        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
+
+        // Set Merkle roots
+        manager.setManageRoot(address(this), manageTree[2][0]);
+        manager.setManageRoot(address(manager), manageTree[2][0]);
+
+        // --- Test 1: Balancer Flash Loan ---
+        testBalancerFlashLoan(leafs, manageTree);
+
+        // --- Test 2: Aave Flash Loan ---
+        testAaveFlashLoan(leafs, manageTree);
+
+        // --- Test 3: Morpho Flash Loan ---
+        testMorphoFlashLoan(leafs, manageTree);
+
+        // --- Test 4: Uniswap V3 Swap ---
+        testUniswapV3Swap(leafs, manageTree);
+    }
+
+    function testBalancerFlashLoan(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash loan
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            address[] memory tokensToBorrow = new address[](1);
+            tokensToBorrow[0] = address(USDC);
+
+            uint256[] memory amountsToBorrow = new uint256[](1);
+            amountsToBorrow[0] = 1_000_000e6;
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.flashLoanBalancer.selector,
+                vault,
+                address(manager),
+                tokensToBorrow,
+                amountsToBorrow,
+                userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[0];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            // Reset the flag before execution
+            iDidSomething = false;
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+
+            // Verify the flash loan worked
+            assertTrue(iDidSomething, "Balancer flash loan callback was not executed");
+        }
+    }
+
+    function testAaveFlashLoan(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash loan
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            address[] memory tokensToBorrow = new address[](1);
+            tokensToBorrow[0] = address(USDC);
+
+            uint256[] memory amountsToBorrow = new uint256[](1);
+            amountsToBorrow[0] = 1_000_000e6;
+
+            uint256[] memory modes = new uint256[](1);
+            modes[0] = 0; // Flash loan mode
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.flashLoanAave.selector,
+                v3Pool,
+                tokensToBorrow,
+                amountsToBorrow,
+                modes,
+                userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[1];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            // Reset the flag before execution
+            iDidSomething = false;
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+
+            // Verify the flash loan worked
+            assertTrue(iDidSomething, "Aave flash loan callback was not executed");
+        }
+    }
+
+    function testMorphoFlashLoan(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash loan
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.flashLoanMorpho.selector, morphoBlue, address(USDC), 1_000_000e6, userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[2];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            // Reset the flag before execution
+            iDidSomething = false;
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+
+            // Verify the flash loan worked
+            assertTrue(iDidSomething, "Morpho flash loan callback was not executed");
+        }
+    }
+
+    function testUniswapV3Swap(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash swap
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.swapUniswapV3.selector,
+                USDC_WETH_POOL, // Use an appropriately defined USDC/WETH pool
+                true, // zeroForOne (true means token0 to token1)
+                int256(1_000_000e6), // amountSpecified
+                userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[3];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            // Reset the flag before execution
+            iDidSomething = false;
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+
+            // Verify the flash swap worked
+            assertTrue(iDidSomething, "Uniswap V3 swap callback was not executed");
+        }
     }
 
     // ========================================= HELPER FUNCTIONS =========================================
