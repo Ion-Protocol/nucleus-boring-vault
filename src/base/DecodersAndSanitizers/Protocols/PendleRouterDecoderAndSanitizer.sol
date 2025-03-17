@@ -27,8 +27,7 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
                 || input.pendleSwap != address(0) || input.tokenIn != input.tokenMintSy
         ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
 
-        addressesFound =
-            abi.encodePacked(user, sy, input.tokenIn, input.tokenMintSy, input.pendleSwap, input.swapData.extRouter);
+        addressesFound = abi.encodePacked(user, sy, input.tokenIn);
     }
 
     function mintPyFromSy(
@@ -135,9 +134,7 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
                 || output.pendleSwap != address(0) || output.tokenOut != output.tokenRedeemSy
         ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
 
-        addressesFound = abi.encodePacked(
-            user, sy, output.tokenOut, output.tokenRedeemSy, output.pendleSwap, output.swapData.extRouter
-        );
+        addressesFound = abi.encodePacked(user, sy, output.tokenOut);
     }
 
     function swapExactTokenForPt(
@@ -162,7 +159,7 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
         }
 
-        addressFound = abi.encodePacked(receiver, market);
+        addressFound = abi.encodePacked(receiver, market, input.tokenIn);
     }
 
     function redeemDueInterestAndRewards(
@@ -232,7 +229,7 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
         }
 
-        addressesFound = abi.encodePacked(receiver, market);
+        addressesFound = abi.encodePacked(receiver, market, input.tokenIn);
     }
 
     function removeLiquiditySingleToken(
@@ -256,6 +253,6 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
         }
 
-        addressFound = abi.encodePacked(receiver, market);
+        addressFound = abi.encodePacked(receiver, market, output.tokenOut);
     }
 }
