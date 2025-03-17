@@ -59,6 +59,34 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(user, market);
     }
 
+    // @desc Function to withdraw from Pendle PT tokens, does not support limit orders or aggregator swaps.
+    // @param receiver:address
+    // @param market:address
+    // @param tokenOut:address
+    function swapExactPtForToken(
+        address receiver,
+        address market,
+        uint256 minPtOut,
+        DecoderCustomTypes.TokenOutput calldata output,
+        DecoderCustomTypes.LimitOrderData calldata limit
+    )
+        external
+        pure
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        if (limit.limitRouter != address(0)) {
+            revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
+        }
+
+        if (
+            output.swapData.swapType != DecoderCustomTypes.SwapType.NONE || output.swapData.extRouter != address(0)
+                || output.pendleSwap != address(0) || output.tokenOut != output.tokenRedeemSy
+        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+
+        addressesFound = abi.encodePacked(receiver, market, output.tokenOut);
+    }
+
     function swapExactYtForPt(
         address user,
         address market,
