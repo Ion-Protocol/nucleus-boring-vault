@@ -223,13 +223,13 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
      *      front-running the rebalance.
      * @param tokens The token addresses.
      * @param amounts The amounts borrowed.
-     * @param feeAmounts (ignored; Balancer fees are assumed to be zero)
+     * @param feeAmounts (Balancer fees are assumed to be zero)
      * @param userData Encoded parameters used to derive the intent hash and management instructions.
      */
     function receiveFlashLoan(
         address[] calldata tokens,
         uint256[] calldata amounts,
-        uint256[] calldata, /* feeAmounts */
+        uint256[] calldata feeAmounts,
         bytes calldata userData
     )
         external
@@ -413,9 +413,9 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
      */
     function _processFlashLoanCallback(
         address repayTo,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        uint256[] calldata fees,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint256[] memory fees,
         bytes calldata params,
         bool useApprove
     )

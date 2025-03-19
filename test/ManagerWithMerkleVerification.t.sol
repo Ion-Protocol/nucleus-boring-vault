@@ -59,7 +59,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
-        manager = new ManagerWithMerkleVerification(address(this), address(boringVault), vault);
+        // Update constructor call to match new signature (remove vault parameter)
+        manager = new ManagerWithMerkleVerification(address(this), address(boringVault));
 
         rawDataDecoderAndSanitizer =
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
@@ -97,11 +98,23 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, address(manager), ManagerWithMerkleVerification.setManageRoot.selector, true
         );
+
+        // Update flash loan related role capabilities to use the new method names
         rolesAuthority.setRoleCapability(
-            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoan.selector, true
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanBalancer.selector, true
         );
         rolesAuthority.setRoleCapability(
             BALANCER_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.receiveFlashLoan.selector, true
+        );
+        // Add capabilities for other flash loan methods
+        rolesAuthority.setRoleCapability(
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanAave.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanMorpho.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.swapUniswapV3.selector, true
         );
 
         // Grant roles
@@ -159,8 +172,10 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
     function testFlashLoan() external {
         ManageLeaf[] memory leafs = new ManageLeaf[](4);
-        leafs[0] = ManageLeaf(address(manager), false, "flashLoan(address,address[],uint256[],bytes)", new address[](2));
-        leafs[0].argumentAddresses[0] = address(manager);
+        leafs[0] = ManageLeaf(
+            address(manager), false, "flashLoanBalancer(address,address,address[],uint256[],bytes)", new address[](2)
+        );
+        leafs[0].argumentAddresses[0] = vault;
         leafs[0].argumentAddresses[1] = address(USDC);
         leafs[1] = ManageLeaf(address(this), false, "approve(address,uint256)", new address[](1));
         leafs[1].argumentAddresses[0] = address(USDC);
@@ -207,7 +222,12 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             amountsToBorrow[0] = 1_000_000e6;
             bytes[] memory targetData = new bytes[](1);
             targetData[0] = abi.encodeWithSelector(
-                BalancerVault.flashLoan.selector, address(manager), tokensToBorrow, amountsToBorrow, userData
+                ManagerWithMerkleVerification.flashLoanBalancer.selector,
+                vault,
+                address(manager),
+                tokensToBorrow,
+                amountsToBorrow,
+                userData
             );
 
             ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
@@ -1750,7 +1770,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         // Call now works.
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
-        // Check `flashLoan`
+        // Check flash loan related reverts
         address[] memory tokens;
         uint256[] memory amounts;
 
@@ -1759,26 +1779,16 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
                 ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByBoringVault.selector
             )
         );
-        manager.flashLoan(address(this), tokens, amounts, abi.encode(0));
+        manager.flashLoanBalancer(vault, address(this), tokens, amounts, abi.encode(0));
 
-        // Check `receiveFlashLoan`
+        // Check receiveFlashLoan
         uint256[] memory feeAmounts;
 
         address attacker = vm.addr(1);
         vm.startPrank(attacker);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByBalancerVault.selector
-            )
-        );
-        manager.receiveFlashLoan(tokens, amounts, feeAmounts, abi.encode(0));
-        vm.stopPrank();
-
-        // Someone else initiated a flash loan
-        vm.startPrank(vault);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerWithMerkleVerification.ManagerWithMerkleVerification__FlashLoanNotInProgress.selector
+                ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByFlashLoanPool.selector
             )
         );
         manager.receiveFlashLoan(tokens, amounts, feeAmounts, abi.encode(0));
@@ -1821,8 +1831,9 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     }
 
     function testFlashLoanReverts() external {
-        // Deploy a new manager, setting the Balancer Vault as address(this)
-        manager = new ManagerWithMerkleVerification(address(this), address(boringVault), address(this));
+        // Deploy a new manager, setting the test contract as the flash loan pool
+        manager = new ManagerWithMerkleVerification(address(this), address(boringVault));
+
         rolesAuthority.setRoleCapability(
             STRATEGIST_ROLE,
             address(manager),
@@ -1836,7 +1847,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             true
         );
         rolesAuthority.setRoleCapability(
-            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoan.selector, true
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanBalancer.selector, true
         );
         rolesAuthority.setRoleCapability(
             BALANCER_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.receiveFlashLoan.selector, true
@@ -1847,10 +1858,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(address(boringVault), BORING_VAULT_ROLE, true);
         rolesAuthority.setUserRole(address(this), BALANCER_VAULT_ROLE, true);
         manager.setAuthority(rolesAuthority);
-
         ManageLeaf[] memory leafs = new ManageLeaf[](4);
-        leafs[0] = ManageLeaf(address(manager), false, "flashLoan(address,address[],uint256[],bytes)", new address[](2));
-        leafs[0].argumentAddresses[0] = address(manager);
+        leafs[0] = ManageLeaf(
+            address(manager), false, "flashLoanBalancer(address,address,address[],uint256[],bytes)", new address[](2)
+        );
+        leafs[0].argumentAddresses[0] = address(this);
         leafs[0].argumentAddresses[1] = address(USDC);
 
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
@@ -1869,7 +1881,12 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         amountsToBorrow[0] = 1_000_000e6;
         bytes[] memory targetData = new bytes[](1);
         targetData[0] = abi.encodeWithSelector(
-            BalancerVault.flashLoan.selector, address(manager), tokensToBorrow, amountsToBorrow, userData
+            ManagerWithMerkleVerification.flashLoanBalancer.selector,
+            address(this),
+            address(manager),
+            tokensToBorrow,
+            amountsToBorrow,
+            userData
         );
 
         ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
