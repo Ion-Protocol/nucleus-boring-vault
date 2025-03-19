@@ -90,11 +90,13 @@ contract RoosterMicroManager is Ownable {
     }
 
     function _transferAndApproveTokens(IERC20 tokenA, IERC20 tokenB, uint256 amountA, uint256 amountB) internal {
-        // use amounts to transfer tokens from sender to this contract
-        tokenA.transferFrom(msg.sender, address(this), amountA);
-        tokenB.transferFrom(msg.sender, address(this), amountB);
-
-        tokenA.approve(address(liquidityManager), amountA);
-        tokenB.approve(address(liquidityManager), amountB);
+        if (amountA > 0) {
+            tokenA.transferFrom(msg.sender, address(this), amountA);
+            tokenA.approve(address(liquidityManager), amountA);
+        }
+        if (amountB > 0) {
+            tokenB.transferFrom(msg.sender, address(this), amountB);
+            tokenB.approve(address(liquidityManager), amountB);
+        }
     }
 }
