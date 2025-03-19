@@ -14,6 +14,8 @@ struct AssetValue {
 }
 
 abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
+    // @desc Deposit assets into the Aera Vault
+    // @tag assets:bytes:packed bytes of every asset in each AssetValue[] input.
     function deposit(AssetValue[] memory amounts) external pure returns (bytes memory addressesFound) {
         // Requirements: check that provided amounts are sorted by asset and unique.
         for (uint256 i = 0; i < amounts.length;) {
@@ -24,10 +26,12 @@ abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc withdraw assets from the Aera Vault
+    // @tag assets:bytes:packed bytes of every asset in each AssetValue[] input.
     function withdraw(AssetValue[] memory amounts) external pure returns (bytes memory amountsFound) {
         // Requirements: check that provided amounts are sorted by asset and unique.
         for (uint256 i = 0; i < amounts.length;) {
-            amountsFound = abi.encodePacked(amountsFound, amounts[i].value);
+            amountsFound = abi.encodePacked(amountsFound, amounts[i].asset);
             unchecked {
                 ++i;
             }

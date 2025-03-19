@@ -26,6 +26,7 @@
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
     "forge-std": "^1.1.2",
+    "keccak256": "^1.0.6",
     "pocketbase": "^0.25.2",
     "prettier": "^3.3.2",
     "solhint": "^5.0.1"
