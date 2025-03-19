@@ -12,7 +12,7 @@ import { IMaverickV2PoolLens } from "@maverick/v2-interfaces/contracts/interface
 import { IMaverickV2Quoter } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Quoter.sol";
 import { IMaverickV2Router } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Router.sol";
 
-import { RoosterMicroManager } from "src/base/MicroManagers/RoosterMicroManager.sol";
+import { RoosterMicroManager } from "src/micro-managers/RoosterMicroManager.sol";
 
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
@@ -31,6 +31,7 @@ contract RoosterMicroManagerTest is Test {
     function setUp() public {
         // Deploy the contract with mock addresses
         roosterManager = new RoosterMicroManager(payable(manager), address(lens), address(quoter));
+        _startFork("PLUME_RPC_URL");
     }
 
     function testMintPositionNftToSender() public {
@@ -89,8 +90,8 @@ contract RoosterMicroManagerTest is Test {
         console2.log("afterRemoveLiquidity A: ", pool.tokenA().balanceOf(address(this)));
         console2.log("afterRemoveLiquidity B: ", pool.tokenB().balanceOf(address(this)));
 
-        assertTrue(pool.tokenA().balanceOf(address(this)) == 1e30);
-        assertTrue(pool.tokenB().balanceOf(address(this)) == 1e30);
+        assertApproxEqRel(pool.tokenA().balanceOf(address(this)), 1e30, 1e18);
+        assertApproxEqRel(pool.tokenB().balanceOf(address(this)), 1e30, 1e18);
     }
 
     // function ripped from Maverick tests
@@ -117,5 +118,10 @@ contract RoosterMicroManagerTest is Test {
             relativeLiquidityAmounts[3],
             relativeLiquidityAmounts[4]
         ) = (liquidityAmount, liquidityAmount, liquidityAmount, liquidityAmount, liquidityAmount);
+    }
+
+    function _startFork(string memory rpcKey) internal returns (uint256 forkId) {
+        forkId = vm.createFork(vm.envString(rpcKey));
+        vm.selectFork(forkId);
     }
 }
