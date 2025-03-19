@@ -1,13 +1,14 @@
 const fs = require('fs');
-const crypto = require('crypto');
 const { execSync } = require('child_process');
 const PocketBase = require('pocketbase/cjs');
+const keccak256 = require('keccak256');
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pbUrl = process.env.POCKETBASE_URL || 'http://34.201.251.108:8090';
+const pb = new PocketBase(pbUrl);
 
 function computeSelector(signature) {
-    // Compute the 4-byte selector from the function signature
-    return '0x' + crypto.createHash('sha3-256').update(signature).digest('hex').slice(0, 8);
+    // Compute the 4-byte selector using keccak256 (Ethereum's hashing algorithm)
+    return '0x' + keccak256(signature).toString('hex').slice(0, 8);
 }
 
 function parseSolidityFile(filePath) {
@@ -32,94 +33,154 @@ function parseSolidityFile(filePath) {
         const descMatch = /\/\/\s*@desc\s+(.*)/.exec(docComment);
         const description = descMatch ? descMatch[1].trim() : "";
 
-        const tagMatches = [...docComment.matchAll(/\/\/\s*@tag\s+(\w+):(\w+)/g)];
-        const paramsList = tagMatches.map(([_, title, type]) => ({ title, type }));
+        const tagMatches = [...docComment.matchAll(/\/\/\s*@tag\s+(\w+):([^:]+)(?::(.*))?/g)];
+        const paramsList = tagMatches.map(([_, title, type, description]) => ({ 
+            title, 
+            type: type.trim(),
+            description: description ? description.trim() : "" 
+        }));
 
-        // Compute the function selector
-        const signature = `${functionName}(${params})`;
+        // Clean the parameters to only include types (remove parameter names and whitespace)
+        const cleanedParams = params.split(',')
+            .map(param => {
+                // Extract just the type from "type name" format
+                const parts = param.trim().split(/\s+/);
+                return parts[0]; // Return just the type
+            })
+            .join(',');
+
+        // Compute the function selector with the cleaned signature
+        const signature = `${functionName}(${cleanedParams})`;
         const selector = computeSelector(signature);
+        console.log(`${signature} ${selector}`);
 
         functionsData.push({
             selector,
             description,
-            params: paramsList
+            params: paramsList,
+            signature: signature
         });
     }
 
     return functionsData;
 }
 
+async function checkExistingSelectors(selectors) {
+    const existingSelectors = [];
+    
+    for (const selector of selectors) {
+        try {
+            const result = await pb.collection('decoder_selectors').getFirstListItem(`selector="${selector}"`);
+            if (result) {
+                existingSelectors.push(selector);
+            }
+        } catch (error) {
+            // Not found, which is what we want
+        }
+    }
+    
+    return existingSelectors;
+}
+
 async function main() {
-    // Example file path
-    const filePath = 'src/base/DecodersAndSanitizers/EarnETHSwellDecoderAndSanitizer.sol';
+    // Get file path and flags from command line arguments
+    const args = process.argv.slice(2);
+    
+    // Check for --post flag
+    const postIndex = args.indexOf('--post');
+    const shouldPost = postIndex !== -1;
+    
+    // Remove the flag from args if present
+    if (postIndex !== -1) {
+        args.splice(postIndex, 1);
+    }
+    
+    if (args.length === 0) {
+        console.error('Error: Please provide a file path as an argument');
+        console.error('Usage: node tag_parse.js <path_to_solidity_file> [--post]');
+        console.error('  --post: Post the data to PocketBase (otherwise dry run)');
+        process.exit(1);
+    }
+    
+    const filePath = args[0];
     const tempFile = 'temp.sol';
 
     if (!fs.existsSync(filePath)) {
-        console.log(`File not found: ${filePath}`);
-        return;
+        console.error(`Error: File not found: ${filePath}`);
+        process.exit(1);
     }
 
-    console.log(`forge flatten ${filePath} > ${tempFile}`)
+    console.log(`Processing file: ${filePath}`);
+    if (!shouldPost) {
+        console.log('DRY RUN MODE: Data will not be posted to PocketBase. Use --post flag to post data.');
+    }
+
+    // Authenticate before making requests
+    await authenticatePocketBase();
+
     // Run forge flatten and create temp.sol
-    execSync(`forge flatten ${filePath} > ${tempFile}`);
+    try {
+        execSync(`forge flatten ${filePath} > ${tempFile}`);
+    } catch (error) {
+        console.error('Error flattening the Solidity file:', error.message);
+        process.exit(1);
+    }
 
     // Parse the temp.sol file
     const functionsData = parseSolidityFile(tempFile);
+    
+    console.log(`Found ${functionsData.length} tagged functions`);
+    
+    // Print out the found functions
+    functionsData.forEach(func => {
+        console.log(`- ${func.signature} => ${func.selector}`);
+        console.log(`  Description: ${func.description}`);
+        console.log(`  Tags: ${JSON.stringify(func.params)}`);
+    });
 
     // Delete the temp.sol file
     fs.unlinkSync(tempFile);
 
-    // Create a batch for PocketBase
-    const batch = pb.createBatch();
+    // Check for existing selectors
+    const selectorsToCheck = functionsData.map(func => func.selector);
+    const existingSelectors = await checkExistingSelectors(selectorsToCheck);
 
-    const dataObjects = functionsData.map(functionData => ({
-        selector: functionData.selector,
-        description: functionData.description,
-        tags: JSON.stringify(functionData.params) // Convert params to JSON string
-    }));
+    // Filter out functions with selectors that already exist
+    const newFunctionsData = functionsData.filter(func => !existingSelectors.includes(func.selector));
 
-    // Test with a single record
-    // const sampleData = dataObjects[0];
-    // try {
-    //     const record = await pb.collection('decoder_selectors').create({
-    //         selector: sampleData.selector,
-    //         description: sampleData.description,
-    //         tags: sampleData.tags
-    //     });
-    //     console.log('Single record created successfully:', record);
-    // } catch (error) {
-    //     console.error('Error creating single record:', error);
-    //     console.error('Error details:', error.response?.data || error.message);
-    // }
+    console.log(`Found ${existingSelectors.length} selectors that already exist in the database`);
+    console.log(`Found ${newFunctionsData.length} new selectors to add`);
 
-    // Add debugging to check if dataObjects has content
-    console.log('Number of data objects:', dataObjects.length);
-    if (dataObjects.length > 0) {
-        console.log('Sample data object:', dataObjects[0]);
+    // Only proceed with posting if --post flag is present
+    if (!shouldPost) {
+        console.log('Dry run complete. Use --post flag to post data to PocketBase.');
+        return;
     }
 
+    // If there are no new selectors to add, exit gracefully
+    if (newFunctionsData.length === 0) {
+        console.log('No new selectors to add. Exiting.');
+        return;
+    }
+
+    console.log('Posting data to PocketBase...');
+
     // Create the requests array with proper data formatting
-    const requests = dataObjects.map(data => ({
+    const requests = newFunctionsData.map(data => ({
         method: 'POST',
         url: '/api/collections/decoder_selectors/records',
         body: {
-            selector: data.selector,  // Make sure this matches the expected format
+            selector: data.selector,
             description: data.description,
-            tags: data.tags
+            tags: JSON.stringify(data.params),
+            signature: data.signature
         }
     }));
-
-    // Check if requests array is properly formed
-    console.log('Number of requests:', requests.length);
-    if (requests.length > 0) {
-        console.log('Sample request:', requests[0]);
-    }
 
     // Make sure the request body is correctly structured
     const requestBody = {
         requests: requests
     };
-    console.log('Request body structure:', JSON.stringify(requestBody, null, 2));
 
     try {
         const result = await pb.send('/api/batch', {
@@ -133,4 +194,7 @@ async function main() {
     }
 }
 
-main(); 
+main().catch(error => {
+    console.error('Unhandled error:', error);
+    process.exit(1);
+}); 
