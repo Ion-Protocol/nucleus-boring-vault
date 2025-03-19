@@ -4,16 +4,17 @@ pragma solidity ^0.8.21;
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
-import {IMaverickV2Pool} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Pool.sol";
-import {IMaverickV2Factory} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Factory.sol";
-import {IMaverickV2LiquidityManager} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2LiquidityManager.sol";
-import {IMaverickV2PoolLens} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2PoolLens.sol";
-import {IMaverickV2Quoter} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Quoter.sol";
-import {IMaverickV2Router} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Router.sol";
+import { IMaverickV2Pool } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Pool.sol";
+import { IMaverickV2Factory } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Factory.sol";
+import { IMaverickV2LiquidityManager } from
+    "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2LiquidityManager.sol";
+import { IMaverickV2PoolLens } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2PoolLens.sol";
+import { IMaverickV2Quoter } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Quoter.sol";
+import { IMaverickV2Router } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Router.sol";
 
-import {RoosterMicroManager} from "src/base/MicroManagers/RoosterMicroManager.sol";
+import { RoosterMicroManager } from "src/base/MicroManagers/RoosterMicroManager.sol";
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol"; 
+import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract RoosterMicroManagerTest is Test {
     RoosterMicroManager public roosterManager;
@@ -70,20 +71,21 @@ contract RoosterMicroManagerTest is Test {
         console2.log("beforeAddLiquidity A: ", pool.tokenA().balanceOf(address(this)));
         console2.log("beforeAddLiquidity B: ", pool.tokenB().balanceOf(address(this)));
 
-        uint id = roosterManager.mintPositionNftToSender(addParamsViewInputs, block.timestamp + 30, 0, 300e18);
+        uint256 id = roosterManager.mintPositionNftToSender(addParamsViewInputs, block.timestamp + 30, 0, 300e18);
         assertTrue(manager.position().ownerOf(id) == address(this));
 
         console2.log("afterAddLiquidity A: ", pool.tokenA().balanceOf(address(this)));
         console2.log("afterAddLiquidity B: ", pool.tokenB().balanceOf(address(this)));
-        
+
         manager.position().approve(address(roosterManager), id);
 
         console2.log("beforeRemoveLiquidity A: ", pool.tokenA().balanceOf(address(this)));
         console2.log("beforeRemoveLiquidity B: ", pool.tokenB().balanceOf(address(this)));
-        IMaverickV2Pool.RemoveLiquidityParams memory removeLiquidityParams = manager.position().getRemoveParams(id, 0, 1e18);
+        IMaverickV2Pool.RemoveLiquidityParams memory removeLiquidityParams =
+            manager.position().getRemoveParams(id, 0, 1e18);
         console2.log("removeLiquidityParams.amounts[0]: ", removeLiquidityParams.amounts[0]);
         console2.log("removeLiquidityParams.amounts[1]: ", removeLiquidityParams.amounts[1]);
-        roosterManager.removeLiquidity(pool, id, removeLiquidityParams, block.timestamp+30, 0, 300e18);
+        roosterManager.removeLiquidity(pool, id, removeLiquidityParams, block.timestamp + 30, 0, 300e18);
         console2.log("afterRemoveLiquidity A: ", pool.tokenA().balanceOf(address(this)));
         console2.log("afterRemoveLiquidity B: ", pool.tokenB().balanceOf(address(this)));
 
@@ -116,5 +118,4 @@ contract RoosterMicroManagerTest is Test {
             relativeLiquidityAmounts[4]
         ) = (liquidityAmount, liquidityAmount, liquidityAmount, liquidityAmount, liquidityAmount);
     }
-
 }

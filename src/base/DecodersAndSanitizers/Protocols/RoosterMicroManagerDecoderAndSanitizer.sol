@@ -2,11 +2,11 @@
 pragma solidity ^0.8.21;
 
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
-import {IMaverickV2PoolLens} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2PoolLens.sol";
-import {IMaverickV2Router} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Router.sol";
-import {IMaverickV2Pool} from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Pool.sol";
-abstract contract RoosterMicroManagerDecoderAndSanitizer is BaseDecoderAndSanitizer{
+import { IMaverickV2PoolLens } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2PoolLens.sol";
+import { IMaverickV2Router } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Router.sol";
+import { IMaverickV2Pool } from "@maverick/v2-interfaces/contracts/interfaces/IMaverickV2Pool.sol";
 
+abstract contract RoosterMicroManagerDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function mintPositionNftToSender(
         IMaverickV2PoolLens.AddParamsViewInputs memory addParamsViewInputs,
         uint256 deadline,
@@ -41,8 +41,11 @@ abstract contract RoosterMicroManagerDecoderAndSanitizer is BaseDecoderAndSaniti
         bool tokenAIn,
         uint256 amountIn,
         uint256 amountOutMinimum
-    ) external pure returns (bytes memory addressesFound){
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
         addressesFound = abi.encodePacked(recipient, address(pool));
     }
-
 }
