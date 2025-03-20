@@ -469,12 +469,19 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
             manageProofs, decodersAndSanitizers, targets, data, values
         );
 
-        // Call the second part of the function with the necessary parameters
-        _processRepayment(repayTo, tokens, amounts, fees, useApprove);
+        // Process repayments with the new helper function
+        _processFlashLoanRepayment(repayTo, tokens, amounts, fees, useApprove);
     }
 
-    // New helper function to handle repayment logic
-    function _processRepayment(
+    /**
+     * @notice Internal helper to process repayments, skipping zero-amount transfers.
+     * @param repayTo The address to which the repayment will be sent or approved.
+     * @param tokens The token addresses.
+     * @param amounts The amounts borrowed/to be repaid.
+     * @param fees The fee amounts associated with the flash loan.
+     * @param useApprove If true, the manager will perform direct approvals for repayment.
+     */
+    function _processFlashLoanRepayment(
         address repayTo,
         address[] memory tokens,
         uint256[] memory amounts,
@@ -483,33 +490,46 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     )
         internal
     {
-        bytes[] memory transferData = new bytes[](tokens.length);
-
-        if (!useApprove) {
-            // For protocols like Balancer and Uniswap V3 flash swaps, repay via vault.transfer
-            for (uint256 i = 0; i < amounts.length; ++i) {
-                if (amounts[i] > 0) {
-                    transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, repayTo, (amounts[i] + fees[i]));
-                } else {
-                    // Empty transfer for tokens we don't need to pay back
-                    transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, address(0), 0);
-                }
-            }
-        } else {
-            // For protocols like Aave and Morpho, approve the pool to pull funds
-            for (uint256 i = 0; i < amounts.length; ++i) {
-                if (amounts[i] > 0) {
-                    ERC20(tokens[i]).safeApprove(repayTo, (amounts[i] + fees[i]));
-                    transferData[i] =
-                        abi.encodeWithSelector(ERC20.transfer.selector, address(this), (amounts[i] + fees[i]));
-                } else {
-                    // No need to approve for tokens we don't need to pay back
-                    transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, address(0), 0);
-                }
+        // Count how many non-zero transfers we need to make
+        uint256 nonZeroCount = 0;
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            if (amounts[i] > 0) {
+                nonZeroCount++;
             }
         }
 
-        vault.manage(tokens, transferData, new uint256[](tokens.length));
+        // If there are no tokens to repay, just return
+        if (nonZeroCount == 0) return;
+
+        // Create arrays of exactly the right size for non-zero transfers
+        address[] memory transferTokens = new address[](nonZeroCount);
+        bytes[] memory transferData = new bytes[](nonZeroCount);
+        uint256[] memory transferValues = new uint256[](nonZeroCount);
+
+        // Fill arrays with only the non-zero transfers
+        uint256 index = 0;
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            if (amounts[i] > 0) {
+                transferTokens[index] = tokens[i];
+
+                if (!useApprove) {
+                    // For protocols like Balancer and Uniswap V3 flash swaps, repay via vault.transfer
+                    transferData[index] =
+                        abi.encodeWithSelector(ERC20.transfer.selector, repayTo, (amounts[i] + fees[i]));
+                } else {
+                    // For protocols like Aave and Morpho, approve the pool to pull funds
+                    ERC20(tokens[i]).safeApprove(repayTo, (amounts[i] + fees[i]));
+                    transferData[index] =
+                        abi.encodeWithSelector(ERC20.transfer.selector, address(this), (amounts[i] + fees[i]));
+                }
+
+                transferValues[index] = 0; // No ETH value needed
+                index++;
+            }
+        }
+
+        // Execute the transfers through the vault
+        vault.manage(transferTokens, transferData, transferValues);
     }
 
     /**
