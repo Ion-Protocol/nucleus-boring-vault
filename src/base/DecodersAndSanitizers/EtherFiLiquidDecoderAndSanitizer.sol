@@ -19,6 +19,8 @@ import { GearboxDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Proto
 import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
 import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
+import { FlashLoanAndSwapDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/FlashLoanAndSwapDecoderAndSanitizer.sol";
 
 contract EtherFiLiquidDecoderAndSanitizer is
     UniswapV3DecoderAndSanitizer,
@@ -33,7 +35,8 @@ contract EtherFiLiquidDecoderAndSanitizer is
     OneInchDecoderAndSanitizer,
     GearboxDecoderAndSanitizer,
     PendleRouterDecoderAndSanitizer,
-    AaveV3DecoderAndSanitizer
+    AaveV3DecoderAndSanitizer,
+    FlashLoanAndSwapDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
@@ -77,7 +80,9 @@ contract EtherFiLiquidDecoderAndSanitizer is
      * @notice BalancerV2, NativeWrapper, Curve, and Gearbox all specify a `withdraw(uint256)`,
      *         all cases are handled the same way.
      */
-    function withdraw(uint256)
+    function withdraw(
+        uint256
+    )
         external
         pure
         override(

@@ -9,64 +9,6 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
     error BalancerV2DecoderAndSanitizer__SingleSwapUserDataLengthNonZero();
     error BalancerV2DecoderAndSanitizer__InternalBalancesNotSupported();
 
-    function flashLoanBalancer(
-        address poolAddress,
-        address recipient,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        bytes calldata userData
-    )
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encodePacked(poolAddress, recipient, tokens[0]);
-        return addressesFound;
-    }
-
-    function flashLoanAave(
-        address poolAddress,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        uint256[] calldata modes,
-        bytes calldata userData
-    )
-        external
-        view
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encodePacked(poolAddress, msg.sender, tokens[0]);
-        return addressesFound;
-    }
-
-    function flashLoanMorpho(
-        address poolAddress,
-        address token,
-        uint256 assets,
-        bytes calldata userData
-    )
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encodePacked(poolAddress, token);
-        return addressesFound;
-    }
-
-    function swapUniswapV3(
-        address poolAddress,
-        bool zeroForOne,
-        int256 amountSpecified,
-        bytes calldata userData
-    )
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encodePacked(poolAddress);
-        return addressesFound;
-    }
-
     //============================== BALANCER V2 ===============================
 
     function flashLoan(

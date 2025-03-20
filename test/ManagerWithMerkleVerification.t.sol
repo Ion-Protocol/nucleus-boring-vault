@@ -1733,7 +1733,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
                 ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByBoringVault.selector
             )
         );
-        manager.flashLoanBalancer(vault, address(this), tokens, amounts, abi.encode(0));
+        manager.flashLoanBalancer(vault, tokens, amounts, abi.encode(0));
 
         // Check receiveFlashLoan
         uint256[] memory feeAmounts;
@@ -3002,10 +3002,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         ManageLeaf[] memory leafs = new ManageLeaf[](8);
         // Balancer flash loan
         leafs[0] = ManageLeaf(
-            address(manager),
-            false,
-            "flashLoanBalancer(address,address,address[],uint256[],bytes)",
-            new address[](3) // Changed from 2 to 3
+            address(manager), false, "flashLoanBalancer(address,address[],uint256[],bytes)", new address[](3)
         );
         leafs[0].argumentAddresses[0] = vault; // poolAddress
         leafs[0].argumentAddresses[1] = address(manager); // recipient
@@ -3092,7 +3089,6 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             targetData[0] = abi.encodeWithSelector(
                 ManagerWithMerkleVerification.flashLoanBalancer.selector,
                 vault,
-                address(manager),
                 tokensToBorrow,
                 amountsToBorrow,
                 userData

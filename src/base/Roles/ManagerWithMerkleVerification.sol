@@ -197,14 +197,12 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     /**
      * @notice Initiates a Balancer flash loan.
      * @param poolAddress The Balancer (fork) pool address to use.
-     * @param recipient The address that will receive the flash loaned funds.
      * @param tokens The addresses of the tokens to be borrowed.
      * @param amounts The amounts for each token.
      * @param userData Encoded parameters for management and intent verification.
      */
     function flashLoanBalancer(
         address poolAddress,
-        address recipient,
         address[] calldata tokens,
         uint256[] calldata amounts,
         bytes calldata userData
@@ -212,7 +210,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         external
     {
         _initFlashLoanState(poolAddress, userData);
-        BalancerVault(poolAddress).flashLoan(recipient, tokens, amounts, userData);
+        BalancerVault(poolAddress).flashLoan(address(this), tokens, amounts, userData);
         _finalizeFlashLoanState();
     }
 
@@ -471,6 +469,20 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
             manageProofs, decodersAndSanitizers, targets, data, values
         );
 
+        // Call the second part of the function with the necessary parameters
+        _processRepayment(repayTo, tokens, amounts, fees, useApprove);
+    }
+
+    // New helper function to handle repayment logic
+    function _processRepayment(
+        address repayTo,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint256[] memory fees,
+        bool useApprove
+    )
+        internal
+    {
         bytes[] memory transferData = new bytes[](tokens.length);
 
         if (!useApprove) {
@@ -496,6 +508,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
                 }
             }
         }
+
         vault.manage(tokens, transferData, new uint256[](tokens.length));
     }
 
