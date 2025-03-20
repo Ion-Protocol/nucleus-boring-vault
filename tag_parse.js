@@ -1,8 +1,8 @@
-const fs = require('fs');
-const { execSync } = require('child_process');
-const PocketBase = require('pocketbase/cjs');
-const keccak256 = require('keccak256');
-const path = require('path');
+import fs from 'fs';
+import { execSync } from 'child_process';
+import PocketBase from 'pocketbase';
+import keccak256 from 'keccak256';
+import path from 'path';
 
 const pbUrl = process.env.POCKETBASE_URL || 'http://34.201.251.108:8090';
 const pb = new PocketBase(pbUrl);
@@ -235,6 +235,7 @@ async function main() {
     console.log(`\nProcessing complete. Found ${totalFunctions} total tagged functions across ${filesToProcess.length} files.`);
 }
 
+// Execute the main function
 main().catch(error => {
     console.error('Unhandled error:', error);
     process.exit(1);
