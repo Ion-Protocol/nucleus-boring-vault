@@ -18,35 +18,18 @@ contract DeployManagerWithMerkleVerification is BaseScript {
         require(config.managerSalt != bytes32(0), "manager salt must not be zero");
         require(config.boringVault != address(0), "boring vault address must not be zero");
         require(address(config.boringVault).code.length != 0, "boring vault must have code");
-        require(
-            address(config.balancerVault).code.length != 0 || address(config.balancerVault) == address(0),
-            "balancer vault must have code or be zero address"
-        );
 
         // Create Contract
         bytes memory creationCode = type(ManagerWithMerkleVerification).creationCode;
         ManagerWithMerkleVerification manager = ManagerWithMerkleVerification(
             CREATEX.deployCreate3(
-                config.managerSalt,
-                abi.encodePacked(
-                    creationCode,
-                    abi.encode(
-                        broadcaster,
-                        config.boringVault,
-                        config.balancerVault,
-                        18 // decimals
-                    )
-                )
+                config.managerSalt, abi.encodePacked(creationCode, abi.encode(broadcaster, config.boringVault))
             )
         );
 
         // Post Deploy Checks
         require(manager.isPaused() == false, "the manager must not be paused");
         require(address(manager.vault()) == config.boringVault, "the manager vault must be the boring vault");
-        require(
-            address(manager.balancerVault()) == config.balancerVault,
-            "the manager balancer vault must be the balancer vault"
-        );
 
         return address(manager);
     }
