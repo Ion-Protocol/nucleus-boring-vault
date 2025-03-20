@@ -6,6 +6,7 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 abstract contract AnemoyDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error AnemoyDecoderAndSanitizer__MustBeBoringVault();
 
+    // @desc Request a deposit into the Anemoy Vault, will revert if controller or owner is not the boring vault
     function requestDeposit(
         uint256 assets,
         address controller,
@@ -22,6 +23,7 @@ abstract contract AnemoyDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
     }
 
+    // @desc Mint shares into the Anemoy Vault, will revert if controller or owner is not the boring vault
     function mint(
         uint256 shares,
         address receiver,
@@ -37,6 +39,7 @@ abstract contract AnemoyDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
     }
 
+    // @desc Request a redeem from the Anemoy Vault, will revert if controller or owner is not the boring vault
     function requestRedeem(
         uint256 shares,
         address controller,
@@ -52,6 +55,7 @@ abstract contract AnemoyDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
     }
 
+    // @desc Withdraw from the Anemoy Vault, will revert if controller or owner is not the boring vault
     function withdraw(
         uint256 assets,
         address receiver,
