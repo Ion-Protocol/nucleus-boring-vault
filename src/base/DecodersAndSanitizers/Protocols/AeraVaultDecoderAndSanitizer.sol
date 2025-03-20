@@ -38,6 +38,10 @@ abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc Set the guardian and fee recipient for the Aera Vault as the owner, guardian can pause and manage some
+    // aspects of the vault
+    // @tag guardian:address:the address of the guardian
+    // @tag feeRecipient:address:the address of the fee recipient
     function setGuardianAndFeeRecipient(
         address guardian,
         address feeRecipient
