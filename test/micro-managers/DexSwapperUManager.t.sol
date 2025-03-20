@@ -47,7 +47,7 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
-        manager = new ManagerWithMerkleVerification(address(this), address(boringVault), vault);
+        manager = new ManagerWithMerkleVerification(address(this), address(boringVault));
 
         rawDataDecoderAndSanitizer =
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
@@ -90,7 +90,7 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
             ADMIN_ROLE, address(manager), ManagerWithMerkleVerification.setManageRoot.selector, true
         );
         rolesAuthority.setRoleCapability(
-            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoan.selector, true
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanBalancer.selector, true
         );
         rolesAuthority.setRoleCapability(
             BALANCER_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.receiveFlashLoan.selector, true

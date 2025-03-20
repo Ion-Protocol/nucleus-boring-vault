@@ -49,6 +49,34 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     address public constant USDC_WETH_POOL = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640; // USDC/WETH 0.05% pool on
         // Mainnet
 
+    enum InterestRateMode {
+        NONE,
+        STABLE,
+        VARIABLE
+    }
+
+    event FlashLoan(address indexed recipient, address indexed token, uint256 amount, uint256 feeAmount);
+    event BoringVaultManaged(uint256 callsMade);
+    event FlashLoan(
+        address indexed target,
+        address initiator,
+        address indexed asset,
+        uint256 amount,
+        InterestRateMode interestRateMode,
+        uint256 premium,
+        uint16 indexed referralCode
+    );
+    event FlashLoan(address indexed caller, address indexed token, uint256 assets);
+    event Swap(
+        address indexed sender,
+        address indexed recipient,
+        int256 amount0,
+        int256 amount1,
+        uint160 sqrtPriceX96,
+        uint128 liquidity,
+        int24 tick
+    );
+
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "MAINNET_RPC_URL";
@@ -3132,30 +3160,35 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     // Test all flash loan protocols
     function testAllFlashLoans() external {
         // --- Shared setup for all tests ---
-        ManageLeaf[] memory leafs = new ManageLeaf[](16);
+        ManageLeaf[] memory leafs = new ManageLeaf[](8);
         // Balancer flash loan
         leafs[0] = ManageLeaf(
-            address(manager), false, "flashLoanBalancer(address,address,address[],uint256[],bytes)", new address[](2)
+            address(manager),
+            false,
+            "flashLoanBalancer(address,address,address[],uint256[],bytes)",
+            new address[](3) // Changed from 2 to 3
         );
-        leafs[0].argumentAddresses[0] = vault; // Balancer vault
-        leafs[0].argumentAddresses[1] = address(USDC);
+        leafs[0].argumentAddresses[0] = vault; // poolAddress
+        leafs[0].argumentAddresses[1] = address(manager); // recipient
+        leafs[0].argumentAddresses[2] = address(USDC); // token
 
         // Aave flash loan
         leafs[1] = ManageLeaf(
-            address(manager), false, "flashLoanAave(address,address[],uint256[],uint256[],bytes)", new address[](2)
+            address(manager), false, "flashLoanAave(address,address[],uint256[],uint256[],bytes)", new address[](3)
         );
         leafs[1].argumentAddresses[0] = v3Pool; // Aave lending pool
-        leafs[1].argumentAddresses[1] = address(USDC);
+        leafs[1].argumentAddresses[1] = address(manager); // recipient
+        leafs[1].argumentAddresses[2] = address(USDC); // token
 
         // Morpho flash loan
         leafs[2] =
             ManageLeaf(address(manager), false, "flashLoanMorpho(address,address,uint256,bytes)", new address[](2));
         leafs[2].argumentAddresses[0] = morphoBlue; // Morpho pool
-        leafs[2].argumentAddresses[1] = address(USDC);
+        leafs[2].argumentAddresses[1] = address(USDC); // token
 
         // Uniswap V3 swap
         leafs[3] = ManageLeaf(address(manager), false, "swapUniswapV3(address,bool,int256,bytes)", new address[](1));
-        leafs[3].argumentAddresses[0] = USDC_WETH_POOL; // Example pool address
+        leafs[3].argumentAddresses[0] = USDC_WETH_POOL; // pool address
 
         // Approve USDC for callbacks
         leafs[4] = ManageLeaf(address(USDC), false, "approve(address,uint256)", new address[](1));
@@ -3164,9 +3197,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         // Generate Merkle tree
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
-        // Set Merkle roots
-        manager.setManageRoot(address(this), manageTree[2][0]);
-        manager.setManageRoot(address(manager), manageTree[2][0]);
+        manager.setManageRoot(address(this), manageTree[3][0]);
+        manager.setManageRoot(address(manager), manageTree[3][0]);
 
         // --- Test 1: Balancer Flash Loan ---
         testBalancerFlashLoan(leafs, manageTree);
@@ -3236,14 +3268,21 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             address[] memory decodersAndSanitizers = new address[](1);
             decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
 
-            // Reset the flag before execution
-            iDidSomething = false;
+            // Expect the FlashLoan event.
+            vm.expectEmit(true, true, true, true);
+            emit FlashLoan(
+                address(manager), // recipient
+                address(USDC), // token
+                1_000_000e6, // amount
+                0 // fee
+            );
+
+            // Expect the BoringVaultManaged event.
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1); // expecting 1 call made
 
             // Execute the transaction
             manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-            // Verify the flash loan worked
-            assertTrue(iDidSomething, "Balancer flash loan callback was not executed");
         }
     }
 
@@ -3305,14 +3344,18 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             address[] memory decodersAndSanitizers = new address[](1);
             decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
 
-            // Reset the flag before execution
-            iDidSomething = false;
+            deal(address(USDC), address(boringVault), 500_000_000); // for aave fees need 0.5% in usdc
+
+            vm.expectEmit(true, true, true, true);
+            emit FlashLoan(
+                address(manager), address(manager), address(USDC), 1_000_000e6, InterestRateMode.NONE, 500e6, 0
+            );
+
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1);
 
             // Execute the transaction
             manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-            // Verify the flash loan worked
-            assertTrue(iDidSomething, "Aave flash loan callback was not executed");
         }
     }
 
@@ -3360,14 +3403,14 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             address[] memory decodersAndSanitizers = new address[](1);
             decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
 
-            // Reset the flag before execution
-            iDidSomething = false;
+            vm.expectEmit(true, true, true, true);
+            emit FlashLoan(address(manager), address(USDC), 1_000_000e6);
+
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1);
 
             // Execute the transaction
             manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-            // Verify the flash loan worked
-            assertTrue(iDidSomething, "Morpho flash loan callback was not executed");
         }
     }
 
@@ -3419,14 +3462,24 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             address[] memory decodersAndSanitizers = new address[](1);
             decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
 
-            // Reset the flag before execution
-            iDidSomething = false;
+            deal(address(USDC), address(boringVault), 1_000_000e6); // for uniswap swap need USDC to close swap
+
+            vm.expectEmit(true, true, true, true);
+            emit Swap(
+                address(manager),
+                address(manager),
+                1_000_000e6,
+                -331_635_972_026_891_669_906,
+                1_442_654_701_730_835_393_079_766_098_902_011,
+                25_246_286_969_199_548_999,
+                196_203
+            );
+
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1);
 
             // Execute the transaction
             manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-            // Verify the flash swap worked
-            assertTrue(iDidSomething, "Uniswap V3 swap callback was not executed");
         }
     }
 

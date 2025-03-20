@@ -236,7 +236,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     {
         _verifyFlashLoan();
         uint256[] memory zeros = new uint256[](amounts.length);
-        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, zeros, userData, false);
+        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, zeros, userData, false, new uint256[](0));
     }
 
     // --- Aave Flash Loan ---
@@ -282,7 +282,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         returns (bool)
     {
         _verifyFlashLoan();
-        _processFlashLoanCallback(currentFlashLoanPool, assets, amounts, premiums, params, true);
+        _processFlashLoanCallback(currentFlashLoanPool, assets, amounts, premiums, params, true, new uint256[](0));
         return true;
     }
 
@@ -298,7 +298,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         if (assets == 0) revert ManagerWithMerkleVerification__ZeroFlashLoanAmount();
         _initFlashLoanState(poolAddress, userData);
         currentMorphoToken = token;
-        IMorphoBase(poolAddress).flashLoan(address(this), token, assets, userData);
+        IMorphoBase(poolAddress).flashLoan(token, assets, userData);
         _finalizeFlashLoanState();
     }
 
@@ -315,7 +315,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         amounts[0] = assets;
         uint256[] memory fees = new uint256[](1);
         fees[0] = 0;
-        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, fees, data, true);
+        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, fees, data, true, new uint256[](0));
     }
 
     // --- Uniswap V3 Swap ---
@@ -336,12 +336,11 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     {
         _initFlashLoanState(poolAddress, userData);
 
-        // Set a price limit that will cause the swap to revert immediately
-        // This creates a "swap that reverts" pattern which triggers the callback without actually executing a swap
         uint160 sqrtPriceLimitX96 = zeroForOne
-            ? uint160(4_295_128_739) // Min price for token0/token1
-            : uint160(1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342); // Max price
+            ? uint160(4_295_128_740) // Min price for token0/token1
+            : uint160(1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_341); // Max price
 
+        // Use the provided price limit for a real swap
         IUniswapV3Pool(poolAddress).swap(address(this), zeroForOne, amountSpecified, sqrtPriceLimitX96, userData);
 
         _finalizeFlashLoanState();
@@ -361,16 +360,33 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         tokens[0] = IUniswapV3Pool(currentFlashLoanPool).token0();
         tokens[1] = IUniswapV3Pool(currentFlashLoanPool).token1();
 
-        // Convert deltas to positive amounts (what we need to pay back)
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = amount0Delta > 0 ? uint256(amount0Delta) : 0;
-        amounts[1] = amount1Delta > 0 ? uint256(amount1Delta) : 0;
+        // For Uniswap, we only have one token to repay and one to receive
+        uint256[] memory amountsToPay = new uint256[](2);
+        uint256[] memory amountsToReceive = new uint256[](2);
 
-        // No additional fees for swaps (fees are built into the amounts)
+        // If amount0Delta is positive, we owe token0 to the pool
+        // If amount1Delta is negative, we received token1 from the pool
+        if (amount0Delta > 0) {
+            amountsToPay[0] = uint256(amount0Delta);
+            amountsToReceive[1] = amount1Delta < 0 ? uint256(-amount1Delta) : 0;
+        } else {
+            // Otherwise, we owe token1 and received token0
+            amountsToPay[1] = uint256(amount1Delta);
+            amountsToReceive[0] = amount0Delta < 0 ? uint256(-amount0Delta) : 0;
+        }
+
+        // No additional fees for swaps
         uint256[] memory fees = new uint256[](2);
 
-        // Process the callback similar to flash loan pattern
-        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, fees, data, false);
+        _processFlashLoanCallback(
+            currentFlashLoanPool,
+            tokens,
+            amountsToPay, // Only contains the token we owe
+            fees,
+            data,
+            false,
+            amountsToReceive // Only contains the token we received
+        );
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
@@ -406,10 +422,12 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
      * @notice Internal helper to process common flash loan callback tasks (for multi-asset loans).
      * @param repayTo The address to which the repayment will be sent or approved.
      * @param tokens The token addresses.
-     * @param amounts The amounts borrowed.
+     * @param amounts The amounts borrowed/to be repaid.
      * @param fees The fee amounts associated with the flash loan.
      * @param params The management parameters used for intent verification and management calls.
      * @param useApprove If true, the manager will perform direct approvals for repayment.
+     * @param amountsToReceive Optional array of amounts received (used for Uniswap swaps), empty for regular flash
+     * loans.
      */
     function _processFlashLoanCallback(
         address repayTo,
@@ -417,19 +435,30 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         uint256[] memory amounts,
         uint256[] memory fees,
         bytes calldata params,
-        bool useApprove
+        bool useApprove,
+        uint256[] memory amountsToReceive
     )
         internal
     {
         _verifyFlashLoanState(params);
         _resetFlashLoanState();
 
-        // Transfer the borrowed tokens to the vault.
-        for (uint256 i = 0; i < amounts.length; ++i) {
-            ERC20(tokens[i]).safeTransfer(address(vault), amounts[i]);
+        // For regular flash loans, transfer all borrowed tokens to the vault
+        if (amountsToReceive.length == 0) {
+            for (uint256 i = 0; i < amounts.length; ++i) {
+                ERC20(tokens[i]).safeTransfer(address(vault), amounts[i]);
+            }
+        }
+        // For Uniswap swaps, only transfer the received token(s) to the vault
+        else {
+            for (uint256 i = 0; i < amountsToReceive.length; ++i) {
+                if (amountsToReceive[i] > 0) {
+                    ERC20(tokens[i]).safeTransfer(address(vault), amountsToReceive[i]);
+                }
+            }
         }
 
-        // Decode management parameters.
+        // Decode management parameters
         (
             bytes32[][] memory manageProofs,
             address[] memory decodersAndSanitizers,
@@ -442,19 +471,32 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
             manageProofs, decodersAndSanitizers, targets, data, values
         );
 
+        bytes[] memory transferData = new bytes[](tokens.length);
+
         if (!useApprove) {
-            // For protocols like Balancer and Uniswap V3 flash swaps, repay via vault.transfer.
-            bytes[] memory transferData = new bytes[](amounts.length);
+            // For protocols like Balancer and Uniswap V3 flash swaps, repay via vault.transfer
             for (uint256 i = 0; i < amounts.length; ++i) {
-                transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, repayTo, (amounts[i] + fees[i]));
+                if (amounts[i] > 0) {
+                    transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, repayTo, (amounts[i] + fees[i]));
+                } else {
+                    // Empty transfer for tokens we don't need to pay back
+                    transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, address(0), 0);
+                }
             }
-            vault.manage(tokens, transferData, new uint256[](amounts.length));
         } else {
-            // For protocols like Aave and Morpho, the manager approves the pool to pull the funds.
+            // For protocols like Aave and Morpho, approve the pool to pull funds
             for (uint256 i = 0; i < amounts.length; ++i) {
-                ERC20(tokens[i]).safeApprove(repayTo, (amounts[i] + fees[i]));
+                if (amounts[i] > 0) {
+                    ERC20(tokens[i]).safeApprove(repayTo, (amounts[i] + fees[i]));
+                    transferData[i] =
+                        abi.encodeWithSelector(ERC20.transfer.selector, address(this), (amounts[i] + fees[i]));
+                } else {
+                    // No need to approve for tokens we don't need to pay back
+                    transferData[i] = abi.encodeWithSelector(ERC20.transfer.selector, address(0), 0);
+                }
             }
         }
+        vault.manage(tokens, transferData, new uint256[](tokens.length));
     }
 
     /**
