@@ -2,6 +2,7 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const PocketBase = require('pocketbase/cjs');
 const keccak256 = require('keccak256');
+const path = require('path');
 
 const pbUrl = process.env.POCKETBASE_URL || 'http://34.201.251.108:8090';
 const pb = new PocketBase(pbUrl);
@@ -82,116 +83,156 @@ async function checkExistingSelectors(selectors) {
     return existingSelectors;
 }
 
+// Function to find all Solidity files in the DecodersAndSanitizers directory
+function findAllDecoderFiles() {
+    const baseDir = 'src/base/DecodersAndSanitizers';
+    
+    try {
+        const files = execSync(`find ${baseDir} -name "*.sol"`, { encoding: 'utf8' })
+            .trim()
+            .split('\n')
+            .filter(file => file); // Remove any empty strings
+        
+        console.log(`Found ${files.length} Solidity files in ${baseDir}`);
+        return files;
+    } catch (error) {
+        console.error('Error finding Solidity files:', error.message);
+        return [];
+    }
+}
+
+// Function to process a single file
+async function processFile(filePath, shouldPost) {
+    console.log(`\nProcessing file: ${filePath}`);
+    const tempFile = `temp_${path.basename(filePath)}`;
+
+    try {
+        // Run forge flatten and create temp file
+        execSync(`forge flatten ${filePath} > ${tempFile}`);
+        
+        // Parse the temp file
+        const functionsData = parseSolidityFile(tempFile);
+        
+        console.log(`Found ${functionsData.length} tagged functions in ${filePath}`);
+        
+        // Print out the found functions
+        functionsData.forEach(func => {
+            console.log(`- ${func.signature} => ${func.selector}`);
+            console.log(`  Description: ${func.description}`);
+            console.log(`  Tags: ${JSON.stringify(func.params)}`);
+        });
+
+        // Delete the temp file
+        fs.unlinkSync(tempFile);
+
+        if (shouldPost && functionsData.length > 0) {
+            // Check for existing selectors
+            const selectorsToCheck = functionsData.map(func => func.selector);
+            const existingSelectors = await checkExistingSelectors(selectorsToCheck);
+
+            // Filter out functions with selectors that already exist
+            const newFunctionsData = functionsData.filter(func => !existingSelectors.includes(func.selector));
+
+            console.log(`Found ${existingSelectors.length} selectors that already exist in the database`);
+            console.log(`Found ${newFunctionsData.length} new selectors to add`);
+
+            // Only proceed with posting if there are new selectors to add
+            if (newFunctionsData.length > 0) {
+                console.log('Posting data to PocketBase...');
+
+                // Create the requests array with proper data formatting
+                const requests = newFunctionsData.map(data => ({
+                    method: 'POST',
+                    url: '/api/collections/decoder_selectors/records',
+                    body: {
+                        selector: data.selector,
+                        description: data.description,
+                        tags: JSON.stringify(data.params),
+                        signature: data.signature
+                    }
+                }));
+
+                // Make sure the request body is correctly structured
+                const requestBody = {
+                    requests: requests
+                };
+
+                try {
+                    const result = await pb.send('/api/batch', {
+                        method: 'POST',
+                        body: requestBody
+                    });
+                    console.log('Batch create result:', result);
+                } catch (error) {
+                    console.error('Error creating batch:', error);
+                    console.error('Error details:', error.response?.data || error.message);
+                }
+            } else {
+                console.log('No new selectors to add for this file.');
+            }
+        } else if (!shouldPost) {
+            console.log('DRY RUN MODE: Data will not be posted to PocketBase.');
+        }
+
+        return functionsData.length;
+    } catch (error) {
+        console.error(`Error processing file ${filePath}:`, error.message);
+        // Try to clean up temp file if it exists
+        if (fs.existsSync(tempFile)) {
+            fs.unlinkSync(tempFile);
+        }
+        return 0;
+    }
+}
+
 async function main() {
-    // Get file path and flags from command line arguments
+    // Get command line arguments
     const args = process.argv.slice(2);
     
-    // Check for --post flag
+    // Check for flags
     const postIndex = args.indexOf('--post');
     const shouldPost = postIndex !== -1;
-    
-    // Remove the flag from args if present
     if (postIndex !== -1) {
         args.splice(postIndex, 1);
     }
     
-    if (args.length === 0) {
-        console.error('Error: Please provide a file path as an argument');
-        console.error('Usage: node tag_parse.js <path_to_solidity_file> [--post]');
+    const allDecodersIndex = args.indexOf('--all-decoders');
+    const processAllDecoders = allDecodersIndex !== -1;
+    if (allDecodersIndex !== -1) {
+        args.splice(allDecodersIndex, 1);
+    }
+    
+    let filesToProcess = [];
+    
+    if (processAllDecoders) {
+        // Process all decoder files
+        filesToProcess = findAllDecoderFiles();
+        console.log(`Will process all ${filesToProcess.length} decoder files`);
+    } else if (args.length > 0) {
+        // Process specific files provided as arguments
+        filesToProcess = args;
+        console.log(`Will process ${filesToProcess.length} specified files`);
+    } else {
+        console.error('Error: Please provide file paths as arguments or use --all-decoders flag');
+        console.error('Usage: node tag_parse.js [file_paths...] [--post] [--all-decoders]');
         console.error('  --post: Post the data to PocketBase (otherwise dry run)');
+        console.error('  --all-decoders: Process all files in src/base/DecodersAndSanitizers');
         process.exit(1);
     }
     
-    const filePath = args[0];
-    const tempFile = 'temp.sol';
-
-    if (!fs.existsSync(filePath)) {
-        console.error(`Error: File not found: ${filePath}`);
-        process.exit(1);
-    }
-
-    console.log(`Processing file: ${filePath}`);
-    if (!shouldPost) {
-        console.log('DRY RUN MODE: Data will not be posted to PocketBase. Use --post flag to post data.');
-    }
-
-    // Authenticate before making requests
-    await authenticatePocketBase();
-
-    // Run forge flatten and create temp.sol
-    try {
-        execSync(`forge flatten ${filePath} > ${tempFile}`);
-    } catch (error) {
-        console.error('Error flattening the Solidity file:', error.message);
-        process.exit(1);
-    }
-
-    // Parse the temp.sol file
-    const functionsData = parseSolidityFile(tempFile);
-    
-    console.log(`Found ${functionsData.length} tagged functions`);
-    
-    // Print out the found functions
-    functionsData.forEach(func => {
-        console.log(`- ${func.signature} => ${func.selector}`);
-        console.log(`  Description: ${func.description}`);
-        console.log(`  Tags: ${JSON.stringify(func.params)}`);
-    });
-
-    // Delete the temp.sol file
-    fs.unlinkSync(tempFile);
-
-    // Check for existing selectors
-    const selectorsToCheck = functionsData.map(func => func.selector);
-    const existingSelectors = await checkExistingSelectors(selectorsToCheck);
-
-    // Filter out functions with selectors that already exist
-    const newFunctionsData = functionsData.filter(func => !existingSelectors.includes(func.selector));
-
-    console.log(`Found ${existingSelectors.length} selectors that already exist in the database`);
-    console.log(`Found ${newFunctionsData.length} new selectors to add`);
-
-    // Only proceed with posting if --post flag is present
-    if (!shouldPost) {
-        console.log('Dry run complete. Use --post flag to post data to PocketBase.');
-        return;
-    }
-
-    // If there are no new selectors to add, exit gracefully
-    if (newFunctionsData.length === 0) {
-        console.log('No new selectors to add. Exiting.');
-        return;
-    }
-
-    console.log('Posting data to PocketBase...');
-
-    // Create the requests array with proper data formatting
-    const requests = newFunctionsData.map(data => ({
-        method: 'POST',
-        url: '/api/collections/decoder_selectors/records',
-        body: {
-            selector: data.selector,
-            description: data.description,
-            tags: JSON.stringify(data.params),
-            signature: data.signature
+    // Process each file
+    let totalFunctions = 0;
+    for (const file of filesToProcess) {
+        if (!fs.existsSync(file)) {
+            console.error(`Error: File not found: ${file}`);
+            continue;
         }
-    }));
-
-    // Make sure the request body is correctly structured
-    const requestBody = {
-        requests: requests
-    };
-
-    try {
-        const result = await pb.send('/api/batch', {
-            method: 'POST',
-            body: requestBody
-        });
-        console.log('Batch create result:', result);
-    } catch (error) {
-        console.error('Error creating batch:', error);
-        console.error('Error details:', error.response?.data || error.message);
+        
+        const functionCount = await processFile(file, shouldPost);
+        totalFunctions += functionCount;
     }
+    
+    console.log(`\nProcessing complete. Found ${totalFunctions} total tagged functions across ${filesToProcess.length} files.`);
 }
 
 main().catch(error => {
