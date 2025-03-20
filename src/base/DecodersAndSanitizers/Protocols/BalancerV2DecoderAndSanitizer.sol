@@ -11,6 +11,9 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== BALANCER V2 ===============================
 
+    // @desc Flash loan from the Balancer V2 protocol
+    // @tag recipient:address:the address of the recipient
+    // @tag tokens:bytes:packed bytes of every token in each address[] tokens input.
     function flashLoan(
         address recipient,
         address[] calldata tokens,
@@ -28,6 +31,12 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc Swap tokens in the Balancer V2 protocol. Reverts if userData is not empty or if internal balances are used
+    // @tag pool:address:the address of the pool
+    // @tag assetIn:address:the address of the input asset
+    // @tag assetOut:address:the address of the output asset
+    // @tag sender:address:the address of the sender
+    // @tag recipient:address:the address of the recipient
     function swap(
         DecoderCustomTypes.SingleSwap calldata singleSwap,
         DecoderCustomTypes.FundManagement calldata funds,
@@ -54,6 +63,11 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         );
     }
 
+    // @desc Join a pool in the Balancer V2 protocol, will revert if internal balances are used
+    // @tag pool:address:the address of the pool
+    // @tag sender:address:the address of the sender
+    // @tag recipient:address:the address of the recipient
+    // @tag assets:bytes:packed bytes of every address in the req.assets input.
     function joinPool(
         bytes32 poolId,
         address sender,
@@ -75,6 +89,11 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc Exit a pool in the Balancer V2 protocol, will revert if internal balances are used
+    // @tag pool:address:the address of the pool
+    // @tag sender:address:the address of the sender
+    // @tag recipient:address:the address of the recipient
+    // @tag assets:bytes:packed bytes of every address in the req.assets input.
     function exitPool(
         bytes32 poolId,
         address sender,
@@ -96,10 +115,13 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc Deposit into the Balancer V2 protocol
+    // @tag recipient:address:the address of the recipient
     function deposit(uint256, address recipient) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(recipient);
     }
 
+    // @desc Withdraw from the Balancer V2 protocol to msg.sender
     function withdraw(uint256) external pure virtual returns (bytes memory addressesFound) {
         // No addresses in data
         return addressesFound;

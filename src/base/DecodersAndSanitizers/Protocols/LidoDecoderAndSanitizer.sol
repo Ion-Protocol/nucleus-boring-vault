@@ -10,16 +10,20 @@ abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(referral);
     }
 
+    // @desc wrap eth into stETH
     function wrap(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Nothing to sanitize or return
         return addressesFound;
     }
 
+    // @desc unwrap stETH into eth
     function unwrap(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Nothing to sanitize or return
         return addressesFound;
     }
 
+    // @desc request withdrawals
+    // @tag owner:address:owner
     function requestWithdrawals(
         uint256[] calldata,
         address _owner
@@ -32,11 +36,13 @@ abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(_owner);
     }
 
+    // @desc claim withdrawal
     function claimWithdrawal(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Nothing to sanitize or return
         return addressesFound;
     }
 
+    // @desc claim multiple withdrawals
     function claimWithdrawals(
         uint256[] calldata,
         uint256[] calldata
