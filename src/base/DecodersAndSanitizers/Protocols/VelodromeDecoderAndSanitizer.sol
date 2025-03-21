@@ -7,8 +7,8 @@ import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAn
 abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
 
-    error UniswapV3DecoderAndSanitizer__BadPathFormat();
-    error UniswapV3DecoderAndSanitizer__BadTokenId();
+    error VelodromeDecoderAndSanitizer__BadPathFormat();
+    error VelodromeDecoderAndSanitizer__BadTokenId();
 
     //============================== IMMUTABLES ===============================
 
@@ -49,7 +49,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         // Sanitize raw data
         if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
         }
         // Extract addresses from velodromeNonFungiblePositionManager.positions(params.tokenId).
         (, address operator, address token0, address token1,,,,,,,,) =
@@ -68,7 +68,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
         // just for completeness.
         if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
         }
 
         // No addresses in data
@@ -87,7 +87,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
         // just for completeness.
         if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
         }
 
         // Return addresses found

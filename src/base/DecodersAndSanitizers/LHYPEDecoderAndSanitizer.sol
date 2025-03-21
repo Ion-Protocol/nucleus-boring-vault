@@ -17,6 +17,10 @@ import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Prot
 import { ThunderheadDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/ThunderheadDecoderAndSanitizer.sol";
 import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
+import {
+    VelodromeDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/Protocols/VelodromeDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -28,14 +32,17 @@ contract LHYPEDecoderAndSanitizer is
     EigenpieDecoderAndSanitizer,
     PirexEthDecoderAndSanitizer,
     ThunderheadDecoderAndSanitizer,
-    AaveV3DecoderAndSanitizer
+    AaveV3DecoderAndSanitizer,
+    VelodromeDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
-        address _uniswapV3NonFungiblePositionManager
+        address _uniswapV3NonFungiblePositionManager,
+        address _velodromeNonFungiblePositionManager
     )
         BaseDecoderAndSanitizer(_boringVault)
         UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
+        VelodromeDecoderAndSanitizer(_velodromeNonFungiblePositionManager)
     { }
 
     function deposit(
@@ -53,10 +60,73 @@ contract LHYPEDecoderAndSanitizer is
     function withdraw(uint256)
         external
         pure
-        override(CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer)
+        override(CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer, VelodromeDecoderAndSanitizer)
         returns (bytes memory addressesFound)
     {
         // Nothing to sanitize or return
         return addressesFound;
+    }
+
+    // This is handled the same way in VelodromeDecoderAndSanitizer and UniswapV3DecoderAndSanitizer
+    function collect(DecoderCustomTypes.CollectParams calldata params)
+        external
+        view
+        override(VelodromeDecoderAndSanitizer, UniswapV3DecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        // Sanitize raw data
+        if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
+        }
+
+        // Return addresses found
+        addressesFound = abi.encodePacked(params.recipient);
+    }
+
+    // This is handled the same way in VelodromeDecoderAndSanitizer and UniswapV3DecoderAndSanitizer
+    function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
+        external
+        view
+        override(VelodromeDecoderAndSanitizer, UniswapV3DecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        // Sanitize raw data
+        if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
+        }
+
+        // No addresses in data
+        return addressesFound;
+    }
+
+    // This is handled the same way in VelodromeDecoderAndSanitizer and UniswapV3DecoderAndSanitizer
+    function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
+        external
+        view
+        override(UniswapV3DecoderAndSanitizer, VelodromeDecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        // Sanitize raw data
+        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+        }
+        // Extract addresses from uniswapV3NonFungiblePositionManager.positions(params.tokenId).
+        (, address operator, address token0, address token1,,,,,,,,) =
+            uniswapV3NonFungiblePositionManager.positions(params.tokenId);
+        addressesFound = abi.encodePacked(operator, token0, token1);
+    }
+
+    // This is handled the same way in VelodromeDecoderAndSanitizer and UniswapV3DecoderAndSanitizer
+    function safeTransferFrom(
+        address,
+        address to,
+        uint256
+    )
+        external
+        pure
+        override(VelodromeDecoderAndSanitizer, UniswapV3DecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(to);
     }
 }
