@@ -233,4 +233,33 @@ contract DecoderCustomTypes {
         // Array containing the amount of shares in each Strategy in the `strategies` array
         uint256[] shares;
     }
+
+    // ========================================= Sentiment =========================================
+
+    /// @title Operation
+    /// @notice Operation type definitions that can be applied to a position
+    /// @dev Every operation except NewPosition requires that the caller must be an authz caller or owner
+    enum Operation {
+        NewPosition, // create2 a new position with a given type, no auth needed
+        // the following operations require msg.sender to be authorized
+        Exec, // execute arbitrary calldata on a position
+        Deposit, // Add collateral to a given position
+        Transfer, // transfer assets from the position to a external address
+        Approve, // allow a spender to transfer assets from a position
+        Repay, // decrease position debt
+        Borrow, // increase position debt
+        AddToken, // upsert collateral asset to position storage
+        RemoveToken // remove collateral asset from position storage
+
+    }
+
+    /// @title Action
+    /// @notice Generic data struct to create a common data container for all operation types
+    /// @dev target and data are interpreted in different ways based on the operation type
+    struct Action {
+        // operation type
+        Operation op;
+        // dynamic bytes data, interepreted differently across operation types
+        bytes data;
+    }
 }
