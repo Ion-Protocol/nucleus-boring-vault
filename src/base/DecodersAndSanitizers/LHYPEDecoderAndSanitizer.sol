@@ -17,6 +17,8 @@ import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Prot
 import { ThunderheadDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/ThunderheadDecoderAndSanitizer.sol";
 import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
+import { VelodromeV1DecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -28,7 +30,8 @@ contract LHYPEDecoderAndSanitizer is
     EigenpieDecoderAndSanitizer,
     PirexEthDecoderAndSanitizer,
     ThunderheadDecoderAndSanitizer,
-    AaveV3DecoderAndSanitizer
+    AaveV3DecoderAndSanitizer,
+    VelodromeV1DecoderAndSanitizer
 {
     constructor(
         address _boringVault,

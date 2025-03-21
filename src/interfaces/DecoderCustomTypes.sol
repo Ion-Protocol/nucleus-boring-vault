@@ -124,6 +124,13 @@ contract DecoderCustomTypes {
         uint256 flags;
     }
 
+    // ========================================= KITTENSWAP =========================================
+    struct route {
+        address from;
+        address to;
+        bool stable;
+    }
+
     // ========================================= PENDLE =========================================
     struct TokenInput {
         // TOKEN DATA
