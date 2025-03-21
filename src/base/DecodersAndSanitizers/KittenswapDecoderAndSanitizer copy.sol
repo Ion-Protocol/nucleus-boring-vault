@@ -6,7 +6,6 @@ import {
     PendleRouterDecoderAndSanitizer,
     BaseDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
-import { UniswapV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/UniswapV3DecoderAndSanitizer.sol";
 import { OneInchDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/OneInchDecoderAndSanitizer.sol";
 import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
 import { NativeWrapperDecoderAndSanitizer } from
@@ -17,10 +16,14 @@ import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Prot
 import { ThunderheadDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/ThunderheadDecoderAndSanitizer.sol";
 import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
+import {
+    VelodromeDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/Protocols/VelodromeDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
-    UniswapV3DecoderAndSanitizer,
+    VelodromeDecoderAndSanitizer,
     OneInchDecoderAndSanitizer,
     CurveDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
@@ -32,10 +35,10 @@ contract LHYPEDecoderAndSanitizer is
 {
     constructor(
         address _boringVault,
-        address _uniswapV3NonFungiblePositionManager
+        address _velodromeNonFungiblePositionManager
     )
         BaseDecoderAndSanitizer(_boringVault)
-        UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
+        VelodromeDecoderAndSanitizer(_velodromeNonFungiblePositionManager)
     { }
 
     function deposit(
@@ -53,7 +56,7 @@ contract LHYPEDecoderAndSanitizer is
     function withdraw(uint256)
         external
         pure
-        override(CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer)
+        override(CurveDecoderAndSanitizer, NativeWrapperDecoderAndSanitizer, VelodromeDecoderAndSanitizer)
         returns (bytes memory addressesFound)
     {
         // Nothing to sanitize or return
