@@ -21,7 +21,7 @@ import {
     DecoderCustomTypes
 } from "src/base/DecodersAndSanitizers/Protocols/VelodromeDecoderAndSanitizer.sol";
 
-contract LHYPEDecoderAndSanitizer is
+contract KittenswapDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
     VelodromeDecoderAndSanitizer,
     OneInchDecoderAndSanitizer,
