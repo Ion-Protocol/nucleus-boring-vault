@@ -10,6 +10,12 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== MORPHO BLUE ===============================
 
+    // @desc supply to morpho blue, will revert if the data is not empty
+    // @tag loanToken:address
+    // @tag collateralToken:address
+    // @tag oracle:address
+    // @tag irm:address
+    // @tag onBehalf:address:on behalf of the user
     function supply(
         DecoderCustomTypes.MarketParams calldata params,
         uint256,
@@ -27,6 +33,13 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.loanToken, params.collateralToken, params.oracle, params.irm, onBehalf);
     }
 
+    // @desc withdraw from morpho blue
+    // @tag loanToken:address
+    // @tag collateralToken:address
+    // @tag oracle:address
+    // @tag irm:address
+    // @tag onBehalf:address:on behalf of the user
+    // @tag receiver:address:receiver of the withdrawn tokens
     function withdraw(
         DecoderCustomTypes.MarketParams calldata params,
         uint256,
@@ -44,6 +57,13 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
             abi.encodePacked(params.loanToken, params.collateralToken, params.oracle, params.irm, onBehalf, receiver);
     }
 
+    // @desc borrow from morpho blue
+    // @tag loanToken:address
+    // @tag collateralToken:address
+    // @tag oracle:address
+    // @tag irm:address
+    // @tag onBehalf:address:on behalf of the user
+    // @tag receiver:address:receiver of the borrowed tokens
     function borrow(
         DecoderCustomTypes.MarketParams calldata params,
         uint256,
@@ -59,6 +79,12 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
             abi.encodePacked(params.loanToken, params.collateralToken, params.oracle, params.irm, onBehalf, receiver);
     }
 
+    // @desc repay a borrow from morpho blue, will revert if the data is not empty
+    // @tag loanToken:address
+    // @tag collateralToken:address
+    // @tag oracle:address
+    // @tag irm:address
+    // @tag onBehalf:address:on behalf of the user
     function repay(
         DecoderCustomTypes.MarketParams calldata params,
         uint256,
@@ -77,6 +103,12 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.loanToken, params.collateralToken, params.oracle, params.irm, onBehalf);
     }
 
+    // @desc supply collateral to morpho blue, will revert if the data is not empty
+    // @tag loanToken:address
+    // @tag collateralToken:address
+    // @tag oracle:address
+    // @tag irm:address
+    // @tag onBehalf:address:on behalf of the user
     function supplyCollateral(
         DecoderCustomTypes.MarketParams calldata params,
         uint256,
@@ -94,6 +126,13 @@ abstract contract MorphoBlueDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.loanToken, params.collateralToken, params.oracle, params.irm, onBehalf);
     }
 
+    // @desc withdraw collateral from morpho blue
+    // @tag loanToken:address
+    // @tag collateralToken:address
+    // @tag oracle:address
+    // @tag irm:address
+    // @tag onBehalf:address:on behalf of the user
+    // @tag receiver:address:receiver of the withdrawn tokens
     function withdrawCollateral(
         DecoderCustomTypes.MarketParams calldata params,
         uint256,

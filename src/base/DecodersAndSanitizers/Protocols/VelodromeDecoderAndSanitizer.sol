@@ -94,6 +94,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.recipient);
     }
 
+    // @desc Velodrome function to safeTransferFrom ERC721s
     // @tag to:address
     function safeTransferFrom(
         address,
@@ -108,12 +109,14 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(to);
     }
 
+    // @desc Velodrome function to deposit LP NFT for staking
     function deposit(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Just the NFT ID
         // No addresses in data
         return addressesFound;
     }
 
+    // @desc Velodrome function to withdraw LP NFT from staking
     function withdraw(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Just the NFT ID
         // No addresses in data

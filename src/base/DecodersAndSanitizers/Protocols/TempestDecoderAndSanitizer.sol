@@ -6,6 +6,8 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error TempestDecoderAndSanitizer__CheckSlippageRequired();
 
+    // @desc function to deposit into Tempest, will revert if checkSlippage is false
+    // @tag receiver:address:The receiver of the tokens
     function deposit(
         uint256 amount,
         address receiver,
@@ -23,7 +25,8 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
-    // deposit with ETH
+    // @desc function to deposit ETH for Tempest
+    // @tag receiver:address:The receiver of the tokens
     function deposit(
         uint256 amount,
         address receiver,
@@ -37,6 +40,8 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(receiver);
     }
 
+    // @desc Tempest function to redeem without swap, will revert if checkSlippage is false
+    // @tag receiver:address:The receiver of the tokens
     function redeemWithoutSwap(
         uint256 shares,
         address receiver,
@@ -55,6 +60,8 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc Tempest function to deposit multiple tokens, will revert if checkSlippage is false
+    // @tag receiver:address:The receiver of the tokens
     function deposits(
         uint256[] calldata amounts,
         address receiver,
@@ -72,6 +79,8 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc Tempest function to redeem, will revert if checkSlippage is false
+    // @tag receiver:address:The receiver of the tokens
     function redeem(
         uint256 shares,
         address receiver,
@@ -91,7 +100,8 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
-    // redeem with ETH
+    // @desc Tempest function to redeem with ETH
+    // @tag receiver:address:The receiver of the tokens
     function redeem(
         uint256 shares,
         address receiver,

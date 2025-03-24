@@ -5,11 +5,12 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 
 abstract contract PumpBTCDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== PumpBTC ===============================
-
+    // @desc Function to stake PumpBTC
     function stake(uint256 amount) external pure virtual returns (bytes memory addressesFound) {
         // nothing to sanitize
     }
 
+    // @desc Function to unstake PumpBTC
     function unstakeInstant(uint256 amount) external pure virtual returns (bytes memory addressFound) {
         // nothing to sanitize
     }
