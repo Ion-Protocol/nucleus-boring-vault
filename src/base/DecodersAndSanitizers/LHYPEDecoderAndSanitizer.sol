@@ -19,6 +19,7 @@ import { ThunderheadDecoderAndSanitizer } from
 import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
 import { VelodromeV1DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
+import { SentimentDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/SentimentDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -31,14 +32,17 @@ contract LHYPEDecoderAndSanitizer is
     PirexEthDecoderAndSanitizer,
     ThunderheadDecoderAndSanitizer,
     AaveV3DecoderAndSanitizer,
-    VelodromeV1DecoderAndSanitizer
+    VelodromeV1DecoderAndSanitizer,
+    SentimentDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
-        address _uniswapV3NonFungiblePositionManager
+        address _uniswapV3NonFungiblePositionManager,
+        address _sentimentPositionManager
     )
         BaseDecoderAndSanitizer(_boringVault)
         UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
+        SentimentDecoderAndSanitizer(_sentimentPositionManager)
     { }
 
     function deposit(
