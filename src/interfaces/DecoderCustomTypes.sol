@@ -266,7 +266,7 @@ contract DecoderCustomTypes {
     struct Action {
         // operation type
         Operation op;
-        // dynamic bytes data, interepreted differently across operation types
+        // dynamic bytes data, interpreted differently across operation types
         bytes data;
     }
 }
