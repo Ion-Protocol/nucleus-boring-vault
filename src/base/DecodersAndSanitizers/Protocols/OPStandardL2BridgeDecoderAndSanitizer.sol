@@ -11,6 +11,11 @@ abstract contract OPStandardL2BridgeDecoderAndSanitizer is BaseDecoderAndSanitiz
      * a boring vault does not match addresses on destination chain.
      * Also do not encode the _extraData as it is not used by anything except emits
      */
+    // @desc bridge ERC20 OP standard L2 bridge
+    // @tag localToken:address:local token
+    // @tag remoteToken:address:remote token
+    // @tag to:address:receiver of the bridged tokens
+    // @tag extraData:bytes:extra data, depending on the message, can get from a test tx
     function bridgeERC20To(
         address _localToken,
         address _remoteToken,
@@ -33,6 +38,9 @@ abstract contract OPStandardL2BridgeDecoderAndSanitizer is BaseDecoderAndSanitiz
      * a boring vault does not match addresses on destination chain.
      * Also do not encode the _extraData as it is not used by anything except emits
      */
+    // @desc bridge native token using OP standard L2 bridge
+    // @tag to:address:receiver of the bridged tokens
+    // @tag extraData:bytes:extra data, depending on the message, can get from a test tx
     function bridgeETHTo(
         address _to,
         uint32 _minGasLimit,

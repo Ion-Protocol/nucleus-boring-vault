@@ -15,6 +15,8 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error EulerDecoderAndSanitizer__InvalidBatchLength();
     error EulerDecoderAndSanitizer__InvalidSelector();
 
+    // @desc batch actions on Euler, in order to use an Euler vault, you must batch the actions in the EVC
+    // @tag packedArgs:bytes:packed arguments depend on the selectors, this function needs a custom component in FE
     function batch(BatchItem[] calldata items) external view virtual returns (bytes memory addressesFound) {
         if (items.length != 1) revert EulerDecoderAndSanitizer__InvalidBatchLength();
         BatchItem memory item = items[0];
@@ -53,6 +55,8 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
     }
 
+    // @desc enable a collateral on Euler
+    // @tag vault:address:the address of the vault
     function enableCollateral(
         address account,
         address vault
@@ -66,6 +70,8 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(vault);
     }
 
+    // @desc enable a controller on Euler
+    // @tag vault:address:the address of the vault
     function enableController(
         address account,
         address vault
