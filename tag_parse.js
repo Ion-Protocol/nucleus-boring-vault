@@ -7,312 +7,154 @@ import path from 'path';
 const pbUrl = process.env.POCKETBASE_URL || 'http://34.201.251.108:8090';
 const pb = new PocketBase(pbUrl);
 
-// Object to store custom type mappings extracted from flattened files
-const customTypeMapping = {};
-
-// Extract struct definitions from a flattened Solidity file
-function extractStructDefinitions(flattenedContent) {
-    // Match contract and library definitions to extract their names
-    const contractRegex = /(?:contract|library|interface)\s+(\w+)(?:\s+is\s+[^{]+)?{/g;
-    const contractMatches = [...flattenedContent.matchAll(contractRegex)];
-    
-    // Extract all struct definitions
-    const structRegex = /struct\s+(\w+)\s*\{([^}]+)\}/g;
-    let structMatch;
-    
-    while ((structMatch = structRegex.exec(flattenedContent)) !== null) {
-        const structName = structMatch[1];
-        const structBody = structMatch[2];
-        
-        // Parse struct fields
-        const fields = structBody.split(';')
-            .map(field => field.trim())
-            .filter(field => field !== '')
-            .map(field => {
-                // Extract just the type from field definitions
-                const parts = field.split(/\s+/);
-                return parts[0]; // Return just the type
-            });
-        
-        // Create tuple representation
-        const tupleRepresentation = `(${fields.join(',')})`;
-        
-        // Determine the parent contract/library for each struct
-        // Find which contract/library this struct is defined in
-        let parentContract = '';
-        for (let i = contractMatches.length - 1; i >= 0; i--) {
-            if (contractMatches[i].index < structMatch.index) {
-                parentContract = contractMatches[i][1];
-                break;
-            }
-        }
-        
-        // Add to mapping with various forms used in the codebase
-        if (parentContract) {
-            // Add the fully qualified name with the parent contract
-            customTypeMapping[`${parentContract}.${structName}`] = tupleRepresentation;
-            console.log(`Found struct (${parentContract}.${structName}): ${tupleRepresentation}`);
-        }
-        
-        // Also map common formats like DecoderCustomTypes.X even if it's not the exact parent
-        customTypeMapping[`DecoderCustomTypes.${structName}`] = tupleRepresentation;
-        
-        // Also add just the struct name for simple references
-        customTypeMapping[structName] = tupleRepresentation;
-    }
-    
-    console.log(`Total struct definitions found: ${Object.keys(customTypeMapping).length}`);
-    console.log("Custom type mappings:", customTypeMapping);
-}
-
+// Function to compute the 4-byte selector using keccak256
 function computeSelector(signature) {
-    // Compute the 4-byte selector using keccak256 (Ethereum's hashing algorithm)
     return '0x' + keccak256(signature).toString('hex').slice(0, 8);
 }
 
-function expandCustomTypes(signature) {
-    // Extract function name and parameter list
-    const match = signature.match(/^(\w+)\((.*)\)$/);
-    if (!match) return signature;
-    
-    const functionName = match[1];
-    const params = match[2];
-    
-    if (!params) return signature; // No parameters to process
-    
-    // Split parameters and process each one
-    const processedParams = params.split(',').map(param => {
-        const trimmedParam = param.trim();
-        
-        // Skip empty params
-        if (!trimmedParam) return '';
-        
-        // Check for direct match in customTypeMapping
-        if (customTypeMapping[trimmedParam]) {
-            console.log(`Found exact match for ${trimmedParam} => ${customTypeMapping[trimmedParam]}`);
-            return customTypeMapping[trimmedParam];
-        }
-        
-        // Try without any modifiers (calldata, memory, storage)
-        const cleanPattern = /^(.*?)(?:\s+(?:calldata|memory|storage))?(?:\s+\w+)?$/;
-        const cleanMatch = trimmedParam.match(cleanPattern);
-        
-        if (cleanMatch) {
-            const cleanType = cleanMatch[1].trim();
-            
-            // Check if this cleaned type is in our mapping
-            if (customTypeMapping[cleanType]) {
-                console.log(`Found cleaned match for ${trimmedParam} (${cleanType}) => ${customTypeMapping[cleanType]}`);
-                return customTypeMapping[cleanType];
-            }
-            
-            // Check for "DecoderCustomTypes.X" format
-            if (cleanType.includes(".")) {
-                const parts = cleanType.split(".");
-                if (parts.length === 2 && parts[0] === "DecoderCustomTypes") {
-                    const structName = parts[1];
-                    const lookupKey = `DecoderCustomTypes.${structName}`;
-                    
-                    if (customTypeMapping[lookupKey]) {
-                        console.log(`Found DecoderCustomTypes match for ${cleanType} => ${customTypeMapping[lookupKey]}`);
-                        return customTypeMapping[lookupKey];
-                    }
-                }
-            }
-        }
-        
-        // Last resort: look for any key that ends with the same structure name
-        const lastDotIndex = trimmedParam.lastIndexOf(".");
-        if (lastDotIndex !== -1) {
-            const structName = trimmedParam.substring(lastDotIndex + 1);
-            
-            // See if we have this struct by itself
-            if (customTypeMapping[structName]) {
-                console.log(`Found partial match for ${trimmedParam} (${structName}) => ${customTypeMapping[structName]}`);
-                return customTypeMapping[structName];
-            }
-        }
-        
-        // If no custom type match found, return the original parameter
-        return trimmedParam;
-    }).join(',');
-    
-    return `${functionName}(${processedParams})`;
-}
-
-function parseSolidityFile(filePath) {
-    const content = fs.readFileSync(filePath, 'utf8');
-    
-    // Extract struct definitions first
-    extractStructDefinitions(content);
-
-    // Regular expression to match functions with @tag comments
-    const functionPattern = new RegExp(
-        '(//\\s*@desc\\s+.*?//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))|' +
-        '(//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))',
-        'gs'
-    );
-
-    const functionsData = [];
-    let match;
-
-    while ((match = functionPattern.exec(content)) !== null) {
-        const docComment = match[1] || match[5];
-        const functionName = match[3] || match[7];
-        const params = match[4] || match[8];
-
-        // Extract @desc and @tag tags
-        const descMatch = /\/\/\s*@desc\s+(.*)/.exec(docComment);
-        const description = descMatch ? descMatch[1].trim() : "";
-
-        const tagMatches = [...docComment.matchAll(/\/\/\s*@tag\s+(\w+):([^:]+)(?::(.*))?/g)];
-        const paramsList = tagMatches.map(([_, title, type, description]) => ({ 
-            title, 
-            type: type.trim(),
-            description: description ? description.trim() : "" 
-        }));
-
-        // Get the raw signature with parameter types and names
-        const rawSignature = `${functionName}(${params})`;
-        
-        // First, extract just the types for the canonical signature
-        const cleanedParams = params.split(',')
-            .map(param => {
-                // Extract just the type from "type name" format
-                const parts = param.trim().split(/\s+/);
-                return parts[0]; // Return just the type
-            })
-            .join(',');
-            
-        // Get a simplified signature with just types (no parameter names)
-        const typeSignature = `${functionName}(${cleanedParams})`;
-        
-        // Now expand any custom types to their tuple representations
-        const expandedSignature = expandCustomTypes(typeSignature);
-        
-        // Compute the function selector with the expanded signature
-        const selector = computeSelector(expandedSignature);
-        
-        console.log(`Original: ${rawSignature}`);
-        console.log(`Simplified: ${typeSignature}`);
-        console.log(`Expanded: ${expandedSignature}`);
-        console.log(`Selector: ${selector}`);
-
-        functionsData.push({
-            selector,
-            description,
-            params: paramsList,
-            signature: expandedSignature,
-            originalSignature: rawSignature
-        });
+// Function to flatten struct types into tuples with their actual component types
+function flattenType(input) {
+    // If it's not a tuple/struct, return the type directly
+    if (input.type !== 'tuple' && !input.type.startsWith('tuple[')) {
+        return input.type;
     }
-
-    return functionsData;
-}
-
-// Function to find all Solidity files in the DecodersAndSanitizers directory
-function findAllDecoderFiles() {
-    const baseDir = 'src/base/DecodersAndSanitizers';
     
-    try {
-        const files = execSync(`find ${baseDir} -name "*.sol"`, { encoding: 'utf8' })
-            .trim()
-            .split('\n')
-            .filter(file => file); // Remove any empty strings
-        
-        console.log(`Found ${files.length} Solidity files in ${baseDir}`);
-        return files;
-    } catch (error) {
-        console.error('Error finding Solidity files:', error.message);
-        return [];
-    }
+    // Handle arrays of tuples
+    const isArray = input.type.includes('[');
+    const arrayNotation = isArray ? input.type.substring(input.type.indexOf('[')) : '';
+    
+    // Process the components recursively
+    const flattenedComponents = input.components.map(component => {
+        if (component.components) {
+            // This is a nested struct/tuple
+            return flattenType(component);
+        }
+        return component.type;
+    });
+    
+    // Return the tuple notation with flattened component types
+    return `(${flattenedComponents.join(',')})${arrayNotation}`;
 }
 
-// Function to process a single file
-async function processFile(filePath, shouldPost) {
-    console.log(`\nProcessing file: ${filePath}`);
-    const tempFile = `temp_${path.basename(filePath)}`;
-
+// Parse source file for @desc and @tag comments
+function parseSourceFile(filePath) {
     try {
-        // Run forge flatten and create temp file
+        // Create a temporary flattened file to parse
+        const tempFile = `temp_${path.basename(filePath)}`;
         execSync(`forge flatten ${filePath} > ${tempFile}`);
         
-        // Parse the temp file
-        const functionsData = parseSolidityFile(tempFile);
+        const content = fs.readFileSync(tempFile, 'utf8');
+        fs.unlinkSync(tempFile); // Clean up temp file
         
-        console.log(`Found ${functionsData.length} tagged functions in ${filePath}`);
+        // Regular expression to match functions with @tag and @desc comments
+        const functionPattern = new RegExp(
+            '(//\\s*@desc\\s+.*?//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))|' +
+            '(//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))',
+            'gs'
+        );
         
-        // Print out the found functions
-        functionsData.forEach(func => {
-            console.log(`- ${func.originalSignature} => ${func.signature} => ${func.selector}`);
-            console.log(`  Description: ${func.description}`);
-            console.log(`  Tags: ${JSON.stringify(func.params)}`);
-        });
-
-        // Delete the temp file
-        fs.unlinkSync(tempFile);
-
-        if (shouldPost && functionsData.length > 0) {
-            // Check for existing selectors
-            const selectorsToCheck = functionsData.map(func => func.selector);
-            const existingSelectors = await checkExistingSelectors(selectorsToCheck);
-
-            // Filter out functions with selectors that already exist
-            const newFunctionsData = functionsData.filter(func => !existingSelectors.includes(func.selector));
-
-            console.log(`Found ${existingSelectors.length} selectors that already exist in the database`);
-            console.log(`Found ${newFunctionsData.length} new selectors to add`);
-
-            // Only proceed with posting if there are new selectors to add
-            if (newFunctionsData.length > 0) {
-                console.log('Posting data to PocketBase...');
-
-                // Create the requests array with proper data formatting
-                const requests = newFunctionsData.map(data => ({
-                    method: 'POST',
-                    url: '/api/collections/decoder_selectors/records',
-                    body: {
-                        selector: data.selector,
-                        description: data.description,
-                        tags: JSON.stringify(data.params),
-                        signature: data.signature,
-                        originalSignature: data.originalSignature
-                    }
-                }));
-
-                // Make sure the request body is correctly structured
-                const requestBody = {
-                    requests: requests
-                };
-
-                try {
-                    const result = await pb.send('/api/batch', {
-                        method: 'POST',
-                        body: requestBody
-                    });
-                    console.log('Batch create result:', result);
-                } catch (error) {
-                    console.error('Error creating batch:', error);
-                    console.error('Error details:', error.response?.data || error.message);
-                }
-            } else {
-                console.log('No new selectors to add for this file.');
-            }
-        } else if (!shouldPost) {
-            console.log('DRY RUN MODE: Data will not be posted to PocketBase.');
+        const functionDocs = {};
+        let match;
+        
+        while ((match = functionPattern.exec(content)) !== null) {
+            const docComment = match[1] || match[5];
+            const functionName = match[3] || match[7];
+            
+            // Extract @desc tag
+            const descMatch = /\/\/\s*@desc\s+(.*)/.exec(docComment);
+            const description = descMatch ? descMatch[1].trim() : "";
+            
+            // Extract @tag tags
+            const tagMatches = [...docComment.matchAll(/\/\/\s*@tag\s+(\w+):([^:]+)(?::(.*))?/g)];
+            const tags = tagMatches.map(([_, title, type, description]) => ({ 
+                title, 
+                type: type.trim(),
+                description: description ? description.trim() : "" 
+            }));
+            
+            functionDocs[functionName] = {
+                description,
+                tags
+            };
         }
+        
+        return functionDocs;
+    } catch (error) {
+        console.error(red(`Error parsing source file ${filePath}: ${error}`));
+        return {};
+    }
+}
 
+// Process contract ABI and source file to extract function information
+function processContract(filePath, shouldPost = false) {
+    try {
+        // Get the output directory and contract name
+        const fileBasename = path.basename(filePath, '.sol');
+        const outputPath = path.join('out', fileBasename+".sol", `${fileBasename}.json`);
+        
+        // Check if the output file exists
+        if (!fs.existsSync(outputPath)) {
+            console.error(red(`Output file not found: ${outputPath}`));
+            console.error(red(`Try running 'forge build' first.`));
+            return 0;
+        }
+        
+        // Extract docs from source file
+        const functionDocs = parseSourceFile(filePath);
+        
+        // Read and parse the ABI JSON file
+        const fileContent = fs.readFileSync(outputPath, 'utf8');
+        const jsonData = JSON.parse(fileContent);
+        
+        if (!jsonData.abi) {
+            console.error(red(`ABI not found in the JSON file: ${outputPath}`));
+            return 0;
+        }
+        
+        // Filter for function entries only
+        const functions = jsonData.abi.filter(item => item.type === 'function');
+        
+        // Process each function
+        const functionsData = [];
+        
+        functions.forEach(func => {
+            // Skip if no documentation found
+            if (!functionDocs[func.name]) {
+                return;
+            }
+            
+            // Build parameter list with flattened types
+            const params = func.inputs.map(input => flattenType(input));
+            
+            // Construct function signature
+            const signature = `${func.name}(${params.join(',')})`;
+            
+            // Compute function selector
+            const selector = computeSelector(signature);
+            
+            // Get documentation
+            const docs = functionDocs[func.name];
+            
+            functionsData.push({
+                selector,
+                description: docs.description || '',
+                params: docs.tags || [],
+                signature: signature
+            });
+        });
+        
+        if (shouldPost && functionsData.length > 0) {
+            return postToPocketBase(functionsData);
+        }
+        
         return functionsData.length;
     } catch (error) {
-        console.error(`Error processing file ${filePath}:`, error.message);
-        // Try to clean up temp file if it exists
-        if (fs.existsSync(tempFile)) {
-            fs.unlinkSync(tempFile);
-        }
+        console.error(red(`Error processing contract ${filePath}: ${error}`));
         return 0;
     }
 }
 
+// Check for existing selectors in the database
 async function checkExistingSelectors(selectors) {
     const existingSelectors = [];
     
@@ -328,6 +170,75 @@ async function checkExistingSelectors(selectors) {
     }
     
     return existingSelectors;
+}
+
+// Post function data to PocketBase
+async function postToPocketBase(functionsData) {
+    try {
+        let successCount = 0;
+        
+        // Process each record individually instead of using batch
+        for (const data of functionsData) {
+            try {
+                // First check if this selector already exists
+                try {
+                    await pb.collection('decoder_selectors').getFirstListItem(`selector="${data.selector}"`);
+                    // If we get here, selector exists - skip this record
+                    continue;
+                } catch (notFoundError) {
+                    // This is good - the record doesn't exist, so we can create it
+                }
+                
+                // Create the new record
+                await pb.collection('decoder_selectors').create({
+                    selector: data.selector,
+                    description: data.description,
+                    tags: JSON.stringify(data.params),
+                    signature: data.signature
+                });
+                
+                // If we got here, the creation was successful
+                successCount++;
+            } catch (error) {
+                // Log error but continue with other records
+                console.error(red(`Error processing selector ${data.selector}: ${error.message}`));
+            }
+        }
+        
+        return successCount;
+    } catch (error) {
+        console.error(red(`Error posting to PocketBase: ${error}`));
+        return 0;
+    }
+}
+
+// Function to find all Solidity files in the DecodersAndSanitizers directory
+function findAllDecoderFiles(includeSubdirs = false) {
+    const baseDir = 'src/base/DecodersAndSanitizers';
+    
+    try {
+        // Use -maxdepth 1 to limit search to only the specified directory
+        const depthOption = includeSubdirs ? '' : '-maxdepth 1';
+        const files = execSync(`find ${baseDir} ${depthOption} -name "*.sol"`, { encoding: 'utf8' })
+            .trim()
+            .split('\n')
+            .filter(file => file); // Remove any empty strings
+        
+        return files;
+    } catch (error) {
+        console.error(red(`Error finding Solidity files: ${error.message}`));
+        return [];
+    }
+}
+
+// Helper function to print text in color
+function colorText(text, colorCode) {
+    return `\x1b[${colorCode}m${text}\x1b[0m`;
+}
+
+// Convenience function for red text (for errors)
+function red(text) {
+    return colorText(text, 31);
 }
 
 async function main() {
@@ -347,21 +258,27 @@ async function main() {
         args.splice(allDecodersIndex, 1);
     }
     
+    // Add subdirectory option
+    const includeSubdirsIndex = args.indexOf('--include-subdirs');
+    const includeSubdirs = includeSubdirsIndex !== -1;
+    if (includeSubdirsIndex !== -1) {
+        args.splice(includeSubdirsIndex, 1);
+    }
+    
     let filesToProcess = [];
     
     if (processAllDecoders) {
         // Process all decoder files
-        filesToProcess = findAllDecoderFiles();
-        console.log(`Will process all ${filesToProcess.length} decoder files`);
+        filesToProcess = findAllDecoderFiles(includeSubdirs);
     } else if (args.length > 0) {
         // Process specific files provided as arguments
         filesToProcess = args;
-        console.log(`Will process ${filesToProcess.length} specified files`);
     } else {
-        console.error('Error: Please provide file paths as arguments or use --all-decoders flag');
-        console.error('Usage: node tag_parse.js [file_paths...] [--post] [--all-decoders]');
-        console.error('  --post: Post the data to PocketBase (otherwise dry run)');
-        console.error('  --all-decoders: Process all files in src/base/DecodersAndSanitizers');
+        console.error(red('Error: Please provide file paths as arguments or use --all-decoders flag'));
+        console.error(red('Usage: node tag_parse.js [file_paths...] [--post] [--all-decoders] [--include-subdirs]'));
+        console.error(red('  --post: Post the data to PocketBase (otherwise dry run)'));
+        console.error(red('  --all-decoders: Process all files in src/base/DecodersAndSanitizers'));
+        console.error(red('  --include-subdirs: Include files in subdirectories when using --all-decoders'));
         process.exit(1);
     }
     
@@ -369,19 +286,17 @@ async function main() {
     let totalFunctions = 0;
     for (const file of filesToProcess) {
         if (!fs.existsSync(file)) {
-            console.error(`Error: File not found: ${file}`);
+            console.error(red(`Error: File not found: ${file}`));
             continue;
         }
         
-        const functionCount = await processFile(file, shouldPost);
+        const functionCount = await processContract(file, shouldPost);
         totalFunctions += functionCount;
     }
-    
-    console.log(`\nProcessing complete. Found ${totalFunctions} total tagged functions across ${filesToProcess.length} files.`);
 }
 
 // Execute the main function
 main().catch(error => {
-    console.error('Unhandled error:', error);
+    console.error(red(`Unhandled error: ${error}`));
     process.exit(1);
 }); 
