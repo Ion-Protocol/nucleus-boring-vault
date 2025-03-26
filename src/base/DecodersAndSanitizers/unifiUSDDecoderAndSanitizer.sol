@@ -13,7 +13,7 @@ import { ERC4626DecoderAndSanitizer } from "./Protocols/ERC4626DecoderAndSanitiz
 import { CurveDecoderAndSanitizer } from "./Protocols/CurveDecoderAndSanitizer.sol";
 import { BalancerV2DecoderAndSanitizer } from "./Protocols/BalancerV2DecoderAndSanitizer.sol";
 
-contract UnifiUSDDecoderAndSanitizer is
+contract unifiUSDDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
