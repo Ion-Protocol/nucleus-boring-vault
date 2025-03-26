@@ -14,7 +14,7 @@ import { CurveDecoderAndSanitizer } from "./Protocols/CurveDecoderAndSanitizer.s
 import { BalancerV2DecoderAndSanitizer } from "./Protocols/BalancerV2DecoderAndSanitizer.sol";
 import { AeraVaultDecoderAndSanitizer } from "./Protocols/AeraVaultDecoderAndSanitizer.sol";
 
-contract UnifiETHDecoderAndSanitizer is
+contract unifiETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,

@@ -7,65 +7,154 @@ import path from 'path';
 const pbUrl = process.env.POCKETBASE_URL || 'http://34.201.251.108:8090';
 const pb = new PocketBase(pbUrl);
 
+// Function to compute the 4-byte selector using keccak256
 function computeSelector(signature) {
-    // Compute the 4-byte selector using keccak256 (Ethereum's hashing algorithm)
     return '0x' + keccak256(signature).toString('hex').slice(0, 8);
 }
 
-function parseSolidityFile(filePath) {
-    const content = fs.readFileSync(filePath, 'utf8');
-
-    // Regular expression to match functions with @tag comments
-    const functionPattern = new RegExp(
-        '(//\\s*@desc\\s+.*?//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))|' +
-        '(//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))',
-        'gs'
-    );
-
-    const functionsData = [];
-    let match;
-
-    while ((match = functionPattern.exec(content)) !== null) {
-        const docComment = match[1] || match[5];
-        const functionName = match[3] || match[7];
-        const params = match[4] || match[8];
-
-        // Extract @desc and @tag tags
-        const descMatch = /\/\/\s*@desc\s+(.*)/.exec(docComment);
-        const description = descMatch ? descMatch[1].trim() : "";
-
-        const tagMatches = [...docComment.matchAll(/\/\/\s*@tag\s+(\w+):([^:]+)(?::(.*))?/g)];
-        const paramsList = tagMatches.map(([_, title, type, description]) => ({ 
-            title, 
-            type: type.trim(),
-            description: description ? description.trim() : "" 
-        }));
-
-        // Clean the parameters to only include types (remove parameter names and whitespace)
-        const cleanedParams = params.split(',')
-            .map(param => {
-                // Extract just the type from "type name" format
-                const parts = param.trim().split(/\s+/);
-                return parts[0]; // Return just the type
-            })
-            .join(',');
-
-        // Compute the function selector with the cleaned signature
-        const signature = `${functionName}(${cleanedParams})`;
-        const selector = computeSelector(signature);
-        console.log(`${signature} ${selector}`);
-
-        functionsData.push({
-            selector,
-            description,
-            params: paramsList,
-            signature: signature
-        });
+// Function to flatten struct types into tuples with their actual component types
+function flattenType(input) {
+    // If it's not a tuple/struct, return the type directly
+    if (input.type !== 'tuple' && !input.type.startsWith('tuple[')) {
+        return input.type;
     }
-
-    return functionsData;
+    
+    // Handle arrays of tuples
+    const isArray = input.type.includes('[');
+    const arrayNotation = isArray ? input.type.substring(input.type.indexOf('[')) : '';
+    
+    // Process the components recursively
+    const flattenedComponents = input.components.map(component => {
+        if (component.components) {
+            // This is a nested struct/tuple
+            return flattenType(component);
+        }
+        return component.type;
+    });
+    
+    // Return the tuple notation with flattened component types
+    return `(${flattenedComponents.join(',')})${arrayNotation}`;
 }
 
+// Parse source file for @desc and @tag comments
+function parseSourceFile(filePath) {
+    try {
+        // Create a temporary flattened file to parse
+        const tempFile = `temp_${path.basename(filePath)}`;
+        execSync(`forge flatten ${filePath} > ${tempFile}`);
+        
+        const content = fs.readFileSync(tempFile, 'utf8');
+        fs.unlinkSync(tempFile); // Clean up temp file
+        
+        // Regular expression to match functions with @tag and @desc comments
+        const functionPattern = new RegExp(
+            '(//\\s*@desc\\s+.*?//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))|' +
+            '(//\\s*@tag\\s+.*?)(function\\s+(\\w+)\\s*\\((.*?)\\))',
+            'gs'
+        );
+        
+        const functionDocs = {};
+        let match;
+        
+        while ((match = functionPattern.exec(content)) !== null) {
+            const docComment = match[1] || match[5];
+            const functionName = match[3] || match[7];
+            
+            // Extract @desc tag
+            const descMatch = /\/\/\s*@desc\s+(.*)/.exec(docComment);
+            const description = descMatch ? descMatch[1].trim() : "";
+            
+            // Extract @tag tags
+            const tagMatches = [...docComment.matchAll(/\/\/\s*@tag\s+(\w+):([^:]+)(?::(.*))?/g)];
+            const tags = tagMatches.map(([_, title, type, description]) => ({ 
+                title, 
+                type: type.trim(),
+                description: description ? description.trim() : "" 
+            }));
+            
+            functionDocs[functionName] = {
+                description,
+                tags
+            };
+        }
+        
+        return functionDocs;
+    } catch (error) {
+        console.error(red(`Error parsing source file ${filePath}: ${error}`));
+        return {};
+    }
+}
+
+// Process contract ABI and source file to extract function information
+function processContract(filePath, shouldPost = false) {
+    try {
+        // Get the output directory and contract name
+        const fileBasename = path.basename(filePath, '.sol');
+        const outputPath = path.join('out', fileBasename+".sol", `${fileBasename}.json`);
+        
+        // Check if the output file exists
+        if (!fs.existsSync(outputPath)) {
+            console.error(red(`Output file not found: ${outputPath}`));
+            console.error(red(`Try running 'forge build' first.`));
+            return 0;
+        }
+        
+        // Extract docs from source file
+        const functionDocs = parseSourceFile(filePath);
+        
+        // Read and parse the ABI JSON file
+        const fileContent = fs.readFileSync(outputPath, 'utf8');
+        const jsonData = JSON.parse(fileContent);
+        
+        if (!jsonData.abi) {
+            console.error(red(`ABI not found in the JSON file: ${outputPath}`));
+            return 0;
+        }
+        
+        // Filter for function entries only
+        const functions = jsonData.abi.filter(item => item.type === 'function');
+        
+        // Process each function
+        const functionsData = [];
+        
+        functions.forEach(func => {
+            // Skip if no documentation found
+            if (!functionDocs[func.name]) {
+                return;
+            }
+            
+            // Build parameter list with flattened types
+            const params = func.inputs.map(input => flattenType(input));
+            
+            // Construct function signature
+            const signature = `${func.name}(${params.join(',')})`;
+            
+            // Compute function selector
+            const selector = computeSelector(signature);
+            
+            // Get documentation
+            const docs = functionDocs[func.name];
+            
+            functionsData.push({
+                selector,
+                description: docs.description || '',
+                params: docs.tags || [],
+                signature: signature
+            });
+        });
+        
+        if (shouldPost && functionsData.length > 0) {
+            return postToPocketBase(functionsData);
+        }
+        
+        return functionsData.length;
+    } catch (error) {
+        console.error(red(`Error processing contract ${filePath}: ${error}`));
+        return 0;
+    }
+}
+
+// Check for existing selectors in the database
 async function checkExistingSelectors(selectors) {
     const existingSelectors = [];
     
@@ -83,106 +172,73 @@ async function checkExistingSelectors(selectors) {
     return existingSelectors;
 }
 
+// Post function data to PocketBase
+async function postToPocketBase(functionsData) {
+    try {
+        let successCount = 0;
+        
+        // Process each record individually instead of using batch
+        for (const data of functionsData) {
+            try {
+                // First check if this selector already exists
+                try {
+                    await pb.collection('decoder_selectors').getFirstListItem(`selector="${data.selector}"`);
+                    // If we get here, selector exists - skip this record
+                    continue;
+                } catch (notFoundError) {
+                    // This is good - the record doesn't exist, so we can create it
+                }
+                
+                // Create the new record
+                await pb.collection('decoder_selectors').create({
+                    selector: data.selector,
+                    description: data.description,
+                    tags: JSON.stringify(data.params),
+                    signature: data.signature
+                });
+                
+                // If we got here, the creation was successful
+                successCount++;
+            } catch (error) {
+                // Log error but continue with other records
+                console.error(red(`Error processing selector ${data.selector}: ${error.message}`));
+            }
+        }
+        
+        return successCount;
+    } catch (error) {
+        console.error(red(`Error posting to PocketBase: ${error}`));
+        return 0;
+    }
+}
+
 // Function to find all Solidity files in the DecodersAndSanitizers directory
-function findAllDecoderFiles() {
+function findAllDecoderFiles(includeSubdirs = false) {
     const baseDir = 'src/base/DecodersAndSanitizers';
     
     try {
-        const files = execSync(`find ${baseDir} -name "*.sol"`, { encoding: 'utf8' })
+        // Use -maxdepth 1 to limit search to only the specified directory
+        const depthOption = includeSubdirs ? '' : '-maxdepth 1';
+        const files = execSync(`find ${baseDir} ${depthOption} -name "*.sol"`, { encoding: 'utf8' })
             .trim()
             .split('\n')
             .filter(file => file); // Remove any empty strings
         
-        console.log(`Found ${files.length} Solidity files in ${baseDir}`);
         return files;
     } catch (error) {
-        console.error('Error finding Solidity files:', error.message);
+        console.error(red(`Error finding Solidity files: ${error.message}`));
         return [];
     }
 }
 
-// Function to process a single file
-async function processFile(filePath, shouldPost) {
-    console.log(`\nProcessing file: ${filePath}`);
-    const tempFile = `temp_${path.basename(filePath)}`;
+// Helper function to print text in color
+function colorText(text, colorCode) {
+    return `\x1b[${colorCode}m${text}\x1b[0m`;
+}
 
-    try {
-        // Run forge flatten and create temp file
-        execSync(`forge flatten ${filePath} > ${tempFile}`);
-        
-        // Parse the temp file
-        const functionsData = parseSolidityFile(tempFile);
-        
-        console.log(`Found ${functionsData.length} tagged functions in ${filePath}`);
-        
-        // Print out the found functions
-        functionsData.forEach(func => {
-            console.log(`- ${func.signature} => ${func.selector}`);
-            console.log(`  Description: ${func.description}`);
-            console.log(`  Tags: ${JSON.stringify(func.params)}`);
-        });
-
-        // Delete the temp file
-        fs.unlinkSync(tempFile);
-
-        if (shouldPost && functionsData.length > 0) {
-            // Check for existing selectors
-            const selectorsToCheck = functionsData.map(func => func.selector);
-            const existingSelectors = await checkExistingSelectors(selectorsToCheck);
-
-            // Filter out functions with selectors that already exist
-            const newFunctionsData = functionsData.filter(func => !existingSelectors.includes(func.selector));
-
-            console.log(`Found ${existingSelectors.length} selectors that already exist in the database`);
-            console.log(`Found ${newFunctionsData.length} new selectors to add`);
-
-            // Only proceed with posting if there are new selectors to add
-            if (newFunctionsData.length > 0) {
-                console.log('Posting data to PocketBase...');
-
-                // Create the requests array with proper data formatting
-                const requests = newFunctionsData.map(data => ({
-                    method: 'POST',
-                    url: '/api/collections/decoder_selectors/records',
-                    body: {
-                        selector: data.selector,
-                        description: data.description,
-                        tags: JSON.stringify(data.params),
-                        signature: data.signature
-                    }
-                }));
-
-                // Make sure the request body is correctly structured
-                const requestBody = {
-                    requests: requests
-                };
-
-                try {
-                    const result = await pb.send('/api/batch', {
-                        method: 'POST',
-                        body: requestBody
-                    });
-                    console.log('Batch create result:', result);
-                } catch (error) {
-                    console.error('Error creating batch:', error);
-                    console.error('Error details:', error.response?.data || error.message);
-                }
-            } else {
-                console.log('No new selectors to add for this file.');
-            }
-        } else if (!shouldPost) {
-            console.log('DRY RUN MODE: Data will not be posted to PocketBase.');
-        }
-
-        return functionsData.length;
-    } catch (error) {
-        console.error(`Error processing file ${filePath}:`, error.message);
-        // Try to clean up temp file if it exists
-        if (fs.existsSync(tempFile)) {
-            fs.unlinkSync(tempFile);
-        }
-        return 0;
-    }
+// Convenience function for red text (for errors)
+function red(text) {
+    return colorText(text, 31);
 }
 
 async function main() {
@@ -202,21 +258,27 @@ async function main() {
         args.splice(allDecodersIndex, 1);
     }
     
+    // Add subdirectory option
+    const includeSubdirsIndex = args.indexOf('--include-subdirs');
+    const includeSubdirs = includeSubdirsIndex !== -1;
+    if (includeSubdirsIndex !== -1) {
+        args.splice(includeSubdirsIndex, 1);
+    }
+    
     let filesToProcess = [];
     
     if (processAllDecoders) {
         // Process all decoder files
-        filesToProcess = findAllDecoderFiles();
-        console.log(`Will process all ${filesToProcess.length} decoder files`);
+        filesToProcess = findAllDecoderFiles(includeSubdirs);
     } else if (args.length > 0) {
         // Process specific files provided as arguments
         filesToProcess = args;
-        console.log(`Will process ${filesToProcess.length} specified files`);
     } else {
-        console.error('Error: Please provide file paths as arguments or use --all-decoders flag');
-        console.error('Usage: node tag_parse.js [file_paths...] [--post] [--all-decoders]');
-        console.error('  --post: Post the data to PocketBase (otherwise dry run)');
-        console.error('  --all-decoders: Process all files in src/base/DecodersAndSanitizers');
+        console.error(red('Error: Please provide file paths as arguments or use --all-decoders flag'));
+        console.error(red('Usage: node tag_parse.js [file_paths...] [--post] [--all-decoders] [--include-subdirs]'));
+        console.error(red('  --post: Post the data to PocketBase (otherwise dry run)'));
+        console.error(red('  --all-decoders: Process all files in src/base/DecodersAndSanitizers'));
+        console.error(red('  --include-subdirs: Include files in subdirectories when using --all-decoders'));
         process.exit(1);
     }
     
@@ -224,19 +286,17 @@ async function main() {
     let totalFunctions = 0;
     for (const file of filesToProcess) {
         if (!fs.existsSync(file)) {
-            console.error(`Error: File not found: ${file}`);
+            console.error(red(`Error: File not found: ${file}`));
             continue;
         }
         
-        const functionCount = await processFile(file, shouldPost);
+        const functionCount = await processContract(file, shouldPost);
         totalFunctions += functionCount;
     }
-    
-    console.log(`\nProcessing complete. Found ${totalFunctions} total tagged functions across ${filesToProcess.length} files.`);
 }
 
 // Execute the main function
 main().catch(error => {
-    console.error('Unhandled error:', error);
+    console.error(red(`Unhandled error: ${error}`));
     process.exit(1);
 }); 
