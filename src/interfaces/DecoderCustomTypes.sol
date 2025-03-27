@@ -222,14 +222,7 @@ contract DecoderCustomTypes {
         address recipient; // Address to receive want assets
     }
 
-    struct AtomicRequest {
-        uint64 deadline; // deadline to fulfill request
-        uint88 atomicPrice; // In terms of want asset decimals
-        uint96 offerAmount; // The amount of offer asset the user wants to sell.
-        bool inSolve; // Indicates whether this user is currently having their request fulfilled.
-    }
-
-    // ========================================= SUPERBRIDGE =========================================
+   // ========================================= SUPERBRIDGE =========================================
     /// @notice Struct representing a withdrawal transaction.
     /// @custom:field nonce    Nonce of the withdrawal transaction
     /// @custom:field sender   Address of the sender of the transaction.
@@ -312,7 +305,7 @@ contract DecoderCustomTypes {
     struct Action {
         // operation type
         Operation op;
-        // dynamic bytes data, interepreted differently across operation types
+        // dynamic bytes data, interpreted differently across operation types
         bytes data;
     }
 }

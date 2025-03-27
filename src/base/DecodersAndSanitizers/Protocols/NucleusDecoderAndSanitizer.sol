@@ -40,8 +40,10 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc teller deposit and bridge
     // @tag depositAsset:address:ERC20 to deposit
-    // @tag data:struct:BridgeData struct in CrossChainTellerBase enforcing consistent messageGas, data, fee tokens,
-    // destination, ect.
+    // @tag chainSelector:uint32:chain selector
+    // @tag destinationChainReceiver:address:receiver
+    // @tag bridgeFeeToken:address:fee token
+    // @tag messageGas:uint64:gas for message
     function depositAndBridge(
         ERC20 depositAsset,
         uint256 depositAmount,
@@ -52,22 +54,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        addressesFound = abi.encode(depositAsset, data);
-    }
-
-    // @desc legacy updateAtomicRequest to withdraw from vault
-    // @tag offer:address:ERC20 to withdraw
-    // @tag want:address:ERC20 to withdraw into
-    function updateAtomicRequest(
-        ERC20 offer,
-        ERC20 want,
-        DecoderCustomTypes.AtomicRequest calldata userRequest
-    )
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encode(offer, want);
+        addressesFound = abi.encode(depositAsset, data.chainSelector, data.destinationChainReceiver, data.bridgeFeeToken, data.messageGas);
     }
 
     // @desc updateAtomicRequest to withdraw from vault using newer UCP
