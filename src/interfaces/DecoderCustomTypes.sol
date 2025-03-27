@@ -213,6 +213,45 @@ contract DecoderCustomTypes {
         ETH_WETH
     }
 
+    // ========================================= NUCLEUS =========================================
+
+    struct AtomicRequestUCP {
+        uint64 deadline; // Timestamp when request expires
+        uint96 atomicPrice; // User's limit price in want asset decimals
+        uint96 offerAmount; // Amount of offer asset to sell
+        address recipient; // Address to receive want assets
+    }
+
+    // ========================================= SUPERBRIDGE =========================================
+    /// @notice Struct representing a withdrawal transaction.
+    /// @custom:field nonce    Nonce of the withdrawal transaction
+    /// @custom:field sender   Address of the sender of the transaction.
+    /// @custom:field target   Address of the recipient of the transaction.
+    /// @custom:field value    Value to send to the recipient.
+    /// @custom:field gasLimit Gas limit of the transaction.
+    /// @custom:field data     Data of the transaction.
+    struct WithdrawalTransaction {
+        uint256 nonce;
+        address sender;
+        address target;
+        uint256 value;
+        uint256 gasLimit;
+        bytes data;
+    }
+
+    /// @notice Struct representing the elements that are hashed together to generate an output root
+    ///         which itself represents a snapshot of the L2 state.
+    /// @custom:field version                  Version of the output root.
+    /// @custom:field stateRoot                Root of the state trie at the block of this output.
+    /// @custom:field messagePasserStorageRoot Root of the message passer storage trie.
+    /// @custom:field latestBlockhash          Hash of the block this output was generated from.
+    struct OutputRootProof {
+        bytes32 version;
+        bytes32 stateRoot;
+        bytes32 messagePasserStorageRoot;
+        bytes32 latestBlockhash;
+    }
+
     // ========================================= EIGEN LAYER =========================================
 
     struct QueuedWithdrawalParams {
@@ -266,7 +305,7 @@ contract DecoderCustomTypes {
     struct Action {
         // operation type
         Operation op;
-        // dynamic bytes data, interepreted differently across operation types
+        // dynamic bytes data, interpreted differently across operation types
         bytes data;
     }
 }
