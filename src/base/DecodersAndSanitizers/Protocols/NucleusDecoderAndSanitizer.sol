@@ -54,7 +54,9 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        addressesFound = abi.encode(depositAsset, data.chainSelector, data.destinationChainReceiver, data.bridgeFeeToken, data.messageGas);
+        addressesFound = abi.encode(
+            depositAsset, data.chainSelector, data.destinationChainReceiver, data.bridgeFeeToken, data.messageGas
+        );
     }
 
     // @desc updateAtomicRequest to withdraw from vault using newer UCP

@@ -222,7 +222,7 @@ contract DecoderCustomTypes {
         address recipient; // Address to receive want assets
     }
 
-   // ========================================= SUPERBRIDGE =========================================
+    // ========================================= SUPERBRIDGE =========================================
     /// @notice Struct representing a withdrawal transaction.
     /// @custom:field nonce    Nonce of the withdrawal transaction
     /// @custom:field sender   Address of the sender of the transaction.
