@@ -9,11 +9,14 @@ import { MasterChefV3DecoderAndSanitizer } from
 import { PendleRouterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
 import { TempestDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/TempestDecoderAndSanitizer.sol";
+import { SuperBridgeDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/SuperBridgeDecoderAndSanitizer.sol";
 
 contract EarnETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,
-    PendleRouterDecoderAndSanitizer
+    PendleRouterDecoderAndSanitizer,
+    SuperBridgeDecoderAndSanitizer
 {
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 }
