@@ -14,6 +14,8 @@ struct Chain {
 error MultiChainTellerBase_MessagesNotAllowedFrom(uint32 chainSelector);
 error MultiChainTellerBase_MessagesNotAllowedFromSender(uint256 chainSelector, address sender);
 error MultiChainTellerBase_MessagesNotAllowedTo(uint256 chainSelector);
+error MultiChainTellerBase_TargetTellerIsZeroAddress();
+error MultiChainTellerBase_DestinationChainReceiverIsZeroAddress();
 error MultiChainTellerBase_ZeroMessageGasLimit();
 error MultiChainTellerBase_GasLimitExceeded();
 error MultiChainTellerBase_GasTooLow();
@@ -172,15 +174,25 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase {
      * @param data bridge data
      */
     function _beforeBridge(BridgeData calldata data) internal override {
-        if (!selectorToChains[data.chainSelector].allowMessagesTo) {
+        Chain memory chain = selectorToChains[data.chainSelector];
+
+        if (!chain.allowMessagesTo) {
             revert MultiChainTellerBase_MessagesNotAllowedTo(data.chainSelector);
         }
 
-        if (data.messageGas > selectorToChains[data.chainSelector].messageGasLimit) {
+        if (chain.targetTeller == address(0)) {
+            revert MultiChainTellerBase_TargetTellerIsZeroAddress();
+        }
+
+        if (data.destinationChainReceiver == address(0)) {
+            revert MultiChainTellerBase_DestinationChainReceiverIsZeroAddress();
+        }
+
+        if (data.messageGas > chain.messageGasLimit) {
             revert MultiChainTellerBase_GasLimitExceeded();
         }
 
-        if (data.messageGas < selectorToChains[data.chainSelector].minimumMessageGas) {
+        if (data.messageGas < chain.minimumMessageGas) {
             revert MultiChainTellerBase_GasTooLow();
         }
     }

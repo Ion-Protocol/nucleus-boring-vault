@@ -16,6 +16,9 @@
 [submodule "lib/createx"]
 	path = lib/createx
 	url = https://github.com/pcaversaccio/createx
-[submodule "nucleus-deployments"]
-	path = nucleus-deployments
-	url = git@github.com:Ion-Protocol/nucleus-deployments.git
+[submodule "lib/v3-periphery"]
+	path = lib/v3-periphery
+	url = https://github.com/Uniswap/v3-periphery
+[submodule "lib/maverick"]
+	path = lib/maverick
+	url = https://github.com/maverickprotocol/maverick-v2-examples/tree/main/solidity

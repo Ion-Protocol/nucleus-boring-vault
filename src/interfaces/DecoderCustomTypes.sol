@@ -38,6 +38,22 @@ contract DecoderCustomTypes {
         bool toInternalBalance;
     }
 
+    // ========================================= VELODROME =========================================
+    struct VelodromeMintParams {
+        address token0;
+        address token1;
+        int24 tickSpacing;
+        int24 tickLower;
+        int24 tickUpper;
+        uint256 amount0Desired;
+        uint256 amount1Desired;
+        uint256 amount0Min;
+        uint256 amount1Min;
+        address recipient;
+        uint256 deadline;
+        uint160 sqrtPriceX96;
+    }
+
     // ========================================= UNISWAP V3 =========================================
 
     struct MintParams {
@@ -108,6 +124,13 @@ contract DecoderCustomTypes {
         uint256 flags;
     }
 
+    // ========================================= KITTENSWAP =========================================
+    struct route {
+        address from;
+        address to;
+        bool stable;
+    }
+
     // ========================================= PENDLE =========================================
     struct TokenInput {
         // TOKEN DATA
@@ -146,12 +169,87 @@ contract DecoderCustomTypes {
         bool needScale;
     }
 
+    enum OrderType {
+        SY_FOR_PT,
+        PT_FOR_SY,
+        SY_FOR_YT,
+        YT_FOR_SY
+    }
+
+    struct Order {
+        uint256 salt;
+        uint256 expiry;
+        uint256 nonce;
+        OrderType orderType;
+        address token;
+        address YT;
+        address maker;
+        address receiver;
+        uint256 makingAmount;
+        uint256 lnImpliedRate;
+        uint256 failSafeRate;
+        bytes permit;
+    }
+
+    struct FillOrderParams {
+        Order order;
+        bytes signature;
+        uint256 makingAmount;
+    }
+
+    struct LimitOrderData {
+        address limitRouter;
+        uint256 epsSkipMarket; // only used for swap operations, will be ignored otherwise
+        FillOrderParams[] normalFills;
+        FillOrderParams[] flashFills;
+        bytes optData;
+    }
+
     enum SwapType {
         NONE,
         KYBERSWAP,
         ONE_INCH,
         // ETH_WETH not used in Aggregator
         ETH_WETH
+    }
+
+    // ========================================= NUCLEUS =========================================
+
+    struct AtomicRequestUCP {
+        uint64 deadline; // Timestamp when request expires
+        uint96 atomicPrice; // User's limit price in want asset decimals
+        uint96 offerAmount; // Amount of offer asset to sell
+        address recipient; // Address to receive want assets
+    }
+
+    // ========================================= SUPERBRIDGE =========================================
+    /// @notice Struct representing a withdrawal transaction.
+    /// @custom:field nonce    Nonce of the withdrawal transaction
+    /// @custom:field sender   Address of the sender of the transaction.
+    /// @custom:field target   Address of the recipient of the transaction.
+    /// @custom:field value    Value to send to the recipient.
+    /// @custom:field gasLimit Gas limit of the transaction.
+    /// @custom:field data     Data of the transaction.
+    struct WithdrawalTransaction {
+        uint256 nonce;
+        address sender;
+        address target;
+        uint256 value;
+        uint256 gasLimit;
+        bytes data;
+    }
+
+    /// @notice Struct representing the elements that are hashed together to generate an output root
+    ///         which itself represents a snapshot of the L2 state.
+    /// @custom:field version                  Version of the output root.
+    /// @custom:field stateRoot                Root of the state trie at the block of this output.
+    /// @custom:field messagePasserStorageRoot Root of the message passer storage trie.
+    /// @custom:field latestBlockhash          Hash of the block this output was generated from.
+    struct OutputRootProof {
+        bytes32 version;
+        bytes32 stateRoot;
+        bytes32 messagePasserStorageRoot;
+        bytes32 latestBlockhash;
     }
 
     // ========================================= EIGEN LAYER =========================================
@@ -180,5 +278,34 @@ contract DecoderCustomTypes {
         address[] strategies;
         // Array containing the amount of shares in each Strategy in the `strategies` array
         uint256[] shares;
+    }
+
+    // ========================================= Sentiment =========================================
+
+    /// @title Operation
+    /// @notice Operation type definitions that can be applied to a position
+    /// @dev Every operation except NewPosition requires that the caller must be an authz caller or owner
+    enum Operation {
+        NewPosition, // create2 a new position with a given type, no auth needed
+        // the following operations require msg.sender to be authorized
+        Exec, // execute arbitrary calldata on a position
+        Deposit, // Add collateral to a given position
+        Transfer, // transfer assets from the position to a external address
+        Approve, // allow a spender to transfer assets from a position
+        Repay, // decrease position debt
+        Borrow, // increase position debt
+        AddToken, // upsert collateral asset to position storage
+        RemoveToken // remove collateral asset from position storage
+
+    }
+
+    /// @title Action
+    /// @notice Generic data struct to create a common data container for all operation types
+    /// @dev target and data are interpreted in different ways based on the operation type
+    struct Action {
+        // operation type
+        Operation op;
+        // dynamic bytes data, interpreted differently across operation types
+        bytes data;
     }
 }

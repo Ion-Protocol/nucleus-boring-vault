@@ -1,0 +1,46 @@
+{
+    "base": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
+    "protocolAdmin": "0x94544835Cf97c631f101c5f538787fE14E2E04f6",
+    "boringVaultAndBaseDecimals": "18",
+    "boringVault": {
+      "boringVaultSalt": "0x1ddd634c506ad203da17ff00000000000000000000000000000000000000001c",
+      "boringVaultName": "Nucleus Vault",
+      "boringVaultSymbol": "NV",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x30432d4b4ec00003b4a25000000000000000000000000000000000000000001c",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000001c",
+      "payoutAddress": "0x94544835Cf97c631f101c5f538787fE14E2E04f6",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "2000",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0x51f8968749a56d01202c9100000000000000000000000000000000000000001c",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 0,
+      "peerDomainId": 11155420,
+      "tellerContractName": "MultiChainHyperlaneTellerWithMultiAssetSupport",
+      "assets": [
+      ],
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000001c",
+      "strategist": "0x94544835Cf97c631f101c5f538787fE14E2E04f6",
+      "exchangeRateBot": "0x94544835Cf97c631f101c5f538787fE14E2E04f6",
+      "pauser": "0x94544835Cf97c631f101c5f538787fE14E2E04f6",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000001c",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+  }
