@@ -7,11 +7,11 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IVelodromeV1Router } from "../interfaces/IVelodromeV1Router.sol";
 
 /**
- * @title BuyBackBot
+ * @title VelodromeBuyback
  * @dev no permissioned functions, as token destinations will always be the vault or the sender of tokens
  * @custom:security-contact security@molecularlabs.io
  */
-contract BuyBackBot {
+contract VelodromeBuyback {
     /**
      * @notice The VelodromeV1 router contract used for swapping assets
      */

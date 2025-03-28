@@ -26,7 +26,7 @@ import {
     PointFarmingDecoderAndSanitizer,
     EigenLayerLSTStakingDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/PointFarmingDecoderAndSanitizer.sol";
-import { BuyBackBot } from "src/base/BuybackBot.sol";
+import { VelodromeBuyback } from "src/helper/VelodromeBuyback.sol";
 
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { LHYPEDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/LHYPEDecoderAndSanitizer.sol";
@@ -40,7 +40,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     BoringVault public boringVault;
     address public rawDataDecoderAndSanitizer;
     RolesAuthority public rolesAuthority;
-    BuyBackBot public buyBackBot;
+    VelodromeBuyback public buyBackBot;
 
     uint8 public constant MANAGER_ROLE = 1;
     uint8 public constant STRATEGIST_ROLE = 2;
@@ -77,57 +77,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             address(new LHYPEDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
 
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
-        // boringVault.setAuthority(rolesAuthority);
-        // manager.setAuthority(rolesAuthority);
 
-        // // Setup roles authority.
-        // rolesAuthority.setRoleCapability(
-        //     MANAGER_ROLE,
-        //     address(boringVault),
-        //     bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)"))),
-        //     true
-        // );
-        // rolesAuthority.setRoleCapability(
-        //     MANAGER_ROLE,
-        //     address(boringVault),
-        //     bytes4(keccak256(abi.encodePacked("manage(address[],bytes[],uint256[])"))),
-        //     true
-        // );
-
-        // rolesAuthority.setRoleCapability(
-        //     STRATEGIST_ROLE,
-        //     address(manager),
-        //     ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector,
-        //     true
-        // );
-        // rolesAuthority.setRoleCapability(
-        //     MANGER_INTERNAL_ROLE,
-        //     address(manager),
-        //     ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector,
-        //     true
-        // );
-        // rolesAuthority.setRoleCapability(
-        //     ADMIN_ROLE, address(manager), ManagerWithMerkleVerification.setManageRoot.selector, true
-        // );
-        // rolesAuthority.setRoleCapability(
-        //     BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoan.selector, true
-        // );
-        // rolesAuthority.setRoleCapability(
-        //     BALANCER_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.receiveFlashLoan.selector, true
-        // );
-
-        // // Grant roles
-        // rolesAuthority.setUserRole(address(this), STRATEGIST_ROLE, true);
-        // rolesAuthority.setUserRole(address(manager), MANGER_INTERNAL_ROLE, true);
-        // rolesAuthority.setUserRole(address(this), ADMIN_ROLE, true);
-        // rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
-        // rolesAuthority.setUserRole(address(boringVault), BORING_VAULT_ROLE, true);
-        // rolesAuthority.setUserRole(vault, BALANCER_VAULT_ROLE, true);
-
-        // Allow the boring vault to receive ETH.
-        // rolesAuthority.setPublicCapability(address(boringVault), bytes4(0), true);
-
-        buyBackBot = new BuyBackBot(0xD6EeFfbDAF6503Ad6539CF8f337D79BEbbd40802, teller);
+        buyBackBot = new VelodromeBuyback(0xD6EeFfbDAF6503Ad6539CF8f337D79BEbbd40802, teller);
         vm.stopPrank();
     }
 
