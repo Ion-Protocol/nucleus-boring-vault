@@ -1,0 +1,44 @@
+name: Tag Parser
+
+on:
+  # Allow manual triggering for testing
+  workflow_dispatch:
+  push:
+    branches:
+      - carson/decoders
+    paths:
+      - 'src/base/DecodersAndSanitizers/**/*.sol'  # Only run when Solidity files in this directory change
+
+jobs:
+  parse-tags:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history to detect file changes
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Install dependencies
+        run: npm install pocketbase keccak256
+      
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      
+      - name: Run tag parser for all files
+        env:
+          POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
+        run: |
+          # Find all Solidity files in the DecodersAndSanitizers directory
+          DECODER_FILES=$(find src/base/DecodersAndSanitizers -name "*.sol")
+          
+          # Process all files
+          echo "Processing all DecodersAndSanitizers files"
+          node tag_parse.js --all-decoders --post 

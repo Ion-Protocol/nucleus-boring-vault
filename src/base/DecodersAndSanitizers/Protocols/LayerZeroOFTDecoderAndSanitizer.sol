@@ -2,8 +2,8 @@
 pragma solidity 0.8.21;
 
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
-import { SendParam } from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
-import { MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
+import { SendParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
+import { MessagingFee } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
 
 abstract contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error LayerZeroOFTDecoderAndSanitizer_ComposedMsgNotSupported();
@@ -22,6 +22,9 @@ abstract contract LayerZeroOFTDecoderAndSanitizer is BaseDecoderAndSanitizer {
      *     uint256 nativeFee;
      *     uint256 lzTokenFee;
      */
+    // @desc send a layerzero bridge, will revert if sendParam.to or the refundReceiver is not the boring vault, or the
+    // _sendParam.composeMsg length is 0
+    // @tag dstEid:uint32:destination endpoint eid
 
     function send(
         SendParam calldata _sendParam,

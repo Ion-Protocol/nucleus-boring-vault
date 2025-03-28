@@ -7,8 +7,8 @@ import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAn
 abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
 
-    error UniswapV3DecoderAndSanitizer__BadPathFormat();
-    error UniswapV3DecoderAndSanitizer__BadTokenId();
+    error VelodromeDecoderAndSanitizer__BadPathFormat();
+    error VelodromeDecoderAndSanitizer__BadTokenId();
 
     //============================== IMMUTABLES ===============================
 
@@ -23,6 +23,9 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== Velodrome ===============================
 
+    // @tag token0:address
+    // @tag token1:address
+    // @tag recipient:address
     function mint(DecoderCustomTypes.VelodromeMintParams calldata params)
         external
         pure
@@ -34,6 +37,10 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.token0, params.token1, params.recipient);
     }
 
+    // @desc Specify the operator and tokens that can increase liquidity, boringVault must always be the token ID owner
+    // @tag operator:address
+    // @tag token0:address
+    // @tag token1:address
     function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
         external
         view
@@ -42,7 +49,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         // Sanitize raw data
         if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
         }
         // Extract addresses from velodromeNonFungiblePositionManager.positions(params.tokenId).
         (, address operator, address token0, address token1,,,,,,,,) =
@@ -50,6 +57,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(operator, token0, token1);
     }
 
+    // @desc BoringVault must always be the token ID owner
     function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
         external
         view
@@ -60,13 +68,15 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
         // just for completeness.
         if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
         }
 
         // No addresses in data
         return addressesFound;
     }
 
+    // @desc BoringVault must always be the token ID owner
+    // @tag recipient:address
     function collect(DecoderCustomTypes.CollectParams calldata params)
         external
         view
@@ -77,13 +87,15 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
         // just for completeness.
         if (velodromeNonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+            revert VelodromeDecoderAndSanitizer__BadTokenId();
         }
 
         // Return addresses found
         addressesFound = abi.encodePacked(params.recipient);
     }
 
+    // @desc Velodrome function to safeTransferFrom ERC721s
+    // @tag to:address
     function safeTransferFrom(
         address,
         address to,
@@ -97,15 +109,23 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(to);
     }
 
+    // @desc Velodrome function to deposit LP NFT for staking
     function deposit(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Just the NFT ID
         // No addresses in data
         return addressesFound;
     }
 
+    // @desc Velodrome function to withdraw LP NFT from staking
     function withdraw(uint256) external pure virtual returns (bytes memory addressesFound) {
         // Just the NFT ID
         // No addresses in data
+        return addressesFound;
+    }
+
+    // @desc Velodrome function to CL Gauge for claiming VELO tokens
+    function getReward(uint256) external pure virtual returns (bytes memory addressesFound) {
+        // Nothing to sanitizer since only the NFT owner can claim rewards.
         return addressesFound;
     }
 }

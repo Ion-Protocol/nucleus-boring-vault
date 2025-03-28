@@ -6,6 +6,7 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 abstract contract SwellDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error SwellDecoderAndSanitizer__MustWithdrawToBoringVault();
 
+    // @desc function to claim rewards from Swell
     function claim(
         address[] calldata,
         address[] calldata,
@@ -20,6 +21,7 @@ abstract contract SwellDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
     }
 
+    // @desc function to withdraw WSWELL, will revert if account is not the boring vault
     function withdrawTo(address account, uint256 amount) external view virtual returns (bytes memory addressesFound) {
         if (account != boringVault) {
             revert SwellDecoderAndSanitizer__MustWithdrawToBoringVault();
@@ -27,6 +29,8 @@ abstract contract SwellDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
     }
 
+    // @desc function to withdraw WSWELL by lock timestamp, check swell contract for rates, will revert if account is
+    // not the boring vault
     function withdrawToByLockTimestamp(
         address account,
         uint256 lockTimestamp,
@@ -43,6 +47,8 @@ abstract contract SwellDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
     }
 
+    // @desc function to withdraw WSWELL by multiple lock timestamps, check swell contract for rates, will revert if
+    // account is not the boring vault
     function withdrawToByLockTimestamps(
         address account,
         uint256[] calldata lockTimestamp,

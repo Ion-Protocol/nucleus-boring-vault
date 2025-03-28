@@ -15,7 +15,7 @@ import { BalancerV2DecoderAndSanitizer } from "./Protocols/BalancerV2DecoderAndS
 import { AeraVaultDecoderAndSanitizer } from "./Protocols/AeraVaultDecoderAndSanitizer.sol";
 import { MorphoPositionOracleDecoderAndSanitizer } from "./Protocols/MorphoPositionOracleDecoderAndSanitizer.sol";
 
-contract UnifiETHDecoderAndSanitizer is
+contract unifiETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
     UniswapV3DecoderAndSanitizer,
     MasterChefV3DecoderAndSanitizer,

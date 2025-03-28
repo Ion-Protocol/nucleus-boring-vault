@@ -6,16 +6,20 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 abstract contract CurveDecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== CURVE ===============================
 
+    // @desc exchange on curve
     function exchange(int128, int128, uint256, uint256) external pure virtual returns (bytes memory addressesFound) {
         // Nothing to sanitize or return
         return addressesFound;
     }
 
+    // @desc add liquidity on curve
     function add_liquidity(uint256[] calldata, uint256) external pure virtual returns (bytes memory addressesFound) {
         // Nothing to sanitize or return
         return addressesFound;
     }
 
+    // @desc remove liquidity on curve
+    // @tag user:address:the address of the user receiving rewards
     function remove_liquidity(
         uint256,
         uint256[] calldata
@@ -38,6 +42,8 @@ abstract contract CurveDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
+    // @desc claim rewards on curve
+    // @tag user:address:the address of the user receiving rewards
     function claim_rewards(address _addr) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_addr);
     }
