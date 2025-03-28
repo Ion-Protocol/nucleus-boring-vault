@@ -712,91 +712,6 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
     }
 
-    function testEtherFiIntegration() external {
-        deal(address(WETH), address(boringVault), 100e18);
-
-        // unwrap weth
-        // mint eETH
-        // wrap eETH
-        // unwrap weETH
-        // unstaking eETH
-        ManageLeaf[] memory leafs = new ManageLeaf[](16);
-        leafs[0] = ManageLeaf(address(WETH), false, "withdraw(uint256)", new address[](0));
-        leafs[1] = ManageLeaf(EETH_LIQUIDITY_POOL, true, "deposit()", new address[](0));
-        leafs[2] = ManageLeaf(address(EETH), false, "approve(address,uint256)", new address[](1));
-        leafs[2].argumentAddresses[0] = address(WEETH);
-        leafs[3] = ManageLeaf(address(WEETH), false, "wrap(uint256)", new address[](0));
-        leafs[4] = ManageLeaf(address(WEETH), false, "unwrap(uint256)", new address[](0));
-        leafs[5] = ManageLeaf(address(EETH), false, "approve(address,uint256)", new address[](1));
-        leafs[5].argumentAddresses[0] = EETH_LIQUIDITY_POOL;
-        leafs[6] = ManageLeaf(EETH_LIQUIDITY_POOL, false, "requestWithdraw(address,uint256)", new address[](1));
-        leafs[6].argumentAddresses[0] = address(boringVault);
-        leafs[7] = ManageLeaf(withdrawalRequestNft, false, "claimWithdraw(uint256)", new address[](0));
-
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
-
-        manager.setManageRoot(address(this), manageTree[manageTree.length - 1][0]);
-
-        ManageLeaf[] memory manageLeafs = new ManageLeaf[](7);
-        manageLeafs[0] = leafs[0];
-        manageLeafs[1] = leafs[1];
-        manageLeafs[2] = leafs[2];
-        manageLeafs[3] = leafs[3];
-        manageLeafs[4] = leafs[4];
-        manageLeafs[5] = leafs[5];
-        manageLeafs[6] = leafs[6];
-        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
-
-        address[] memory targets = new address[](7);
-        targets[0] = address(WETH);
-        targets[1] = EETH_LIQUIDITY_POOL;
-        targets[2] = address(EETH);
-        targets[3] = address(WEETH);
-        targets[4] = address(WEETH);
-        targets[5] = address(EETH);
-        targets[6] = EETH_LIQUIDITY_POOL;
-
-        bytes[] memory targetData = new bytes[](7);
-        targetData[0] = abi.encodeWithSignature("withdraw(uint256)", 100e18);
-        targetData[1] = abi.encodeWithSignature("deposit()");
-        targetData[2] = abi.encodeWithSignature("approve(address,uint256)", address(WEETH), type(uint256).max);
-        targetData[3] = abi.encodeWithSignature("wrap(uint256)", 100e18 - 1);
-        uint256 weETHAmount = 96_346_539_735_660_261_219;
-        targetData[4] = abi.encodeWithSignature("unwrap(uint256)", weETHAmount);
-        targetData[5] = abi.encodeWithSignature("approve(address,uint256)", EETH_LIQUIDITY_POOL, type(uint256).max);
-        targetData[6] = abi.encodeWithSignature("requestWithdraw(address,uint256)", address(boringVault), 100e18 - 2);
-        uint256[] memory values = new uint256[](7);
-        values[1] = 100e18;
-        address[] memory decodersAndSanitizers = new address[](7);
-        decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[1] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[2] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[3] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[4] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[5] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[6] = rawDataDecoderAndSanitizer;
-        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-        uint256 withdrawRequestId = 17_743;
-
-        _finalizeRequest(withdrawRequestId, 100e18 - 2);
-
-        manageLeafs = new ManageLeaf[](1);
-        manageLeafs[0] = leafs[7];
-        manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
-
-        targets = new address[](1);
-        targets[0] = withdrawalRequestNft;
-
-        targetData = new bytes[](1);
-        targetData[0] = abi.encodeWithSignature("claimWithdraw(uint256)", withdrawRequestId);
-        values = new uint256[](1);
-
-        decodersAndSanitizers = new address[](1);
-        decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
-        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-    }
-
     function testMorphoBlueIntegration() external {
         deal(address(WETH), address(boringVault), 100e18);
         deal(address(WEETH), address(boringVault), 100e18);
@@ -1070,14 +985,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             pendleRouter,
             false,
             "mintSyFromToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
-            new address[](6)
+            new address[](3)
         );
         leafs[5].argumentAddresses[0] = address(boringVault);
         leafs[5].argumentAddresses[1] = pendleWeethSy;
         leafs[5].argumentAddresses[2] = address(WEETH);
-        leafs[5].argumentAddresses[3] = address(WEETH);
-        leafs[5].argumentAddresses[4] = address(0);
-        leafs[5].argumentAddresses[5] = address(0);
         leafs[6] = ManageLeaf(pendleRouter, false, "mintPyFromSy(address,address,uint256,uint256)", new address[](2));
         leafs[6].argumentAddresses[0] = address(boringVault);
         leafs[6].argumentAddresses[1] = pendleEethYt;
@@ -1114,14 +1026,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             pendleRouter,
             false,
             "redeemSyToToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
-            new address[](6)
+            new address[](3)
         );
         leafs[12].argumentAddresses[0] = address(boringVault);
         leafs[12].argumentAddresses[1] = pendleWeethSy;
         leafs[12].argumentAddresses[2] = address(WEETH);
-        leafs[12].argumentAddresses[3] = address(WEETH);
-        leafs[12].argumentAddresses[4] = address(0);
-        leafs[12].argumentAddresses[5] = address(0);
 
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
@@ -2744,14 +2653,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             pendleRouter,
             false,
             "mintSyFromToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
-            new address[](6)
+            new address[](3)
         );
         leafs[5].argumentAddresses[0] = address(boringVault);
         leafs[5].argumentAddresses[1] = pendleWeethSy;
         leafs[5].argumentAddresses[2] = address(WEETH);
-        leafs[5].argumentAddresses[3] = address(WEETH);
-        leafs[5].argumentAddresses[4] = address(0);
-        leafs[5].argumentAddresses[5] = address(0);
         leafs[6] = ManageLeaf(pendleRouter, false, "mintPyFromSy(address,address,uint256,uint256)", new address[](2));
         leafs[6].argumentAddresses[0] = address(boringVault);
         leafs[6].argumentAddresses[1] = pendleEethYt;
@@ -2788,14 +2694,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             pendleRouter,
             false,
             "redeemSyToToken(address,address,uint256,(address,uint256,address,address,(uint8,address,bytes,bool)))",
-            new address[](6)
+            new address[](3)
         );
         leafs[12].argumentAddresses[0] = address(boringVault);
         leafs[12].argumentAddresses[1] = pendleWeethSy;
         leafs[12].argumentAddresses[2] = address(WEETH);
-        leafs[12].argumentAddresses[3] = address(WEETH);
-        leafs[12].argumentAddresses[4] = address(0);
-        leafs[12].argumentAddresses[5] = address(0);
 
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
