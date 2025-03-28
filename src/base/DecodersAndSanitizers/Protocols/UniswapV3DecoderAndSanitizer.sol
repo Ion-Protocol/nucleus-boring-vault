@@ -23,6 +23,8 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== UNISWAP V3 ===============================
 
+    // @desc Uniswap V3 function to swap by exactInput, will revert if the path is not valid
+    // @tag packedArgs:bytes:The path ADDRESSES ONLY of the swap followed by the recipient
     function exactInput(DecoderCustomTypes.ExactInputParams calldata params)
         external
         pure
@@ -44,6 +46,10 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(addressesFound, params.recipient);
     }
 
+    // @desc Uniswap V3 function to mint LP
+    // @tag token0:address:The first token in the pair
+    // @tag token1:address:The second token in the pair
+    // @tag recipient:address:The recipient of the LP token
     function mint(DecoderCustomTypes.MintParams calldata params)
         external
         pure
@@ -55,6 +61,10 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.token0, params.token1, params.recipient);
     }
 
+    // @desc Uniswap V3 function to increase liquidity, will revert if the tokenId is not owned by the boring vault
+    // @tag operator:address:The operator/owner of the liquidity
+    // @tag token0:address:The first token in the pair
+    // @tag token1:address:The second token in the pair
     function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
         external
         view
@@ -71,6 +81,7 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(operator, token0, token1);
     }
 
+    // @desc Uniswap V3 function to decrease liquidity, will revert if the tokenId is not owned by the boring vault
     function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
         external
         view
@@ -88,6 +99,8 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
+    // @desc Uniswap V3 function to collect fees, will revert if the tokenId is not owned by the boring vault
+    // @tag recipient:address:The recipient of the fees
     function collect(DecoderCustomTypes.CollectParams calldata params)
         external
         view
@@ -105,6 +118,18 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(params.recipient);
     }
 
+    // @desc Uniswap V3 function to burn empty LP NFTs, will revert if the tokenId is not owned by the boring vault
+    function burn(uint256 tokenId) external view virtual returns (bytes memory addressesFound) {
+        // Sanitize raw data
+        // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
+        // just for completeness.
+        if (uniswapV3NonFungiblePositionManager.ownerOf(tokenId) != boringVault) {
+            revert UniswapV3DecoderAndSanitizer__BadTokenId();
+        }
+    }
+
+    // @desc Uniswap V3 function to safeTransferFrom ERC721s
+    // @tag to:address:The recipient of the ERC721
     function safeTransferFrom(
         address,
         address to,

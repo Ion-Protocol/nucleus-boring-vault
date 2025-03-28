@@ -10,6 +10,12 @@ abstract contract OneInchDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     //============================== ONEINCH ===============================
 
+    // @desc swap tokens with 1inch, will revert if the permit is not empty
+    // @tag executor:address:executor
+    // @tag srcToken:address:source token
+    // @tag dstToken:address:destination token
+    // @tag srcReceiver:address:source receiver
+    // @tag dstReceiver:address:destination receiver
     function swap(
         address executor,
         DecoderCustomTypes.SwapDescription calldata desc,
@@ -24,6 +30,8 @@ abstract contract OneInchDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(executor, desc.srcToken, desc.dstToken, desc.srcReceiver, desc.dstReceiver);
     }
 
+    // @desc use uniswapV3Swap on OneInch
+    // @tag packedArgs:bytes:packed arguments
     function uniswapV3Swap(
         uint256,
         uint256,
