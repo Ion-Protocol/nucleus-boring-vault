@@ -1,0 +1,54 @@
+{
+    "base": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "protocolAdmin": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0xd0b4d03ec2c130471ded08a328dfc3cbf4782668dd5571255383b192d9aef9b7",
+      "boringVaultName": "Nest Treasuries Vault",
+      "boringVaultSymbol": "nTBILL",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0xea0af445ae64a1653f15dade4d7db27f8bdcd2e0ab202a3860c9d1bb5e58c682",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0x65be7c334da82057fc9647167b637a737a4a223e46cb364bbb903c8d0c0e621b",
+      "payoutAddress": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0xd07a1590b674f3429ed3f9227cf312255ba9a2a2452b987c32e21ddb83397b4d",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 30318,
+      "tellerContractName": "TellerWithMultiAssetSupport",
+      "assets": [
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+          "0x589dedbd617e0cbcb916a9223f4d1300c294236b"
+        ],
+        "optional": [
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 0
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x1df6b23f695f534f357a6a9b1bbcbf2597e0245eb7edcfc38abb6af38999bfb7",
+      "strategist": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0xcce1cff58ce724e84dfb75ebf4e7a019ddfcd5ce438535d95782775668f99630",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+  }

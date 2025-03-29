@@ -12,6 +12,7 @@ import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossCh
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TellerSetup is BaseScript {
     using Strings for address;
@@ -32,12 +33,25 @@ contract TellerSetup is BaseScript {
             // add asset
             teller.addAsset(ERC20(config.assets[i]));
 
-            // set the corresponding rate provider
-            string memory key = string(
-                abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString(), ".rateProvider")
+            string memory isPeggedKey = string(
+                abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString(), ".isPegged")
             );
-            address rateProvider = getChainConfigFile().readAddress(key);
-            teller.accountant().setRateProviderData(ERC20(config.assets[i]), false, rateProvider);
+
+            bool isPegged = getChainConfigFile().readBool(isPeggedKey);
+
+            if (isPegged) {
+                teller.accountant().setRateProviderData(ERC20(config.assets[i]), true, address(0));
+            } else {
+                // set the corresponding rate provider
+                string memory key = string(
+                    abi.encodePacked(
+                        ".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString(), ".rateProvider"
+                    )
+                );
+
+                address rateProvider = getChainConfigFile().readAddress(key);
+                teller.accountant().setRateProviderData(ERC20(config.assets[i]), false, rateProvider);
+            }
         }
     }
 }

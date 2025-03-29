@@ -78,15 +78,23 @@ contract LiveDeploy is ForkTest, DeployAll {
         // check for if all rate providers are deployed, if not error
         for (uint256 i; i < mainConfig.assets.length; ++i) {
             // set the corresponding rate provider
-            string memory key = string(
-                abi.encodePacked(
-                    ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
-                )
+            string memory isPeggedKey = string(
+                abi.encodePacked(".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".isPegged")
             );
 
-            address rateProvider = getChainConfigFile().readAddress(key);
-            assertNotEq(rateProvider, address(0), "Rate provider address is 0");
-            assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+            bool isPegged = getChainConfigFile().readBool(isPeggedKey);
+
+            if (!isPegged) {
+                string memory key = string(
+                    abi.encodePacked(
+                        ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
+                    )
+                );
+
+                address rateProvider = getChainConfigFile().readAddress(key);
+                assertNotEq(rateProvider, address(0), "Rate provider address is 0");
+                assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+            }
         }
 
         // define one share based off of vault decimals
@@ -212,6 +220,12 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         depositAmount = bound(depositAmount, 0.5e18, 10_000e18);
 
+        uint256[] memory depositAmountLD = new uint256[](3);
+
+        for (uint256 i; i < assetsCount; ++i) {
+            depositAmountLD[i] = depositAmount * 10 ** ERC20(mainConfig.assets[i]).decimals();
+        }
+
         // mint a bunch of extra tokens to the vault for if rate increased
         deal(mainConfig.base, mainConfig.boringVault, depositAmount);
         uint256 expecteShares;
@@ -220,9 +234,9 @@ contract LiveDeploy is ForkTest, DeployAll {
         for (uint256 i; i < assetsCount; ++i) {
             rateInQuoteBefore[i] = accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i]));
             expectedSharesByAsset[i] =
-                depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
+                depositAmountLD[i].mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
             expecteShares += expectedSharesByAsset[i];
-            _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmount);
+            _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmountLD[i]);
         }
 
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
@@ -241,9 +255,9 @@ contract LiveDeploy is ForkTest, DeployAll {
             );
 
             // mint extra assets for vault to give out
-            deal(mainConfig.assets[i], mainConfig.boringVault, depositAmount * 2);
+            deal(mainConfig.assets[i], mainConfig.boringVault, depositAmountLD[i] * 2);
 
-            uint256 expectedAssetsBack = ((depositAmount) * rateChange / 10_000);
+            uint256 expectedAssetsBack = ((depositAmountLD[i]) * rateChange / 10_000);
 
             uint256 assetsOut = expectedSharesByAsset[i].mulDivDown(
                 accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE
@@ -265,20 +279,37 @@ contract LiveDeploy is ForkTest, DeployAll {
         }
     }
 
-    function testDepositASupportedAsset(uint256 depositAmount, uint256 indexOfSupported) public {
+    function testDepositASupportedAssetWithoutRateUpdate(uint256 depositAmount, uint256 indexOfSupported) public {
         uint256 assetsCount = mainConfig.assets.length;
         indexOfSupported = bound(indexOfSupported, 0, assetsCount);
         depositAmount = bound(depositAmount, 1, 10_000e18);
+
+        uint256[] memory depositAmountLD = new uint256[](3);
+
+        uint256 sharesDecimals = BoringVault(payable(mainConfig.boringVault)).decimals();
+        for (uint256 i; i < assetsCount; ++i) {
+            uint256 quoteDecimals = ERC20(mainConfig.assets[i]).decimals();
+
+            // `getRateInQuote` loses precision if the quote decimal is less than the shares decimals
+            require(quoteDecimals >= sharesDecimals, "quoteDecimals must be greater than or equal to sharesDecimals");
+
+            // deposit = quoteDecimals * sharesDecimals / quoteDecimals
+            // assuming internal rate calculation is precise, any deposit amount
+            // in decimals < 1e(quoteDecimals - sharesDecimals) will truncate to zero
+            depositAmountLD[i] = bound(depositAmount, 10 ** (quoteDecimals - sharesDecimals), 10_000e18);
+
+            console2.log("depositAmountLD[i]: ", depositAmountLD[i]);
+        }
 
         uint256 expecteShares;
         AccountantWithRateProviders accountant = AccountantWithRateProviders(mainConfig.accountant);
         uint256[] memory expectedSharesByAsset = new uint256[](assetsCount);
         for (uint256 i; i < assetsCount; ++i) {
             expectedSharesByAsset[i] =
-                depositAmount.mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
+                depositAmountLD[i].mulDivDown(ONE_SHARE, accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])));
             expecteShares += expectedSharesByAsset[i];
 
-            _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmount);
+            _depositAssetWithApprove(ERC20(mainConfig.assets[i]), depositAmountLD[i]);
         }
 
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
@@ -286,13 +317,17 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // withdrawal the assets for the same amount back
         for (uint256 i; i < assetsCount; ++i) {
-            TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
-                ERC20(mainConfig.assets[i]), expectedSharesByAsset[i], depositAmount - 1, address(this)
+            // For minimum amount out, zero out the last number of digits equal to (quoteDecimals - sharesDecimals)
+            uint256 decimalsDiff = 10 ** (ERC20(mainConfig.assets[i]).decimals() - sharesDecimals);
+            uint256 minimumAssetsOut = depositAmountLD[i] / decimalsDiff * decimalsDiff;
+
+            uint256 receiveAmountLD = TellerWithMultiAssetSupport(mainConfig.teller).bulkWithdraw(
+                ERC20(mainConfig.assets[i]), expectedSharesByAsset[i], minimumAssetsOut, address(this)
             );
             assertApproxEqAbs(
-                ERC20(mainConfig.assets[i]).balanceOf(address(this)),
-                depositAmount,
-                1,
+                receiveAmountLD,
+                depositAmountLD[i],
+                decimalsDiff,
                 "Should have been able to withdraw back the depositAmounts"
             );
         }
