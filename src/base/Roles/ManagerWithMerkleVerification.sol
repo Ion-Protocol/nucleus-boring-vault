@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { MerkleProofLib } from "@solmate/utils/MerkleProofLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 
 /**
  * @title ManagerWithMerkleVerification
  * @custom:security-contact security@molecularlabs.io
  */
-contract ManagerWithMerkleVerification is Auth {
-    using FixedPointMathLib for uint256;
+contract ManagerWithMerkleVerification is AuthOwnable2Step {
     using SafeTransferLib for ERC20;
     using Address for address;
 
@@ -85,7 +84,13 @@ contract ManagerWithMerkleVerification is Auth {
      */
     BalancerVault public immutable balancerVault;
 
-    constructor(address _owner, address _vault, address _balancerVault) Auth(_owner, Authority(address(0))) {
+    constructor(
+        address _owner,
+        address _vault,
+        address _balancerVault
+    )
+        AuthOwnable2Step(_owner, Authority(address(0)))
+    {
         vault = BoringVault(payable(_vault));
         balancerVault = BalancerVault(_balancerVault);
     }
@@ -291,8 +296,13 @@ contract ManagerWithMerkleVerification is Auth {
     {
         bool valueNonZero = value > 0;
 
-        bytes32 leaf =
-            keccak256(abi.encodePacked(decoderAndSanitizer, target, valueNonZero, selector, packedArgumentAddresses));
+        bytes32 leaf = keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encodePacked(decoderAndSanitizer, target, valueNonZero, selector, packedArgumentAddresses)
+                )
+            )
+        );
 
         return MerkleProofLib.verify(proof, root, leaf);
     }

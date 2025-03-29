@@ -14,7 +14,7 @@ import { OAppAuthCore } from "./OAppAuthCore.sol";
  * @title OAppAuthSender
  * @dev Abstract contract implementing the OAppSender functionality for sending messages to a LayerZero endpoint.
  *
- * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
+ * @dev This AuthOwnable2Step version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthSender is OAppAuthCore {
     using SafeERC20 for IERC20;
