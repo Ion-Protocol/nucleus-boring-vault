@@ -130,7 +130,8 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         return addressesFound;
     }
 
-    // @desc Velodrome function to swap tokens for ETH, only sanitize the first from address and the last to address, we are indifferent to the intermediate route
+    // @desc Velodrome function to swap tokens for ETH, only sanitize the first from address and the last to address, we
+    // are indifferent to the intermediate route
     // @tag from:address:the from token of the first route
     // @tag to:address:the to token of the last route
     function swapExactTokensForETH(
@@ -147,9 +148,11 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         if (to != address(boringVault)) revert VelodromeDecoderAndSanitizer__ReceiverNotBoringVault();
         addressesFound = abi.encodePacked(routes[0].from, routes[routes.length - 1].to);
+        
     }
 
-    // @desc Velodrome function to swap tokens for ETH, only sanitize the first from address and the last to address, we are indifferent to the intermediate route
+    // @desc Velodrome function to swap tokens for ETH, only sanitize the first from address and the last to address, we
+    // are indifferent to the intermediate route
     // @tag from:address:the from token of the first route
     // @tag to:address:the to token of the last route
     function swapExactTokensForTokens(
