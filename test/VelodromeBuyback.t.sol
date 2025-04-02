@@ -30,6 +30,7 @@ import { VelodromeBuyback } from "src/helper/VelodromeBuyback.sol";
 
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { LHYPEDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/LHYPEDecoderAndSanitizer.sol";
+import { IVelodromeV1Router } from "src/interfaces/IVelodromeV1Router.sol";
 
 contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -53,6 +54,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     AccountantWithRateProviders public accountant;
     TellerWithMultiAssetSupport public teller;
     address public constant MULTISIG = 0x413f2e80070a069eB1051772Fdc4f0af8e8303d7;
+    IVelodromeV1Router public router = IVelodromeV1Router(0xD6EeFfbDAF6503Ad6539CF8f337D79BEbbd40802);
 
     struct ManageLeaf {
         address target;
@@ -78,7 +80,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
 
-        buyBackBot = new VelodromeBuyback(0xD6EeFfbDAF6503Ad6539CF8f337D79BEbbd40802, accountant);
+        buyBackBot = new VelodromeBuyback(address(router), accountant);
         vm.stopPrank();
     }
 
@@ -108,6 +110,13 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         uint256[] memory values = new uint256[](2);
 
         deal(address(WHYPE), address(boringVault), amount);
+
+        // send a bunch to the pool to make sure the buyback bot will be able to be ran
+        deal(address(boringVault), MULTISIG, 100_000e18);
+        boringVault.approve(address(router), 100_000e18);
+        router.swapExactTokensForTokensSimple(
+            100_000e18, 0, address(boringVault), address(WHYPE), true, address(0xdead), block.timestamp
+        );
 
         address[] memory decodersAndSanitizers = new address[](2);
         decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
