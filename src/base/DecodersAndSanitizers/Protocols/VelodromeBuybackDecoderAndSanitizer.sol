@@ -7,6 +7,6 @@ abstract contract VelodromeBuybackDecoderAndSanitizer is BaseDecoderAndSanitizer
     // @desc buyAndSwapEnforcingRate using the VelodromeBuyback micromanager
     // @tag quoteAsset:address:quoteAsset to swap for vault asset
     function buyAndSwapEnforcingRate(address quoteAsset, uint256) external pure returns (bytes memory addressesFound) {
-        addressesFound = abi.encode(quoteAsset);
+        addressesFound = abi.encodePacked(quoteAsset);
     }
 }

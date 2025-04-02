@@ -66,7 +66,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "HL_RPC_URL";
-        _startFork(rpcKey);
+        _startFork(rpcKey, 1_956_681);
         vm.startPrank(MULTISIG);
         boringVault = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
 
@@ -91,7 +91,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         ManageLeaf[] memory leafs = new ManageLeaf[](2);
         leafs[0] = ManageLeaf(address(WHYPE), false, "approve(address,uint256)", new address[](1));
         leafs[0].argumentAddresses[0] = address(buyBackBot);
-        leafs[1] = ManageLeaf(address(buyBackBot), false, "buyAndSwapEnforcingRate(address,uint256)", new address[](0));
+        leafs[1] = ManageLeaf(address(buyBackBot), false, "buyAndSwapEnforcingRate(address,uint256)", new address[](1));
         leafs[1].argumentAddresses[0] = address(WHYPE);
 
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
@@ -104,7 +104,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         bytes[] memory targetData = new bytes[](2);
         targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(buyBackBot), amount);
-        targetData[1] = abi.encodeWithSelector(VelodromeBuyback.buyAndSwapEnforcingRate.selector, WHYPE, amount);
+        targetData[1] =
+            abi.encodeWithSelector(VelodromeBuyback.buyAndSwapEnforcingRate.selector, address(WHYPE), amount);
 
         (bytes32[][] memory manageProofs) = _getProofsUsingTree(leafs, manageTree);
 
@@ -248,8 +249,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         }
     }
 
-    function _startFork(string memory rpcKey) internal returns (uint256 forkId) {
-        forkId = vm.createFork(vm.envString(rpcKey));
+    function _startFork(string memory rpcKey, uint256 blockNumber) internal returns (uint256 forkId) {
+        forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
 }
