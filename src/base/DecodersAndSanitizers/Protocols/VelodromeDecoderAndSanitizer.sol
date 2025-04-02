@@ -122,4 +122,10 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // No addresses in data
         return addressesFound;
     }
+
+    // @desc Velodrome function to CL Gauge for claiming VELO tokens
+    function getReward(uint256) external pure virtual returns (bytes memory addressesFound) {
+        // Nothing to sanitizer since only the NFT owner can claim rewards.
+        return addressesFound;
+    }
 }
