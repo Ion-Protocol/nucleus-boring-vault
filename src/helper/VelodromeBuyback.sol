@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BoringVault } from "./BoringVault.sol";
-import { Accountant } from "./Roles/Accountant.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IVelodromeV1Router } from "../interfaces/IVelodromeV1Router.sol";
 
@@ -15,17 +15,17 @@ contract VelodromeBuyback {
     /**
      * @notice The VelodromeV1 router contract used for swapping assets
      */
-    IVelodromeV1Router public immutable exchange;
+    IVelodromeV1Router public immutable router;
 
     /**
      * @notice The accountant contract
      */
-    Accountant public immutable accountant;
+    AccountantWithRateProviders public immutable accountant;
 
     error BuyBackBot__NotEnoughQuoteAssetReceived(uint256 expected, uint256 actual);
 
-    constructor(address _exchange, Accountant _accountant) {
-        exchange = IVelodromeV1Router(_exchange);
+    constructor(address _router, AccountantWithRateProviders _accountant) {
+        router = IVelodromeV1Router(_router);
         accountant = _accountant;
     }
 
@@ -38,19 +38,20 @@ contract VelodromeBuyback {
      */
     function buyAndSwapEnforcingRate(ERC20 quoteAsset, uint256 amount) external {
         quoteAsset.transferFrom(msg.sender, address(this), amount);
-        quoteAsset.approve(address(exchange), amount);
+        quoteAsset.approve(address(router), amount);
 
         BoringVault vault = accountant.vault();
 
-        uint256[] memory amounts = exchange.swapExactTokensForTokensSimple(
-            amount, -1, address(quoteAsset), address(vault), true, address(this), block.timestamp + 9
+        uint256[] memory amounts = router.swapExactTokensForTokensSimple(
+            amount, 0, address(quoteAsset), address(vault), true, address(this), block.timestamp
         );
         uint256 amountReceived = amounts[amounts.length - 1];
 
         uint256 rateInQuote = accountant.getRateInQuote(quoteAsset);
 
-        if (amountReceived < amount * 1e18 / rateInQuote) {
-            revert BuyBackBot__NotEnoughQuoteAssetReceived(amount * 1e18 / rateInQuote, amounts[amounts.length - 1]);
+        uint256 minAmountReceived = amount * vault.decimals() / rateInQuote;
+        if (amountReceived < minAmountReceived) {
+            revert BuyBackBot__NotEnoughQuoteAssetReceived(minAmountReceived, amounts[amounts.length - 1]);
         }
 
         vault.transfer(msg.sender, amountReceived);

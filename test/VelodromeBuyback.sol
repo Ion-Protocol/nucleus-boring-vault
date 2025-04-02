@@ -78,7 +78,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
 
-        buyBackBot = new VelodromeBuyback(0xD6EeFfbDAF6503Ad6539CF8f337D79BEbbd40802, teller);
+        buyBackBot = new VelodromeBuyback(0xD6EeFfbDAF6503Ad6539CF8f337D79BEbbd40802, accountant);
         vm.stopPrank();
     }
 
@@ -101,7 +101,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         bytes[] memory targetData = new bytes[](2);
         targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(buyBackBot), amount);
-        targetData[1] = abi.encodeWithSelector(BuyBackBot.buyAndSwapEnforcingRate.selector, WHYPE, amount);
+        targetData[1] = abi.encodeWithSelector(VelodromeBuyback.buyAndSwapEnforcingRate.selector, WHYPE, amount);
 
         (bytes32[][] memory manageProofs) = _getProofsUsingTree(leafs, manageTree);
 
