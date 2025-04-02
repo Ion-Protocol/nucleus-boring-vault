@@ -92,6 +92,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         leafs[0] = ManageLeaf(address(WHYPE), false, "approve(address,uint256)", new address[](1));
         leafs[0].argumentAddresses[0] = address(buyBackBot);
         leafs[1] = ManageLeaf(address(buyBackBot), false, "buyAndSwapEnforcingRate(address,uint256)", new address[](0));
+        leafs[1].argumentAddresses[0] = address(WHYPE);
 
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 

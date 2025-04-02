@@ -4,7 +4,9 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract VelodromeBuybackDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    function buyAndSwapEnforcingRate(address, uint256) external pure returns (bytes memory addressesFound) {
-        // Nothing to sanitize
+    // @desc buyAndSwapEnforcingRate using the VelodromeBuyback micromanager
+    // @tag quoteAsset:address:quoteAsset to swap for vault asset
+    function buyAndSwapEnforcingRate(address quoteAsset, uint256) external pure returns (bytes memory addressesFound) {
+        addressesFound = abi.encode(quoteAsset);
     }
 }
