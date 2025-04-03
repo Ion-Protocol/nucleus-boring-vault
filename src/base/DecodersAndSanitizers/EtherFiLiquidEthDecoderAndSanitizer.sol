@@ -123,7 +123,7 @@ contract EtherFiLiquidEthDecoderAndSanitizer is
      */
     function withdraw(
         address _token,
-        uint256, /*_amount*/
+        uint256,
         address _receiver
     )
         external

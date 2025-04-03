@@ -16,7 +16,7 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
     function depositIntoStrategy(
         address strategy,
         address token,
-        uint256 /*amount*/
+        uint256 
     )
         external
         pure
@@ -48,7 +48,7 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
     function completeQueuedWithdrawals(
         DecoderCustomTypes.Withdrawal[] calldata withdrawals,
         address[][] calldata tokens,
-        uint256[] calldata, /*middlewareTimesIndexes*/
+        uint256[] calldata, 
         bool[] calldata receiveAsTokens
     )
         external
