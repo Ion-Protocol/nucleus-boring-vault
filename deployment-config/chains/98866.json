@@ -1,0 +1,18 @@
+{
+    "name": "Plume Mainnet NEW",
+    "balancerVault": "0x0000000000000000000000000000000000000000",
+    "lzEndpoint": "0xC1b15d3B262bEeC0e3565C11C9e0F6134BdaCB36",
+    "mailbox": "0x0000000000000000000000000000000000000000",
+    "assetToRateProviderAndPriceFeed": {
+      "0xdddd73f5df1f0dc31373357beac77545dc5a6f3f": {
+        "note": "pUSD, rate provider is Accountant with base USDC.e",
+        "isPegged": false,
+        "rateProvider": "0xbb2faa1e1d6183ee3c4177476ce0d70cbd55a388" 
+      },
+      "0xe72fe64840f4ef80e3ec73a1c749491b5c938cb9": {
+        "note": "nTBILL, rate provider is Accountant with base arbUSDC",
+        "isPegged": false,
+        "rateProvider": "0x0b738cd187872b265A689e8e4130C336e76892eC"
+      }
+    }
+  }
