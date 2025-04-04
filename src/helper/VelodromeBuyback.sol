@@ -37,7 +37,7 @@ contract VelodromeBuyback is Ownable {
      * @param quoteAsset The ERC20 token to use for purchasing vault tokens
      * @param amount The amount of quote asset to spend
      */
-    function buyAndSwapEnforcingRate(ERC20 quoteAsset, uint256 amount) external {
+    function buyAndSwapEnforcingRate(ERC20 quoteAsset, uint256 amount) external onlyOwner {
         quoteAsset.transferFrom(msg.sender, address(this), amount);
         quoteAsset.approve(address(router), amount);
 
@@ -59,7 +59,7 @@ contract VelodromeBuyback is Ownable {
     }
 
     /// @dev function to prevent tokens from being locked in the bot, ONLY able to be collected to the vault
-    function sweepDustToVault(ERC20 token) external {
+    function sweepDustToVault(ERC20 token) external onlyOwner {
         token.transfer(address(accountant.vault()), token.balanceOf(address(this)));
     }
 }
