@@ -5,13 +5,14 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IVelodromeV1Router } from "../interfaces/IVelodromeV1Router.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title VelodromeBuyback
  * @dev no permissioned functions, as token destinations will always be the vault or the sender of tokens
  * @custom:security-contact security@molecularlabs.io
  */
-contract VelodromeBuyback {
+contract VelodromeBuyback is Ownable {
     /**
      * @notice The VelodromeV1 router contract used for swapping assets
      */
@@ -24,7 +25,7 @@ contract VelodromeBuyback {
 
     error BuyBackBot__NotEnoughQuoteAssetReceived(uint256 expected, uint256 actual);
 
-    constructor(address _router, AccountantWithRateProviders _accountant) {
+    constructor(address _router, AccountantWithRateProviders _accountant, address _owner) Ownable(_owner) {
         router = IVelodromeV1Router(_router);
         accountant = _accountant;
     }
