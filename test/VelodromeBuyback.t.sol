@@ -80,7 +80,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
 
-        buyBackBot = new VelodromeBuyback(address(router), accountant, address(this));
+        buyBackBot = new VelodromeBuyback(address(router), accountant, address(boringVault));
         vm.stopPrank();
     }
 
