@@ -590,6 +590,13 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         }
     }
 
+    /**
+     * @notice Whether the accountant is paused or not.
+     */
+    function isPaused() external view returns (bool) {
+        return accountantState.isPaused;
+    }
+
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
 
     /**

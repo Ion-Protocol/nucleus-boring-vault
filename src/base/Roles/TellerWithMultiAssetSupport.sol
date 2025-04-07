@@ -108,6 +108,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     error TellerWithMultiAssetSupport__RateLimit();
     error TellerWithMultiAssetSupport__DepositCapReached();
     error TellerWithMultiAssetSupport__SupplyCapReached();
+    error TellerWithMultiAssetSupport__AccountantPaused();
+
     //============================== EVENTS ===============================
 
     event Paused();
@@ -407,6 +409,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         internal
         returns (uint256 shares)
     {
+        if (accountant.isPaused()) revert TellerWithMultiAssetSupport__AccountantPaused();
         if (limitByAsset[address(depositAsset)].rateLimit == 0) {
             revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
         }
