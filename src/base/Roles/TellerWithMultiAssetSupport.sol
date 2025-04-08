@@ -384,6 +384,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         requiresAuth
         returns (uint256 assetsOut)
     {
+        if (accountant.isPaused()) revert TellerWithMultiAssetSupport__AccountantPaused();
         if (!isWithdrawSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
