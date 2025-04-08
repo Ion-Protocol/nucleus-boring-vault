@@ -7,6 +7,7 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AuthOwnable2Step, Authority } from "src/helper/AuthOwnable2Step.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { RateProvider } from "./RateProvider.sol";
 
 /**
  * @title AccountantWithRateProviders
@@ -48,28 +49,12 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         uint16 performanceFee;
     }
 
-    /**
-     * @param isPeggedToBase whether or not the asset is 1:1 with the base asset
-     * @param rateProvider the rate provider for this asset if `isPeggedToBase` is false
-     * @param functionCalldata to call the rateProvider in order to get the rate
-     */
-    struct RateProviderData {
-        bool isPeggedToBase;
-        address rateProvider;
-        bytes functionCalldata;
-    }
-
     // ========================================= STATE =========================================
 
     /**
      * @notice Store the accountant state in 3 packed slots.
      */
     AccountantState public accountantState;
-
-    /**
-     * @notice Maps ERC20s to their RateProviderData.
-     */
-    mapping(ERC20 => RateProviderData[]) public rateProviderData;
 
     //============================== ERRORS ===============================
 
@@ -98,7 +83,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
     event PerformanceFeeUpdated(uint16 oldFee, uint16 newFee);
     event PayoutAddressUpdated(address oldPayout, address newPayout);
-    event RateProviderDataUpdated(address indexed asset, RateProviderData[] newRateProviderData);
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event PerformanceFeesAccrued(uint256 performanceFees);
     event ManagementFeesAccrued(uint256 managementFees);
@@ -133,6 +117,9 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     uint256 internal immutable ONE_SHARE;
 
+    // Add RateProvider reference
+    RateProvider public immutable rateProvider;
+
     constructor(
         address _owner,
         address _vault,
@@ -143,7 +130,8 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         uint16 allowedExchangeRateChangeLower,
         uint32 minimumUpdateDelayInSeconds,
         uint16 managementFee,
-        uint16 performanceFee
+        uint16 performanceFee,
+        RateProvider _rateProvider
     )
         AuthOwnable2Step(_owner, Authority(address(0)))
     {
@@ -165,6 +153,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
             managementFee: managementFee,
             performanceFee: performanceFee
         });
+        rateProvider = RateProvider(_rateProvider);
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -251,24 +240,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         address oldPayout = accountantState.payoutAddress;
         accountantState.payoutAddress = payoutAddress;
         emit PayoutAddressUpdated(oldPayout, payoutAddress);
-    }
-
-    /**
-     * @notice Update the rate provider data for a specific `asset`.
-     * @dev Rate providers must return rates in terms of `base` or
-     * an asset pegged to base and they must use the same decimals
-     * as `asset`.
-     * @dev Callable by OWNER_ROLE.
-     * @dev Setting rate provider data will clear existing data for this asset
-     */
-    function setRateProviderData(ERC20 asset, RateProviderData[] calldata _rateProviderData) external requiresAuth {
-        // Clear existing data
-        delete rateProviderData[asset];
-
-        for (uint256 i; i < _rateProviderData.length; ++i) {
-            rateProviderData[asset].push(_rateProviderData[i]);
-        }
-        emit RateProviderDataUpdated(address(asset), _rateProviderData);
     }
 
     /**
@@ -520,41 +491,15 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     }
 
     /**
-     * @notice helper function to return the rate for a given asset using a particular rate provider by index
-     * @param asset the asset to get the rate for
-     * @param index the index of the rate provider to use
-     * @return rate the rate for the asset using the given rate provider
-     */
-    function getRateForAsset(ERC20 asset, uint256 index) public view returns (uint256 rate) {
-        RateProviderData[] memory data = rateProviderData[asset];
-        uint8 assetDecimals = asset.decimals();
-        rate = data[index].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[index], assetDecimals);
-    }
-
-    /**
      * @notice helper function to return the max rate for a given asset among all rate providers
      * @param asset the asset to get the max rate for
      * @return maxRate the max rate for the asset
      */
     function getMaxRate(ERC20 asset) public view returns (uint256 maxRate) {
-        RateProviderData[] memory data = rateProviderData[asset];
-        uint8 assetDecimals = asset.decimals();
-
         if (asset == base) {
             return 10 ** decimals;
         }
-
-        if (data.length == 0) {
-            revert AccountantWithRateProviders__RateProviderDataEmpty();
-        }
-
-        for (uint256 i; i < data.length; ++i) {
-            uint256 rate =
-                data[i].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[i], assetDecimals);
-            if (rate > maxRate) {
-                maxRate = rate;
-            }
-        }
+        return rateProvider.getMaxRate(base, asset);
     }
 
     /**
@@ -563,70 +508,9 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @return minRate the min rate for the asset
      */
     function getMinRate(ERC20 asset) public view returns (uint256 minRate) {
-        RateProviderData[] memory data = rateProviderData[asset];
-        minRate = type(uint256).max;
-        uint8 assetDecimals = asset.decimals();
-
         if (asset == base) {
             return 10 ** decimals;
         }
-
-        if (data.length == 0) {
-            revert AccountantWithRateProviders__RateProviderDataEmpty();
-        }
-
-        minRate = data[0].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[0], assetDecimals);
-
-        if (data.length == 1) {
-            return minRate;
-        }
-
-        for (uint256 i = 1; i < data.length; ++i) {
-            uint256 rate =
-                data[i].isPeggedToBase ? 10 ** assetDecimals : _getRateFromRateProvider(data[i], assetDecimals);
-            if (rate < minRate) {
-                minRate = rate;
-            }
-        }
-    }
-
-    // ========================================= INTERNAL HELPER FUNCTIONS =========================================
-
-    /**
-     * @notice helper function to check if the rate is within the accepted bounds
-     * @dev if the rate is not within the accepted bounds, revert, this is to prevent any mistakes regarding rate
-     * incorrectly provided rate providers or their return types being mismatched
-     * @param rate the rate to check
-     * @param assetDecimals the decimals of the asset
-     */
-    function _checkRate(uint256 rate, uint8 assetDecimals) internal pure {
-        if (
-            assetDecimals < MIN_RATE_DECIMALS_DEVIATION || rate < 10 ** (assetDecimals - MIN_RATE_DECIMALS_DEVIATION)
-                || rate > 10 ** (assetDecimals + MIN_RATE_DECIMALS_DEVIATION)
-        ) {
-            revert AccountantWithRateProviders__InvalidRateReturned();
-        }
-    }
-
-    /**
-     * @notice helper function to get the rate from a rate provider
-     * @param data the rate provider data
-     * @param assetDecimals the decimals of the asset
-     * @return rate the rate from the rate provider
-     */
-    function _getRateFromRateProvider(
-        RateProviderData memory data,
-        uint8 assetDecimals
-    )
-        internal
-        view
-        returns (uint256 rate)
-    {
-        (bool success, bytes memory returnBytes) = data.rateProvider.staticcall(data.functionCalldata);
-        if (!success) {
-            revert AccountantWithRateProviders__RateProviderCallFailed(data.rateProvider);
-        }
-        rate = abi.decode(returnBytes, (uint256));
-        _checkRate(rate, assetDecimals);
+        return rateProvider.getMinRate(base, asset);
     }
 }

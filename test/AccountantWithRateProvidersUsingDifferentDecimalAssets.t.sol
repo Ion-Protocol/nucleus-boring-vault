@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { RateProvider } from "src/base/Roles/RateProvider.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -19,6 +20,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
+    RateProvider public rateProviderContract;
     address public payoutAddress = vm.addr(7_777_777);
     RolesAuthority public rolesAuthority;
 
@@ -37,8 +39,19 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 6);
 
+        rateProviderContract = new RateProvider(address(this));
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payoutAddress, 1e6, address(USDC), 1.001e4, 0.999e4, 1, 0, 0
+            address(this),
+            address(boringVault),
+            payoutAddress,
+            1e6,
+            address(USDC),
+            1.001e4,
+            0.999e4,
+            1,
+            0,
+            0,
+            rateProviderContract
         );
 
         vm.startPrank(usdcWhale);
@@ -47,20 +60,20 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         USDC.safeApprove(address(boringVault), 1_000_000e6);
         boringVault.enter(address(this), USDC, 1_000_000e6, address(this), 1_000_000e6);
 
-        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
-            new AccountantWithRateProviders.RateProviderData[](1);
-        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+        RateProvider.RateProviderData[] memory rateProviderData = new RateProvider.RateProviderData[](1);
+        rateProviderData[0] = RateProvider.RateProviderData(true, address(0), "", 0, type(uint256).max);
 
-        accountant.setRateProviderData(DAI, rateProviderData);
+        rateProviderContract.setRateProviderData(USDC, DAI, rateProviderData);
 
-        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+        rateProviderData[0] = RateProvider.RateProviderData(true, address(0), "", 0, type(uint256).max);
 
-        accountant.setRateProviderData(USDT, rateProviderData);
+        rateProviderContract.setRateProviderData(USDC, USDT, rateProviderData);
 
-        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(
-            false, address(sDaiRateProvider), abi.encodeWithSignature("getRate()")
+        rateProviderData[0] = RateProvider.RateProviderData(
+            false, address(sDaiRateProvider), abi.encodeWithSignature("getRate()"), 0, type(uint256).max
         );
-        accountant.setRateProviderData(SDAI, rateProviderData);
+
+        rateProviderContract.setRateProviderData(USDC, SDAI, rateProviderData);
 
         // Start accounting so we can claim fees during a test.
         accountant.updateManagementFee(0.01e4);
