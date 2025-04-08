@@ -55,6 +55,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
             destinationChainReceiver: to,
             bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
+            refundRecipient: address(this),
             data: ""
         });
 
@@ -91,6 +92,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
             destinationChainReceiver: userChain2,
             bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
+            refundRecipient: address(this),
             data: ""
         });
 
@@ -134,6 +136,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
             destinationChainReceiver: userChain2,
             bridgeFeeToken: ERC20(NATIVE),
             messageGas: 80_000,
+            refundRecipient: address(this),
             data: ""
         });
 
@@ -159,8 +162,9 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         // if the token is not NATIVE, should revert
         address NOT_NATIVE = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
-        BridgeData memory data =
-            BridgeData(DESTINATION_DOMAIN, address(this), ERC20(NOT_NATIVE), 80_000, abi.encode(DESTINATION_DOMAIN));
+        BridgeData memory data = BridgeData(
+            DESTINATION_DOMAIN, address(this), ERC20(NOT_NATIVE), 80_000, address(this), abi.encode(DESTINATION_DOMAIN)
+        );
         sourceTeller.addChain(DESTINATION_DOMAIN, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         vm.expectRevert(
@@ -173,7 +177,9 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
         sourceTeller.bridge(1e18, data);
 
         // Call now succeeds.
-        data = BridgeData(DESTINATION_DOMAIN, address(this), ERC20(NATIVE), 80_000, abi.encode(DESTINATION_DOMAIN));
+        data = BridgeData(
+            DESTINATION_DOMAIN, address(this), ERC20(NATIVE), 80_000, address(this), abi.encode(DESTINATION_DOMAIN)
+        );
         uint256 quote = sourceTeller.previewFee(1e18, data);
 
         sourceTeller.bridge{ value: quote }(1e18, data);
@@ -256,7 +262,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         vm.expectRevert(abi.encodeWithSelector(MultiChainTellerBase_DestinationChainReceiverIsZeroAddress.selector));
         sourceTeller.depositAndBridge(
-            WETH, 1e18, 1e18, BridgeData(DESTINATION_DOMAIN, address(0), ERC20(NATIVE), 80_000, "")
+            WETH, 1e18, 1e18, BridgeData(DESTINATION_DOMAIN, address(0), ERC20(NATIVE), 80_000, address(this), "")
         );
     }
 

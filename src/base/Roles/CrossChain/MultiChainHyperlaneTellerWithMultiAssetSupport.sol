@@ -95,7 +95,11 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
 
         return mailbox.quoteDispatch(
-            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas), hook
+            data.chainSelector,
+            msgRecipient,
+            _payload,
+            StandardHookMetadata.formatMetadata(uint256(0), data.messageGas, data.refundRecipient, ""),
+            hook
         );
     }
 
