@@ -118,7 +118,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     uint256 internal immutable ONE_SHARE;
 
     // Add RateProvider reference
-    RateProviderConfig public immutable rateProviderConfig;
+    RateProviderConfig public rateProviderConfig;
 
     constructor(
         address _owner,
@@ -157,6 +157,15 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
+
+    /**
+     * @notice Update the rate provider config.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function setRateProviderConfig(RateProviderConfig _rateProviderConfig) external requiresAuth {
+        rateProviderConfig = _rateProviderConfig;
+    }
+
     /**
      * @notice Pause this contract, which prevents future calls to `updateExchangeRate`
      * @dev Callable by MULTISIG_ROLE.
