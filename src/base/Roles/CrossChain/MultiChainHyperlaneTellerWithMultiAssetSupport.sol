@@ -180,8 +180,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
             data.chainSelector, // must be `destinationDomain` on hyperlane
             msgRecipient, // must be the teller address left-padded to bytes32
             _payload,
-            StandardHookMetadata.overrideGasLimit(data.messageGas), // Sets the refund address to msg.sender, sets
-                // `_msgValue` to zero
+            StandardHookMetadata.formatMetadata(uint256(0), data.messageGas, data.refundRecipient, ""),
             hook
         );
     }
