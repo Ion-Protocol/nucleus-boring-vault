@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { RateProvider } from "src/base/Roles/RateProvider.sol";
+import { RateProviderConfig } from "src/base/Roles/RateProviderConfig.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -25,7 +25,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
-    RateProvider public rateProviderContract;
+    RateProviderConfig public rateProviderContract;
     address public payout_address = vm.addr(7_777_777);
     RolesAuthority public rolesAuthority;
     GenericRateProvider public mETHRateProvider;
@@ -46,7 +46,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
-        rateProviderContract = new RateProvider(address(this));
+        rateProviderContract = new RateProviderConfig(address(this));
 
         accountant = new AccountantWithRateProviders(
             address(this),
@@ -90,7 +90,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             ADMIN_ROLE, address(accountant), AccountantWithRateProviders.updatePayoutAddress.selector, true
         );
         rolesAuthority.setRoleCapability(
-            ADMIN_ROLE, address(rateProviderContract), RateProvider.setRateProviderData.selector, true
+            ADMIN_ROLE, address(rateProviderContract), RateProviderConfig.setRateProviderData.selector, true
         );
         rolesAuthority.setRoleCapability(
             UPDATE_EXCHANGE_RATE_ROLE,
@@ -113,16 +113,17 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         WETH.safeApprove(address(boringVault), 1000e18);
         boringVault.enter(address(this), WETH, 1000e18, address(address(this)), 1000e18);
 
-        RateProvider.RateProviderData[] memory rateProviderData = new RateProvider.RateProviderData[](1);
-        rateProviderData[0] = RateProvider.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
+        rateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
         rateProviderContract.setRateProviderData(WETH, EETH, rateProviderData);
-        rateProviderData = new RateProvider.RateProviderData[](2);
+        rateProviderData = new RateProviderConfig.RateProviderData[](2);
         // getRate() on WEETH rate provider
         rateProviderData[0] =
-            RateProvider.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce", 0, type(uint256).max);
+            RateProviderConfig.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce", 0, type(uint256).max);
         // latestAnswer() on ETH_PER_WEETH_CHAINLINK
-        rateProviderData[1] =
-            RateProvider.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd", 0, type(uint256).max);
+        rateProviderData[1] = RateProviderConfig.RateProviderData(
+            false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd", 0, type(uint256).max
+        );
         rateProviderContract.setRateProviderData(WETH, WEETH, rateProviderData);
     }
 
@@ -395,8 +396,9 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         console.log("Gas used: ", gas - gasleft());
 
         // Setup rate in accountant.
-        RateProvider.RateProviderData[] memory rateProviderData = new RateProvider.RateProviderData[](1);
-        rateProviderData[0] = RateProvider.RateProviderData(false, mantleLspStaking, rateCalldata, 0, type(uint256).max);
+        RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
+        rateProviderData[0] =
+            RateProviderConfig.RateProviderData(false, mantleLspStaking, rateCalldata, 0, type(uint256).max);
         rateProviderContract.setRateProviderData(WETH, METH, rateProviderData);
 
         console.log("accountant.getRate()", accountant.getRate());
@@ -418,9 +420,9 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             abi.encodeWithSignature("getValue(address,uint256,address)", pt, bytes32(amount), quote);
 
         // Setup rate in accountant.
-        RateProvider.RateProviderData[] memory rateProviderData = new RateProvider.RateProviderData[](1);
+        RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
         rateProviderData[0] =
-            RateProvider.RateProviderData(false, address(liquidV1PriceRouter), rateCalldata, 0, type(uint256).max);
+            RateProviderConfig.RateProviderData(false, address(liquidV1PriceRouter), rateCalldata, 0, type(uint256).max);
         rateProviderContract.setRateProviderData(WETH, ERC20(pendleEethPt), rateProviderData);
 
         uint256 rate = PriceRouter(address(liquidV1PriceRouter)).getValue(pendleEethPt, 1e18, address(WETH));

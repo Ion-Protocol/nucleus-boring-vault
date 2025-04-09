@@ -7,7 +7,7 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AuthOwnable2Step, Authority } from "src/helper/AuthOwnable2Step.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { RateProvider } from "./RateProvider.sol";
+import { RateProviderConfig } from "./RateProviderConfig.sol";
 
 /**
  * @title AccountantWithRateProviders
@@ -118,7 +118,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     uint256 internal immutable ONE_SHARE;
 
     // Add RateProvider reference
-    RateProvider public immutable rateProvider;
+    RateProviderConfig public immutable rateProviderConfig;
 
     constructor(
         address _owner,
@@ -131,7 +131,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         uint32 minimumUpdateDelayInSeconds,
         uint16 managementFee,
         uint16 performanceFee,
-        RateProvider _rateProvider
+        RateProviderConfig _rateProviderConfig
     )
         AuthOwnable2Step(_owner, Authority(address(0)))
     {
@@ -153,7 +153,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
             managementFee: managementFee,
             performanceFee: performanceFee
         });
-        rateProvider = RateProvider(_rateProvider);
+        rateProviderConfig = RateProviderConfig(_rateProviderConfig);
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -499,7 +499,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         if (asset == base) {
             return 10 ** decimals;
         }
-        return rateProvider.getMaxRate(base, asset);
+        return rateProviderConfig.getMaxRate(base, asset);
     }
 
     /**
@@ -511,6 +511,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         if (asset == base) {
             return 10 ** decimals;
         }
-        return rateProvider.getMinRate(base, asset);
+        return rateProviderConfig.getMinRate(base, asset);
     }
 }

@@ -7,7 +7,7 @@ import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { RateProvider } from "src/base/Roles/RateProvider.sol";
+import { RateProviderConfig } from "src/base/Roles/RateProviderConfig.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -37,7 +37,7 @@ contract DepositFeeWrapperTest is Test, MainnetAddresses {
     DepositFeeWrapper public depositFeeWrapper;
 
     AccountantWithRateProviders public accountant;
-    RateProvider public rateProviderContract;
+    RateProviderConfig public rateProviderContract;
 
     address public payout_address = vm.addr(7_777_777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -57,7 +57,7 @@ contract DepositFeeWrapperTest is Test, MainnetAddresses {
         _startFork(rpcKey, blockNumber);
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
-        rateProviderContract = new RateProvider(address(this));
+        rateProviderContract = new RateProviderConfig(address(this));
         ONE_SHARE = 10 ** boringVault.decimals();
 
         accountant = new AccountantWithRateProviders(
@@ -122,18 +122,19 @@ contract DepositFeeWrapperTest is Test, MainnetAddresses {
 
         teller.addAssets(assets);
 
-        RateProvider.RateProviderData[] memory rateProviderData = new RateProvider.RateProviderData[](1);
+        RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
 
-        rateProviderData[0] = RateProvider.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        rateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
         rateProviderContract.setRateProviderData(WETH, EETH, rateProviderData);
 
-        rateProviderData = new RateProvider.RateProviderData[](2);
+        rateProviderData = new RateProviderConfig.RateProviderData[](2);
         // WEETH rate provider getRate()
         rateProviderData[0] =
-            RateProvider.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce", 0, type(uint256).max);
+            RateProviderConfig.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce", 0, type(uint256).max);
         // ETH_PER_WEETH_CHAINLINK latestAnswer()
-        rateProviderData[1] =
-            RateProvider.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd", 0, type(uint256).max);
+        rateProviderData[1] = RateProviderConfig.RateProviderData(
+            false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd", 0, type(uint256).max
+        );
         rateProviderContract.setRateProviderData(WETH, WEETH, rateProviderData);
 
         depositFeeWrapper = new DepositFeeWrapper(address(this));

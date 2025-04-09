@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Auth, Authority } from "solmate/auth/Auth.sol";
 
-contract RateProvider is Auth {
+contract RateProviderConfig is Auth {
     struct RateProviderData {
         bool isPeggedToBase;
         address rateProvider;

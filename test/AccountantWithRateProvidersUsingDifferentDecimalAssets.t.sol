@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { RateProvider } from "src/base/Roles/RateProvider.sol";
+import { RateProviderConfig } from "src/base/Roles/RateProviderConfig.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -20,7 +20,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
-    RateProvider public rateProviderContract;
+    RateProviderConfig public rateProviderContract;
     address public payoutAddress = vm.addr(7_777_777);
     RolesAuthority public rolesAuthority;
 
@@ -39,7 +39,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 6);
 
-        rateProviderContract = new RateProvider(address(this));
+        rateProviderContract = new RateProviderConfig(address(this));
         accountant = new AccountantWithRateProviders(
             address(this),
             address(boringVault),
@@ -60,16 +60,16 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         USDC.safeApprove(address(boringVault), 1_000_000e6);
         boringVault.enter(address(this), USDC, 1_000_000e6, address(this), 1_000_000e6);
 
-        RateProvider.RateProviderData[] memory rateProviderData = new RateProvider.RateProviderData[](1);
-        rateProviderData[0] = RateProvider.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
+        rateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
 
         rateProviderContract.setRateProviderData(USDC, DAI, rateProviderData);
 
-        rateProviderData[0] = RateProvider.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        rateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
 
         rateProviderContract.setRateProviderData(USDC, USDT, rateProviderData);
 
-        rateProviderData[0] = RateProvider.RateProviderData(
+        rateProviderData[0] = RateProviderConfig.RateProviderData(
             false, address(sDaiRateProvider), abi.encodeWithSignature("getRate()"), 0, type(uint256).max
         );
 
