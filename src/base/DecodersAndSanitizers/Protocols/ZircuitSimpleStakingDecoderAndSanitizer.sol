@@ -12,7 +12,7 @@ abstract contract ZircuitSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanit
     function depositFor(
         address _token,
         address _for,
-        uint256 /*_amount*/
+        uint256
     )
         external
         pure
@@ -26,7 +26,7 @@ abstract contract ZircuitSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanit
     // @tag token:address:The token to withdraw
     function withdraw(
         address _token,
-        uint256 /*_amount*/
+        uint256
     )
         external
         pure
