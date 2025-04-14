@@ -13,6 +13,7 @@ import { ERC4626DecoderAndSanitizer } from "./Protocols/ERC4626DecoderAndSanitiz
 import { CurveDecoderAndSanitizer } from "./Protocols/CurveDecoderAndSanitizer.sol";
 import { BalancerV2DecoderAndSanitizer } from "./Protocols/BalancerV2DecoderAndSanitizer.sol";
 import { AeraVaultDecoderAndSanitizer } from "./Protocols/AeraVaultDecoderAndSanitizer.sol";
+import { NucleusDecoderAndSanitizer } from "./Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract unifiETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
@@ -23,7 +24,8 @@ contract unifiETHDecoderAndSanitizer is
     ERC4626DecoderAndSanitizer,
     CurveDecoderAndSanitizer,
     BalancerV2DecoderAndSanitizer,
-    AeraVaultDecoderAndSanitizer
+    AeraVaultDecoderAndSanitizer,
+    NucleusDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
