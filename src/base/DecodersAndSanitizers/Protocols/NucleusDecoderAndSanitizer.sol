@@ -74,4 +74,10 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encode(offer, want, userRequest.recipient);
     }
+
+    // @desc claim fees from a nucleus vault, must be authorized to call
+    // @tag token:address:ERC20 to claim fees with
+    function claimFees(ERC20 token) external pure returns (bytes memory addressesFound) {
+        addressesFound = abi.encode(token);
+    }
 }

@@ -24,15 +24,7 @@ abstract contract ZircuitSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanit
 
     // @desc Zircuit Simple Staking function to withdraw for a user
     // @tag token:address:The token to withdraw
-    function withdraw(
-        address _token,
-        uint256
-    )
-        external
-        pure
-        virtual
-        returns (bytes memory addressesFound)
-    {
+    function withdraw(address _token, uint256) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_token);
     }
 }

@@ -401,6 +401,11 @@ function resolveType(type, typeDefinitions) {
         return `uint8${arraySuffix}`;
     }
     
+    // Handle contract and interface types by converting them to address
+    if (baseType === 'ERC20' || baseType === 'IERC20' || baseType.endsWith('_1')) {
+        return `address${arraySuffix}`;
+    }
+    
     // Check if this is a struct type that needs to be expanded
     if (structs[baseType]) {
         const fieldTypes = structs[baseType];
