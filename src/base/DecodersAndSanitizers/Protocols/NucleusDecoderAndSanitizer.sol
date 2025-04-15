@@ -18,7 +18,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        addressesFound = abi.encode(depositAsset);
+        addressesFound = abi.encodePacked(depositAsset);
     }
 
     // add the deposit with receiver for forward compatibility with audited teller
@@ -35,7 +35,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        addressesFound = abi.encode(depositAsset, to);
+        addressesFound = abi.encodePacked(depositAsset, to);
     }
 
     // @desc teller deposit and bridge
@@ -54,7 +54,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        addressesFound = abi.encode(
+        addressesFound = abi.encodePacked(
             depositAsset, data.chainSelector, data.destinationChainReceiver, data.bridgeFeeToken, data.messageGas
         );
     }
@@ -72,12 +72,12 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        addressesFound = abi.encode(offer, want, userRequest.recipient);
+        addressesFound = abi.encodePacked(offer, want, userRequest.recipient);
     }
 
     // @desc claim fees from a nucleus vault, must be authorized to call
     // @tag token:address:ERC20 to claim fees with
     function claimFees(ERC20 token) external pure returns (bytes memory addressesFound) {
-        addressesFound = abi.encode(token);
+        addressesFound = abi.encodePacked(token);
     }
 }
