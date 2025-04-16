@@ -14,9 +14,12 @@ import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
  * @title ManagerWithTokenBalanceVerification
  * @custom:security-contact security@molecularlabs.io
  */
-contract managerWithTokenBalanceVerification is AuthOwnable2Step {
+contract ManagerWithTokenBalanceVerification is AuthOwnable2Step {
     // CONSTANTS
     bytes4 SINGLE_MANAGE_SELECTOR = 0xf6e715d0;
+
+    /// @dev not really an error. Errors with data so we can simulate calls and get this data with a dry run
+    error TokenBalancesNow(address[] tokens, uint256[] tokenBals);
 
     // ERRORS
     error ManagerWithTokenBalanceVerification__InvalidArrayLength();
@@ -27,6 +30,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
     error ManagerWithTokenBalanceVerification__TokenDeltaViolation(
         address token, uint256 balanceBefore, uint256 balanceAfter, int256 balanceDelta, int256 allowedBalanceDelta
     );
+    error ManagerWithTokenBalanceVerification__TokenHasNoCode(address token);
 
     // EVENTS
     event ManagerWithTokenBalanceVerification__TokenBalancesAfterExecutionButBeforeFailure(
@@ -50,22 +54,18 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
         uint256 valueToSend;
     }
 
-    // boring vault
-    BoringVault public immutable boringVault;
-
     // native token address signifier
     address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    constructor(address _owner, Authority _authority, BoringVault _boringVault) AuthOwnable2Step(_owner, _authority) {
-        boringVault = BoringVault(_boringVault);
-    }
+    constructor() AuthOwnable2Step(msg.sender, Authority(address(0))) { }
 
     function manageVaultWithTokenBalanceVerification(
+        BoringVault boringVault,
         ManageCall[] calldata manageCalls,
         address[] calldata tokensForVerification,
         int256[] calldata allowableTokenDelta
     )
-        public
+        external
         requiresAuth
         returns (uint256[] memory tokenBalsAfter, int256[] memory tokenDeltas)
     {
@@ -75,7 +75,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
         }
 
         // get balances before execution
-        uint256[] memory tokenBalsBefore = tokenBalancesNow(tokensForVerification);
+        uint256[] memory tokenBalsBefore = tokenBalances(boringVault, tokensForVerification);
         // emit the token balances
         emit ManagerWithTokenBalanceVerification__TokenBalancesBeforeExecution(tokensForVerification, tokenBalsBefore);
 
@@ -95,7 +95,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
                 // revert in case for some reason a second attempt to call passes
 
                 // get the new token balances after previous txs
-                tokenBalsAfter = tokenBalancesNow(tokensForVerification);
+                tokenBalsAfter = tokenBalances(boringVault, tokensForVerification);
                 // get the token deltas
                 tokenDeltas = _getTokenDeltas(tokensForVerification, tokenBalsBefore, tokenBalsAfter);
                 // emit the data
@@ -116,7 +116,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
         }
 
         // get token changes
-        tokenBalsAfter = tokenBalancesNow(tokensForVerification);
+        tokenBalsAfter = tokenBalances(boringVault, tokensForVerification);
         tokenDeltas = _getTokenDeltas(tokensForVerification, tokenBalsBefore, tokenBalsAfter);
 
         // emit the token balance and change data before checking them
@@ -144,7 +144,13 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
         }
     }
 
-    function manageVaultWithTokenBalanceVerification(ManageCall[] calldata manageCalls) public requiresAuth {
+    function manageVaultWithTokenBalanceVerification(
+        BoringVault boringVault,
+        ManageCall[] calldata manageCalls
+    )
+        public
+        requiresAuth
+    {
         // for loop to do execution, if failure error verbose
         uint256 length = manageCalls.length;
         for (uint256 i; i < length;) {
@@ -164,19 +170,28 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
         }
     }
 
-    function tokenBalancesNow(address[] calldata tokens) public view returns (uint256[] memory tokenBalsNow) {
+    function tokenBalances(
+        BoringVault boringVault,
+        address[] calldata tokens
+    )
+        public
+        view
+        returns (uint256[] memory tokenBals)
+    {
         uint256 length = tokens.length;
         if (length == 0) {
-            return tokenBalsNow;
+            return tokenBals;
         }
 
-        tokenBalsNow = new uint256[](length);
+        tokenBals = new uint256[](length);
 
         for (uint256 i; i < length;) {
             address token = tokens[i];
             if (token == NATIVE) {
-                tokenBalsNow[i] = address(boringVault).balance;
+                tokenBals[i] = address(boringVault).balance;
             } else {
+                if (address(token).code.length == 0) revert ManagerWithTokenBalanceVerification__TokenHasNoCode(token);
+
                 (bool success, bytes memory response) =
                     token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(boringVault)));
 
@@ -184,7 +199,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
                     revert ManagerWithTokenBalanceVerification__ErrorGettingTokenBalance(token);
                 }
 
-                tokenBalsNow[i] = abi.decode(response, (uint256));
+                tokenBals[i] = abi.decode(response, (uint256));
             }
 
             unchecked {
@@ -192,7 +207,19 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
             }
         }
 
-        return tokenBalsNow;
+        return tokenBals;
+    }
+
+    function tokenBalancesNow(
+        BoringVault boringVault,
+        ManageCall[] calldata managerCalls,
+        address[] calldata tokens
+    )
+        public
+    {
+        manageVaultWithTokenBalanceVerification(boringVault, managerCalls);
+        uint256[] memory tokenBals = tokenBalances(boringVault, tokens);
+        revert TokenBalancesNow(tokens, tokenBals);
     }
 
     function _getTokenDeltas(
@@ -201,6 +228,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
         uint256[] memory endingBalances
     )
         internal
+        pure
         returns (int256[] memory tokenDeltas)
     {
         uint256 length = tokens.length;
@@ -208,7 +236,7 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
 
         // get each tokens changes
         for (uint256 i; i < length;) {
-            tokenDeltas[i] = int256(startingBalances[i]) - int256(endingBalances[i]);
+            tokenDeltas[i] = int256(endingBalances[i]) - int256(startingBalances[i]);
 
             unchecked {
                 ++i;
