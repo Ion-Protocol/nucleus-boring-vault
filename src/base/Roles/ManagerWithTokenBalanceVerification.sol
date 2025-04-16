@@ -53,6 +53,9 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
     // boring vault
     BoringVault public immutable boringVault;
 
+    // native token address signifier
+    address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     constructor(address _owner, Authority _authority, BoringVault _boringVault) AuthOwnable2Step(_owner, _authority) {
         boringVault = BoringVault(_boringVault);
     }
@@ -171,12 +174,19 @@ contract managerWithTokenBalanceVerification is AuthOwnable2Step {
 
         for (uint256 i; i < length;) {
             address token = tokens[i];
-            (bool success, bytes memory response) =
-                token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(boringVault)));
-            if (!success) {
-                revert ManagerWithTokenBalanceVerification__ErrorGettingTokenBalance(token);
+            if (token == NATIVE) {
+                tokenBalsNow[i] = address(boringVault).balance;
+            } else {
+                (bool success, bytes memory response) =
+                    token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(boringVault)));
+
+                if (!success) {
+                    revert ManagerWithTokenBalanceVerification__ErrorGettingTokenBalance(token);
+                }
+
+                tokenBalsNow[i] = abi.decode(response, (uint256));
             }
-            tokenBalsNow[i] = abi.decode(response, (uint256));
+
             unchecked {
                 ++i;
             }
