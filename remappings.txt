@@ -7,3 +7,4 @@ ds-test/=lib/forge-std/lib/ds-test/src/
 @ion-protocol/=lib/ion-protocol/src/
 
 @layerzerolabs/=node_modules/@layerzerolabs/
+@predicate/=lib/predicate-contracts/
