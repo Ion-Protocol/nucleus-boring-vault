@@ -3,9 +3,9 @@ pragma solidity 0.8.21;
 
 import { TellerWithMultiAssetSupport } from "../TellerWithMultiAssetSupportPredicate.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import {PredicateClient} from "@predicate/contracts/src/mixins/PredicateClient.sol";
-import {PredicateMessage} from "@predicate/contracts/src/interfaces/IPredicateClient.sol";
-import {IPredicateManager} from "@predicate/contracts/src/interfaces/IPredicateManager.sol";
+import { PredicateClient } from "@predicate/contracts/src/mixins/PredicateClient.sol";
+import { PredicateMessage } from "@predicate/contracts/src/interfaces/IPredicateClient.sol";
+import { IPredicateManager } from "@predicate/contracts/src/interfaces/IPredicateManager.sol";
 
 struct BridgeData {
     uint32 chainSelector;
@@ -35,6 +35,7 @@ abstract contract CrossChainTellerBasePredicate is TellerWithMultiAssetSupportPr
 
     /**
      * @notice function to deposit into the vault AND bridge crosschain in 1 call
+     * @dev Uses the predicate authorization pattern to validate the transaction
      * @param depositAsset ERC20 to deposit
      * @param depositAmount amount of deposit asset to deposit
      * @param minimumMint minimum required shares to receive
@@ -53,15 +54,22 @@ abstract contract CrossChainTellerBasePredicate is TellerWithMultiAssetSupportPr
         requiresAuth
         nonReentrant
     {
-        bytes memory encodedSigAndArgs = abi.encodeWithSignature("_depositAndBridge(address,uint256,uint256,BridgeData)", depositAsset, depositAmount, minimumMint, data);
-        if(!_authorizeTransaction(predicateMessage, encodedSigAndArgs)){
+        bytes memory encodedSigAndArgs = abi.encodeWithSignature(
+            "_depositAndBridge(address,uint256,uint256,BridgeData)", depositAsset, depositAmount, minimumMint, data
+        );
+        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs)) {
             revert TellerWithMultiAssetSupport__PredicateUnauthorizedTransaction();
         }
         _depositAndBridge(depositAsset, depositAmount, minimumMint, data);
     }
 
     /**
-     * @notice internal helper which conforms to Predicate Inheritance pattern     
+     * @notice Internal implementation of depositAndBridge without predicate checks
+     * @dev Separated from public function to follow predicate pattern
+     * @param depositAsset ERC20 to deposit
+     * @param depositAmount Amount of deposit asset to deposit
+     * @param minimumMint Minimum required shares to receive
+     * @param data Bridge Data containing cross-chain routing information
      */
     function _depositAndBridge(
         ERC20 depositAsset,

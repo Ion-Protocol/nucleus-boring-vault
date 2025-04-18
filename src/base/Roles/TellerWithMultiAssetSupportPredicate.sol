@@ -10,10 +10,9 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
-import {PredicateClient} from "@predicate/contracts/src/mixins/PredicateClient.sol";
-import {PredicateMessage} from "@predicate/contracts/src/interfaces/IPredicateClient.sol";
-import {IPredicateManager} from "@predicate/contracts/src/interfaces/IPredicateManager.sol";
-
+import { PredicateClient } from "@predicate/contracts/src/mixins/PredicateClient.sol";
+import { PredicateMessage } from "@predicate/contracts/src/interfaces/IPredicateClient.sol";
+import { IPredicateManager } from "@predicate/contracts/src/interfaces/IPredicateManager.sol";
 
 /**
  * @title TellerWithMultiAssetSupportPredicate
@@ -129,7 +128,9 @@ contract TellerWithMultiAssetSupportPredicate is Auth, BeforeTransferHook, Reent
         address _accountant,
         address _serviceManager,
         string memory _policyID
-    ) Auth(_owner, Authority(address(0))) {
+    )
+        Auth(_owner, Authority(address(0)))
+    {
         vault = BoringVault(payable(_vault));
         ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
@@ -247,7 +248,14 @@ contract TellerWithMultiAssetSupportPredicate is Auth, BeforeTransferHook, Reent
 
     // ========================================= USER FUNCTIONS =========================================
 
-
+    /**
+     * @notice Allows users to deposit into the BoringVault, if this contract is not paused.
+     * @dev Publicly callable. Uses the predicate authorization pattern to validate the transaction
+     * @param depositAsset ERC20 to deposit
+     * @param depositAmount Amount of deposit asset to deposit
+     * @param minimumMint Minimum required shares to receive
+     * @param predicateMessage Predicate message to authorize the transaction
+     */
     function deposit(
         ERC20 depositAsset,
         uint256 depositAmount,
@@ -259,15 +267,20 @@ contract TellerWithMultiAssetSupportPredicate is Auth, BeforeTransferHook, Reent
         nonReentrant
         returns (uint256 shares)
     {
-        bytes memory encodedSigAndArgs = abi.encodeWithSignature("_deposit(address,uint256,uint256)", depositAsset, depositAmount, minimumMint);
-        if(!_authorizeTransaction(predicateMessage, encodedSigAndArgs)){
+        bytes memory encodedSigAndArgs =
+            abi.encodeWithSignature("_deposit(address,uint256,uint256)", depositAsset, depositAmount, minimumMint);
+        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs)) {
             revert TellerWithMultiAssetSupport__PredicateUnauthorizedTransaction();
         }
         return _deposit(depositAsset, depositAmount, minimumMint);
     }
 
     /**
-     * @notice internal helper function to deposit into BoringVault. Conforms to predicate wrapper pattern
+     * @notice Internal implementation of depositAndBridge without predicate checks
+     * @dev Separated from public function to follow predicate pattern
+     * @param depositAsset ERC20 to deposit
+     * @param depositAmount Amount of deposit asset to deposit
+     * @param minimumMint Minimum required shares to receive
      */
     function _deposit(
         ERC20 depositAsset,
@@ -364,20 +377,20 @@ contract TellerWithMultiAssetSupportPredicate is Auth, BeforeTransferHook, Reent
     }
 
     /**
-    * @notice Updates the policy ID
-    * @param _policyID policy ID from onchain
-    */
+     * @notice Updates the policy ID
+     * @param _policyID policy ID from onchain
+     */
     function setPolicy(string memory _policyID) external requiresAuth {
-    policyID = _policyID;
-    serviceManager.setPolicy(_policyID);
+        policyID = _policyID;
+        serviceManager.setPolicy(_policyID);
     }
 
     /**
-    * @notice Function for setting the ServiceManager
-    * @param _serviceManager address of the service manager
-    */
+     * @notice Function for setting the ServiceManager
+     * @param _serviceManager address of the service manager
+     */
     function setPredicateManager(address _serviceManager) public requiresAuth {
-    serviceManager = IPredicateManager(_serviceManager);
+        serviceManager = IPredicateManager(_serviceManager);
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
