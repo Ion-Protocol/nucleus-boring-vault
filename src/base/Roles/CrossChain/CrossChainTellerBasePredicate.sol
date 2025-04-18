@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { TellerWithMultiAssetSupport } from "../TellerWithMultiAssetSupportPredicate.sol";
+import { TellerWithMultiAssetSupportPredicate } from "../TellerWithMultiAssetSupportPredicate.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { PredicateClient } from "@predicate/contracts/src/mixins/PredicateClient.sol";
-import { PredicateMessage } from "@predicate/contracts/src/interfaces/IPredicateClient.sol";
-import { IPredicateManager } from "@predicate/contracts/src/interfaces/IPredicateManager.sol";
+import { PredicateClient } from "@predicate/src/mixins/PredicateClient.sol";
+import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
+import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.sol";
 
 struct BridgeData {
     uint32 chainSelector;
@@ -57,7 +57,7 @@ abstract contract CrossChainTellerBasePredicate is TellerWithMultiAssetSupportPr
         bytes memory encodedSigAndArgs = abi.encodeWithSignature(
             "_depositAndBridge(address,uint256,uint256,BridgeData)", depositAsset, depositAmount, minimumMint, data
         );
-        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs)) {
+        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, msg.value)) {
             revert TellerWithMultiAssetSupport__PredicateUnauthorizedTransaction();
         }
         _depositAndBridge(depositAsset, depositAmount, minimumMint, data);

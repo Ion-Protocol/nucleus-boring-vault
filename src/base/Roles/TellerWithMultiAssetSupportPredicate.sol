@@ -10,9 +10,9 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
-import { PredicateClient } from "@predicate/contracts/src/mixins/PredicateClient.sol";
-import { PredicateMessage } from "@predicate/contracts/src/interfaces/IPredicateClient.sol";
-import { IPredicateManager } from "@predicate/contracts/src/interfaces/IPredicateManager.sol";
+import { PredicateClient } from "@predicate/src/mixins/PredicateClient.sol";
+import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
+import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.sol";
 
 /**
  * @title TellerWithMultiAssetSupportPredicate
@@ -269,7 +269,7 @@ contract TellerWithMultiAssetSupportPredicate is Auth, BeforeTransferHook, Reent
     {
         bytes memory encodedSigAndArgs =
             abi.encodeWithSignature("_deposit(address,uint256,uint256)", depositAsset, depositAmount, minimumMint);
-        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs)) {
+        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
             revert TellerWithMultiAssetSupport__PredicateUnauthorizedTransaction();
         }
         return _deposit(depositAsset, depositAmount, minimumMint);
@@ -381,16 +381,15 @@ contract TellerWithMultiAssetSupportPredicate is Auth, BeforeTransferHook, Reent
      * @param _policyID policy ID from onchain
      */
     function setPolicy(string memory _policyID) external requiresAuth {
-        policyID = _policyID;
-        serviceManager.setPolicy(_policyID);
+        _setPolicy(_policyID);
     }
 
     /**
      * @notice Function for setting the ServiceManager
-     * @param _serviceManager address of the service manager
+     * @param _predicateManager address of the service manager
      */
-    function setPredicateManager(address _serviceManager) public requiresAuth {
-        serviceManager = IPredicateManager(_serviceManager);
+    function setPredicateManager(address _predicateManager) public requiresAuth {
+        _setPredicateManager(_predicateManager);
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
