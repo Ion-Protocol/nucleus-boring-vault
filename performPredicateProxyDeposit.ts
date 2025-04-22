@@ -29,12 +29,8 @@ const RPC_URL = process.env.HOLESKY_RPC_URL || 'https://holesky.drpc.org'; // Us
 if (!RPC_URL) {
     console.error("Error: HOLESKY_RPC_URL is not set (or using default).");
 }
-if (PRIVATE_KEY === '0x' || !privateKeyToAccount(PRIVATE_KEY)) { // Basic validation
+if (PRIVATE_KEY === '0x' || !privateKeyToAccount(PRIVATE_KEY)) {
     console.error("Error: PRIVATE_KEY is not set or invalid in the environment variables.");
-    process.exit(1);
-}
-if (recipientAddress === '0xYourRecipientAddressHere') {
-    console.error("Error: Please set the recipientAddress variable.");
     process.exit(1);
 }
 
