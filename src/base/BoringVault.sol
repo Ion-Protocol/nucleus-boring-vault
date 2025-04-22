@@ -160,6 +160,11 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
         return super.transferFrom(from, to, amount);
     }
 
+    function setNameAndSymbol(string memory _name, string memory _symbol) external requiresAuth {
+        name = _name;
+        symbol = _symbol;
+    }
+
     //============================== RECEIVE ===============================
 
     receive() external payable { }
