@@ -12,17 +12,8 @@ abstract contract FraxLendDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc add collateral to a fraxlend pair
     // @tag borrower:address:the address of the borrower
-    // @tag token:address:the address of the token to add as collateral
-    function addCollateral(
-        uint256,
-        address borrower,
-        address token
-    )
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
-        addressesFound = abi.encodePacked(borrower, token);
+    function addCollateral(uint256, address borrower) external pure returns (bytes memory addressesFound) {
+        addressesFound = abi.encodePacked(borrower);
     }
 
     // @desc repay a fraxlend borrow position with collateral, swapper addresses must be approved by contract and are
