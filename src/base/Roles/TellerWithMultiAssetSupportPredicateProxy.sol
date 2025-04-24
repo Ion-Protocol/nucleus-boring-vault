@@ -10,8 +10,8 @@ import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 import { PredicateClient } from "@predicate/src/mixins/PredicateClient.sol";
 import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
 import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.sol";
-import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import { CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import { MultiChainTellerBase } from "src/base/Roles/CrossChain/MultiChainTellerBase.sol";
+import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
 /**
  * @title PredicateTellerProxy
@@ -23,14 +23,15 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
 
     //============================== ERRORS ===============================
 
-    error TellerWithMultiAssetSupport__PredicateUnauthorizedTransaction();
+    error TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
+    error TellerWithMultiAssetSupportPredicateProxy__NoRefundedShares(bytes32 msgId);
 
     //============================== IMMUTABLES ===============================
 
     /**
      * @notice The Teller this contract is working with.
      */
-    TellerWithMultiAssetSupport public immutable teller;
+    CrossChainTellerBase public immutable teller;
     // could change to have mapping to share among tellers, but this is PoC
 
     constructor(
@@ -41,7 +42,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
     )
         Auth(_owner, Authority(address(0)))
     {
-        teller = TellerWithMultiAssetSupport(payable(_teller));
+        teller = MultiChainTellerBase(payable(_teller));
         _initPredicateClient(_serviceManager, _policyID);
     }
 
@@ -69,10 +70,9 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         returns (uint256 shares)
     {
         //authorization would be very similar to other flows
-        bytes memory encodedSigAndArgs =
-            abi.encodeWithSignature("_deposit(address,uint256,uint256)", depositAsset, depositAmount, minimumMint);
+        bytes memory encodedSigAndArgs = abi.encodeWithSignature("_deposit()");
         if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
-            revert TellerWithMultiAssetSupport__PredicateUnauthorizedTransaction();
+            revert TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
         }
         ERC20 vault = ERC20(teller.vault());
         //approve vault to take assets from proxy
@@ -83,6 +83,40 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
         vault.transfer(recipient, shares);
         //possibly add extra event
+    }
+
+    /**
+     * @notice function to deposit into the vault AND bridge crosschain in 1 call
+     * @dev Uses the predicate authorization pattern to validate the transaction
+     * @param depositAsset ERC20 to deposit
+     * @param depositAmount amount of deposit asset to deposit
+     * @param minimumMint minimum required shares to receive
+     * @param data Bridge Data
+     * @param predicateMessage Predicate message to authorize the transaction
+     */
+    function depositAndBridge(
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint,
+        BridgeData calldata data,
+        PredicateMessage calldata predicateMessage
+    )
+        external
+        payable
+        requiresAuth
+        nonReentrant
+    {
+        bytes memory encodedSigAndArgs = abi.encodeWithSignature("_depositAndBridge()");
+        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
+            revert TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
+        }
+        ERC20 vault = ERC20(teller.vault());
+        //approve vault to take assets from proxy
+        depositAsset.approve(address(vault), depositAmount);
+        //transfer deposit assets from sender to this contract
+        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+        // mint shares
+        teller.depositAndBridge(depositAsset, depositAmount, minimumMint, data);
     }
 
     /**
