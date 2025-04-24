@@ -2,15 +2,11 @@
 pragma solidity 0.8.21;
 
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { WETH } from "@solmate/tokens/WETH.sol";
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
-import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 import { PredicateClient } from "@predicate/src/mixins/PredicateClient.sol";
 import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
 import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.sol";
-import { MultiChainTellerBase } from "src/base/Roles/CrossChain/MultiChainTellerBase.sol";
 import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
 /**
@@ -18,13 +14,9 @@ import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/Cros
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, PredicateClient {
-    using SafeTransferLib for ERC20;
-    using SafeTransferLib for WETH;
-
     //============================== ERRORS ===============================
 
     error TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
-    error TellerWithMultiAssetSupportPredicateProxy__NoRefundedShares(bytes32 msgId);
 
     //============================== IMMUTABLES ===============================
 
@@ -42,14 +34,14 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
     )
         Auth(_owner, Authority(address(0)))
     {
-        teller = MultiChainTellerBase(payable(_teller));
+        teller = CrossChainTellerBase(payable(_teller));
         _initPredicateClient(_serviceManager, _policyID);
     }
 
     // ========================================= USER FUNCTIONS =========================================
 
     /**
-     * @notice Allows users to deposit into the BoringVault, if this contract is not paused.
+     * @notice Allows users to deposit into the BoringVault, if the teller contract is not paused.
      * @dev Publicly callable. Uses the predicate authorization pattern to validate the transaction
      * @param depositAsset ERC20 to deposit
      * @param depositAmount Amount of deposit asset to deposit
