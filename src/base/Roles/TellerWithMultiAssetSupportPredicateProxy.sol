@@ -24,7 +24,12 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      * @notice The Teller this contract is working with.
      */
     CrossChainTellerBase public immutable teller;
-    // could change to have mapping to share among tellers, but this is PoC
+
+    /**
+     * @notice Stores the last sender who called the contract
+     * This is used to route refunds to the correct user
+     */
+    address private lastSender;
 
     constructor(
         address _owner,
@@ -108,7 +113,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         //transfer deposit assets from sender to this contract
         depositAsset.transferFrom(msg.sender, address(this), depositAmount);
         // mint shares
-        teller.depositAndBridge(depositAsset, depositAmount, minimumMint, data);
+        teller.depositAndBridge{ value: msg.value }(depositAsset, depositAmount, minimumMint, data);
     }
 
     /**
@@ -125,5 +130,20 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      */
     function setPredicateManager(address _predicateManager) public requiresAuth {
         _setPredicateManager(_predicateManager);
+    }
+
+    /**
+     * @notice Allows the contract to receive ETH refunds and forwards them to the original sender
+     */
+    receive() external payable {
+        // If we have a lastSender and receive ETH, forward it
+        if (lastSender != address(0) && msg.value > 0) {
+            // Forward the ETH to the last sender
+            (bool success,) = lastSender.call{ value: msg.value }("");
+            require(success, "ETH transfer failed");
+
+            // Reset lastSender
+            lastSender = address(0);
+        }
     }
 }
