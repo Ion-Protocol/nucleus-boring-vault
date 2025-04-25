@@ -25,6 +25,3 @@
 [submodule "lib/predicate-contracts"]
 	path = lib/predicate-contracts
 	url = https://github.com/PredicateLabs/predicate-contracts
-[submodule "lib/v3-core"]
-	path = lib/v3-core
-	url = https://github.com/uniswap/v3-core

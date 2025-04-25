@@ -79,7 +79,6 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         // mint shares
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
         vault.transfer(recipient, shares);
-        //possibly add extra event
     }
 
     /**
