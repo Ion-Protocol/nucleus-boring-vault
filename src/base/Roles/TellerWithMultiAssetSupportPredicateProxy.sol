@@ -10,7 +10,7 @@ import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.s
 import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 
 /**
- * @title PredicateTellerProxy
+ * @title TellerWithMultiAssetSupportPredicateProxy
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, PredicateClient {
@@ -27,7 +27,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
 
     /**
      * @notice Stores the last sender who called the contract
-     * This is used to route refunds to the correct user
+     * This is used to route refunds to the correct user on deposit and bridge
      */
     address private lastSender;
 
@@ -104,6 +104,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         nonReentrant
     {
         bytes memory encodedSigAndArgs = abi.encodeWithSignature("_depositAndBridge()");
+        //still use 0 for msg.value since we only need validation against sender address
         if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
             revert TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
         }
