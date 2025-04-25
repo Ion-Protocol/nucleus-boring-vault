@@ -107,6 +107,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
             revert TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
         }
+        lastSender = msg.sender;
         ERC20 vault = ERC20(teller.vault());
         //approve vault to take assets from proxy
         depositAsset.approve(address(vault), depositAmount);
@@ -114,6 +115,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         depositAsset.transferFrom(msg.sender, address(this), depositAmount);
         // mint shares
         teller.depositAndBridge{ value: msg.value }(depositAsset, depositAmount, minimumMint, data);
+        lastSender = address(0);
     }
 
     /**
@@ -141,9 +143,6 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
             // Forward the ETH to the last sender
             (bool success,) = lastSender.call{ value: msg.value }("");
             require(success, "ETH transfer failed");
-
-            // Reset lastSender
-            lastSender = address(0);
         }
     }
 }
