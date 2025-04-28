@@ -1,0 +1,21 @@
+# serverless.yaml
+
+service: management-token-balance-simulator
+
+provider:
+  name: aws
+  runtime: go1.22.2
+
+package:
+  exclude:
+    - ./**
+  include:
+    ./bin/**
+
+functions:
+  main:
+    handler: bin/main
+    events:
+      - http:
+          path: main
+          method: post
