@@ -8,7 +8,7 @@ import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol
 import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.sol";
 import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title TellerWithMultiAssetSupportPredicateProxy
