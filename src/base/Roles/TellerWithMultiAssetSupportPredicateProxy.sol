@@ -2,28 +2,25 @@
 pragma solidity 0.8.21;
 
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 import { PredicateClient } from "@predicate/src/mixins/PredicateClient.sol";
 import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
 import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.sol";
 import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
  * @title TellerWithMultiAssetSupportPredicateProxy
  * @custom:security-contact security@molecularlabs.io
  */
-contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, PredicateClient {
+contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, PredicateClient, Pausable {
     //============================== ERRORS ===============================
 
     error TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
+    error TellerWithMultiAssetSupportPredicateProxy__Paused();
 
     //============================== IMMUTABLES ===============================
-
-    /**
-     * @notice The Teller this contract is working with.
-     */
-    CrossChainTellerBase public immutable teller;
 
     /**
      * @notice Stores the last sender who called the contract
@@ -31,15 +28,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      */
     address private lastSender;
 
-    constructor(
-        address _owner,
-        address _teller,
-        address _serviceManager,
-        string memory _policyID
-    )
-        Auth(_owner, Authority(address(0)))
-    {
-        teller = CrossChainTellerBase(payable(_teller));
+    constructor(address _owner, address _serviceManager, string memory _policyID) Ownable(_owner) {
         _initPredicateClient(_serviceManager, _policyID);
     }
 
@@ -52,6 +41,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      * @param depositAmount Amount of deposit asset to deposit
      * @param minimumMint Minimum required shares to receive
      * @param recipient Address which to forward shares
+     * @param teller CrossChainTellerBase contract to deposit into
      * @param predicateMessage Predicate message to authorize the transaction
      */
     function deposit(
@@ -59,15 +49,19 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         uint256 depositAmount,
         uint256 minimumMint,
         address recipient,
+        CrossChainTellerBase teller,
         PredicateMessage calldata predicateMessage
     )
         external
-        requiresAuth
         nonReentrant
         returns (uint256 shares)
     {
-        //authorization would be very similar to other flows
-        bytes memory encodedSigAndArgs = abi.encodeWithSignature("_deposit()");
+        if (paused()) {
+            revert TellerWithMultiAssetSupportPredicateProxy__Paused();
+        }
+
+        //@dev This is NOT the actual function that is called, it is the against which the predicate is authorized
+        bytes memory encodedSigAndArgs = abi.encodeWithSignature("deposit()");
         if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
             revert TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
         }
@@ -87,6 +81,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      * @param depositAsset ERC20 to deposit
      * @param depositAmount amount of deposit asset to deposit
      * @param minimumMint minimum required shares to receive
+     * @param teller CrossChainTellerBase contract to deposit into
      * @param data Bridge Data
      * @param predicateMessage Predicate message to authorize the transaction
      */
@@ -95,14 +90,19 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
         uint256 depositAmount,
         uint256 minimumMint,
         BridgeData calldata data,
+        CrossChainTellerBase teller,
         PredicateMessage calldata predicateMessage
     )
         external
         payable
-        requiresAuth
         nonReentrant
     {
-        bytes memory encodedSigAndArgs = abi.encodeWithSignature("_depositAndBridge()");
+        if (paused()) {
+            revert TellerWithMultiAssetSupportPredicateProxy__Paused();
+        }
+
+        //@dev This is NOT the actual function that is called, it is the against which the predicate is authorized
+        bytes memory encodedSigAndArgs = abi.encodeWithSignature("depositAndBridge()");
         //still use 0 for msg.value since we only need validation against sender address
         if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
             revert TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
@@ -122,7 +122,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      * @notice Updates the policy ID
      * @param _policyID policy ID from onchain
      */
-    function setPolicy(string memory _policyID) external requiresAuth {
+    function setPolicy(string memory _policyID) external onlyOwner {
         _setPolicy(_policyID);
     }
 
@@ -130,7 +130,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Auth, ReentrancyGuard, Pre
      * @notice Function for setting the ServiceManager
      * @param _predicateManager address of the service manager
      */
-    function setPredicateManager(address _predicateManager) public requiresAuth {
+    function setPredicateManager(address _predicateManager) public onlyOwner {
         _setPredicateManager(_predicateManager);
     }
 
