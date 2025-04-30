@@ -9,12 +9,15 @@ import { IPredicateManager } from "@predicate/src/interfaces/IPredicateManager.s
 import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 
 /**
  * @title TellerWithMultiAssetSupportPredicateProxy
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, PredicateClient, Pausable {
+    using SafeTransferLib for ERC20;
+
     //============================== ERRORS ===============================
 
     error TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
@@ -69,10 +72,10 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         //approve vault to take assets from proxy
         depositAsset.approve(address(vault), depositAmount);
         //transfer deposit assets from sender to this contract
-        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+        depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         // mint shares
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
-        vault.transfer(recipient, shares);
+        vault.safeTransfer(recipient, shares);
     }
 
     /**
@@ -112,7 +115,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         //approve vault to take assets from proxy
         depositAsset.approve(address(vault), depositAmount);
         //transfer deposit assets from sender to this contract
-        depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+        depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         // mint shares
         teller.depositAndBridge{ value: msg.value }(depositAsset, depositAmount, minimumMint, data);
         lastSender = address(0);
