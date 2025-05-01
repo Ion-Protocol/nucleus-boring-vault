@@ -7,14 +7,12 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
-import { Authority } from "@solmate/auth/Auth.sol";
-import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 
 /**
  * @title ManagerWithTokenBalanceVerification
  * @custom:security-contact security@molecularlabs.io
  */
-contract ManagerSimulator is AuthOwnable2Step {
+contract ManagerSimulator {
     // CONSTANTS
     bytes4 SINGLE_MANAGE_SELECTOR = 0xf6e715d0;
 
@@ -36,7 +34,7 @@ contract ManagerSimulator is AuthOwnable2Step {
     // Native token address signifier
     address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    constructor() AuthOwnable2Step(msg.sender, Authority(address(0))) { }
+    constructor() { }
 
     /**
      * @dev helper function to get an array of token balances including native and reverts with exact token responsible
@@ -94,7 +92,7 @@ contract ManagerSimulator is AuthOwnable2Step {
         ManageCall[] calldata managerCalls,
         address[] calldata tokens
     )
-        public
+        external
     {
         _manageVault(boringVault, managerCalls);
         uint256[] memory tokenBals = tokenBalances(boringVault, tokens);
@@ -105,7 +103,7 @@ contract ManagerSimulator is AuthOwnable2Step {
 
     /// NOTE _manageVault calls manage() directly for simplicity, and does not simulate errors with decoders, tree
     /// permissions or micromanagers
-    function _manageVault(BoringVault boringVault, ManageCall[] calldata manageCalls) internal requiresAuth {
+    function _manageVault(BoringVault boringVault, ManageCall[] calldata manageCalls) internal {
         // for loop to do execution, if failure error verbose
         uint256 length = manageCalls.length;
         for (uint256 i; i < length;) {

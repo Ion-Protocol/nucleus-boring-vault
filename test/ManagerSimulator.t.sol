@@ -63,10 +63,7 @@ contract ManagerSimulatorTest is Test, MainnetAddresses {
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
         manager = new ManagerSimulator();
 
-        manager.setAuthority(rolesAuthority);
-
         boringVault.setAuthority(rolesAuthority);
-        manager.setAuthority(rolesAuthority);
 
         // Setup roles authority.
         rolesAuthority.setRoleCapability(
