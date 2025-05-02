@@ -129,7 +129,11 @@ contract ManagerSimulator {
 
         // get the token decimals
         for (uint256 i; i < tokensLength;) {
-            decimals[i] = ERC20(tokens[i]).decimals();
+            if (tokens[i] == NATIVE) {
+                decimals[i] = 18;
+            } else {
+                decimals[i] = ERC20(tokens[i]).decimals();
+            }
 
             unchecked {
                 ++i;
