@@ -128,6 +128,54 @@ contract ManagerSimulatorTest is Test, MainnetAddresses {
         manager.tokenBalancesSimulation(boringVault, manageCalls, tokensForVerification);
     }
 
+    function testTokenBalancesSimulationReturnEachStep() external {
+        // Allow the manager to call the USDC approve function to a specific address,
+        // and the USDT transfer function to a specific address.
+        address usdcReceiver = vm.addr(0xDEAD2);
+
+        ManagerSimulator.ManageCall[] memory manageCalls = new ManagerSimulator.ManageCall[](2);
+        manageCalls[0] = ManagerSimulator.ManageCall(
+            address(USDC), abi.encodeWithSelector(ERC20.transfer.selector, usdcReceiver, 700), 0
+        );
+
+        manageCalls[1] = ManagerSimulator.ManageCall(
+            address(USDC), abi.encodeWithSelector(ERC20.transfer.selector, usdcReceiver, 77), 0
+        );
+
+        // expect simulated amounts expected in boring vault after each step
+        uint256[][] memory expectedAmounts = new uint256[][](3);
+        expectedAmounts[0] = new uint256[](2);
+        expectedAmounts[1] = new uint256[](2);
+        expectedAmounts[2] = new uint256[](2);
+        // Only initialize the first token (USDC) as WETH will stay 0
+        expectedAmounts[0][0] = 777;
+        expectedAmounts[1][0] = 77;
+        expectedAmounts[2][0] = 0;
+
+        // set up decimals
+        uint8[] memory decimals = new uint8[](2);
+        decimals[0] = 6;
+        decimals[1] = 18;
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(USDC);
+        tokens[1] = address(WETH); // Include WETH but expect all the balances to be 0
+
+        deal(address(USDC), address(boringVault), 777);
+
+        assertEq(USDC.balanceOf(address(boringVault)), 777, "USDC should have a balance of 777");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ManagerSimulator.ResultingTokenBalancesEachStepPostSimulation.selector,
+                tokens,
+                decimals,
+                expectedAmounts
+            )
+        );
+        manager.tokenBalancesSimulationReturnEachStep(boringVault, manageCalls, tokens);
+    }
+
     function testTokenBallNow() external {
         // Allow the manager to call the USDC approve function to a specific address,
         // and the USDT transfer function to a specific address.
@@ -140,8 +188,6 @@ contract ManagerSimulatorTest is Test, MainnetAddresses {
 
         address[] memory tokensForVerification = new address[](1);
         tokensForVerification[0] = address(USDC);
-        int256[] memory allowableTokenDelta = new int256[](1);
-        allowableTokenDelta[0] = -777;
         deal(address(USDC), address(boringVault), 777);
 
         uint256 gas = gasleft();

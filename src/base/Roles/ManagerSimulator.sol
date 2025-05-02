@@ -3,7 +3,7 @@ pragma solidity =0.8.21;
 
 import { BoringVault } from "src/base/BoringVault.sol";
 import { MerkleProofLib } from "@solmate/utils/MerkleProofLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
@@ -18,6 +18,9 @@ contract ManagerSimulator {
 
     /// @dev not exactly an error. Errors with data so we can simulate calls and get this data with a dry run
     error ResultingTokenBalancesPostSimulation(address[] tokens, uint256[] tokenBals);
+    error ResultingTokenBalancesEachStepPostSimulation(
+        address[] tokens, uint8[] decimals, uint256[][] tokenBalsEachStep
+    );
 
     // ERRORS
     error ManagerSimulator__ErrorGettingTokenBalance(address token, bytes response);
@@ -64,7 +67,7 @@ contract ManagerSimulator {
                 if (address(token).code.length == 0) revert ManagerSimulator__TokenHasNoCode(token);
 
                 (bool success, bytes memory response) =
-                    token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(boringVault)));
+                    token.staticcall(abi.encodeWithSelector(ERC20.balanceOf.selector, address(boringVault)));
 
                 if (!success) {
                     revert ManagerSimulator__ErrorGettingTokenBalance(token, response);
@@ -84,21 +87,75 @@ contract ManagerSimulator {
     /**
      * @dev function to do token simulation, errors with the simulation data to avoid necessitating a sent transaction
      * @param boringVault to simulate on
-     * @param managerCalls to perform
+     * @param manageCalls to perform
      * @param tokens to retrieve simulations for
      */
     function tokenBalancesSimulation(
         BoringVault boringVault,
-        ManageCall[] calldata managerCalls,
+        ManageCall[] calldata manageCalls,
         address[] calldata tokens
     )
         external
     {
-        _manageVault(boringVault, managerCalls);
+        _manageVault(boringVault, manageCalls);
         uint256[] memory tokenBals = tokenBalances(boringVault, tokens);
 
         // Function will always revert
         revert ResultingTokenBalancesPostSimulation(tokens, tokenBals);
+    }
+
+    /**
+     * @dev function to do simulation but return values at each step including before any manage calls, then after each
+     * one
+     * @param boringVault to simulate on
+     * @param manageCalls to perform
+     * @param tokens to retrieve simulations for
+     */
+    function tokenBalancesSimulationReturnEachStep(
+        BoringVault boringVault,
+        ManageCall[] calldata manageCalls,
+        address[] calldata tokens
+    )
+        external
+    {
+        uint256 length = manageCalls.length;
+        uint256 tokensLength = tokens.length;
+
+        uint256[][] memory tokenBalsEachStep = new uint256[][](length + 1);
+        uint8[] memory decimals = new uint8[](tokensLength);
+
+        // initialize tokenBalsEachStep with beginning balances
+        tokenBalsEachStep[0] = tokenBalances(boringVault, tokens);
+
+        // get the token decimals
+        for (uint256 i; i < tokensLength;) {
+            decimals[i] = ERC20(tokens[i]).decimals();
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Do each manage call and collect token balances after
+        for (uint256 i; i < length;) {
+            ManageCall memory call = manageCalls[i];
+            (bool success, bytes memory response) = address(boringVault).call(
+                abi.encodeWithSelector(SINGLE_MANAGE_SELECTOR, call.target, call.targetData, call.valueToSend)
+            );
+
+            if (!success) {
+                revert ManagerSimulator__ManagementError(call.target, call.targetData, call.valueToSend, response);
+            }
+
+            tokenBalsEachStep[i + 1] = tokenBalances(boringVault, tokens);
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Function will always revert
+        revert ResultingTokenBalancesEachStepPostSimulation(tokens, decimals, tokenBalsEachStep);
     }
 
     /// NOTE _manageVault calls manage() directly for simplicity, and does not simulate errors with decoders, tree
