@@ -18,7 +18,7 @@ contract HyperliquidForwarder is Auth {
 
     mapping(address => address) tokenAddressToBridge;
 
-    constructor() Auth(Authority(0)) {
+    constructor() Auth(msg.sender, Authority(address(0))) {
         // By default add WHYPE exception
         addTokenIDToBridgeMapping(WHYPE, 0);
     }
