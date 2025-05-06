@@ -10,7 +10,7 @@ contract DeployCustomCreateX is BaseScript {
     address immutable EXPECTED;
 
     // Deployer protected: 0x04354e44ed31022716e77eC6320C04Eda153010c
-    bytes32 constant SALT = 0x04354e44ed31022716e77eC6320C04Eda153010c007777777777777777777777;
+    bytes32 constant SALT = 0x04354e44ed31022716e77eC6320C04Eda153010c007000000000000000000000;
 
     constructor() BaseScript() {
         EXPECTED = vm.envAddress("SIMULATOR");
