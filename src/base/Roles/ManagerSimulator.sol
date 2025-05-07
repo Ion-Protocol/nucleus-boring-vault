@@ -36,8 +36,11 @@ contract ManagerSimulator {
 
     // Native token address signifier
     address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    uint8 public immutable nativeTokenDecimals;
 
-    constructor() { }
+    constructor(uint8 _nativeTokenDecimals) {
+        nativeTokenDecimals = _nativeTokenDecimals;
+    }
 
     /**
      * @dev helper function to get an array of token balances including native and reverts with exact token responsible
@@ -130,7 +133,7 @@ contract ManagerSimulator {
         // get the token decimals
         for (uint256 i; i < tokensLength;) {
             if (tokens[i] == NATIVE) {
-                decimals[i] = 18;
+                decimals[i] = nativeTokenDecimals;
             } else {
                 decimals[i] = ERC20(tokens[i]).decimals();
             }

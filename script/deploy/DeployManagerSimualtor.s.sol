@@ -16,11 +16,11 @@ contract DeployCustomCreateX is BaseScript {
         EXPECTED = vm.envAddress("SIMULATOR");
     }
 
-    function run() public broadcast {
+    function run(uint8 nativeDecimalsForThisChain) public broadcast {
         require(EXPECTED.code.length == 0, "Simulator already exists on this chain");
 
         bytes memory creationCode = type(ManagerSimulator).creationCode;
-        address simulator = CREATEX.deployCreate3(SALT, abi.encodePacked(creationCode));
+        address simulator = CREATEX.deployCreate3(SALT, abi.encodePacked(creationCode, nativeDecimalsForThisChain));
 
         console.log(simulator);
         require(address(simulator) == EXPECTED, "address is not expected");
