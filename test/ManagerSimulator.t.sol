@@ -61,7 +61,7 @@ contract ManagerSimulatorTest is Test, MainnetAddresses {
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
-        manager = new ManagerSimulator();
+        manager = new ManagerSimulator(18);
 
         boringVault.setAuthority(rolesAuthority);
 
