@@ -15,12 +15,13 @@ contract HyperliquidForwarder is Auth {
     address private constant WHYPE_BRIDGE = 0x2222222222222222222222222222222222222222;
 
     error HyperliquidForwarder__BridgeNotSet(address token);
+    error HyperliquidForwarder__BridgeAddressDoesNotMatchTokenID();
 
     mapping(address => address) tokenAddressToBridge;
 
     constructor() Auth(msg.sender, Authority(address(0))) {
         // By default add WHYPE exception
-        addTokenIDToBridgeMapping(WHYPE, 0);
+        addTokenIDToBridgeMapping(WHYPE, address(0), 0);
     }
 
     /**
@@ -35,7 +36,14 @@ contract HyperliquidForwarder is Auth {
      *   Exceptions are:
      *       WHYPE: 0x2222222222222222222222222222222222222222
      */
-    function addTokenIDToBridgeMapping(address tokenAddress, uint16 tokenID) public requiresAuth {
+    function addTokenIDToBridgeMapping(
+        address tokenAddress,
+        address bridgeAddress,
+        uint16 tokenID
+    )
+        public
+        requiresAuth
+    {
         // HYPE/WHYPE is an exception and is handled separately, do not allow owner to incorrectly set it
         if (tokenAddress == WHYPE) {
             tokenAddressToBridge[WHYPE] = WHYPE_BRIDGE;
@@ -46,10 +54,14 @@ contract HyperliquidForwarder is Auth {
         bytes20 formattedTokenID = bytes20(bytes32(uint256(tokenID)) << 8 * 12);
 
         // Add the 2 prefix for all bridges and convert bytes20 to address
-        address tokenBridge = address(formattedTokenID | hex"2000000000000000000000000000000000000000");
+        address computedBridgeAddress = address(formattedTokenID | hex"2000000000000000000000000000000000000000");
+
+        if (computedBridgeAddress != bridgeAddress) {
+            revert HyperliquidForwarder__BridgeAddressDoesNotMatchTokenID();
+        }
 
         // Store the mapping of token address to bridge based off what's created from the ID
-        tokenAddressToBridge[tokenAddress] = tokenBridge;
+        tokenAddressToBridge[tokenAddress] = bridgeAddress;
     }
 
     /**
@@ -62,7 +74,7 @@ contract HyperliquidForwarder is Auth {
             revert HyperliquidForwarder__BridgeNotSet(address(token));
         }
 
-        token.transferFrom(msg.sender, evmEOAToSendToAndForwardToL1, amount);
-        token.transferFrom(evmEOAToSendToAndForwardToL1, bridge, amount);
+        token.safeTransferFrom(msg.sender, evmEOAToSendToAndForwardToL1, amount);
+        token.safeTransferFrom(evmEOAToSendToAndForwardToL1, bridge, amount);
     }
 }
