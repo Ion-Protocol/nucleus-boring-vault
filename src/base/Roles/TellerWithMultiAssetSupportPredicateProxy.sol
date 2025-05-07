@@ -22,6 +22,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
 
     error TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
     error TellerWithMultiAssetSupportPredicateProxy__Paused();
+    error TellerWithMultiAssetSupportPredicateProxy__ETHTransferFailed();
 
     //============================== IMMUTABLES ===============================
 
@@ -168,7 +169,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         if (lastSender != address(0) && msg.value > 0) {
             // Forward the ETH to the last sender
             (bool success,) = lastSender.call{ value: msg.value }("");
-            require(success, "ETH transfer failed");
+            if (!success) revert TellerWithMultiAssetSupportPredicateProxy__ETHTransferFailed();
         }
     }
 }
