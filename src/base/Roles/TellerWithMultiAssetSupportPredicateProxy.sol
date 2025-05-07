@@ -70,7 +70,7 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         }
         ERC20 vault = ERC20(teller.vault());
         //approve vault to take assets from proxy
-        depositAsset.approve(address(vault), depositAmount);
+        depositAsset.safeApprove(address(vault), depositAmount);
         //transfer deposit assets from sender to this contract
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         // mint shares
@@ -113,12 +113,35 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         lastSender = msg.sender;
         ERC20 vault = ERC20(teller.vault());
         //approve vault to take assets from proxy
-        depositAsset.approve(address(vault), depositAmount);
+        depositAsset.safeApprove(address(vault), depositAmount);
         //transfer deposit assets from sender to this contract
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         // mint shares
         teller.depositAndBridge{ value: msg.value }(depositAsset, depositAmount, minimumMint, data);
         lastSender = address(0);
+    }
+
+    /**
+     * @notice Function to check if the user is authorized to call the predicate
+     * @dev This is NOT an actual function that is called, it serves as a function to allow any contract to check a user
+     * against the predicate
+     * @param user address of the user
+     * @param predicateMessage Predicate message to authorize the transaction
+     */
+    function genericUserCheckPredicate(
+        address user,
+        PredicateMessage calldata predicateMessage
+    )
+        external
+        returns (bool)
+    {
+        //@dev This is NOT an actual function that is called, it is the against which the predicate is authorized
+        bytes memory encodedSigAndArgs = abi.encodeWithSignature("accessCheck(address)", user);
+        //still use 0 for msg.value since we only need validation against sender and user address
+        if (!_authorizeTransaction(predicateMessage, encodedSigAndArgs, msg.sender, 0)) {
+            return false;
+        }
+        return true;
     }
 
     /**
