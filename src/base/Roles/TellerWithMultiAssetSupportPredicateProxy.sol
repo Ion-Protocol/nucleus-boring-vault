@@ -10,6 +10,8 @@ import { BridgeData, CrossChainTellerBase } from "src/base/Roles/CrossChain/Cros
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 
 /**
  * @title TellerWithMultiAssetSupportPredicateProxy
@@ -17,12 +19,23 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
  */
 contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, PredicateClient, Pausable {
     using SafeTransferLib for ERC20;
+    using FixedPointMathLib for uint256;
 
     //============================== ERRORS ===============================
 
     error TellerWithMultiAssetSupportPredicateProxy__PredicateUnauthorizedTransaction();
     error TellerWithMultiAssetSupportPredicateProxy__Paused();
     error TellerWithMultiAssetSupportPredicateProxy__ETHTransferFailed();
+
+    event Deposit(
+        uint256 indexed nonce,
+        address indexed receiver,
+        address indexed depositAsset,
+        uint256 depositAmount,
+        uint256 shareAmount,
+        uint256 depositTimestamp,
+        uint256 shareLockPeriodAtTimeOfDeposit
+    );
 
     //============================== IMMUTABLES ===============================
 
@@ -77,6 +90,18 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         // mint shares
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
         vault.safeTransfer(recipient, shares);
+        uint96 nonce = teller.depositNonce();
+        //get the current share lock period
+        uint64 currentShareLockPeriod = teller.shareLockPeriod();
+        emit Deposit(
+            nonce > 0 ? nonce - 1 : 0,
+            msg.sender,
+            address(depositAsset),
+            depositAmount,
+            shares,
+            block.timestamp,
+            currentShareLockPeriod
+        );
     }
 
     /**
@@ -120,6 +145,22 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         // mint shares
         teller.depositAndBridge{ value: msg.value }(depositAsset, depositAmount, minimumMint, data);
         lastSender = address(0);
+        uint96 nonce = teller.depositNonce();
+        //get the current share lock period
+        uint64 currentShareLockPeriod = teller.shareLockPeriod();
+        AccountantWithRateProviders accountant = AccountantWithRateProviders(teller.accountant());
+        //get the share amount
+        uint256 shares = depositAmount.mulDivDown(10 ** vault.decimals(), accountant.getRateInQuoteSafe(depositAsset));
+
+        emit Deposit(
+            nonce > 0 ? nonce - 1 : 0,
+            msg.sender,
+            address(depositAsset),
+            depositAmount,
+            shares,
+            block.timestamp,
+            currentShareLockPeriod
+        );
     }
 
     /**
