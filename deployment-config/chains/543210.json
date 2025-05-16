@@ -1,0 +1,8 @@
+{
+    "name": "Zero",
+    "balancerVault": "0x0000000000000000000000000000000000000000",
+    "lzEndpoint": "0x0000000000000000000000000000000000000000",
+    "mailbox": "0xd7b351D2dE3495eA259DD10ab4b9300A378Afbf3",
+    "assetToRateProviderAndPriceFeed": {
+    }
+}
