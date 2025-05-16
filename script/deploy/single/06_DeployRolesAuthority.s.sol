@@ -44,6 +44,9 @@ contract DeployRolesAuthority is BaseScript {
     //     - teller.pause()
     //     - accountant.pause()
     //     - manager.pause()
+    // 7. DEPOSITOR_ROLE
+    //     - teller.deposit()
+    //     - teller.depositAndBridge()
     // --- Public Functions ---
     // 1. teller.deposit()
     // 2. teller.bridge()

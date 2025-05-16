@@ -97,6 +97,11 @@
       "expectedMin": "1000000000000000000",
       "expectedMax": "1200000000000000000",
       "rateProvider": "0xa427b23b686986ed993b4ba9ae23bf65022f938a"
+    },
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+      "note": "WBTC",
+      "isPegged": true,
+      "rateProvider": "0x0000000000000000000000000000000000000000"
     }
   }
 }

@@ -13,6 +13,26 @@
         "note": "nTBILL, rate provider is Accountant with base arbUSDC",
         "isPegged": false,
         "rateProvider": "0x0b738cd187872b265A689e8e4130C336e76892eC"
+      },
+      "0x11113ff3a60c2450f4b22515cb760417259ee94b": {
+        "note": "nBASIS, rate provider is Accountant with base arbUSDC",
+        "isPegged": false,
+        "rateProvider": "0xa67d20A49e6Fe68Cf97E556DB6b2f5DE1dF4dC2f"
+      },
+      "0xb52b090837a035f93a84487e5a7d3719c32aa8a9": {
+        "note": "nPAYFI, rate provider is Accountant with base USDC.e",
+        "isPegged": false, 
+        "rateProvider": "0xb0d00195ce43f2708aaebb9f6e37c202389019fc"
+      },
+      "0xdea736937d464d288ec80138bcd1a2e109a200e3": {
+        "note": "nETF, rate provider is Accountant with base USDC.e",
+        "isPegged": false,
+        "rateProvider": "0x2f35AedE6662408a897642739c9BE999054a9F68"
+      },
+      "0x593ccca4c4bf58b7526a4c164ceef4003c6388db": {
+        "note": "nALPHA, rate provider is Accountant with base USDC.e",
+        "isPegged": false,
+        "rateProvider": "0xe0CF451d6E373FF04e8eE3c50340F18AFa6421E1"
       }
     }
   }
