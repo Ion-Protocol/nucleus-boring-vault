@@ -58,7 +58,9 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         address indexed supportedAsset,
         uint256 depositAmount,
         uint256 supportedAssetAmount,
-        uint256 shareAmount
+        uint256 shareAmount,
+        address teller,
+        address vaultAddress
     );
 
     // --- Constructor ---
@@ -108,8 +110,13 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         }
         // Use safeTransfer to send shares to msg.sender
         ERC20(vaultAddress).safeTransfer(msg.sender, shares);
-        emit Deposit(
-            address(desc.srcToken), msg.sender, address(supportedAsset), desc.amount, supportedAssetAmount, shares
+
+        _calcSharesAndEmitEvent(
+            supportedAsset,
+            CrossChainTellerBase(address(teller)),
+            address(desc.srcToken),
+            desc.amount,
+            supportedAssetAmount
         );
     }
 
@@ -140,13 +147,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         // Refund any excess ETH
         _refundExcessEth(payable(msg.sender));
 
-        uint256 shares = supportedAssetAmount.mulDivDown(
-            10 ** teller.vault().decimals(),
-            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
-        );
-        emit Deposit(
-            address(desc.srcToken), msg.sender, address(supportedAsset), desc.amount, supportedAssetAmount, shares
-        );
+        _calcSharesAndEmitEvent(supportedAsset, teller, address(desc.srcToken), desc.amount, supportedAssetAmount);
     }
 
     function depositOkxUniversal(
@@ -178,7 +179,9 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         }
         // Use safeTransfer to send shares to msg.sender
         ERC20(vaultAddress).safeTransfer(msg.sender, shares);
-        emit Deposit(fromToken, msg.sender, address(supportedAsset), fromTokenAmount, supportedAssetAmount, shares);
+        _calcSharesAndEmitEvent(
+            supportedAsset, CrossChainTellerBase(address(teller)), fromToken, fromTokenAmount, supportedAssetAmount
+        );
     }
 
     function depositAndBridgeOkxUniversal(
@@ -208,12 +211,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         // Refund any excess ETH
         _refundExcessEth(payable(msg.sender));
 
-        //get the share amount
-        uint256 shares = supportedAssetAmount.mulDivDown(
-            10 ** teller.vault().decimals(),
-            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
-        );
-        emit Deposit(fromToken, msg.sender, address(supportedAsset), fromTokenAmount, supportedAssetAmount, shares);
+        _calcSharesAndEmitEvent(supportedAsset, teller, fromToken, fromTokenAmount, supportedAssetAmount);
     }
 
     // --- Internal Helper Functions ---
@@ -258,13 +256,11 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
 
         // Approve teller's vault to spend the supported asset
         // Cast teller address to TellerWithMultiAssetSupport to call vault()
-        // payable cast might be needed depending on Teller interface
-        address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault()); // Example cast, adjust if
-            // needed
+        address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault());
         if (vaultAddress == address(0)) {
             revert("DexAggregatorWrapper: Invalid vault address for approval");
         }
-        // Use standard approve (as requested)
+
         supportedAsset.safeApprove(vaultAddress, supportedAssetAmount);
 
         return supportedAssetAmount;
@@ -272,8 +268,8 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
 
     function _okxHelper(
         ERC20 supportedAsset,
-        address teller, // Keep as address
-        address fromToken, // Keep as address
+        address teller,
+        address fromToken,
         uint256 fromTokenAmount,
         bytes calldata okxCallData,
         uint256 nativeValueToWrap
@@ -322,9 +318,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
 
             // Approve teller's vault to spend the supported asset
             // Cast teller address to TellerWithMultiAssetSupport to call vault()
-            // payable cast might be needed depending on Teller interface
-            address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault()); // Example cast,
-                // adjust if needed
+            address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault());
             if (vaultAddress == address(0)) {
                 revert("DexAggregatorWrapper: Invalid vault address for approval");
             }
@@ -372,6 +366,36 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
             }
         }
         // If balance is 0, do nothing.
+    }
+
+    function _calcSharesAndEmitEvent(
+        ERC20 supportedAsset,
+        CrossChainTellerBase teller,
+        address fromToken,
+        uint256 fromTokenAmount,
+        uint256 supportedAssetAmount
+    )
+        internal
+    {
+        // Get vault address
+        address vaultAddress = address(teller.vault());
+        if (vaultAddress == address(0)) {
+            revert("DexAggregatorWrapper: Invalid vault address");
+        }
+        uint256 shares = supportedAssetAmount.mulDivDown(
+            10 ** teller.vault().decimals(),
+            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
+        );
+        emit Deposit(
+            fromToken,
+            msg.sender,
+            address(supportedAsset),
+            fromTokenAmount,
+            supportedAssetAmount,
+            shares,
+            address(teller),
+            address(teller.vault())
+        );
     }
 
     receive() external payable { }

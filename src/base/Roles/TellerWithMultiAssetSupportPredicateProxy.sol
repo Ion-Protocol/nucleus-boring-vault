@@ -28,13 +28,15 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
     error TellerWithMultiAssetSupportPredicateProxy__ETHTransferFailed();
 
     event Deposit(
-        uint256 indexed nonce,
+        address indexed teller,
         address indexed receiver,
         address indexed depositAsset,
         uint256 depositAmount,
         uint256 shareAmount,
         uint256 depositTimestamp,
-        uint256 shareLockPeriodAtTimeOfDeposit
+        uint256 shareLockPeriodAtTimeOfDeposit,
+        uint256 nonce,
+        address vault
     );
 
     //============================== IMMUTABLES ===============================
@@ -94,13 +96,15 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         //get the current share lock period
         uint64 currentShareLockPeriod = teller.shareLockPeriod();
         emit Deposit(
-            nonce > 0 ? nonce - 1 : 0,
+            address(teller),
             msg.sender,
             address(depositAsset),
             depositAmount,
             shares,
             block.timestamp,
-            currentShareLockPeriod
+            currentShareLockPeriod,
+            nonce > 0 ? nonce - 1 : 0,
+            address(vault)
         );
     }
 
@@ -153,13 +157,15 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
         uint256 shares = depositAmount.mulDivDown(10 ** vault.decimals(), accountant.getRateInQuoteSafe(depositAsset));
 
         emit Deposit(
-            nonce > 0 ? nonce - 1 : 0,
-            msg.sender,
+            address(teller),
+            data.destinationChainReceiver,
             address(depositAsset),
             depositAmount,
             shares,
             block.timestamp,
-            currentShareLockPeriod
+            currentShareLockPeriod,
+            nonce > 0 ? nonce - 1 : 0,
+            address(vault)
         );
     }
 
