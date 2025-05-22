@@ -31,6 +31,7 @@ abstract contract AuthOwnable2Step is Auth {
      * @dev The caller account is not authorized to perform an operation.
      */
     error OwnableUnauthorizedAccount(address account);
+    error OwnerAlreadyPending();
 
     constructor(address _owner, Authority _authority) Auth(_owner, _authority) { }
 
@@ -47,6 +48,9 @@ abstract contract AuthOwnable2Step is Auth {
      * Can only be called by the current owner.
      */
     function transferOwnership(address newOwner) public virtual override requiresAuth {
+        if (newOwner == _pendingOwner) {
+            revert OwnerAlreadyPending();
+        }
         _pendingOwner = newOwner;
         emit OwnershipTransferStarted(owner, newOwner);
     }
