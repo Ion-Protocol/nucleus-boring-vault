@@ -12,6 +12,7 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
 
 contract PauserTest is Test, MainnetAddresses {
     event Pauser__FailedPause(address toPause, bytes response);
+    event Pauser__EmptySymbol(string symbol);
 
     uint8 internal constant PAUSER_ROLE = 5;
 
@@ -42,7 +43,7 @@ contract PauserTest is Test, MainnetAddresses {
         _startFork(rpcKey, blockNumber);
 
         // Initialize state variables
-        pauser = new Pauser();
+        pauser = new Pauser(address(this));
 
         // Deploy 1 "vault" with symbol BV1
         r1 = new RolesAuthority(address(this), Authority(address(0))); // Specific authority for vault 1
@@ -123,7 +124,8 @@ contract PauserTest is Test, MainnetAddresses {
     }
 
     function testPauseAll() external {
-        assertTrue(pauser.pauseAll());
+        uint256 failCount = pauser.pauseAll();
+        assertEq(failCount, 0);
 
         (,,,,,,, bool isPaused,,) = a1.accountantState();
         assertTrue(isPaused);
@@ -142,7 +144,8 @@ contract PauserTest is Test, MainnetAddresses {
     }
 
     function testPauseAllSymbol() external {
-        assertTrue(pauser.pauseAll("BV1"));
+        uint256 failCount = pauser.pauseSymbol("BV1");
+        assertEq(failCount, 0);
 
         (,,,,,,, bool isPaused,,) = a1.accountantState();
         assertTrue(isPaused);
@@ -160,29 +163,8 @@ contract PauserTest is Test, MainnetAddresses {
         assertTrue(!t3.isPaused());
     }
 
-    function testPauseRange() external {
-        uint256 start = 0;
-        uint256 end = 2;
-        assertTrue(pauser.pauseRange("BV1", start, end));
-
-        (,,,,,,, bool isPaused,,) = a1.accountantState();
-        assertTrue(isPaused);
-        assertTrue(m1.isPaused());
-        assertTrue(!t1.isPaused());
-
-        (,,,,,,, isPaused,,) = a2.accountantState();
-        assertTrue(!isPaused);
-        assertTrue(!m2.isPaused());
-        assertTrue(!t2.isPaused());
-
-        (,,,,,,, isPaused,,) = a3.accountantState();
-        assertTrue(!isPaused);
-        assertTrue(!m3.isPaused());
-        assertTrue(!t3.isPaused());
-    }
-
     function testPauseSingleIndex() external {
-        assertTrue(pauser.pauseSingle("BV1", 2));
+        pauser.pauseSingle("BV1", 2);
 
         (,,,,,,, bool isPaused,,) = a1.accountantState();
         assertTrue(!isPaused);
@@ -201,7 +183,7 @@ contract PauserTest is Test, MainnetAddresses {
     }
 
     function testPauseSingleByContract() external {
-        assertTrue(pauser.pauseSingle(address(m1)));
+        pauser.pauseSingle(address(m1));
 
         (,,,,,,, bool isPaused,,) = a1.accountantState();
         assertTrue(!isPaused);
@@ -239,7 +221,8 @@ contract PauserTest is Test, MainnetAddresses {
         pauser.addContract(address(0), "BV2");
         pauser.addContract(address(0), "wacky");
 
-        assertFalse(pauser.pauseAll());
+        uint256 failingCount = pauser.pauseAll();
+        assertEq(failingCount, 4);
 
         (,,,,,,, bool isPaused,,) = a1.accountantState();
         assertTrue(isPaused);
@@ -259,8 +242,27 @@ contract PauserTest is Test, MainnetAddresses {
 
     function testResponseWhenPausingNonexistentSymbol() external {
         vm.expectEmit();
-        emit Pauser__FailedPause(address(pauser), hex"");
-        pauser.pauseAll("NONEXISTENT SYMBOL");
+        emit Pauser__EmptySymbol("NONEXISTENT SYMBOL");
+        pauser.pauseSymbol("NONEXISTENT SYMBOL");
+    }
+
+    function testAuth() external {
+        vm.prank(address(1009));
+        vm.expectRevert(abi.encodeWithSelector(Pauser.Pauser__Unauthorized.selector));
+        pauser.pauseAll();
+
+        address[] memory a = new address[](1);
+        a[0] = address(1009);
+        pauser.addApprovedPausers(a);
+        vm.prank(address(1009));
+        pauser.pauseAll();
+        assertTrue(m1.isPaused());
+
+        pauser.removeApprovedPausers(a);
+
+        vm.prank(address(1009));
+        vm.expectRevert(abi.encodeWithSelector(Pauser.Pauser__Unauthorized.selector));
+        pauser.pauseAll();
     }
 
     function _startFork(string memory rpcKey, uint256 blockNumber) internal returns (uint256 forkId) {
