@@ -42,8 +42,10 @@ contract PauserTest is Test, MainnetAddresses {
         uint256 blockNumber = 19_363_419;
         _startFork(rpcKey, blockNumber);
 
+        address[] memory emptyPausers = new address[](0);
+
         // Initialize state variables
-        pauser = new Pauser(address(this));
+        pauser = new Pauser(address(this), emptyPausers);
 
         // Deploy 1 "vault" with symbol BV1
         r1 = new RolesAuthority(address(this), Authority(address(0))); // Specific authority for vault 1
