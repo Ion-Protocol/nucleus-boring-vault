@@ -119,7 +119,6 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         address indexed depositAsset,
         uint256 depositAmount,
         uint256 shareAmount,
-        uint256 depositTimestamp,
         uint256 shareLockPeriodAtTimeOfDeposit
     );
     event BulkWithdraw(address indexed asset, uint256 shareAmount);
@@ -437,7 +436,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         publicDepositHistory[nonce] =
             keccak256(abi.encode(user, depositAsset, depositAmount, shares, block.timestamp, currentShareLockPeriod));
         depositNonce++;
-        emit Deposit(nonce, user, address(depositAsset), depositAmount, shares, block.timestamp, currentShareLockPeriod);
+        emit Deposit(nonce, user, address(depositAsset), depositAmount, shares, currentShareLockPeriod);
     }
 
     function _checkRateLimit(address asset, uint256 attemptedDeposit) internal {
