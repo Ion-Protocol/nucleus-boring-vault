@@ -602,7 +602,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     function _checkRate(uint256 rate, uint8 assetDecimals) internal pure {
         if (
             assetDecimals < MIN_RATE_DECIMALS_DEVIATION || rate < 10 ** (assetDecimals - MIN_RATE_DECIMALS_DEVIATION)
-                || rate > 10 ** (assetDecimals + MIN_RATE_DECIMALS_DEVIATION)
+                || rate > 10 ** (assetDecimals + MAX_RATE_DECIMALS_DEVIATION)
         ) {
             revert AccountantWithRateProviders__InvalidRateReturned();
         }

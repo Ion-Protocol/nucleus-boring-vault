@@ -138,14 +138,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     AccountantWithRateProviders public immutable accountant;
 
-    /**
-     * @notice One share of the BoringVault.
-     */
-    uint256 internal immutable ONE_SHARE;
-
     constructor(address _owner, address _vault, address _accountant) AuthOwnable2Step(_owner, Authority(address(0))) {
         vault = BoringVault(payable(_vault));
-        ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
     }
 
