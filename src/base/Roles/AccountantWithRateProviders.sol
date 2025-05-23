@@ -311,9 +311,9 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
                 || newExchangeRate > currentExchangeRate.mulDiv(state.allowedExchangeRateChangeUpper, 1e4)
                 || newExchangeRate < currentExchangeRate.mulDiv(state.allowedExchangeRateChangeLower, 1e4)
         ) {
-            // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
-            // exchange rate
-            // to a better value, and pause it.
+            // Instead of reverting, pause the contract without updating the rate.
+            // This way the exchange rate updater is able to update the
+            // exchange rate to a better value, and pause it.
             state.isPaused = true;
             emit Paused();
             return;
