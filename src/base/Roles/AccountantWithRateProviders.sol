@@ -71,40 +71,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     mapping(ERC20 => RateProviderData[]) public rateProviderData;
 
-    //============================== ERRORS ===============================
-
-    error AccountantWithRateProviders__UpperBoundTooSmall();
-    error AccountantWithRateProviders__LowerBoundTooLarge();
-    error AccountantWithRateProviders__ManagementFeeTooLarge();
-    error AccountantWithRateProviders__PerformanceFeeTooLarge();
-    error AccountantWithRateProviders__Paused();
-    error AccountantWithRateProviders__ZeroFeesOwed();
-    error AccountantWithRateProviders__OnlyCallableByBoringVault();
-    error AccountantWithRateProviders__UpdateDelayTooLarge();
-    error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
-    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
-    error AccountantWithRateProviders__RateProviderDataEmpty();
-    error AccountantWithRateProviders__InvalidRateReturned();
-    error AccountantWithRateProviders__ZeroRate();
-    error AccountantWithRateProviders__ZeroQuoteRate();
-
-    //============================== EVENTS ===============================
-
-    event Paused();
-    event Unpaused();
-    event DelayInSecondsUpdated(uint32 oldDelay, uint32 newDelay);
-    event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
-    event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
-    event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
-    event PerformanceFeeUpdated(uint16 oldFee, uint16 newFee);
-    event PayoutAddressUpdated(address oldPayout, address newPayout);
-    event RateProviderDataUpdated(address indexed asset, RateProviderData[] newRateProviderData);
-    event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
-    event PerformanceFeesAccrued(uint256 performanceFees);
-    event ManagementFeesAccrued(uint256 managementFees);
-    event FeesClaimed(address indexed feeAsset, uint256 amount);
-    event HighestExchangeRateReset();
-
     //============================== CONSTANTS ===============================
     uint8 internal constant MIN_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 - 1) is the minimum accepted rate from a
         // rate
@@ -134,6 +100,40 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @notice One share of the BoringVault.
      */
     uint256 internal immutable ONE_SHARE;
+
+    //============================== EVENTS ===============================
+
+    event Paused();
+    event Unpaused();
+    event DelayInSecondsUpdated(uint32 oldDelay, uint32 newDelay);
+    event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
+    event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
+    event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
+    event PerformanceFeeUpdated(uint16 oldFee, uint16 newFee);
+    event PayoutAddressUpdated(address oldPayout, address newPayout);
+    event RateProviderDataUpdated(address indexed asset, RateProviderData[] newRateProviderData);
+    event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
+    event PerformanceFeesAccrued(uint256 performanceFees);
+    event ManagementFeesAccrued(uint256 managementFees);
+    event FeesClaimed(address indexed feeAsset, uint256 amount);
+    event HighestExchangeRateReset();
+
+    //============================== ERRORS ===============================
+
+    error AccountantWithRateProviders__UpperBoundTooSmall();
+    error AccountantWithRateProviders__LowerBoundTooLarge();
+    error AccountantWithRateProviders__ManagementFeeTooLarge();
+    error AccountantWithRateProviders__PerformanceFeeTooLarge();
+    error AccountantWithRateProviders__Paused();
+    error AccountantWithRateProviders__ZeroFeesOwed();
+    error AccountantWithRateProviders__OnlyCallableByBoringVault();
+    error AccountantWithRateProviders__UpdateDelayTooLarge();
+    error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
+    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+    error AccountantWithRateProviders__RateProviderDataEmpty();
+    error AccountantWithRateProviders__InvalidRateReturned();
+    error AccountantWithRateProviders__ZeroRate();
+    error AccountantWithRateProviders__ZeroQuoteRate();
 
     constructor(
         address _owner,

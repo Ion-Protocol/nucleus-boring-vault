@@ -28,24 +28,6 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
     { }
 
     /**
-     * @notice function override to return the fee quote
-     * @param shareAmount to be sent as a message
-     * @param data Bridge data
-     */
-    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
-        bytes memory _message = abi.encode(shareAmount, data.destinationChainReceiver);
-        bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
-
-        if (address(data.bridgeFeeToken) != NATIVE) {
-            revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
-        }
-
-        MessagingFee memory fee = _quote(data.chainSelector, _message, _options, false);
-
-        return fee.nativeFee;
-    }
-
-    /**
      * @notice Called when data is received from the protocol. It overrides the equivalent function in the parent
      * contract.
      * Protocol messages are defined as packets, comprised of the following parameters.
@@ -74,6 +56,24 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
 
         _afterReceive(shareAmount, _origin.srcEid, receiver, _guid);
+    }
+
+    /**
+     * @notice function override to return the fee quote
+     * @param shareAmount to be sent as a message
+     * @param data Bridge data
+     */
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
+        bytes memory _message = abi.encode(shareAmount, data.destinationChainReceiver);
+        bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
+
+        if (address(data.bridgeFeeToken) != NATIVE) {
+            revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+        }
+
+        MessagingFee memory fee = _quote(data.chainSelector, _message, _options, false);
+
+        return fee.nativeFee;
     }
 
     /**

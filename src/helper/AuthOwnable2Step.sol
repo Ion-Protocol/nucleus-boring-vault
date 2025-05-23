@@ -36,13 +36,6 @@ abstract contract AuthOwnable2Step is Auth {
     constructor(address _owner, Authority _authority) Auth(_owner, _authority) { }
 
     /**
-     * @dev Returns the address of the pending owner.
-     */
-    function pendingOwner() public view virtual returns (address) {
-        return _pendingOwner;
-    }
-
-    /**
      * @dev Starts the ownership transfer of the contract to a new account. Replaces the pending transfer if there is
      * one.
      * Can only be called by the current owner.
@@ -53,6 +46,13 @@ abstract contract AuthOwnable2Step is Auth {
         }
         _pendingOwner = newOwner;
         emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    /**
+     * @dev Returns the address of the pending owner.
+     */
+    function pendingOwner() public view virtual returns (address) {
+        return _pendingOwner;
     }
 
     /**
