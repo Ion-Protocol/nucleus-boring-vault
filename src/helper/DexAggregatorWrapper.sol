@@ -143,13 +143,13 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         external
         payable
         nonReentrant
-        returns (uint256 shares)
+        returns (uint256)
     {
         uint256 supportedAssetAmount =
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit assets
-        teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+        return teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
     }
 
     /**
