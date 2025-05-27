@@ -407,12 +407,13 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         internal
         returns (uint256 shares)
     {
-        if (limitByAsset[address(depositAsset)].rateLimit == 0) {
+        uint256 limit = limitByAsset[address(depositAsset)]; 
+        if (limit.rateLimit == 0) {
             revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
         }
         _checkRateLimit(address(depositAsset), depositAmount);
-        limitByAsset[address(depositAsset)].totalDepositCount += uint128(depositAmount);
-        if (limitByAsset[address(depositAsset)].depositCap < limitByAsset[address(depositAsset)].totalDepositCount) {
+        limit.totalDepositCount += uint128(depositAmount);
+        if (limit.depositCap < limit.totalDepositCount) {
             revert TellerWithMultiAssetSupport__DepositCapReached();
         }
 
