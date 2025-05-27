@@ -141,7 +141,9 @@ contract DexAggregatorWrapper is ReentrancyGuard {
 
         uint256 shares = supportedAssetAmount.mulDivDown(
             10 ** teller.vault().decimals(),
-            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
+            AccountantWithRateProviders(teller.accountant()).getSharesForDepositAmount(
+                supportedAsset, supportedAssetAmount
+            )
         );
         emit Deposit(
             address(desc.srcToken),
@@ -228,7 +230,9 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         //get the share amount
         uint256 shares = supportedAssetAmount.mulDivDown(
             10 ** teller.vault().decimals(),
-            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
+            AccountantWithRateProviders(teller.accountant()).getSharesForDepositAmount(
+                supportedAsset, supportedAssetAmount
+            )
         );
         emit Deposit(
             fromToken,
