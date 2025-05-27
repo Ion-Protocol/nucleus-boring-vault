@@ -6,24 +6,18 @@ import { ManagerSimulator } from "src/base/Roles/ManagerSimulator.sol";
 import { stdJson } from "@forge-std/Script.sol";
 import { BaseScript } from "script/Base.s.sol";
 
-contract DeployCustomCreateX is BaseScript {
-    address immutable EXPECTED;
+contract DeployManagerSimulator is BaseScript {
+    // Deployer protected:  0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f
+    bytes32 constant SALT = 0xe73b8960335581747836c0133959a00ff523cbf8ab66f509f0a7e31c2147cafe;
 
-    // Deployer protected: 0x04354e44ed31022716e77eC6320C04Eda153010c
-    bytes32 constant SALT = 0x04354e44ed31022716e77eC6320C04Eda153010c007000000000000000000000;
-
-    constructor() BaseScript() {
-        EXPECTED = vm.envAddress("SIMULATOR");
-    }
+    constructor() BaseScript() { }
 
     function run(uint8 nativeDecimalsForThisChain) public broadcast {
-        require(EXPECTED.code.length == 0, "Simulator already exists on this chain");
-
         bytes memory creationCode = type(ManagerSimulator).creationCode;
-        address simulator = CREATEX.deployCreate3(SALT, abi.encodePacked(creationCode, nativeDecimalsForThisChain));
+        address simulator =
+            CREATEX.deployCreate3(SALT, abi.encodePacked(creationCode, abi.encode(nativeDecimalsForThisChain)));
 
         console.log(simulator);
-        require(address(simulator) == EXPECTED, "address is not expected");
         console.log("Simulator deployed. Remember to grant MANAGE role for all vaults on this chain");
     }
 }

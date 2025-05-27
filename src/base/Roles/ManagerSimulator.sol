@@ -179,6 +179,7 @@ contract ManagerSimulator {
             if (!success) {
                 revert ManagerSimulator__ManagementError(call.target, call.targetData, call.valueToSend, response);
             }
+
             unchecked {
                 ++i;
             }
