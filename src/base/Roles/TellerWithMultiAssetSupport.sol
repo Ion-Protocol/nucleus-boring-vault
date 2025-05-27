@@ -408,7 +408,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         returns (uint256 shares)
     {
         LimitData memory limitData = limitByAsset[address(depositAsset)];
-        LimitData storage limitDataStorage = limitByAsset[address(depositAsset)]; 
+        LimitData storage limitDataStorage = limitByAsset[address(depositAsset)];
         if (limitData.rateLimit == 0) {
             revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
         }
