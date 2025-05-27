@@ -133,18 +133,12 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             _oneInchHelper(supportedAsset, address(teller), executor, desc, data, nativeValueToWrap);
 
         // Deposit and bridge assets
-        teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
+        (uint256 shares,) = teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
         );
 
         _refundExcessEth(payable(msg.sender));
 
-        uint256 shares = supportedAssetAmount.mulDivDown(
-            10 ** teller.vault().decimals(),
-            AccountantWithRateProviders(teller.accountant()).getSharesForDepositAmount(
-                supportedAsset, supportedAssetAmount
-            )
-        );
         emit Deposit(
             address(desc.srcToken),
             bridgeData.destinationChainReceiver,
@@ -220,20 +214,13 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit and bridge the assets
-        teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
+        (uint256 shares,) = teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
         );
 
         // Refund any excess ETH
         _refundExcessEth(payable(msg.sender));
 
-        //get the share amount
-        uint256 shares = supportedAssetAmount.mulDivDown(
-            10 ** teller.vault().decimals(),
-            AccountantWithRateProviders(teller.accountant()).getSharesForDepositAmount(
-                supportedAsset, supportedAssetAmount
-            )
-        );
         emit Deposit(
             fromToken,
             bridgeData.destinationChainReceiver,
