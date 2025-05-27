@@ -352,7 +352,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             supportedAssetAmount = abi.decode(result, (uint256));
 
             // Approve teller's vault to spend the supported asset
-            supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
+            supportedAsset.safeApprove(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
         } else {
             revert DexAggregatorWrapper__UnsupportedOkxFunction();
         }
