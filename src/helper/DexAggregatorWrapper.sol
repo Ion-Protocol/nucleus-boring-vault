@@ -8,11 +8,17 @@ import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/Cros
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 import { WETH } from "@solmate/tokens/WETH.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 
 /**
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorWrapper is ReentrancyGuard {
+    using SafeTransferLib for ERC20;
+    using FixedPointMathLib for uint256;
+
     AggregationRouterV6 public immutable aggregator;
     IOKXRouter public immutable okxRouter;
     address public immutable okxApprover;
@@ -30,6 +36,16 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     error DexAggregatorWrapper__UnsupportedOkxFunction();
     error DexAggregatorWrapper__OkxSwapFailed();
     error DexAggregatorWrapper__InsufficientEthForSwap();
+    error DexAggregatorWrapper__EthRefundFailed();
+
+    event Deposit(
+        address indexed depositAsset,
+        address indexed receiver,
+        address indexed supportedAsset,
+        uint256 depositAmount,
+        uint256 supportedAssetAmount,
+        uint256 shareAmount
+    );
 
     /**
      * @notice Initializes the DexAggregatorWrapper with necessary contract addresses
@@ -82,6 +98,10 @@ contract DexAggregatorWrapper is ReentrancyGuard {
 
         // Deposit into the vault
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+
+        emit Deposit(
+            address(desc.srcToken), msg.sender, address(supportedAsset), desc.amount, supportedAssetAmount, shares
+        );
     }
 
     /**
@@ -116,6 +136,21 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
         );
+
+        _refundExcessEth(payable(msg.sender));
+
+        uint256 shares = supportedAssetAmount.mulDivDown(
+            10 ** teller.vault().decimals(),
+            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
+        );
+        emit Deposit(
+            address(desc.srcToken),
+            bridgeData.destinationChainReceiver,
+            address(supportedAsset),
+            desc.amount,
+            supportedAssetAmount,
+            shares
+        );
     }
 
     /**
@@ -143,13 +178,15 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         external
         payable
         nonReentrant
-        returns (uint256)
+        returns (uint256 shares)
     {
         uint256 supportedAssetAmount =
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit assets
-        return teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+        shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+
+        emit Deposit(fromToken, msg.sender, address(supportedAsset), fromTokenAmount, supportedAssetAmount, shares);
     }
 
     /**
@@ -183,6 +220,23 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         // Deposit and bridge the assets
         teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
+        );
+
+        // Refund any excess ETH
+        _refundExcessEth(payable(msg.sender));
+
+        //get the share amount
+        uint256 shares = supportedAssetAmount.mulDivDown(
+            10 ** teller.vault().decimals(),
+            AccountantWithRateProviders(teller.accountant()).getRateInQuoteSafe(supportedAsset)
+        );
+        emit Deposit(
+            fromToken,
+            bridgeData.destinationChainReceiver,
+            address(supportedAsset),
+            fromTokenAmount,
+            supportedAssetAmount,
+            shares
         );
     }
 
@@ -222,16 +276,16 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             uint256 depositAmount = desc.amount;
 
             // Transfer tokens from sender to this contract
-            depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+            depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
             // Perform swap
-            depositAsset.approve(address(aggregator), depositAmount);
+            depositAsset.safeApprove(address(aggregator), depositAmount);
         }
 
         (supportedAssetAmount,) = aggregator.swap(executor, desc, data);
 
         // Approve teller's vault to spend the supported asset
-        supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
+        supportedAsset.safeApprove(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
 
         return supportedAssetAmount;
     }
@@ -279,10 +333,10 @@ contract DexAggregatorWrapper is ReentrancyGuard {
                 canonicalWrapToken.approve(okxApprover, nativeValueToWrap);
             } else {
                 // Transfer tokens from sender to this contract
-                ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
+                ERC20(fromToken).safeTransferFrom(msg.sender, address(this), fromTokenAmount);
 
                 // Approve OKX token approver to spend tokens (not the router directly)
-                ERC20(fromToken).approve(okxApprover, fromTokenAmount);
+                ERC20(fromToken).safeApprove(okxApprover, fromTokenAmount);
             }
 
             // Execute the swap with the provided calldata
@@ -312,5 +366,22 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             canonicalWrapToken.deposit{ value: nativeAmount }();
             useNative = true;
         }
+    }
+
+    /**
+     * @notice Transfers the entire current ETH balance of this contract to the specified recipient.
+     * @param _recipient The address to receive the ETH refund.
+     * @dev Uses a low-level call and reverts if the transfer fails. This ensures atomicity,
+     *      either the whole operation succeeds including refund, or it fails.
+     */
+    function _refundExcessEth(address payable _recipient) internal {
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success,) = _recipient.call{ value: balance }("");
+            if (!success) {
+                revert DexAggregatorWrapper__EthRefundFailed();
+            }
+        }
+        // If balance is 0, do nothing.
     }
 }
