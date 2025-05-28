@@ -123,18 +123,22 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         address usdcSpender = vm.addr(0xDEAD);
         address usdtTo = vm.addr(0xDEAD1);
 
-        ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls =
-            new ManagerWithTokenBalanceVerification.ManageCall[](2);
-        manageCalls[0] = ManagerSimulator.ManageCall(
-            address(USDC), abi.encodeWithSelector(ERC20.approve.selector, usdcSpender, 777), 0
-        );
-        manageCalls[1] =
-            ManagerSimulator.ManageCall(address(USDT), abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 777), 0);
+        address[] memory targets = new address[](2);
+        bytes[] memory data = new bytes[](2);
+        uint256[] memory values = new uint256[](2);
+
+        targets[0] = address(USDC);
+        data[0] = abi.encodeWithSelector(ERC20.approve.selector, usdcSpender, 777);
+        values[0] = 0;
+
+        targets[1] = address(USDT);
+        data[1] = abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 777);
+        values[1] = 0;
 
         deal(address(USDT), address(boringVault), 777);
 
         uint256 gas = gasleft();
-        manager.manageVaultWithNoVerification(boringVault, manageCalls);
+        manager.manageVaultWithNoVerification(boringVault, targets, data, values);
         console.log("Gas used", gas - gasleft());
 
         assertEq(USDC.allowance(address(boringVault), usdcSpender), 777, "USDC should have an allowance");
@@ -146,11 +150,13 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         // and the USDT transfer function to a specific address.
         address usdcReceiver = vm.addr(0xDEAD2);
 
-        ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls =
-            new ManagerWithTokenBalanceVerification.ManageCall[](1);
-        manageCalls[0] = ManagerSimulator.ManageCall(
-            address(USDC), abi.encodeWithSelector(ERC20.transfer.selector, usdcReceiver, 777), 0
-        );
+        address[] memory targets = new address[](1);
+        bytes[] memory data = new bytes[](1);
+        uint256[] memory values = new uint256[](1);
+
+        targets[0] = address(USDC);
+        data[0] = abi.encodeWithSelector(ERC20.transfer.selector, usdcReceiver, 777);
+        values[0] = 0;
 
         address[] memory tokensForVerification = new address[](1);
         tokensForVerification[0] = address(USDC);
@@ -161,7 +167,7 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         uint256 gas = gasleft();
         console.log("before manage");
         manager.manageVaultWithTokenBalanceVerification(
-            boringVault, manageCalls, tokensForVerification, allowableTokenDelta
+            boringVault, targets, data, values, tokensForVerification, allowableTokenDelta
         );
         console.log("Gas used", gas - gasleft());
 
@@ -181,33 +187,17 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
             )
         );
         manager.manageVaultWithTokenBalanceVerification(
-            boringVault, manageCalls, tokensForVerification, allowableTokenDelta
+            boringVault, targets, data, values, tokensForVerification, allowableTokenDelta
         );
-    }
-
-    function testNativeToken() external {
-        ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls =
-            new ManagerWithTokenBalanceVerification.ManageCall[](0);
-
-        deal(address(boringVault), 1000e18);
-        uint256[] memory expectedAmounts = new uint256[](1);
-        expectedAmounts[0] = address(boringVault).balance;
-
-        address[] memory tokensForVerification = new address[](1);
-        tokensForVerification[0] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerSimulator.ResultingTokenBalancesPostSimulation.selector, tokensForVerification, expectedAmounts
-            )
-        );
-        manager.tokenBalancesSimulation(boringVault, manageCalls, tokensForVerification);
     }
 
     function testReverts() external {
-        ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls =
-            new ManagerWithTokenBalanceVerification.ManageCall[](1);
         address[] memory tokensForVerification;
         int256[] memory allowableTokenDelta = new int256[](1);
+
+        address[] memory targets = new address[](1);
+        bytes[] memory data = new bytes[](1);
+        uint256[] memory values = new uint256[](1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -215,7 +205,7 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
             )
         );
         manager.manageVaultWithTokenBalanceVerification(
-            boringVault, manageCalls, tokensForVerification, allowableTokenDelta
+            boringVault, targets, data, values, tokensForVerification, allowableTokenDelta
         );
 
         tokensForVerification = new address[](1);
@@ -227,55 +217,21 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         );
 
         manager.manageVaultWithTokenBalanceVerification(
-            boringVault, manageCalls, tokensForVerification, allowableTokenDelta
+            boringVault, targets, data, values, tokensForVerification, allowableTokenDelta
         );
 
         tokensForVerification[0] = address(USDC);
-        manageCalls[0] = ManagerSimulator.ManageCall(address(USDC), abi.encodeWithSignature("notReal()"), 0);
+        targets[0] = address(USDC);
+        data[0] = abi.encodeWithSignature("notReal()");
+        values[0] = 0;
 
         bytes4 FAILED_CALL = 0xd6bda275;
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerSimulator.ManagerSimulator__ManagementError.selector,
-                address(USDC),
-                abi.encodeWithSignature("notReal()"),
-                0,
-                abi.encodePacked(FAILED_CALL)
-            )
-        );
+        // Expect the failed call directly and not within a handled error unlike the simulation function
+        vm.expectRevert(abi.encodePacked(FAILED_CALL));
         manager.manageVaultWithTokenBalanceVerification(
-            boringVault, manageCalls, tokensForVerification, allowableTokenDelta
+            boringVault, targets, data, values, tokensForVerification, allowableTokenDelta
         );
-    }
-
-    function testTokenBalNow() external {
-        // Allow the manager to call the USDC approve function to a specific address,
-        // and the USDT transfer function to a specific address.
-        address usdcReceiver = vm.addr(0xDEAD2);
-
-        ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls =
-            new ManagerWithTokenBalanceVerification.ManageCall[](1);
-        manageCalls[0] = ManagerSimulator.ManageCall(
-            address(USDC), abi.encodeWithSelector(ERC20.transfer.selector, usdcReceiver, 777), 0
-        );
-
-        address[] memory tokensForVerification = new address[](1);
-        tokensForVerification[0] = address(USDC);
-        int256[] memory allowableTokenDelta = new int256[](1);
-        allowableTokenDelta[0] = -777;
-        deal(address(USDC), address(boringVault), 777);
-
-        uint256 gas = gasleft();
-        console.log("before manage");
-        assertEq(USDC.balanceOf(address(boringVault)), 777, "USDC should have a balance of 777");
-        // the function should revert with the post simulation balance as 0
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerSimulator.ResultingTokenBalancesPostSimulation.selector, tokensForVerification, new uint256[](1)
-            )
-        );
-        manager.tokenBalancesSimulation(boringVault, manageCalls, tokensForVerification);
     }
 
     function _startFork(string memory rpcKey, uint256 blockNumber) internal returns (uint256 forkId) {

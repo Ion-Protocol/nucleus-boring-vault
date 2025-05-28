@@ -23,12 +23,10 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
     );
 
     // EVENTS
-    event ManagerWithTokenBalanceVerification__TokenBalancesBeforeExecution(address[] tokens, uint256[] balances);
-    event ManagerWithTokenBalanceVerification__TokenBalancesAfterSuccessfulExecution(
-        address[] tokens, uint256[] balances
+    event ManagerWithTokenBalanceVerification__TokenBalances(
+        address indexed boringVault, address[] tokens, uint256[] balancesBefore, uint256[] balancesAfter
     );
-
-    event ManagerWithTokenBalanceVerification__TokenChangesAfterSuccessfulExecution(address[] tokens, int256[] changes);
+    event ManagerWithTokenBalanceVerification__Manage(address indexed boringVault);
 
     constructor(
         uint8 _nativeTokenDecimals,
@@ -40,7 +38,9 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
 
     function manageVaultWithTokenBalanceVerification(
         BoringVault boringVault,
-        ManageCall[] calldata manageCalls,
+        address[] calldata targets,
+        bytes[] calldata data,
+        uint256[] calldata values,
         address[] calldata tokensForVerification,
         int256[] calldata allowableTokenDelta
     )
@@ -55,21 +55,15 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
 
         // get balances before execution
         uint256[] memory tokenBalsBefore = tokenBalances(boringVault, tokensForVerification);
-        // emit the token balances
-        emit ManagerWithTokenBalanceVerification__TokenBalancesBeforeExecution(tokensForVerification, tokenBalsBefore);
-
-        _manageVault(boringVault, manageCalls);
+        boringVault.manage(targets, data, values);
 
         // get token changes
         tokenBalsAfter = tokenBalances(boringVault, tokensForVerification);
         tokenDeltas = _getTokenDeltas(tokenBalsBefore, tokenBalsAfter);
 
-        // emit the token balance and change data before checking them
-        emit ManagerWithTokenBalanceVerification__TokenBalancesAfterSuccessfulExecution(
-            tokensForVerification, tokenBalsAfter
-        );
-        emit ManagerWithTokenBalanceVerification__TokenChangesAfterSuccessfulExecution(
-            tokensForVerification, tokenDeltas
+        // emit the token balance changes data before checking them
+        emit ManagerWithTokenBalanceVerification__TokenBalances(
+            address(boringVault), tokensForVerification, tokenBalsBefore, tokenBalsAfter
         );
 
         // check each token's delta bounds
@@ -91,12 +85,15 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
 
     function manageVaultWithNoVerification(
         BoringVault boringVault,
-        ManageCall[] calldata manageCalls
+        address[] calldata targets,
+        bytes[] calldata data,
+        uint256[] calldata values
     )
         public
         requiresAuth
     {
-        _manageVault(boringVault, manageCalls);
+        boringVault.manage(targets, data, values);
+        emit ManagerWithTokenBalanceVerification__Manage(address(boringVault));
     }
 
     function _getTokenDeltas(
