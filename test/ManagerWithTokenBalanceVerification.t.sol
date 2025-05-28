@@ -249,7 +249,7 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         );
     }
 
-    function testTokenBallNow() external {
+    function testTokenBalNow() external {
         // Allow the manager to call the USDC approve function to a specific address,
         // and the USDT transfer function to a specific address.
         address usdcReceiver = vm.addr(0xDEAD2);
