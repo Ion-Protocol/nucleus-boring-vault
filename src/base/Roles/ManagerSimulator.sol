@@ -107,6 +107,23 @@ contract ManagerSimulator {
         revert ResultingTokenBalancesPostSimulation(tokens, tokenBals);
     }
 
+    function _getTokensDecimals(address[] calldata tokens) internal returns (uint8[] memory decimals) {
+        uint256 tokensLength = tokens.length;
+        decimals = new uint8[](tokensLength);
+        // get the token decimals
+        for (uint256 i; i < tokensLength;) {
+            if (tokens[i] == NATIVE) {
+                decimals[i] = nativeTokenDecimals;
+            } else {
+                decimals[i] = ERC20(tokens[i]).decimals();
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /**
      * @dev function to do simulation but return values at each step including before any manage calls, then after each
      * one
@@ -122,26 +139,12 @@ contract ManagerSimulator {
         external
     {
         uint256 length = manageCalls.length;
-        uint256 tokensLength = tokens.length;
 
+        uint8[] memory decimals = _getTokensDecimals(tokens);
         uint256[][] memory tokenBalsEachStep = new uint256[][](length + 1);
-        uint8[] memory decimals = new uint8[](tokensLength);
 
         // initialize tokenBalsEachStep with beginning balances
         tokenBalsEachStep[0] = tokenBalances(boringVault, tokens);
-
-        // get the token decimals
-        for (uint256 i; i < tokensLength;) {
-            if (tokens[i] == NATIVE) {
-                decimals[i] = nativeTokenDecimals;
-            } else {
-                decimals[i] = ERC20(tokens[i]).decimals();
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
 
         // Do each manage call and collect token balances after
         for (uint256 i; i < length;) {

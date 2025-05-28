@@ -24,7 +24,11 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
 
     // EVENTS
     event ManagerWithTokenBalanceVerification__TokenBalances(
-        address indexed boringVault, address[] tokens, uint256[] balancesBefore, uint256[] balancesAfter
+        address indexed boringVault,
+        address[] tokens,
+        uint256[] balancesBefore,
+        uint256[] balancesAfter,
+        uint8[] decimals
     );
     event ManagerWithTokenBalanceVerification__Manage(address indexed boringVault);
 
@@ -61,9 +65,11 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
         tokenBalsAfter = tokenBalances(boringVault, tokensForVerification);
         tokenDeltas = _getTokenDeltas(tokenBalsBefore, tokenBalsAfter);
 
+        uint8[] memory decimals = _getTokensDecimals(tokensForVerification);
+
         // emit the token balance changes data before checking them
         emit ManagerWithTokenBalanceVerification__TokenBalances(
-            address(boringVault), tokensForVerification, tokenBalsBefore, tokenBalsAfter
+            address(boringVault), tokensForVerification, tokenBalsBefore, tokenBalsAfter, decimals
         );
 
         // check each token's delta bounds
