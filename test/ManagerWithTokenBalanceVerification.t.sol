@@ -64,7 +64,7 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
-        manager = new ManagerWithTokenBalanceVerification(18);
+        manager = new ManagerWithTokenBalanceVerification(18, address(this));
 
         manager.setAuthority(rolesAuthority);
 
@@ -277,58 +277,6 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         );
         manager.tokenBalancesSimulation(boringVault, manageCalls, tokensForVerification);
     }
-
-    function testTokenBalNowSLS() external {
-        address usdcReceiver = vm.addr(0xDEAD2);
-
-        ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls =
-            new ManagerWithTokenBalanceVerification.ManageCall[](1);
-        manageCalls[0] = ManagerSimulator.ManageCall(
-            address(USDC), abi.encodeWithSelector(ERC20.transfer.selector, usdcReceiver, 777), 0
-        );
-
-        address[] memory tokensForVerification = new address[](1);
-        tokensForVerification[0] = address(USDC);
-        int256[] memory allowableTokenDelta = new int256[](1);
-        allowableTokenDelta[0] = -777;
-        deal(address(USDC), address(boringVault), 777);
-
-        uint256 gas = gasleft();
-        console.log("before manage");
-        assertEq(USDC.balanceOf(address(boringVault)), 777, "USDC should have a balance of 777");
-
-        string[] memory str = new string[](5);
-
-        str[0] = "./ffiEntry.sh";
-        str[1] = "SIMTEST";
-        str[2] = vm.toString(address(manager));
-        str[3] = vm.toString(address(this));
-        str[4] = vm.toString(address(boringVault));
-
-        // str[1] = "--function main";
-        // str[2] = "--path";
-        // str[3] = string.concat(vm.projectRoot(),"/management-token-balance-simulator");
-
-        bytes memory result = vm.ffi(str);
-        string memory output = string(result);
-        console.log(output);
-    }
-    // function testManagementMintingSharesRevert() external {
-    //     deal(address(boringVault), 1000e18);
-
-    //     ManagerWithTokenBalanceVerification.ManageCall[] memory manageCalls = new
-    // ManagerWithTokenBalanceVerification.ManageCall[](1);
-    //     manageCalls[0] = ManagerWithTokenBalanceVerification.ManageCall(address(this),
-    // abi.encodeWithSelector(ERC20.transfer.selector, address(this), 1), 0);
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             ManagerWithTokenBalanceVerification
-    //                 .ManagerWithTokenBalanceVerification__TotalSupplyMustRemainConstantDuringManagement
-    //                 .selector
-    //         )
-    //     );
-    //     manager.manageVaultWithTokenBalanceVerification(manageCalls);
-    // }
 
     function _startFork(string memory rpcKey, uint256 blockNumber) internal returns (uint256 forkId) {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);

@@ -30,9 +30,12 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
 
     event ManagerWithTokenBalanceVerification__TokenChangesAfterSuccessfulExecution(address[] tokens, int256[] changes);
 
-    constructor(uint8 _nativeTokenDecimals)
+    constructor(
+        uint8 _nativeTokenDecimals,
+        address _owner
+    )
         ManagerSimulator(_nativeTokenDecimals)
-        AuthOwnable2Step(msg.sender, Authority(address(0)))
+        AuthOwnable2Step(_owner, Authority(address(0)))
     { }
 
     function manageVaultWithTokenBalanceVerification(
