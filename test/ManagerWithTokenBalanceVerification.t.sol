@@ -145,6 +145,98 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         assertEq(USDT.allowance(address(boringVault), usdtTo), 777, "USDT should have have an allowance");
     }
 
+    function testOwenrCanCallAfterTransfer(address newOwner) external { }
+
+    // For an invariant test, do the happy path but ensure the call fails if not the owner and succeeds if ownership is
+    // transferred
+    function testOnlyOwnerCanCall(address caller) external {
+        if (caller == address(this)) return;
+        vm.startPrank(caller);
+
+        address[] memory tokensForVerification = new address[](1);
+        tokensForVerification[0] = address(USDC);
+        int256[] memory allowableTokenDelta = new int256[](1);
+        allowableTokenDelta[0] = 0;
+
+        address usdcSpender = vm.addr(0xDEAD);
+        address usdtTo = vm.addr(0xDEAD1);
+
+        address[] memory targets = new address[](2);
+        bytes[] memory data = new bytes[](2);
+        uint256[] memory values = new uint256[](2);
+
+        targets[0] = address(USDC);
+        data[0] = abi.encodeWithSelector(ERC20.approve.selector, usdcSpender, 777);
+        values[0] = 0;
+
+        targets[1] = address(USDT);
+        data[1] = abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 777);
+        values[1] = 0;
+
+        deal(address(USDT), address(boringVault), 777);
+
+        (bool success,) = address(manager).call(
+            abi.encodeWithSelector(
+                ManagerWithTokenBalanceVerification.manageVaultWithTokenBalanceVerification.selector,
+                boringVault,
+                targets,
+                data,
+                values,
+                tokensForVerification,
+                allowableTokenDelta
+            )
+        );
+        assertFalse(
+            success, "non-owner should never be able to successfully call manageVaultWithTokenBalanceVerification"
+        );
+        (success,) = address(manager).call(
+            abi.encodeWithSelector(
+                ManagerWithTokenBalanceVerification.manageVaultWithNoVerification.selector,
+                boringVault,
+                targets,
+                data,
+                values
+            )
+        );
+        assertFalse(success, "non-owner should never be able to successfully call manageVaultWithNoVerification");
+
+        vm.stopPrank();
+
+        manager.transferOwnership(caller);
+
+        vm.startPrank(caller);
+        manager.acceptOwnership();
+
+        data[1] = abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 0);
+        (success,) = address(manager).call(
+            abi.encodeWithSelector(
+                ManagerWithTokenBalanceVerification.manageVaultWithTokenBalanceVerification.selector,
+                boringVault,
+                targets,
+                data,
+                values,
+                tokensForVerification,
+                allowableTokenDelta
+            )
+        );
+        assertTrue(success, "owner should always be able to successfully call manageVaultWithTokenBalanceVerification");
+
+        data[1] = abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 777);
+        (success,) = address(manager).call(
+            abi.encodeWithSelector(
+                ManagerWithTokenBalanceVerification.manageVaultWithNoVerification.selector,
+                boringVault,
+                targets,
+                data,
+                values
+            )
+        );
+        assertTrue(success, "owner should always be able to successfully call manageVaultWithNoVerification");
+
+        assertEq(USDC.allowance(address(boringVault), usdcSpender), 777, "USDC should have an allowance");
+        assertEq(USDT.allowance(address(boringVault), usdtTo), 777, "USDT should have have an allowance");
+    }
+
     function testManagerWithTokenBalanceVerificationHappyPath() external {
         // Allow the manager to call the USDC approve function to a specific address,
         // and the USDT transfer function to a specific address.

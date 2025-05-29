@@ -95,7 +95,7 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
         bytes[] calldata data,
         uint256[] calldata values
     )
-        public
+        external
         requiresAuth
     {
         boringVault.manage(targets, data, values);
