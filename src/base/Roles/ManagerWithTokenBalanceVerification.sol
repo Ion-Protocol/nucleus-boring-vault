@@ -23,14 +23,17 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
     );
 
     // EVENTS
-    event ManagerWithTokenBalanceVerification__TokenBalances(
+    event ManagerWithTokenBalanceVerification__ManageCallWithTokenVerification(
         address indexed boringVault,
+        address[] targets, 
+        bytes[] data,
+        uint256[] values,
         address[] tokens,
         uint256[] balancesBefore,
         uint256[] balancesAfter,
         uint8[] decimals
     );
-    event ManagerWithTokenBalanceVerification__Manage(address indexed boringVault);
+    event ManagerWithTokenBalanceVerification__ManageCallWithNoVerification(address indexed boringVault, address[] targets, bytes[] data, uint256[] values);
 
     constructor(
         uint8 _nativeTokenDecimals,
@@ -68,8 +71,8 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
         uint8[] memory decimals = _getTokensDecimals(tokensForVerification);
 
         // emit the token balance changes data before checking them
-        emit ManagerWithTokenBalanceVerification__TokenBalances(
-            address(boringVault), tokensForVerification, tokenBalsBefore, tokenBalsAfter, decimals
+        emit ManagerWithTokenBalanceVerification__ManageCallWithTokenVerification(
+            address(boringVault), targets, data, values, tokensForVerification, tokenBalsBefore, tokenBalsAfter, decimals
         );
 
         // check each token's delta bounds
@@ -99,7 +102,7 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
         requiresAuth
     {
         boringVault.manage(targets, data, values);
-        emit ManagerWithTokenBalanceVerification__Manage(address(boringVault));
+        emit ManagerWithTokenBalanceVerification__ManageCallWithNoVerification(address(boringVault), targets, data, values);
     }
 
     function _getTokenDeltas(
