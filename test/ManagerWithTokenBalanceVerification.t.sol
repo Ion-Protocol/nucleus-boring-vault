@@ -145,10 +145,6 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         assertEq(USDT.allowance(address(boringVault), usdtTo), 777, "USDT should have have an allowance");
     }
 
-    function testOwenrCanCallAfterTransfer(address newOwner) external { }
-
-    // For an invariant test, do the happy path but ensure the call fails if not the owner and succeeds if ownership is
-    // transferred
     function testOnlyOwnerCanCall(address caller) external {
         if (caller == address(this)) return;
         vm.startPrank(caller);
