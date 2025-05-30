@@ -37,8 +37,7 @@ contract LHYPEDecoderAndSanitizer is
     AaveV3DecoderAndSanitizer,
     VelodromeV1DecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
-    FraxLendDecoderAndSanitizer
-    FlashHypeDecoderAndSanitizer,
+    FraxLendDecoderAndSanitizer,
     VelodromeBuybackDecoderAndSanitizer
 {
     constructor(

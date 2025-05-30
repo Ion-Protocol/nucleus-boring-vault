@@ -26,8 +26,7 @@ contract unifiETHDecoderAndSanitizer is
     CurveDecoderAndSanitizer,
     BalancerV2DecoderAndSanitizer,
     AeraVaultDecoderAndSanitizer,
-    NucleusDecoderAndSanitizer
-    AeraVaultDecoderAndSanitizer,
+    NucleusDecoderAndSanitizer,
     MorphoPositionOracleDecoderAndSanitizer
 {
     constructor(
