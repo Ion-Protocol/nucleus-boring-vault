@@ -139,6 +139,8 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // update the rate
         _updateRate(rateChange, accountant);
+        vm.warp(accountant.getLastUpdateTimestamp()); // _updateRate warps to future for bypassing minmum update delay,
+            // so we need to catch up
         _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
 
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
@@ -357,6 +359,5 @@ contract LiveDeploy is ForkTest, DeployAll {
         uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
         accountant.updateExchangeRate(newRate);
         vm.stopPrank();
-        vm.warp(time);
     }
 }

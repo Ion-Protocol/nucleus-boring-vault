@@ -432,6 +432,14 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     }
 
     /**
+     * @notice Get the last update timestamp of the base exchange rate.
+     * @return The last update timestamp.
+     */
+    function getLastUpdateTimestamp() external view returns (uint64) {
+        return accountantState.lastUpdateTimestamp;
+    }
+
+    /**
      * @notice Return the shares output for a given deposit amount of a token
      * @dev Math is used to compute this value among assets with varying decimals with minimal rounding errors
      * Key:
