@@ -207,22 +207,22 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         uint256 nativeValueToWrap
     )
         internal
-        returns (uint256 supportedAssetAmount)
+        returns (uint256)
     {
         bool useNative = _checkAndMintNativeAmount(nativeValueToWrap);
         if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
             revert DexAggregatorWrapper__InvalidSwapDescription();
         }
 
+        ERC20 depositAsset = desc.srcToken;
+        uint256 depositAmount = desc.amount;
+
         if (useNative) {
-            if (desc.srcToken != canonicalWrapToken || desc.amount != nativeValueToWrap) {
+            if (depositAsset != canonicalWrapToken || depositAmount != nativeValueToWrap) {
                 revert DexAggregatorWrapper__InvalidSwapDescription();
             }
             canonicalWrapToken.approve(address(aggregator), nativeValueToWrap);
         } else {
-            ERC20 depositAsset = desc.srcToken;
-            uint256 depositAmount = desc.amount;
-
             // Transfer tokens from sender to this contract
             depositAsset.transferFrom(msg.sender, address(this), depositAmount);
 
@@ -230,7 +230,12 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             depositAsset.approve(address(aggregator), depositAmount);
         }
 
-        (supportedAssetAmount,) = aggregator.swap(executor, desc, data);
+        (uint256 supportedAssetAmount, uint256 sourceTokenSpentAmount) = aggregator.swap(executor, desc, data);
+
+        // refund the unspent amount of source token
+        if (depositAmount > sourceTokenSpentAmount) {
+            depositAsset.transfer(msg.sender, depositAmount - sourceTokenSpentAmount);
+        }
 
         // Approve teller's vault to spend the supported asset
         supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
@@ -294,6 +299,12 @@ contract DexAggregatorWrapper is ReentrancyGuard {
                 assembly {
                     revert(add(result, 32), mload(result))
                 }
+            }
+
+            // Always refund any unspent amount of from tokens to the caller.
+            uint256 unspentFromToken = ERC20(fromToken).balanceOf(address(this));
+            if (unspentFromToken > 0) {
+                ERC20(fromToken).transfer(msg.sender, unspentFromToken);
             }
 
             // Decode the return value (all functions return uint256)
