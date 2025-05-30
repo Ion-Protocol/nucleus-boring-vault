@@ -140,7 +140,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
 
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
 
-        _afterReceive(shareAmount, receiver, messageId);
+        _afterReceive(shareAmount, origin, receiver, messageId);
     }
 
     /**

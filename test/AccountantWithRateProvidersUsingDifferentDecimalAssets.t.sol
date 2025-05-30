@@ -38,7 +38,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 6);
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payoutAddress, 1e6, address(USDC), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payoutAddress, 1e6, address(USDC), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         vm.startPrank(usdcWhale);
@@ -47,9 +47,20 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         USDC.safeApprove(address(boringVault), 1_000_000e6);
         boringVault.enter(address(this), USDC, 1_000_000e6, address(this), 1_000_000e6);
 
-        accountant.setRateProviderData(DAI, true, address(0));
-        accountant.setRateProviderData(USDT, true, address(0));
-        accountant.setRateProviderData(SDAI, false, sDaiRateProvider);
+        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
+            new AccountantWithRateProviders.RateProviderData[](1);
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+
+        accountant.setRateProviderData(DAI, rateProviderData);
+
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
+
+        accountant.setRateProviderData(USDT, rateProviderData);
+
+        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(
+            false, address(sDaiRateProvider), abi.encodeWithSignature("getRate()")
+        );
+        accountant.setRateProviderData(SDAI, rateProviderData);
 
         // Start accounting so we can claim fees during a test.
         accountant.updateManagementFee(0.01e4);
@@ -71,7 +82,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         uint96 newExchangeRate = uint96(1e6);
         accountant.updateExchangeRate(newExchangeRate);
 
-        (, uint128 feesOwed,,,,,,,,) = accountant.accountantState();
+        (, uint128 feesOwed,,,,,,,,,,) = accountant.accountantState();
 
         vm.startPrank(address(boringVault));
         USDC.safeApprove(address(accountant), type(uint256).max);
@@ -87,8 +98,8 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         uint96 newExchangeRate = uint96(1e6);
         accountant.updateExchangeRate(newExchangeRate);
 
-        (, uint128 feesOwed,,,,,,,,) = accountant.accountantState();
-
+        (, uint128 feesOwed,,,,,,,,,,) = accountant.accountantState();
+        console.log(feesOwed);
         deal(address(USDT), address(boringVault), 1_000_000e6);
         vm.startPrank(address(boringVault));
         USDT.safeApprove(address(accountant), type(uint256).max);
@@ -104,7 +115,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         uint96 newExchangeRate = uint96(1e6);
         accountant.updateExchangeRate(newExchangeRate);
 
-        (, uint128 feesOwed,,,,,,,,) = accountant.accountantState();
+        (, uint128 feesOwed,,,,,,,,,,) = accountant.accountantState();
 
         deal(address(DAI), address(boringVault), 1_000_000e18);
         vm.startPrank(address(boringVault));
@@ -122,7 +133,7 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         uint96 newExchangeRate = uint96(1e6);
         accountant.updateExchangeRate(newExchangeRate);
 
-        (, uint128 feesOwed,,,,,,,,) = accountant.accountantState();
+        (, uint128 feesOwed,,,,,,,,,,) = accountant.accountantState();
 
         deal(address(SDAI), address(boringVault), 1_000_000e18);
         vm.startPrank(address(boringVault));
@@ -153,24 +164,39 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         uint256 rate = accountant.getRate();
         uint256 expected_rate = 1e6;
         assertEq(rate, expected_rate, "Rate should be expected rate");
-        rate = accountant.getRateSafe();
+        rate = accountant.getRate();
         assertEq(rate, expected_rate, "Rate should be expected rate");
 
-        uint256 rateInQuote = accountant.getRateInQuote(USDC);
+        uint256 depositRate = accountant.getDepositRate(USDC);
+        uint256 withdrawRate = accountant.getWithdrawRate(USDC);
         expected_rate = 1e6;
-        assertEq(rateInQuote, expected_rate, "Rate should be expected rate");
+        assertEq(depositRate, expected_rate, "deposit rate should be expected rate");
+        assertEq(withdrawRate, expected_rate, "withdraw rate should be expected rate");
 
-        rateInQuote = accountant.getRateInQuote(DAI);
-        expected_rate = 1e18;
-        assertEq(rateInQuote, expected_rate, "Rate should be expected rate");
+        depositRate = accountant.getDepositRate(DAI);
+        withdrawRate = accountant.getWithdrawRate(DAI);
+        expected_rate = 1e6; // event thought DAI has 18 decimals, the shares are 6 decimals, and we no longer return
+            // rate in quote, but the shares returned
+        assertEq(depositRate, expected_rate, "deposit rate should be expected rate");
+        assertEq(withdrawRate, 1e18, "withdraw rate should be expected rate"); // expect 18 decimal return as we are
+            // returning dai
 
-        rateInQuote = accountant.getRateInQuote(USDT);
+        depositRate = accountant.getDepositRate(USDT);
+        withdrawRate = accountant.getWithdrawRate(USDT);
         expected_rate = 1e6;
-        assertEq(rateInQuote, expected_rate, "Rate should be expected rate");
+        assertEq(depositRate, expected_rate, "deposit rate should be expected rate");
+        assertEq(withdrawRate, expected_rate, "withdraw rate should be expected rate");
 
-        rateInQuote = accountant.getRateInQuote(SDAI);
+        depositRate = accountant.getDepositRate(SDAI);
+        withdrawRate = accountant.getWithdrawRate(SDAI);
         expected_rate = uint256(1e18).mulDivDown(1e18, IRateProvider(sDaiRateProvider).getRate());
-        assertEq(rateInQuote, expected_rate, "Rate should be expected rate for sDAI");
+        assertGt(
+            depositRate * 1e12,
+            withdrawRate,
+            "deposit rate should be greater than withdraw rate for sDAI adjusted for decimals"
+        );
+        assertEq(withdrawRate, expected_rate, "withdraw rate should be expected rate for sDAI");
+        assertEq(withdrawRate, expected_rate, "withdraw rate should be expected rate for sDAI");
     }
 
     // ========================================= HELPER FUNCTIONS =========================================

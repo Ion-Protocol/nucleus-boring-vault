@@ -363,7 +363,7 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
-            bytes32 leaf = keccak256(rawDigest);
+            bytes32 leaf = keccak256(bytes.concat(keccak256(rawDigest)));
             proofs[i] = _generateProof(leaf, tree);
         }
     }
@@ -422,7 +422,7 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
-            leafs[0][i] = keccak256(rawDigest);
+            leafs[0][i] = keccak256(bytes.concat(keccak256(rawDigest)));
         }
         tree = _buildTrees(leafs);
     }

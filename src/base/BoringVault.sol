@@ -4,20 +4,19 @@ pragma solidity 0.8.21;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
-
+import { Authority } from "@solmate/auth/Auth.sol";
+import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 /**
  * @title BoringVault
  * @custom:security-contact security@molecularlabs.io
  */
-contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
+
+contract BoringVault is ERC20, AuthOwnable2Step, ERC721Holder, ERC1155Holder {
     using Address for address;
     using SafeTransferLib for ERC20;
-    using FixedPointMathLib for uint256;
 
     // ========================================= STATE =========================================
 
@@ -40,7 +39,7 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
         uint8 _decimals
     )
         ERC20(_name, _symbol, _decimals)
-        Auth(_owner, Authority(address(0)))
+        AuthOwnable2Step(_owner, Authority(address(0)))
     { }
 
     //============================== MANAGE ===============================
