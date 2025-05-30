@@ -25,7 +25,6 @@
     "@layerzerolabs/lz-evm-oapp-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
-    "@maverick/v2-interfaces": "github:maverickprotocol/v2-interfaces",
     "forge-std": "^1.1.2",
     "keccak256": "^1.0.6",
     "pocketbase": "^0.25.2",
