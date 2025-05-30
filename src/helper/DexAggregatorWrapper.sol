@@ -32,6 +32,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     error DexAggregatorWrapper__OkxSwapFailed();
     error DexAggregatorWrapper__InvalidFromToken();
     error DexAggregatorWrapper__InsufficientEthForSwap();
+    error DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
 
     /**
      * @notice Initializes the DexAggregatorWrapper with necessary contract addresses
@@ -79,6 +80,9 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         nonReentrant
         returns (uint256 shares)
     {
+        if (msg.value > nativeValueToWrap) {
+            revert DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
+        }
         uint256 supportedAssetAmount =
             _oneInchHelper(supportedAsset, address(teller), executor, desc, data, nativeValueToWrap);
 
@@ -147,6 +151,9 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         nonReentrant
         returns (uint256 shares)
     {
+        if (msg.value > nativeValueToWrap) {
+            revert DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
+        }
         uint256 supportedAssetAmount =
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
