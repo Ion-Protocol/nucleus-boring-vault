@@ -7,6 +7,9 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
+import { ILendingPool } from "src/interfaces/ILendingPool.sol";
+import { IMorphoBase } from "src/interfaces/IMorphoBase.sol";
+import { IUniswapV3Pool } from "src/interfaces/IUniswapV3Pool.sol";
 import { Authority } from "@solmate/auth/Auth.sol";
 import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 
@@ -45,13 +48,17 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
      */
     bytes32 internal flashLoanIntentHash = bytes32(0);
 
+    // Temporary storage for the flash loan pool address during a flash loan callback.
+    address internal currentFlashLoanPool;
+    // For Morpho flash loans (only one asset at a time) we also store the token.
+    address internal currentMorphoToken;
+
     /**
      * @notice Used to pause calls to `manageVaultWithMerkleVerification`.
      */
     bool public isPaused;
 
-    //============================== ERRORS ===============================
-
+    // =============================== ERRORS ===============================
     error ManagerWithMerkleVerification__InvalidManageProofLength();
     error ManagerWithMerkleVerification__InvalidTargetDataLength();
     error ManagerWithMerkleVerification__InvalidValuesLength();
@@ -62,37 +69,25 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     error ManagerWithMerkleVerification__FailedToVerifyManageProof(address target, bytes targetData, uint256 value);
     error ManagerWithMerkleVerification__Paused();
     error ManagerWithMerkleVerification__OnlyCallableByBoringVault();
-    error ManagerWithMerkleVerification__OnlyCallableByBalancerVault();
+    error ManagerWithMerkleVerification__OnlyCallableByFlashLoanPool();
     error ManagerWithMerkleVerification__TotalSupplyMustRemainConstantDuringManagement();
+    error ManagerWithMerkleVerification__ZeroFlashLoanAmount();
 
-    //============================== EVENTS ===============================
-
+    // =============================== EVENTS ===============================
     event ManageRootUpdated(address indexed strategist, bytes32 oldRoot, bytes32 newRoot);
     event BoringVaultManaged(uint256 callsMade);
     event Paused();
     event Unpaused();
 
-    //============================== IMMUTABLES ===============================
+    // =============================== IMMUTABLES =========================================
 
     /**
      * @notice The BoringVault this contract can manage.
      */
     BoringVault public immutable vault;
 
-    /**
-     * @notice The balancer vault this contract can use for flash loans.
-     */
-    BalancerVault public immutable balancerVault;
-
-    constructor(
-        address _owner,
-        address _vault,
-        address _balancerVault
-    )
-        AuthOwnable2Step(_owner, Authority(address(0)))
-    {
+    constructor(address _owner, address _vault) AuthOwnable2Step(_owner, Authority(address(0))) {
         vault = BoringVault(payable(_vault));
-        balancerVault = BalancerVault(_balancerVault);
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -123,6 +118,34 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     function unpause() external requiresAuth {
         isPaused = false;
         emit Unpaused();
+    }
+
+    // ========================================= FLASH LOAN INITIALIZATION HELPER
+    // =========================================
+
+    /**
+     * @notice Initializes flash loan state.
+     * @dev Checks that the caller is the vault, then sets the current flash loan pool,
+     *      computes and stores the flashLoanIntentHash, and sets the reentrancy flag.
+     * @param poolAddress The pool address to be stored.
+     * @param userData The encoded user data used for intent verification.
+     */
+    function _initFlashLoanState(address poolAddress, bytes calldata userData) internal {
+        if (msg.sender != address(vault)) revert ManagerWithMerkleVerification__OnlyCallableByBoringVault();
+        currentFlashLoanPool = poolAddress;
+        flashLoanIntentHash = keccak256(userData);
+        performingFlashLoan = true;
+    }
+
+    /**
+     * @notice Finalizes flash loan state.
+     * @dev Clears the performing flag and reverts if the flashLoanIntentHash is non-zero.
+     */
+    function _finalizeFlashLoanState() internal {
+        performingFlashLoan = false;
+        if (flashLoanIntentHash != bytes32(0)) {
+            revert ManagerWithMerkleVerification__FlashLoanNotExecuted();
+        }
     }
 
     // ========================================= STRATEGIST FUNCTIONS =========================================
@@ -170,34 +193,36 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
 
     // ========================================= FLASH LOAN FUNCTIONS =========================================
 
+    // --- Balancer Flash Loan ---
     /**
-     * @notice In order to perform a flash loan,
-     *         1) Merkle root must contain the leaf(address(this), this.flashLoan.selector, ARGUMENT_ADDRESSES ...)
-     *         2) Strategist must initiate the flash loan using `manageVaultWithMerkleVerification`
-     *         3) balancerVault MUST callback to this contract with the same userData
+     * @notice Initiates a Balancer flash loan.
+     * @param poolAddress The Balancer (fork) pool address to use.
+     * @param tokens The addresses of the tokens to be borrowed.
+     * @param amounts The amounts for each token.
+     * @param userData Encoded parameters for management and intent verification.
      */
-    function flashLoan(
-        address recipient,
+    function flashLoanBalancer(
+        address poolAddress,
         address[] calldata tokens,
         uint256[] calldata amounts,
         bytes calldata userData
     )
         external
     {
-        if (msg.sender != address(vault)) revert ManagerWithMerkleVerification__OnlyCallableByBoringVault();
-
-        flashLoanIntentHash = keccak256(userData);
-        performingFlashLoan = true;
-        balancerVault.flashLoan(recipient, tokens, amounts, userData);
-        performingFlashLoan = false;
-        if (flashLoanIntentHash != bytes32(0)) revert ManagerWithMerkleVerification__FlashLoanNotExecuted();
+        _initFlashLoanState(poolAddress, userData);
+        BalancerVault(poolAddress).flashLoan(address(this), tokens, amounts, userData);
+        _finalizeFlashLoanState();
     }
 
     /**
-     * @notice Add support for balancer flash loans.
+     * @notice Balancer flash loan callback.
      * @dev userData can optionally have salt encoded at the end of it, in order to change the intentHash,
      *      if a flash loan is exact userData is being repeated, and their is fear of 3rd parties
      *      front-running the rebalance.
+     * @param tokens The token addresses.
+     * @param amounts The amounts borrowed.
+     * @param feeAmounts (Balancer fees are assumed to be zero)
+     * @param userData Encoded parameters used to derive the intent hash and management instructions.
      */
     function receiveFlashLoan(
         address[] calldata tokens,
@@ -207,45 +232,305 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     )
         external
     {
-        if (msg.sender != address(balancerVault)) revert ManagerWithMerkleVerification__OnlyCallableByBalancerVault();
-        if (!performingFlashLoan) revert ManagerWithMerkleVerification__FlashLoanNotInProgress();
+        _verifyFlashLoan();
+        uint256[] memory zeros = new uint256[](amounts.length);
+        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, zeros, userData, false, new uint256[](0));
+    }
 
-        // Validate userData using intentHash.
-        bytes32 intentHash = keccak256(userData);
-        if (intentHash != flashLoanIntentHash) revert ManagerWithMerkleVerification__BadFlashLoanIntentHash();
-        // reset intent hash to prevent replays.
-        flashLoanIntentHash = bytes32(0);
+    // --- Aave Flash Loan ---
+    /**
+     * @notice Initiates an Aave flash loan.
+     * @param poolAddress The Aave (fork) pool address to use.
+     * @param tokens The addresses of the tokens to be borrowed.
+     * @param amounts The amounts for each token.
+     * @param modes Array of debt modes (use 0 for a flash loan).
+     * @param userData Encoded parameters for management and intent verification.
+     */
+    function flashLoanAave(
+        address poolAddress,
+        address[] calldata tokens,
+        uint256[] calldata amounts,
+        uint256[] calldata modes,
+        bytes calldata userData
+    )
+        external
+    {
+        _initFlashLoanState(poolAddress, userData);
+        ILendingPool(poolAddress).flashLoan(address(this), tokens, amounts, modes, address(this), userData, 0);
+        _finalizeFlashLoanState();
+    }
 
-        // Transfer tokens to vault.
-        for (uint256 i = 0; i < amounts.length; ++i) {
-            ERC20(tokens[i]).safeTransfer(address(vault), amounts[i]);
+    /**
+     * @notice Aave flash loan callback.
+     * @param assets The token addresses.
+     * @param amounts The amounts borrowed.
+     * @param premiums The premium fees to be repaid.
+     * @param initiator The initiator of the flash loan.
+     * @param params Encoded parameters used for intent verification and management calls.
+     * @return True on successful execution.
+     */
+    function executeOperation(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata premiums,
+        address initiator,
+        bytes calldata params
+    )
+        external
+        returns (bool)
+    {
+        _verifyFlashLoan();
+        _processFlashLoanCallback(currentFlashLoanPool, assets, amounts, premiums, params, true, new uint256[](0));
+        return true;
+    }
+
+    // --- Morpho Flash Loan ---
+    /**
+     * @notice Initiates a Morpho flash loan.
+     * @param poolAddress The Morpho (fork) pool address to use.
+     * @param token The address of the token to be borrowed (only one asset allowed).
+     * @param assets The amount to borrow.
+     * @param userData Encoded parameters for management and intent verification.
+     */
+    function flashLoanMorpho(address poolAddress, address token, uint256 assets, bytes calldata userData) external {
+        if (assets == 0) revert ManagerWithMerkleVerification__ZeroFlashLoanAmount();
+        _initFlashLoanState(poolAddress, userData);
+        currentMorphoToken = token;
+        IMorphoBase(poolAddress).flashLoan(token, assets, userData);
+        _finalizeFlashLoanState();
+    }
+
+    /**
+     * @notice Morpho flash loan callback.
+     * @param assets The amount borrowed.
+     * @param data Encoded parameters used for intent verification and management calls.
+     */
+    function onMorphoFlashLoan(uint256 assets, bytes calldata data) external {
+        _verifyFlashLoan();
+        address[] memory tokens = new address[](1);
+        tokens[0] = currentMorphoToken;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = assets;
+        uint256[] memory fees = new uint256[](1);
+        fees[0] = 0;
+        _processFlashLoanCallback(currentFlashLoanPool, tokens, amounts, fees, data, true, new uint256[](0));
+    }
+
+    // --- Uniswap V3 Swap ---
+    /**
+     * @notice Initiates a Uniswap V3 swap with callback.
+     * @param poolAddress The Uniswap V3 pool address to use.
+     * @param zeroForOne Direction of the swap (true for token0 to token1, false for token1 to token0).
+     * @param amountSpecified The amount to swap (positive for exact input, negative for exact output).
+     * @param userData Encoded management parameters.
+     */
+    function swapUniswapV3(
+        address poolAddress,
+        bool zeroForOne,
+        int256 amountSpecified,
+        bytes calldata userData
+    )
+        external
+    {
+        _initFlashLoanState(poolAddress, userData);
+
+        uint160 sqrtPriceLimitX96 = zeroForOne
+            ? uint160(4_295_128_740) // Min price for token0/token1
+            : uint160(1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_341); // Max price
+
+        // Use the provided price limit for a real swap
+        IUniswapV3Pool(poolAddress).swap(address(this), zeroForOne, amountSpecified, sqrtPriceLimitX96, userData);
+
+        _finalizeFlashLoanState();
+    }
+
+    /**
+     * @notice Uniswap V3 swap callback.
+     * @param amount0Delta The amount of token0 that needs to be sent to the pool.
+     * @param amount1Delta The amount of token1 that needs to be sent to the pool.
+     * @param data Encoded management parameters.
+     */
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
+        _verifyFlashLoan();
+
+        // Build token array from pool's token0 and token1
+        address[] memory tokens = new address[](2);
+        tokens[0] = IUniswapV3Pool(currentFlashLoanPool).token0();
+        tokens[1] = IUniswapV3Pool(currentFlashLoanPool).token1();
+
+        // For Uniswap, we only have one token to repay and one to receive
+        uint256[] memory amountsToPay = new uint256[](2);
+        uint256[] memory amountsToReceive = new uint256[](2);
+
+        // If amount0Delta is positive, we owe token0 to the pool
+        // If amount1Delta is negative, we received token1 from the pool
+        if (amount0Delta > 0) {
+            amountsToPay[0] = uint256(amount0Delta);
+            amountsToReceive[1] = amount1Delta < 0 ? uint256(-amount1Delta) : 0;
+        } else {
+            // Otherwise, we owe token1 and received token0
+            amountsToPay[1] = uint256(amount1Delta);
+            amountsToReceive[0] = amount0Delta < 0 ? uint256(-amount0Delta) : 0;
         }
-        {
-            (
-                bytes32[][] memory manageProofs,
-                address[] memory decodersAndSanitizers,
-                address[] memory targets,
-                bytes[] memory data,
-                uint256[] memory values
-            ) = abi.decode(userData, (bytes32[][], address[], address[], bytes[], uint256[]));
 
-            ManagerWithMerkleVerification(address(this)).manageVaultWithMerkleVerification(
-                manageProofs, decodersAndSanitizers, targets, data, values
-            );
-        }
+        // No additional fees for swaps
+        uint256[] memory fees = new uint256[](2);
 
-        // Transfer tokens back to balancer.
-        // Have vault transfer amount + fees back to balancer
-        bytes[] memory transferData = new bytes[](amounts.length);
-        for (uint256 i; i < amounts.length; ++i) {
-            transferData[i] =
-                abi.encodeWithSelector(ERC20.transfer.selector, address(balancerVault), (amounts[i] + feeAmounts[i]));
-        }
-        // Values is always zero, just pass in an array of zeroes.
-        vault.manage(tokens, transferData, new uint256[](amounts.length));
+        _processFlashLoanCallback(
+            currentFlashLoanPool,
+            tokens,
+            amountsToPay, // Only contains the token we owe
+            fees,
+            data,
+            false,
+            amountsToReceive // Only contains the token we received
+        );
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
+
+    /**
+     * @notice Verifies that the flash loan callback is coming from the correct pool and that a flash loan is in
+     * progress.
+     */
+    function _verifyFlashLoan() internal view {
+        if (msg.sender != currentFlashLoanPool) revert ManagerWithMerkleVerification__OnlyCallableByFlashLoanPool();
+        if (!performingFlashLoan) revert ManagerWithMerkleVerification__FlashLoanNotInProgress();
+    }
+
+    /**
+     * @notice Verifies the flash loan intent hash against the provided parameters.
+     * @param params The userData that was used to initiate the flash loan.
+     * @return computedHash The computed keccak256 hash of the params.
+     */
+    function _verifyFlashLoanState(bytes calldata params) internal view returns (bytes32 computedHash) {
+        computedHash = keccak256(params);
+        if (computedHash != flashLoanIntentHash) revert ManagerWithMerkleVerification__BadFlashLoanIntentHash();
+    }
+
+    /**
+     * @notice Resets the flash loan state to prevent reentrancy or replay.
+     */
+    function _resetFlashLoanState() internal {
+        flashLoanIntentHash = bytes32(0);
+        currentFlashLoanPool = address(0);
+    }
+
+    /**
+     * @notice Internal helper to process common flash loan callback tasks (for multi-asset loans).
+     * @param repayTo The address to which the repayment will be sent or approved.
+     * @param tokens The token addresses.
+     * @param amounts The amounts borrowed/to be repaid.
+     * @param fees The fee amounts associated with the flash loan.
+     * @param params The management parameters used for intent verification and management calls.
+     * @param useApprove If true, the manager will perform direct approvals for repayment.
+     * @param amountsToReceive Optional array of amounts received (used for Uniswap swaps), empty for regular flash
+     * loans.
+     */
+    function _processFlashLoanCallback(
+        address repayTo,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint256[] memory fees,
+        bytes calldata params,
+        bool useApprove,
+        uint256[] memory amountsToReceive
+    )
+        internal
+    {
+        _verifyFlashLoanState(params);
+        _resetFlashLoanState();
+
+        // For regular flash loans, transfer all borrowed tokens to the vault
+        if (amountsToReceive.length == 0) {
+            for (uint256 i = 0; i < amounts.length; ++i) {
+                ERC20(tokens[i]).safeTransfer(address(vault), amounts[i]);
+            }
+        }
+        // For Uniswap swaps, only transfer the received token(s) to the vault
+        else {
+            for (uint256 i = 0; i < amountsToReceive.length; ++i) {
+                if (amountsToReceive[i] > 0) {
+                    ERC20(tokens[i]).safeTransfer(address(vault), amountsToReceive[i]);
+                }
+            }
+        }
+
+        // Decode management parameters
+        (
+            bytes32[][] memory manageProofs,
+            address[] memory decodersAndSanitizers,
+            address[] memory targets,
+            bytes[] memory data,
+            uint256[] memory values
+        ) = abi.decode(params, (bytes32[][], address[], address[], bytes[], uint256[]));
+
+        ManagerWithMerkleVerification(address(this)).manageVaultWithMerkleVerification(
+            manageProofs, decodersAndSanitizers, targets, data, values
+        );
+
+        // Process repayments with the new helper function
+        _processFlashLoanRepayment(repayTo, tokens, amounts, fees, useApprove);
+    }
+
+    /**
+     * @notice Internal helper to process repayments, skipping zero-amount transfers.
+     * @param repayTo The address to which the repayment will be sent or approved.
+     * @param tokens The token addresses.
+     * @param amounts The amounts borrowed/to be repaid.
+     * @param fees The fee amounts associated with the flash loan.
+     * @param useApprove If true, the manager will perform direct approvals for repayment.
+     */
+    function _processFlashLoanRepayment(
+        address repayTo,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint256[] memory fees,
+        bool useApprove
+    )
+        internal
+    {
+        // Count how many non-zero transfers we need to make
+        uint256 nonZeroCount = 0;
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            if (amounts[i] > 0) {
+                nonZeroCount++;
+            }
+        }
+
+        // If there are no tokens to repay, just return
+        if (nonZeroCount == 0) return;
+
+        // Create arrays of exactly the right size for non-zero transfers
+        address[] memory transferTokens = new address[](nonZeroCount);
+        bytes[] memory transferData = new bytes[](nonZeroCount);
+        uint256[] memory transferValues = new uint256[](nonZeroCount);
+
+        // Fill arrays with only the non-zero transfers
+        uint256 index = 0;
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            if (amounts[i] > 0) {
+                transferTokens[index] = tokens[i];
+
+                if (!useApprove) {
+                    // For protocols like Balancer and Uniswap V3 flash swaps, repay via vault.transfer
+                    transferData[index] =
+                        abi.encodeWithSelector(ERC20.transfer.selector, repayTo, (amounts[i] + fees[i]));
+                } else {
+                    // For protocols like Aave and Morpho, approve the pool to pull funds
+                    ERC20(tokens[i]).safeApprove(repayTo, (amounts[i] + fees[i]));
+                    transferData[index] =
+                        abi.encodeWithSelector(ERC20.transfer.selector, address(this), (amounts[i] + fees[i]));
+                }
+
+                transferValues[index] = 0; // No ETH value needed
+                index++;
+            }
+        }
+
+        // Execute the transfers through the vault
+        vault.manage(transferTokens, transferData, transferValues);
+    }
 
     /**
      * @notice Helper function to decode, sanitize, and verify call data.
@@ -279,7 +564,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     }
 
     /**
-     * @notice Helper function to verify a manageProof is valid.
+     * @notice Helper function to verify that a manage proof is valid.
      */
     function _verifyManageProof(
         bytes32 root,
@@ -295,7 +580,6 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         returns (bool)
     {
         bool valueNonZero = value > 0;
-
         bytes32 leaf = keccak256(
             bytes.concat(
                 keccak256(
@@ -303,7 +587,6 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
                 )
             )
         );
-
         return MerkleProofLib.verify(proof, root, leaf);
     }
 }

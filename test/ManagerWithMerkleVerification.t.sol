@@ -46,6 +46,36 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
     address public weEthOracle = 0x3fa58b74e9a8eA8768eb33c8453e9C2Ed089A40a;
     address public weEthIrm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    address public constant USDC_WETH_POOL = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640; // USDC/WETH 0.05% pool on
+        // Mainnet
+
+    enum InterestRateMode {
+        NONE,
+        STABLE,
+        VARIABLE
+    }
+
+    event FlashLoan(address indexed recipient, address indexed token, uint256 amount, uint256 feeAmount);
+    event BoringVaultManaged(uint256 callsMade);
+    event FlashLoan(
+        address indexed target,
+        address initiator,
+        address indexed asset,
+        uint256 amount,
+        InterestRateMode interestRateMode,
+        uint256 premium,
+        uint16 indexed referralCode
+    );
+    event FlashLoan(address indexed caller, address indexed token, uint256 assets);
+    event Swap(
+        address indexed sender,
+        address indexed recipient,
+        int256 amount0,
+        int256 amount1,
+        uint160 sqrtPriceX96,
+        uint128 liquidity,
+        int24 tick
+    );
 
     function setUp() external {
         // Setup forked environment.
@@ -57,7 +87,8 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
 
-        manager = new ManagerWithMerkleVerification(address(this), address(boringVault), vault);
+        // Update constructor call to match new signature (remove vault parameter)
+        manager = new ManagerWithMerkleVerification(address(this), address(boringVault));
 
         rawDataDecoderAndSanitizer =
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
@@ -95,11 +126,23 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(
             ADMIN_ROLE, address(manager), ManagerWithMerkleVerification.setManageRoot.selector, true
         );
+
+        // Update flash loan related role capabilities to use the new method names
         rolesAuthority.setRoleCapability(
-            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoan.selector, true
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanBalancer.selector, true
         );
         rolesAuthority.setRoleCapability(
             BALANCER_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.receiveFlashLoan.selector, true
+        );
+        // Add capabilities for other flash loan methods
+        rolesAuthority.setRoleCapability(
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanAave.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoanMorpho.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.swapUniswapV3.selector, true
         );
 
         // Grant roles
@@ -153,73 +196,6 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         assertEq(USDC.allowance(address(boringVault), usdcSpender), 777, "USDC should have an allowance");
         assertEq(USDT.allowance(address(boringVault), usdtTo), 777, "USDT should have have an allowance");
-    }
-
-    function testFlashLoan() external {
-        ManageLeaf[] memory leafs = new ManageLeaf[](4);
-        leafs[0] = ManageLeaf(address(manager), false, "flashLoan(address,address[],uint256[],bytes)", new address[](2));
-        leafs[0].argumentAddresses[0] = address(manager);
-        leafs[0].argumentAddresses[1] = address(USDC);
-        leafs[1] = ManageLeaf(address(this), false, "approve(address,uint256)", new address[](1));
-        leafs[1].argumentAddresses[0] = address(USDC);
-        leafs[2] = ManageLeaf(address(USDC), false, "approve(address,uint256)", new address[](1));
-        leafs[2].argumentAddresses[0] = address(this);
-        // leaf[3] empty
-
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
-
-        manager.setManageRoot(address(this), manageTree[2][0]);
-        // Since the manager calls to itself to fulfill the flashloan, we need to set its root.
-        manager.setManageRoot(address(manager), manageTree[2][0]);
-
-        bytes memory userData;
-        {
-            uint256 flashLoanAmount = 1_000_000e6;
-            // Build flashLoan data.
-            address[] memory targets = new address[](2);
-            targets[0] = address(USDC);
-            targets[1] = address(this);
-            bytes[] memory targetData = new bytes[](2);
-            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
-            targetData[1] = abi.encodeWithSelector(ERC20.approve.selector, address(USDC), flashLoanAmount);
-
-            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](2);
-            flashLoanLeafs[0] = leafs[2];
-            flashLoanLeafs[1] = leafs[1];
-
-            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
-
-            uint256[] memory values = new uint256[](2);
-            address[] memory dAs = new address[](2);
-            dAs[0] = rawDataDecoderAndSanitizer;
-            dAs[1] = rawDataDecoderAndSanitizer;
-            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
-        }
-        {
-            address[] memory targets = new address[](1);
-            targets[0] = address(manager);
-
-            address[] memory tokensToBorrow = new address[](1);
-            tokensToBorrow[0] = address(USDC);
-            uint256[] memory amountsToBorrow = new uint256[](1);
-            amountsToBorrow[0] = 1_000_000e6;
-            bytes[] memory targetData = new bytes[](1);
-            targetData[0] = abi.encodeWithSelector(
-                BalancerVault.flashLoan.selector, address(manager), tokensToBorrow, amountsToBorrow, userData
-            );
-
-            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
-            manageLeafs[0] = leafs[0];
-
-            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
-
-            uint256[] memory values = new uint256[](1);
-            address[] memory decodersAndSanitizers = new address[](1);
-            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
-            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-            assertTrue(iDidSomething == true, "Should have called doSomethingWithFlashLoan");
-        }
     }
 
     function testBalancerV2AndAuraIntegration() external {
@@ -1748,7 +1724,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         // Call now works.
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
 
-        // Check `flashLoan`
+        // Check flash loan related reverts
         address[] memory tokens;
         uint256[] memory amounts;
 
@@ -1757,26 +1733,16 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
                 ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByBoringVault.selector
             )
         );
-        manager.flashLoan(address(this), tokens, amounts, abi.encode(0));
+        manager.flashLoanBalancer(vault, tokens, amounts, abi.encode(0));
 
-        // Check `receiveFlashLoan`
+        // Check receiveFlashLoan
         uint256[] memory feeAmounts;
 
         address attacker = vm.addr(1);
         vm.startPrank(attacker);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByBalancerVault.selector
-            )
-        );
-        manager.receiveFlashLoan(tokens, amounts, feeAmounts, abi.encode(0));
-        vm.stopPrank();
-
-        // Someone else initiated a flash loan
-        vm.startPrank(vault);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerWithMerkleVerification.ManagerWithMerkleVerification__FlashLoanNotInProgress.selector
+                ManagerWithMerkleVerification.ManagerWithMerkleVerification__OnlyCallableByFlashLoanPool.selector
             )
         );
         manager.receiveFlashLoan(tokens, amounts, feeAmounts, abi.encode(0));
@@ -1816,86 +1782,6 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         manager.manageVaultWithMerkleVerification(
             manageProofs, decodersAndSanitizers, targets, targetData, new uint256[](1)
         );
-    }
-
-    function testFlashLoanReverts() external {
-        // Deploy a new manager, setting the Balancer Vault as address(this)
-        manager = new ManagerWithMerkleVerification(address(this), address(boringVault), address(this));
-        rolesAuthority.setRoleCapability(
-            STRATEGIST_ROLE,
-            address(manager),
-            ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector,
-            true
-        );
-        rolesAuthority.setRoleCapability(
-            MANGER_INTERNAL_ROLE,
-            address(manager),
-            ManagerWithMerkleVerification.manageVaultWithMerkleVerification.selector,
-            true
-        );
-        rolesAuthority.setRoleCapability(
-            BORING_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.flashLoan.selector, true
-        );
-        rolesAuthority.setRoleCapability(
-            BALANCER_VAULT_ROLE, address(manager), ManagerWithMerkleVerification.receiveFlashLoan.selector, true
-        );
-        rolesAuthority.setUserRole(address(this), STRATEGIST_ROLE, true);
-        rolesAuthority.setUserRole(address(manager), MANGER_INTERNAL_ROLE, true);
-        rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
-        rolesAuthority.setUserRole(address(boringVault), BORING_VAULT_ROLE, true);
-        rolesAuthority.setUserRole(address(this), BALANCER_VAULT_ROLE, true);
-        manager.setAuthority(rolesAuthority);
-
-        ManageLeaf[] memory leafs = new ManageLeaf[](4);
-        leafs[0] = ManageLeaf(address(manager), false, "flashLoan(address,address[],uint256[],bytes)", new address[](2));
-        leafs[0].argumentAddresses[0] = address(manager);
-        leafs[0].argumentAddresses[1] = address(USDC);
-
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
-
-        manager.setManageRoot(address(this), manageTree[2][0]);
-        // Since the manager calls to itself to fulfill the flashloan, we need to set its root.
-        manager.setManageRoot(address(manager), manageTree[2][0]);
-
-        bytes memory userData = hex"DEAD";
-        address[] memory targets = new address[](1);
-        targets[0] = address(manager);
-
-        address[] memory tokensToBorrow = new address[](1);
-        tokensToBorrow[0] = address(USDC);
-        uint256[] memory amountsToBorrow = new uint256[](1);
-        amountsToBorrow[0] = 1_000_000e6;
-        bytes[] memory targetData = new bytes[](1);
-        targetData[0] = abi.encodeWithSelector(
-            BalancerVault.flashLoan.selector, address(manager), tokensToBorrow, amountsToBorrow, userData
-        );
-
-        ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
-        manageLeafs[0] = leafs[0];
-
-        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
-
-        uint256[] memory values = new uint256[](1);
-        address[] memory decodersAndSanitizers = new address[](1);
-        decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
-
-        // Try performing a flash loan where receiveFlashLoan is not called.
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerWithMerkleVerification.ManagerWithMerkleVerification__FlashLoanNotExecuted.selector
-            )
-        );
-        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
-
-        doNothing = false;
-
-        // Try performing a flash loan but with userData edited.
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ManagerWithMerkleVerification.ManagerWithMerkleVerification__BadFlashLoanIntentHash.selector
-            )
-        );
-        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
     }
 
     function testBalancerV2IntegrationReverts() external {
@@ -3106,6 +2992,330 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             )
         );
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+    }
+
+    // Add these functions to your ManagerWithMerkleVerificationTest contract
+
+    // Test all flash loan protocols
+    function testAllFlashLoans() external {
+        // --- Shared setup for all tests ---
+        ManageLeaf[] memory leafs = new ManageLeaf[](8);
+        // Balancer flash loan
+        leafs[0] = ManageLeaf(
+            address(manager), false, "flashLoanBalancer(address,address[],uint256[],bytes)", new address[](3)
+        );
+        leafs[0].argumentAddresses[0] = vault; // poolAddress
+        leafs[0].argumentAddresses[1] = address(manager); // recipient
+        leafs[0].argumentAddresses[2] = address(USDC); // token
+
+        // Aave flash loan
+        leafs[1] = ManageLeaf(
+            address(manager), false, "flashLoanAave(address,address[],uint256[],uint256[],bytes)", new address[](3)
+        );
+        leafs[1].argumentAddresses[0] = v3Pool; // Aave lending pool
+        leafs[1].argumentAddresses[1] = address(manager); // recipient
+        leafs[1].argumentAddresses[2] = address(USDC); // token
+
+        // Morpho flash loan
+        leafs[2] =
+            ManageLeaf(address(manager), false, "flashLoanMorpho(address,address,uint256,bytes)", new address[](2));
+        leafs[2].argumentAddresses[0] = morphoBlue; // Morpho pool
+        leafs[2].argumentAddresses[1] = address(USDC); // token
+
+        // Uniswap V3 swap
+        leafs[3] = ManageLeaf(address(manager), false, "swapUniswapV3(address,bool,int256,bytes)", new address[](1));
+        leafs[3].argumentAddresses[0] = USDC_WETH_POOL; // pool address
+
+        // Approve USDC for callbacks
+        leafs[4] = ManageLeaf(address(USDC), false, "approve(address,uint256)", new address[](1));
+        leafs[4].argumentAddresses[0] = address(this);
+
+        // Generate Merkle tree
+        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
+
+        manager.setManageRoot(address(this), manageTree[3][0]);
+        manager.setManageRoot(address(manager), manageTree[3][0]);
+
+        // --- Test 1: Balancer Flash Loan ---
+        testBalancerFlashLoan(leafs, manageTree);
+
+        // --- Test 2: Aave Flash Loan ---
+        testAaveFlashLoan(leafs, manageTree);
+
+        // --- Test 3: Morpho Flash Loan ---
+        testMorphoFlashLoan(leafs, manageTree);
+
+        // --- Test 4: Uniswap V3 Swap ---
+        testUniswapV3Swap(leafs, manageTree);
+    }
+
+    function testBalancerFlashLoan(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash loan
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            address[] memory tokensToBorrow = new address[](1);
+            tokensToBorrow[0] = address(USDC);
+
+            uint256[] memory amountsToBorrow = new uint256[](1);
+            amountsToBorrow[0] = 1_000_000e6;
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.flashLoanBalancer.selector,
+                vault,
+                tokensToBorrow,
+                amountsToBorrow,
+                userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[0];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            // Expect the FlashLoan event.
+            vm.expectEmit(true, true, true, true);
+            emit FlashLoan(
+                address(manager), // recipient
+                address(USDC), // token
+                1_000_000e6, // amount
+                0 // fee
+            );
+
+            // Expect the BoringVaultManaged event.
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1); // expecting 1 call made
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+        }
+    }
+
+    function testAaveFlashLoan(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash loan
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            address[] memory tokensToBorrow = new address[](1);
+            tokensToBorrow[0] = address(USDC);
+
+            uint256[] memory amountsToBorrow = new uint256[](1);
+            amountsToBorrow[0] = 1_000_000e6;
+
+            uint256[] memory modes = new uint256[](1);
+            modes[0] = 0; // Flash loan mode
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.flashLoanAave.selector,
+                v3Pool,
+                tokensToBorrow,
+                amountsToBorrow,
+                modes,
+                userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[1];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            deal(address(USDC), address(boringVault), 500_000_000); // for aave fees need 0.5% in usdc
+
+            vm.expectEmit(true, true, true, true);
+            emit FlashLoan(
+                address(manager), address(manager), address(USDC), 1_000_000e6, InterestRateMode.NONE, 500e6, 0
+            );
+
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1);
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+        }
+    }
+
+    function testMorphoFlashLoan(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash loan
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.flashLoanMorpho.selector, morphoBlue, address(USDC), 1_000_000e6, userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[2];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            vm.expectEmit(true, true, true, true);
+            emit FlashLoan(address(manager), address(USDC), 1_000_000e6);
+
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1);
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+        }
+    }
+
+    function testUniswapV3Swap(ManageLeaf[] memory leafs, bytes32[][] memory manageTree) internal {
+        // Prepare flash loan data
+        bytes memory userData;
+        {
+            uint256 flashLoanAmount = 1_000_000e6;
+
+            // Build management instructions for the callback
+            address[] memory targets = new address[](1);
+            targets[0] = address(USDC);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, address(this), flashLoanAmount);
+
+            ManageLeaf[] memory flashLoanLeafs = new ManageLeaf[](1);
+            flashLoanLeafs[0] = leafs[4]; // USDC approve
+
+            bytes32[][] memory flashLoanManageProofs = _getProofsUsingTree(flashLoanLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory dAs = new address[](1);
+            dAs[0] = rawDataDecoderAndSanitizer;
+
+            userData = abi.encode(flashLoanManageProofs, dAs, targets, targetData, values);
+        }
+
+        // Execute flash swap
+        {
+            address[] memory targets = new address[](1);
+            targets[0] = address(manager);
+
+            bytes[] memory targetData = new bytes[](1);
+            targetData[0] = abi.encodeWithSelector(
+                ManagerWithMerkleVerification.swapUniswapV3.selector,
+                USDC_WETH_POOL, // Use an appropriately defined USDC/WETH pool
+                true, // zeroForOne (true means token0 to token1)
+                int256(1_000_000e6), // amountSpecified
+                userData
+            );
+
+            ManageLeaf[] memory manageLeafs = new ManageLeaf[](1);
+            manageLeafs[0] = leafs[3];
+
+            bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+            uint256[] memory values = new uint256[](1);
+            address[] memory decodersAndSanitizers = new address[](1);
+            decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
+
+            deal(address(USDC), address(boringVault), 1_000_000e6); // for uniswap swap need USDC to close swap
+
+            vm.expectEmit(true, true, true, true);
+            emit Swap(
+                address(manager),
+                address(manager),
+                1_000_000e6,
+                -331_635_972_026_891_669_906,
+                1_442_654_701_730_835_393_079_766_098_902_011,
+                25_246_286_969_199_548_999,
+                196_203
+            );
+
+            vm.expectEmit(true, true, true, true);
+            emit BoringVaultManaged(1);
+
+            // Execute the transaction
+            manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
+        }
     }
 
     // ========================================= HELPER FUNCTIONS =========================================
