@@ -36,9 +36,6 @@ jobs:
         env:
           POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
         run: |
-          # Find all Solidity files in the DecodersAndSanitizers directory
-          DECODER_FILES=$(find src/base/DecodersAndSanitizers -name "*.sol")
-          
           # Process all files
           echo "Processing all DecodersAndSanitizers files"
           node tag_parse.js --all-decoders --post 
