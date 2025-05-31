@@ -10,6 +10,7 @@ import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/lib
 /**
  * @title MultiChainLayerZeroTellerWithMultiAssetSupport
  * @notice LayerZero implementation of MultiChainTeller
+ * @custom:security-contact security@molecularlabs.io
  */
 contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase, OAppAuth {
     using OptionsBuilder for bytes;
