@@ -501,7 +501,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     }
 
     function testMaxTimeFromLastUpdateOnDeposit() external {
-        accountant.updateExchangeRate(1.1e18);
         teller.setMaxTimeFromLastUpdate(1 days);
 
         require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
@@ -517,7 +516,6 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     }
 
     function testMaxTimeFromLastUpdateOnBulkWithdraw() external {
-        accountant.updateExchangeRate(1.1e18);
         teller.setMaxTimeFromLastUpdate(1 days);
 
         require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");

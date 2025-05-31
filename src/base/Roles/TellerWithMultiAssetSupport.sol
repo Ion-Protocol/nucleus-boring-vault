@@ -114,6 +114,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     error TellerWithMultiAssetSupport__RateLimit();
     error TellerWithMultiAssetSupport__DepositCapReached();
     error TellerWithMultiAssetSupport__SupplyCapReached();
+    error TellerWithMultiAssetSupport__AccountantPaused();
     error TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
 
     //============================== EVENTS ===============================
@@ -398,6 +399,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         requiresAuth
         returns (uint256 assetsOut)
     {
+        if (accountant.isPaused()) revert TellerWithMultiAssetSupport__AccountantPaused();
         if (block.timestamp - accountant.getLastUpdateTimestamp() > maxTimeFromLastUpdate) {
             revert TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
         }
@@ -426,6 +428,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         internal
         returns (uint256 shares)
     {
+        if (accountant.isPaused()) revert TellerWithMultiAssetSupport__AccountantPaused();
         if (block.timestamp - accountant.getLastUpdateTimestamp() > maxTimeFromLastUpdate) {
             revert TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
         }

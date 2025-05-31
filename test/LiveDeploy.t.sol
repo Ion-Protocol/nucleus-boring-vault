@@ -81,6 +81,10 @@ contract LiveDeploy is ForkTest, DeployAll {
             SOLVER_ROLE, mainConfig.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         vm.stopPrank();
+
+        // Warp to avoid minimum update delay post accountant deploy. This
+        // wouldn't work if there were multiple _updateRate calls in a test.
+        vm.warp(block.timestamp + 4000);
     }
 
     function testDepositAndBridge(uint256 amount) public {
@@ -353,8 +357,6 @@ contract LiveDeploy is ForkTest, DeployAll {
     function _updateRate(uint96 rateChange, AccountantWithRateProviders accountant) internal {
         // update the rate
         // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
-        uint256 time = block.timestamp;
-        vm.warp(time + mainConfig.minimumUpdateDelayInSeconds);
         vm.startPrank(mainConfig.exchangeRateBot);
         uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
         accountant.updateExchangeRate(newRate);
