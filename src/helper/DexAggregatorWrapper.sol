@@ -13,10 +13,10 @@ import { WETH } from "@solmate/tokens/WETH.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorWrapper is ReentrancyGuard {
-    AggregationRouterV6 immutable aggregator;
-    IOKXRouter immutable okxRouter;
-    address immutable okxApprover;
-    WETH immutable canonicalWrapToken;
+    AggregationRouterV6 public immutable aggregator;
+    IOKXRouter public immutable okxRouter;
+    address public immutable okxApprover;
+    WETH public immutable canonicalWrapToken;
 
     // Function selectors for OKX router functions
     bytes4 private constant SMART_SWAP_BY_ORDER_ID_SELECTOR = 0xb80c2f09;

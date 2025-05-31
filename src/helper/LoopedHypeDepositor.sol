@@ -22,7 +22,7 @@ contract LoopedHypeDepositor is Auth {
     error ZeroAddress();
     error IncorrectNativeDepositAmount();
 
-    IWHYPE constant WHYPE = IWHYPE(0x5555555555555555555555555555555555555555);
+    IWHYPE public constant WHYPE = IWHYPE(0x5555555555555555555555555555555555555555);
 
     TellerWithMultiAssetSupport public immutable teller;
     address public immutable boringVault;

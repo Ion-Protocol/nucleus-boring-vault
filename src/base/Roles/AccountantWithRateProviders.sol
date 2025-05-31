@@ -106,9 +106,11 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     event HighestExchangeRateReset();
 
     //============================== CONSTANTS ===============================
-    uint8 constant MIN_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 - 1) is the minimum accepted rate from a rate
+    uint8 internal constant MIN_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 - 1) is the minimum accepted rate from a
+        // rate
         // provider with 18 decimals
-    uint8 constant MAX_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 + 1) is the maximum accepted rate from a rate
+    uint8 internal constant MAX_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 + 1) is the maximum accepted rate from a
+        // rate
         // provider with 18 decimals
 
     //============================== IMMUTABLES ===============================
