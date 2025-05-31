@@ -65,7 +65,7 @@ contract LoopedHypeDepositor is Auth {
         external
         payable
         requiresAuth
-        returns (uint256 shares)
+        returns (uint256)
     {
         if (msg.value != depositAmount) revert IncorrectNativeDepositAmount();
         WHYPE.deposit{ value: msg.value }();
@@ -89,7 +89,7 @@ contract LoopedHypeDepositor is Auth {
     )
         external
         requiresAuth
-        returns (uint256 shares)
+        returns (uint256)
     {
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         return _deposit(depositAsset, depositAmount, minimumMint, to, communityCode);
