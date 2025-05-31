@@ -276,14 +276,14 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @dev Callable by OWNER_ROLE.
      */
     function resetHighestExchangeRate() external virtual requiresAuth {
-        AccountantState storage state = accountantState;
+        AccountantState memory state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
 
         if (state.exchangeRate > state.highestExchangeRate) {
             revert AccountantWithRateProviders__ExchangeRateAlreadyHighest();
         }
 
-        state.highestExchangeRate = state.exchangeRate;
+        accountantState.highestExchangeRate = state.exchangeRate;
 
         emit HighestExchangeRateReset();
     }
@@ -298,7 +298,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @dev Callable by UPDATE_EXCHANGE_RATE_ROLE.
      */
     function updateExchangeRate(uint96 newExchangeRate) external requiresAuth {
-        AccountantState storage state = accountantState;
+        AccountantState memory state = accountantState;
 
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         uint64 currentTime = uint64(block.timestamp);
@@ -312,7 +312,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
             // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
             // exchange rate
             // to a better value, and pause it.
-            state.isPaused = true;
+            accountantState.isPaused = true;
             emit Paused();
             return;
         } else {
@@ -345,17 +345,17 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
                         emit PerformanceFeesAccrued(performanceFees);
                     }
                 }
-                state.highestExchangeRate = newExchangeRate;
+                accountantState.highestExchangeRate = newExchangeRate;
             }
 
             unchecked {
-                state.feesOwedInBase += uint128(newFeesOwedInBase);
+                accountantState.feesOwedInBase += uint128(newFeesOwedInBase);
             }
         }
 
-        state.exchangeRate = newExchangeRate;
-        state.totalSharesLastUpdate = uint128(currentTotalShares);
-        state.lastUpdateTimestamp = currentTime;
+        accountantState.exchangeRate = newExchangeRate;
+        accountantState.totalSharesLastUpdate = uint128(currentTotalShares);
+        accountantState.lastUpdateTimestamp = currentTime;
 
         emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
     }
@@ -383,7 +383,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     function claimFees(ERC20 feeAsset) external {
         if (msg.sender != address(vault)) revert AccountantWithRateProviders__OnlyCallableByBoringVault();
 
-        AccountantState storage state = accountantState;
+        AccountantState memory state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         if (state.feesOwedInBase == 0) revert AccountantWithRateProviders__ZeroFeesOwed();
 
@@ -408,7 +408,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         }
 
         // Zero out fees owed.
-        state.feesOwedInBase = 0;
+        accountantState.feesOwedInBase = 0;
         // Transfer fee asset to payout address.
         feeAsset.safeTransferFrom(msg.sender, state.payoutAddress, feesOwedInFeeAsset);
 
