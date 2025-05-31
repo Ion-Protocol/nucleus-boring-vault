@@ -564,7 +564,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function getMinRate(ERC20 asset) public view returns (uint256 minRate) {
         RateProviderData[] memory data = rateProviderData[asset];
-        minRate = type(uint256).max;
         uint8 assetDecimals = asset.decimals();
 
         if (asset == base) {
