@@ -134,7 +134,12 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
 
         rate = (_targetRate.toUint256() * 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET) / _usdRate.toUint256());
 
-        rate = _rateCheck(rate);
+        _rateCheck(rate);
+
+        uint256 ONE = 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET);
+        if (rate > ONE) {
+            return ONE;
+        }
     }
 
     /**
@@ -146,17 +151,10 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     /**
      * @dev To check rate remains in reasonable bounds
      */
-    function _rateCheck(uint256 rate) internal view returns (uint256) {
+    function _rateCheck(uint256 rate) internal view {
         if (rate < lowerBound) {
             revert BoundsViolated(rate, lowerBound);
         }
-
-        uint256 ONE = 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET);
-        if (rate > ONE) {
-            return ONE;
-        }
-
-        return rate;
     }
 
     function _isEqual(string memory a, string memory b) internal pure returns (bool) {
