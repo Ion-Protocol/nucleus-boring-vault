@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { IRateProvider } from "./../interfaces/IRateProvider.sol";
 import { IPriceFeed } from "./../interfaces/IPriceFeed.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -16,18 +17,24 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *  Ex. USDT -> USDC would require a USDT/USD TargetFeed and a USDC/USD USDFeed
  * @custom:security-contact security@molecularlabs.io
  */
-contract RedstoneStablecoinRateProvider is IRateProvider {
+contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     using SafeCast for int256;
 
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
     error InvalidPriceFeedDecimals(uint8 priceFeedDecimals);
     error InvalidDescription();
+    error BoundsViolated(uint256 rate, uint256 violatedBound);
 
     /**
      * @notice The asset pairs the rate provider queries.
      */
     string public DESCRIPTION_USDFeed;
     string public DESCRIPTION_TargetFeed;
+
+    /**
+     * @notice bounds on rate to keep it at a reasonable level
+     */
+    uint256 public lowerBound;
 
     /**
      * @notice The underlying price feeds that this rate provider reads from.
@@ -62,13 +69,16 @@ contract RedstoneStablecoinRateProvider is IRateProvider {
      * @param _descriptionTargetFeed The targetFeed asset pair. ex USDT/USD
      */
     constructor(
+        address _owner,
         string memory _descriptionUSDFeed,
         string memory _descriptionTargetFeed,
         IPriceFeed _usdFeed,
         IPriceFeed _targetFeed,
         uint256 _maxTimeFromLastUpdate,
         uint8 _rateDecimals
-    ) {
+    )
+        Auth(_owner, Authority(address(0)))
+    {
         if (!_isEqual(_descriptionUSDFeed, _usdFeed.description())) revert InvalidDescription();
         if (!_isEqual(_descriptionTargetFeed, _targetFeed.description())) revert InvalidDescription();
 
@@ -92,6 +102,15 @@ contract RedstoneStablecoinRateProvider is IRateProvider {
         PRICE_FEED_TargetFeed = _targetFeed;
         MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
         RATE_DECIMALS = _rateDecimals;
+        lowerBound = 10 ** _rateDecimals * 9995 / 10_000;
+    }
+
+    /**
+     * @notice change the bounds (defaults are 5 bps based on decimals provided)
+     * @dev callable by OWNER
+     */
+    function setLowerBound(uint256 _lowerBound) external requiresAuth {
+        lowerBound = _lowerBound;
     }
 
     /**
@@ -113,7 +132,9 @@ contract RedstoneStablecoinRateProvider is IRateProvider {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtTarget);
         }
 
-        rate = (_targetRate.toUint256() * _usdRate.toUint256()) / 10 ** (REDSTONE_DECIMALS + DECIMALS_OFFSET);
+        rate = (_targetRate.toUint256() * 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET) / _usdRate.toUint256());
+
+        rate = _rateCheck(rate);
     }
 
     /**
@@ -121,6 +142,22 @@ contract RedstoneStablecoinRateProvider is IRateProvider {
      */
     // solhint-disable-next-line no-empty-blocks
     function _validityCheck() internal view virtual { }
+
+    /**
+     * @dev To check rate remains in reasonable bounds
+     */
+    function _rateCheck(uint256 rate) internal view returns (uint256) {
+        if (rate < lowerBound) {
+            revert BoundsViolated(rate, lowerBound);
+        }
+
+        uint256 ONE = 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET);
+        if (rate > ONE) {
+            return ONE;
+        }
+
+        return rate;
+    }
 
     function _isEqual(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
