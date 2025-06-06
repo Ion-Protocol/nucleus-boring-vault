@@ -19,10 +19,10 @@ contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
             address(this),
             "RedStone Price Feed for USDC",
             "RedStone Price Feed for USDT",
+            ERC20(0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb),
             IPriceFeed(0x4C89968338b75551243C99B452c84a01888282fD),
             IPriceFeed(0x5e21f6530f656A38caE4F55500944753F662D184),
-            1 days,
-            6
+            1 days
         );
     }
 
@@ -53,10 +53,10 @@ contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
             address(this),
             "RedStone Price Feed for USDC",
             "RedStone Price Feed for USDe",
+            ERC20(0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34),
             IPriceFeed(0x4C89968338b75551243C99B452c84a01888282fD),
             IPriceFeed(0xcA727511c9d542AAb9eF406d24E5bbbE4567c22d),
-            1 days,
-            6
+            1 days
         );
     }
 
@@ -66,7 +66,7 @@ contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
     }
 
     function testGetRateUSDe() external {
-        uint256 expectedRate = 998_731;
+        uint256 expectedRate = 998_731_875_063_157_990;
         vm.expectRevert(
             abi.encodeWithSelector(
                 RedstoneStablecoinRateProvider.BoundsViolated.selector, expectedRate, rateProvider.lowerBound()
@@ -88,19 +88,19 @@ contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
             address(this),
             "RedStone Price Feed for USDC",
             "RedStone Price Feed for USDe",
+            ERC20(0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34),
             IPriceFeed(0x4C89968338b75551243C99B452c84a01888282fD),
             IPriceFeed(0xcA727511c9d542AAb9eF406d24E5bbbE4567c22d),
-            1 days,
-            6
+            1 days
         );
         rateProviderUSDT = new RedstoneStablecoinRateProvider(
             address(this),
             "RedStone Price Feed for USDC",
             "RedStone Price Feed for USDT",
+            ERC20(0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb),
             IPriceFeed(0x4C89968338b75551243C99B452c84a01888282fD),
             IPriceFeed(0x5e21f6530f656A38caE4F55500944753F662D184),
-            1 days,
-            6
+            1 days
         );
     }
 
@@ -114,8 +114,9 @@ contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
         assertEq(rate, 10 ** 6);
     }
 
+    // USDe has 18 decimals
     function testGetRateUSDe() external {
         uint256 rate = rateProviderUSDe.getRate();
-        assertEq(rate, 10 ** 6);
+        assertEq(rate, 10 ** 18);
     }
 }

@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { IRateProvider } from "./../interfaces/IRateProvider.sol";
 import { IPriceFeed } from "./../interfaces/IPriceFeed.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -53,14 +54,6 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
      */
     uint8 public immutable RATE_DECIMALS;
 
-    /**
-     * @notice The offset between the intended return decimals and the price
-     * feed decimals.
-     * @dev Based on the `PriceFeedType`, the price feed's asset pair label is
-     * retrieved differently.
-     */
-    uint8 public immutable DECIMALS_OFFSET;
-
     /// @notice all redstone oracles should have 8 decimals
     uint8 public constant REDSTONE_DECIMALS = 8;
 
@@ -72,10 +65,10 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
         address _owner,
         string memory _descriptionUSDFeed,
         string memory _descriptionTargetFeed,
+        ERC20 _targetAsset,
         IPriceFeed _usdFeed,
         IPriceFeed _targetFeed,
-        uint256 _maxTimeFromLastUpdate,
-        uint8 _rateDecimals
+        uint256 _maxTimeFromLastUpdate
     )
         Auth(_owner, Authority(address(0)))
     {
@@ -92,17 +85,15 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
             revert InvalidPriceFeedDecimals(_priceFeedDecimals);
         }
 
-        unchecked {
-            DECIMALS_OFFSET = REDSTONE_DECIMALS - _rateDecimals;
-        }
+        RATE_DECIMALS = _targetAsset.decimals();
 
         DESCRIPTION_USDFeed = _descriptionUSDFeed;
         DESCRIPTION_TargetFeed = _descriptionTargetFeed;
         PRICE_FEED_USDFeed = _usdFeed;
         PRICE_FEED_TargetFeed = _targetFeed;
         MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
-        RATE_DECIMALS = _rateDecimals;
-        lowerBound = 10 ** _rateDecimals * 9995 / 10_000;
+        // Default Lower Bound is 5 bps
+        lowerBound = 10 ** RATE_DECIMALS * 9995 / 10_000;
     }
 
     /**
@@ -132,11 +123,13 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtTarget);
         }
 
-        rate = (_targetRate.toUint256() * 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET) / _usdRate.toUint256());
+        // rate(target decimals) = targetRate(8) * 10^(target decimals) / usdRate(8)
+        rate = (_targetRate.toUint256() * 10 ** (RATE_DECIMALS) / _usdRate.toUint256());
 
         _rateCheck(rate);
 
-        uint256 ONE = 10 ** (REDSTONE_DECIMALS - DECIMALS_OFFSET);
+        uint256 ONE = 10 ** RATE_DECIMALS;
+
         if (rate > ONE) {
             return ONE;
         }
