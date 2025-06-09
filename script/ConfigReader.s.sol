@@ -45,14 +45,12 @@ library ConfigReader {
         bytes32 rolesAuthoritySalt;
         address manager;
         address teller;
+        address rateProvider;
         string tellerContractName;
         address strategist;
         address exchangeRateBot;
         address pauser;
         address rolesAuthority;
-        bytes32 decoderSalt;
-        address decoder;
-        bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
         address[] assets;
         address[] priceFeeds;
@@ -92,6 +90,8 @@ library ConfigReader {
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
 
+        config.rateProvider = _chainConfig.readAddress(".rateProvider");
+
         // layerzero
         if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
             config.lzEndpoint = _chainConfig.readAddress(".lzEndpoint");
@@ -113,10 +113,6 @@ library ConfigReader {
         config.strategist = _config.readAddress(".rolesAuthority.strategist");
         config.exchangeRateBot = _config.readAddress(".rolesAuthority.exchangeRateBot");
         config.pauser = _config.readAddress(".rolesAuthority.pauser");
-
-        // Reading from the 'decoder' section
-        config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
-        config.decoder = _config.readAddress(".decoder.address");
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
