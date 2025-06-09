@@ -508,6 +508,13 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     }
 
     /**
+     * @notice Whether the accountant is paused or not.
+     */
+    function isPaused() external view returns (bool) {
+        return accountantState.isPaused;
+    }
+
+    /**
      * @notice helper function to return the max rate for a given asset among all rate providers
      * @param asset the asset to get the max rate for
      * @return maxRate the max rate for the asset
