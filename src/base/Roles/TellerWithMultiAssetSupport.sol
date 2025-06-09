@@ -58,6 +58,12 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     uint256 public supplyCap = type(uint256).max;
 
     /**
+     * @notice The max time from last update on the Accountant before deposit or withdraw reverts.
+     * @dev Defaults to no cap
+     */
+    uint64 public maxTimeFromLastUpdate = type(uint64).max;
+
+    /**
      * @notice rate limit period, applies to all assets and defaults to 1 day
      */
     uint32 public rateLimitPeriod = 1 days;
@@ -108,6 +114,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     error TellerWithMultiAssetSupport__RateLimit();
     error TellerWithMultiAssetSupport__DepositCapReached();
     error TellerWithMultiAssetSupport__SupplyCapReached();
+    error TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
+
     //============================== EVENTS ===============================
 
     event Paused();
@@ -157,6 +165,14 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     function setSupplyCap(uint256 _supplyCap) external requiresAuth {
         supplyCap = _supplyCap;
+    }
+
+    /**
+     * @notice Sets the max time from last update.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function setMaxTimeFromLastUpdate(uint64 _maxTimeFromLastUpdate) external requiresAuth {
+        maxTimeFromLastUpdate = _maxTimeFromLastUpdate;
     }
 
     /**
@@ -382,6 +398,9 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         requiresAuth
         returns (uint256 assetsOut)
     {
+        if (block.timestamp - accountant.getLastUpdateTimestamp() > maxTimeFromLastUpdate) {
+            revert TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
+        }
         if (!isWithdrawSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
@@ -407,6 +426,9 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         internal
         returns (uint256 shares)
     {
+        if (block.timestamp - accountant.getLastUpdateTimestamp() > maxTimeFromLastUpdate) {
+            revert TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
+        }
         if (limitByAsset[address(depositAsset)].rateLimit == 0) {
             revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
         }
