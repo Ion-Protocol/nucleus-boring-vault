@@ -42,34 +42,13 @@ contract TellerSetup is BaseScript {
 
             uint256 length = _chainConfig.readUint(string(abi.encodePacked(assetKey, ".numberOfRateProviders")));
             RateProviderConfig.RateProviderData[] memory rateProviderData =
-                new RateProviderConfig.RateProviderData[](length);
+                rateProviderContract.rateProviderData(ERC20(config.base), config.assets[i]);
 
-            for (uint256 j; j < length; ++j) {
-                string memory rateProviderKey = string(abi.encodePacked(assetKey, ".rateProviders[", j.toString(), "]"));
-                address rateProvider = _chainConfig.readAddress(string(abi.encodePacked(rateProviderKey, ".target")));
-
-                bytes memory rateCalldata =
-                    _chainConfig.readBytes(string(abi.encodePacked(rateProviderKey, ".calldata")));
-
-                bool isPeggedToBase;
-                if (rateProvider == address(0) && rateCalldata.length == 0) {
-                    isPeggedToBase = true;
-                } else {
-                    require(rateProvider != address(0), "rate provider must be set");
-                    require(rateProvider.code.length > 0, "rate provider must have code");
-                    require(rateCalldata.length > 0, "calldata must be set");
-                }
-
-                rateProviderData[j].isPeggedToBase = isPeggedToBase;
-                rateProviderData[j].rateProvider = rateProvider;
-                rateProviderData[j].functionCalldata = rateCalldata;
-                rateProviderData[j].minRate =
-                    _chainConfig.readUint(string(abi.encodePacked(rateProviderKey, ".minRate")));
-                rateProviderData[j].maxRate =
-                    _chainConfig.readUint(string(abi.encodePacked(rateProviderKey, ".maxRate")));
-            }
-
-            rateProviderContract.setRateProviderData(ERC20(config.base), ERC20(config.assets[i]), rateProviderData);
+            require(
+                rateProviderData.length != 0,
+                string.concat("Base: ", vm.toString(config.base), " Asset: ", vm.toString(config.assets[i])),
+                " has no rate rateProviderData. Please configure it"
+            );
         }
         teller.addAssets(assets);
     }
