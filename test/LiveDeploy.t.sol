@@ -327,6 +327,7 @@ contract LiveDeploy is ForkTest, DeployAll {
             destinationChainReceiver: userChain2,
             bridgeFeeToken: NATIVE_ERC20,
             messageGas: 100_000,
+            refundRecipient: user,
             data: ""
         });
 
