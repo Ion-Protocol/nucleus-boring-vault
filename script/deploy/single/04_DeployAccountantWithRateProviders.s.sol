@@ -52,7 +52,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 config.allowedExchangeRateChangeLower,
                 config.minimumUpdateDelayInSeconds,
                 config.managementFee,
-                config.performanceFee
+                config.performanceFee,
+                config.rateProvider
             );
         }
 
