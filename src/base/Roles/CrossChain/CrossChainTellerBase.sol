@@ -9,6 +9,7 @@ struct BridgeData {
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint64 messageGas;
+    address refundRecipient;
     bytes data;
 }
 
