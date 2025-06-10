@@ -12,7 +12,6 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { CrossChainTellerBase, BridgeData, ERC20 } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
