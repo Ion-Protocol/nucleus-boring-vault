@@ -14,9 +14,12 @@ contract DeployRateProviderConfig is BaseScript {
 
     // deployer:            0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00
     bytes32 constant SALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00fcdbd6afdd472179b79b16;
-    address multisig = 0x0000000000417626Ef34D62C4DC189b021603f2F;
+    address multisig;
 
     function run() public broadcast {
+        string memory chainConfig = getChainConfigFile();
+        multisig = chainConfig.readAddress(".multisig");
+
         require(multisig != address(0), "Multisig must not be set to 0 address");
         vm.prompt(
             string.concat(
@@ -49,9 +52,11 @@ contract DeployRateProviderConfig is BaseScript {
     * DEFAULT CONFIGS FOR EACH CHAIN
     */
     function _configETH() internal {
+        // BASE ASSET WETH
         address base = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
         // stETH/wstETH
+        // Base: WETH | Quote: wstETH
         address asset = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
         RateProviderConfig.RateProviderData memory data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -66,6 +71,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
         //eeETH/weETH
+        // Base: WETH | Quote: WEETH
         asset = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -79,6 +85,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
         // ETH/ezETH
+        // Base: WETH | ezETH
         asset = 0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -92,6 +99,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
         // ETH/rsETH
+        // Base: WETH | Quote: rsETH
         asset = 0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -106,6 +114,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
         // ETH/rswETH
+        // Base: WETH | Quote: rswETH
         asset = 0xFAe103DC9cf190eD75350761e95403b7b8aFa6c0;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -120,6 +129,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
         // ETH/pufETH
+        // Base: WETH | Quote: pufETH
         asset = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -133,7 +143,8 @@ contract DeployRateProviderConfig is BaseScript {
 
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
-        // WBTC/swBTC (note: different base asset)
+        // WBTC/swBTC
+        // Base: WBTC | Quote: swBTC
         address wbtcBase = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
         asset = 0x8DB2350D78aBc13f5673A411D4700BCF87864dDE;
         data = RateProviderConfig.RateProviderData({
@@ -149,6 +160,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(wbtcBase), ERC20(asset), input);
 
         // ETH/apxETH
+        // Base: WETH | Quote: apxETH
         asset = 0x9Ba021B0a9b958B5E75cE9f6dff97C7eE52cb3E6;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -163,6 +175,7 @@ contract DeployRateProviderConfig is BaseScript {
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
 
         // ETH/sfrxETH
+        // Base: WETH | Quote: sfrxETH
         asset = 0xac3E018457B222d93114458476f3E3416Abbe38F;
         data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
@@ -181,6 +194,7 @@ contract DeployRateProviderConfig is BaseScript {
         address base = 0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8;
 
         // ETH/seiyanETH
+        // Base: WETH | Quote: seiyanETH
         address asset = 0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce;
         RateProviderConfig.RateProviderData memory data = RateProviderConfig.RateProviderData({
             isPeggedToBase: false,
