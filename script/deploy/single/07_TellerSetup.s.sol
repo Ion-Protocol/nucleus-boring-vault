@@ -41,13 +41,16 @@ contract TellerSetup is BaseScript {
                 string(abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString()));
 
             uint256 length = _chainConfig.readUint(string(abi.encodePacked(assetKey, ".numberOfRateProviders")));
-            RateProviderConfig.RateProviderData[] memory rateProviderData =
-                rateProviderContract.rateProviderData(ERC20(config.base), config.assets[i]);
 
             require(
-                rateProviderData.length != 0,
-                string.concat("Base: ", vm.toString(config.base), " Asset: ", vm.toString(config.assets[i])),
-                " has no rate rateProviderData. Please configure it"
+                rateProviderContract.getLength(ERC20(config.base), ERC20(config.assets[i])) != 0,
+                string.concat(
+                    "Base: ",
+                    vm.toString(config.base),
+                    " Asset: ",
+                    vm.toString(config.assets[i]),
+                    " has no rate rateProviderData. Please configure it"
+                )
             );
         }
         teller.addAssets(assets);

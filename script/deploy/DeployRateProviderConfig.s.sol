@@ -4,12 +4,11 @@ pragma solidity 0.8.21;
 import { RateProviderConfig } from "./../../../src/base/Roles/RateProviderConfig.sol";
 import { BaseScript } from "../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
-import { console2 } from "forge-std/console2.sol";
+import { console } from "forge-std/console.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 using StdJson for string;
 
-// NOTE Currently assumes that function signature arguments are empty.
 contract DeployRateProviderConfig is BaseScript {
     RateProviderConfig rateProvider;
 
@@ -25,22 +24,25 @@ contract DeployRateProviderConfig is BaseScript {
                 vm.toString(block.chainid),
                 "\nowner being set to: ",
                 vm.toString(multisig),
-                "\nThe rate provider data will be set according to the chain config file for this chain. In the future the multisig must update these configurations",
+                "\nThe rate provider data will be set according to the defaults defined in this file for this chain. In the future the multisig must update these configurations",
                 "\nPlease double check these values and press ENTER to continue"
             )
         );
 
         bytes memory creationCode = type(RateProviderConfig).creationCode;
 
-        // TODO: Set to deployer as owner
         rateProvider =
             RateProviderConfig(CREATEX.deployCreate3(SALT, abi.encodePacked(creationCode, abi.encode(broadcaster))));
 
-        // TODO: Set default rate provider data according to the chain Config
-        _configETH();
+        if (block.chainid == 1) {
+            _configETH();
+        } else if (block.chainid == 1329) {
+            _configSEI();
+        }
 
-        // TODO: Transfer ownership back to the multisig
         rateProvider.transferOwnership(multisig);
+        require(rateProvider.owner() == multisig, "Owner not the multisig");
+        console.log("deployed to: ", address(rateProvider));
     }
 
     /*
@@ -170,6 +172,24 @@ contract DeployRateProviderConfig is BaseScript {
             maxRate: 1_200_000_000_000_000_000
         });
 
+        input[0] = data;
+
+        rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
+    }
+
+    function _configSEI() internal {
+        address base = 0x160345fC359604fC6e70E3c5fAcbdE5F7A9342d8;
+
+        // ETH/seiyanETH
+        address asset = 0x9fAaEA2CDd810b21594E54309DC847842Ae301Ce;
+        RateProviderConfig.RateProviderData memory data = RateProviderConfig.RateProviderData({
+            isPeggedToBase: false,
+            rateProvider: 0x24152894Decc7384b05E8907D6aDAdD82c176499,
+            functionCalldata: hex"282a8700",
+            minRate: 1_000_000_000_000_000_000,
+            maxRate: 1_100_000_000_000_000_000
+        });
+        RateProviderConfig.RateProviderData[] memory input = new RateProviderConfig.RateProviderData[](1);
         input[0] = data;
 
         rateProvider.setRateProviderData(ERC20(base), ERC20(asset), input);
