@@ -63,7 +63,7 @@ contract DeployRateProviderConfig is BaseScript {
             rateProvider: 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0,
             functionCalldata: hex"035faf82",
             minRate: 1_000_000_000_000_000_000,
-            maxRate: 1_200_000_000_000_000_000
+            maxRate: 1_400_000_000_000_000_000
         });
         RateProviderConfig.RateProviderData[] memory input = new RateProviderConfig.RateProviderData[](1);
         input[0] = data;
