@@ -116,6 +116,8 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
         rateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
         rateProviderContract.setRateProviderData(WETH, EETH, rateProviderData);
+        require(rateProviderContract.getLength(WETH, EETH) == 1, "Length function not working as intended");
+
         rateProviderData = new RateProviderConfig.RateProviderData[](2);
         // getRate() on WEETH rate provider
         rateProviderData[0] =
