@@ -12,10 +12,17 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * @notice Reports the price of a token in terms of an underlying stablecoin. The underlying price
  * feed must be compatible with the Redstone interface.
  *
- * Requires 2 oracles:
- *  - USDFeed-> Returns price of the chosen stablecoin in USD
- *  - TargetFeed-> Returns the price of the target asset in USD
- *  Ex. USDT -> USDC would require a USDT/USD TargetFeed and a USDC/USD USDFeed
+ * @notice TERMINOLOGY
+ *  Base Asset: The asset being priced or valued. The underlying base asset of the vault and what positions are
+ * denominated in.
+ *  Quote Asset: The asset used to price the base asset. It represents the deposit/withdraw asset of a user.
+ *  USD: An intermediary base asset used to derive the price in terms of Base/Quote via redstone oracles.
+ *  EXAMPLE:
+ *      - Base: USDC, a user wants to deposit into a USDC denominated vault
+ *      - Quote: USDT, the vault needs to value their USDT deposit in terms of USDC
+ *      - This rate provider will determine the rate of the USDT as QUOTE/USD / BASE/USD = QUOTE/BASE
+ *      - Redstone will return the QUOTE/USD and BASE/USD. This contract
+ *          will determine the BASE/QUOTE rate with appropriate decimal precision.
  * @custom:security-contact security@molecularlabs.io
  */
 contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
@@ -27,10 +34,14 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     error BoundsViolated(uint256 rate, uint256 violatedBound);
 
     /**
-     * @notice The asset pairs the rate provider queries.
+     * @notice The description of the Base asset price feed
      */
-    string public DESCRIPTION_USDFeed;
-    string public DESCRIPTION_TargetFeed;
+    string public DESCRIPTION_BaseFeed;
+
+    /**
+     * @notice The description of the Quote asset price feed
+     */
+    string public DESCRIPTION_QuoteFeed;
 
     /**
      * @notice bounds on rate to keep it at a reasonable level
@@ -38,10 +49,14 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     uint256 public lowerBound;
 
     /**
-     * @notice The underlying price feeds that this rate provider reads from.
+     * @notice The redstone price feed that returns the value of the Base asset in USD denomination
      */
-    IPriceFeed public immutable PRICE_FEED_USDFeed;
-    IPriceFeed public immutable PRICE_FEED_TargetFeed;
+    IPriceFeed public immutable PRICE_FEED_BaseFeed;
+
+    /**
+     * @notice The redstone price feed that returns the value of the quote asset in USD denomination
+     */
+    IPriceFeed public immutable PRICE_FEED_QuoteFeed;
 
     /**
      * @notice Number of seconds since last update to determine whether the
@@ -50,47 +65,50 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     uint256 public immutable MAX_TIME_FROM_LAST_UPDATE;
 
     /**
-     * @notice The preicision of the rate returned by this contract.
+     * @notice The precision of the rate returned by this contract. This must be equal to the decimals of the quote
+     * asset
      */
     uint8 public immutable RATE_DECIMALS;
 
-    /// @notice all redstone oracles should have 8 decimals
+    /**
+     * @notice all redstone oracles should have 8 decimals
+     */
     uint8 public constant REDSTONE_DECIMALS = 8;
 
     /**
-     * @param _descriptionUSDFeed The usdFeed asset pair. ex USDC/USD
-     * @param _descriptionTargetFeed The targetFeed asset pair. ex USDT/USD
+     * @param _descriptionBaseFeed The baseFeed asset pair. ex USDC/USD
+     * @param _descriptionQuoteFeed The quoteFeed asset pair. ex USDT/USD
      */
     constructor(
         address _owner,
-        string memory _descriptionUSDFeed,
-        string memory _descriptionTargetFeed,
-        ERC20 _targetAsset,
-        IPriceFeed _usdFeed,
-        IPriceFeed _targetFeed,
+        string memory _descriptionBaseFeed,
+        string memory _descriptionQuoteFeed,
+        ERC20 _quoteAsset,
+        IPriceFeed _baseFeed,
+        IPriceFeed _quoteFeed,
         uint256 _maxTimeFromLastUpdate
     )
         Auth(_owner, Authority(address(0)))
     {
-        if (!_isEqual(_descriptionUSDFeed, _usdFeed.description())) revert InvalidDescription();
-        if (!_isEqual(_descriptionTargetFeed, _targetFeed.description())) revert InvalidDescription();
+        if (!_isEqual(_descriptionBaseFeed, _baseFeed.description())) revert InvalidDescription();
+        if (!_isEqual(_descriptionQuoteFeed, _quoteFeed.description())) revert InvalidDescription();
 
-        uint8 _priceFeedDecimals = _usdFeed.decimals();
+        uint8 _priceFeedDecimals = _baseFeed.decimals();
         if (_priceFeedDecimals != REDSTONE_DECIMALS) {
             revert InvalidPriceFeedDecimals(_priceFeedDecimals);
         }
-        _priceFeedDecimals = _targetFeed.decimals();
+        _priceFeedDecimals = _quoteFeed.decimals();
 
         if (_priceFeedDecimals != REDSTONE_DECIMALS) {
             revert InvalidPriceFeedDecimals(_priceFeedDecimals);
         }
 
-        RATE_DECIMALS = _targetAsset.decimals();
+        RATE_DECIMALS = _quoteAsset.decimals();
 
-        DESCRIPTION_USDFeed = _descriptionUSDFeed;
-        DESCRIPTION_TargetFeed = _descriptionTargetFeed;
-        PRICE_FEED_USDFeed = _usdFeed;
-        PRICE_FEED_TargetFeed = _targetFeed;
+        DESCRIPTION_BaseFeed = _descriptionBaseFeed;
+        DESCRIPTION_QuoteFeed = _descriptionQuoteFeed;
+        PRICE_FEED_BaseFeed = _baseFeed;
+        PRICE_FEED_QuoteFeed = _quoteFeed;
         MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
         // Default Lower Bound is 5 bps
         lowerBound = 10 ** RATE_DECIMALS * 9995 / 10_000;
@@ -105,26 +123,26 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     }
 
     /**
-     * @notice Gets the price of the target token in terms of the usd feed stablecoin.
-     * @return rate in terms of usd feed stablecoin.
+     * @notice Gets the price of the quote token in terms of the base feed stablecoin.
+     * @return rate in terms of base feed stablecoin.
      */
     function getRate() public view returns (uint256 rate) {
         _validityCheck();
 
-        (, int256 _usdRate,, uint256 lastUpdatedAtUsd,) = PRICE_FEED_USDFeed.latestRoundData();
+        (, int256 _baseRate,, uint256 lastUpdatedAtUsd,) = PRICE_FEED_BaseFeed.latestRoundData();
 
         if (block.timestamp - lastUpdatedAtUsd > MAX_TIME_FROM_LAST_UPDATE) {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtUsd);
         }
 
-        (, int256 _targetRate,, uint256 lastUpdatedAtTarget,) = PRICE_FEED_TargetFeed.latestRoundData();
+        (, int256 _quoteRate,, uint256 lastUpdatedAtQuote,) = PRICE_FEED_QuoteFeed.latestRoundData();
 
-        if (block.timestamp - lastUpdatedAtTarget > MAX_TIME_FROM_LAST_UPDATE) {
-            revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtTarget);
+        if (block.timestamp - lastUpdatedAtQuote > MAX_TIME_FROM_LAST_UPDATE) {
+            revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtQuote);
         }
 
-        // rate(target decimals) = targetRate(8) * 10^(target decimals) / usdRate(8)
-        rate = (_targetRate.toUint256() * 10 ** (RATE_DECIMALS) / _usdRate.toUint256());
+        // rate(quote decimals) = quoteRate(8) * 10^(quote decimals) / baseRate(8)
+        rate = (_quoteRate.toUint256() * 10 ** (RATE_DECIMALS) / _baseRate.toUint256());
 
         _rateCheck(rate);
 
