@@ -96,7 +96,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
             // Post Deploy Checks
             require(_payoutAddress == config.payoutAddress, "payout address");
             require(_feesOwedInBase == 0, "fees owed in base");
-            require(_totalSharesLastUpdate == 0, "total shares last update");
+            // Removed total shares last update check, as they will not be 0 with an existing boring vault
+            // require(_totalSharesLastUpdate == 0, "total shares last update");
             require(_exchangeRate == startingExchangeRate, "exchange rate");
             require(_highestExchangeRate == startingExchangeRate, "highest exchange rate not set properly");
             require(

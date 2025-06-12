@@ -11,22 +11,43 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { console2 } from "forge-std/console2.sol";
 import { stdJson } from "@forge-std/StdJson.sol";
 import { EtherFiLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
+import { ManagerWithTokenBalanceVerification } from "src/base/Roles/ManagerWithTokenBalanceVerification.sol";
 
 using stdJson for string;
+
+interface V1Accountant {
+    struct AccountantState {
+        address payoutAddress;
+        uint128 feesOwedInBase;
+        uint128 totalSharesLastUpdate;
+        uint96 exchangeRate;
+        uint16 allowedExchangeRateChangeUpper;
+        uint16 allowedExchangeRateChangeLower;
+        uint64 lastUpdateTimestamp;
+        bool isPaused;
+        uint32 minimumUpdateDelayInSeconds;
+        uint16 managementFee;
+    }
+
+    function accountantState()
+        external
+        returns (address, uint128, uint128, uint96, uint16, uint16, uint64, bool, uint32, uint16);
+}
 
 /**
  * @notice made to test V2 Migrations as they are done.
  * IN: out.json from the migration script which contains deprecated addresses and new deployment addresses
- * TEST ASSERTS:
- *   1. All old addresses are paused
- *   2. The Boring Vault's roles authority is updated to the new one.
- *   3. The new roles authority didn't grant any roles to old contracts mistakenly
- *   4. The typical live test passes on the new vaults
- *   5. The multisig for this chain is the owner of all contracts and the authority
+ * @notice This test is meant to validate the state post merge. This means that post deployment steps are not yet taken.
+ *  For example. The test asserts that the pending owners for the addresses are the multisig, as the environment this
+ * test
+ *  is made for, is the one in which contracts are newly deployed via the tooling, and not completely setup.
+ *  For happy path tests, the multisig is pranked to accept these roles first.
  */
 contract LiveTest is Test {
-    string constant DEFAULT_RPC_URL = "L1_RPC_URL";
     address multisig;
+    address deployer;
+    ManagerWithTokenBalanceVerification managerWithTokenBalanceVerification =
+        ManagerWithTokenBalanceVerification(0x4940fC530aCE70B070e38469D3f75D801f0180A5);
 
     // State variables for addresses from out.json
     BoringVault boringVault;
@@ -52,7 +73,8 @@ contract LiveTest is Test {
     }
 
     function setUp() external {
-        _startFork(DEFAULT_RPC_URL);
+        deployer = vm.envAddress("ETH_FROM");
+        _startForkLocal();
 
         // Read and parse the out.json file
         string memory root = vm.projectRoot();
@@ -108,16 +130,37 @@ contract LiveTest is Test {
         );
     }
 
-    function testOwnerOfAllV2ContractsIsMultisig() external {
-        assertEq(v2Manager.owner(), multisig, string.concat("v2 manager owner should be: ", vm.toString(multisig)));
-        assertEq(v2Teller.owner(), multisig, string.concat("v2 teller owner should be: ", vm.toString(multisig)));
-        assertEq(
-            v2Accountant.owner(), multisig, string.concat("v2 accountant owner should be: ", vm.toString(multisig))
-        );
+    function testOwnerOfRolesAuthorityV2IsMultisig() external {
         assertEq(
             v2RolesAuthority.owner(),
             multisig,
             string.concat("v2 roles authority owner should be: ", vm.toString(multisig))
+        );
+    }
+
+    function testOwnerOfAllV2ContractsIsDeployer() external {
+        assertEq(v2Manager.owner(), deployer, string.concat("v2 manager owner should be: ", vm.toString(deployer)));
+        assertEq(v2Teller.owner(), deployer, string.concat("v2 teller owner should be: ", vm.toString(deployer)));
+        assertEq(
+            v2Accountant.owner(), deployer, string.concat("v2 accountant owner should be: ", vm.toString(deployer))
+        );
+    }
+
+    function testPendingOwnerOfAllV2ContractsIsMultisig() external {
+        assertEq(
+            v2Manager.pendingOwner(),
+            multisig,
+            string.concat("v2 manager pending owner should be: ", vm.toString(multisig))
+        );
+        assertEq(
+            v2Teller.pendingOwner(),
+            multisig,
+            string.concat("v2 teller pending owner should be: ", vm.toString(multisig))
+        );
+        assertEq(
+            v2Accountant.pendingOwner(),
+            multisig,
+            string.concat("v2 accountant pending owner should be: ", vm.toString(multisig))
         );
     }
 
@@ -414,13 +457,19 @@ contract LiveTest is Test {
 
     function testAccountantStateV1AndV2AreEqualExcludingPauseStatus() external {
         assertEq(
-            _hashAccountantState(v1Accountant),
-            _hashAccountantState(v2Accountant),
+            _hashAccountantState(v1Accountant, true),
+            _hashAccountantState(v2Accountant, false),
             "Hashes of V1 and V2 accountant data do not match"
         );
     }
 
     function testManageWithMerkleVerification() external {
+        _acceptAllOwnershipsAsMultisig();
+
+        address strategist = makeAddr("strategist");
+        vm.startPrank(multisig);
+        v2RolesAuthority.setUserRole(strategist, 1, true);
+
         // Allow the manager to call the USDC approve function to a specific address,
         // and the USDT transfer function to a specific address.
         address usdcSpender = vm.addr(0xDEAD);
@@ -459,15 +508,75 @@ contract LiveTest is Test {
 
         assertEq(USDC.allowance(address(boringVault), usdcSpender), 777, "USDC should have an allowance");
         assertEq(USDT.allowance(address(boringVault), usdtTo), 777, "USDT should have have an allowance");
+        vm.stopPrank();
     }
 
-    function testManageWithNoVerification() external { }
+    function testManageWithNoVerification() external {
+        _acceptAllOwnershipsAsMultisig();
+        vm.prank(multisig);
+        v2RolesAuthority.setUserRole(address(managerWithTokenBalanceVerification), 2, true);
+
+        address usdcSpender = vm.addr(0xDEAD);
+        address usdtTo = vm.addr(0xDEAD1);
+        address[] memory targets = new address[](2);
+
+        targets[0] = address(USDC);
+        targets[1] = address(USDT);
+
+        bytes[] memory targetData = new bytes[](2);
+        targetData[0] = abi.encodeWithSelector(ERC20.approve.selector, usdcSpender, 777);
+        targetData[1] = abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 777);
+
+        uint256[] memory values = new uint256[](2);
+        vm.prank(multisig);
+        managerWithTokenBalanceVerification.manageVaultWithNoVerification(boringVault, targets, targetData, values);
+
+        assertEq(USDC.allowance(address(boringVault), usdcSpender), 777, "USDC should have an allowance");
+        assertEq(USDT.allowance(address(boringVault), usdtTo), 777, "USDT should have have an allowance");
+    }
+
+    function testDepositBaseAssetAndUpdateRateHappyPath() public {
+        _acceptAllOwnershipsAsMultisig();
+
+        // bound and cast since bound does not support uint96
+        uint96 rateChange = 10_000;
+
+        uint256 depositAmount = 10 ** v2Accountant.decimals();
+        address base = address(v2Accountant.base());
+
+        // mint a bunch of extra tokens to the vault for if rate increased
+        deal(base, address(boringVault), depositAmount);
+
+        // pranking multisig as normal users won't be able to withdraw (no queue deployed for this test)
+        vm.startPrank(multisig);
+        _depositAssetWithApprove(ERC20(base), depositAmount, multisig);
+        vm.stopPrank();
+        uint256 expected_shares = depositAmount;
+
+        assertEq(
+            boringVault.balanceOf(multisig), expected_shares, "Should have received expected shares 1:1 for base asset"
+        );
+
+        // update the rate
+        _updateRate(rateChange, v2Accountant);
+
+        uint256 expectedAssetsBack = depositAmount * rateChange / 10_000;
+
+        // attempt a withdrawal after
+        vm.prank(multisig);
+        v2Teller.bulkWithdraw(ERC20(base), expected_shares, expectedAssetsBack, multisig);
+        assertEq(
+            ERC20(base).balanceOf(multisig),
+            expectedAssetsBack,
+            "Should have been able to withdraw back the depositAmount with rate factored"
+        );
+    }
 
     // =========== Helper Functions ================
-    function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount) internal {
-        deal(address(asset), address(this), depositAmount);
+    function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount, address user) internal {
+        deal(address(asset), user, depositAmount);
         asset.approve(address(boringVault), depositAmount);
-        TellerWithMultiAssetSupport(v2Teller).deposit(asset, depositAmount, 0, address(this));
+        TellerWithMultiAssetSupport(v2Teller).deposit(asset, depositAmount, 0, user);
     }
 
     function _updateRate(uint96 rateChange, AccountantWithRateProviders accountant) internal {
@@ -476,41 +585,78 @@ contract LiveTest is Test {
         vm.startPrank(multisig);
         uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
         accountant.updateExchangeRate(newRate);
+        accountant.unpause();
         vm.stopPrank();
     }
 
-    function _startFork(string memory rpcKey) internal virtual returns (uint256 forkId) {
+    function _startForkLocal() internal virtual returns (uint256 forkId) {
         if (block.chainid == 31_337) {
-            forkId = vm.createFork(vm.envString(rpcKey));
+            forkId = vm.createFork("http://127.0.0.1:8545");
             vm.selectFork(forkId);
         }
     }
 
-    function _hashAccountantState(AccountantWithRateProviders accountant) internal returns (bytes32) {
-        (
-            address v1PayoutAddress,
-            , // Skip fees owed
-            , // Skip TotalSharesLastUpdate
-            uint96 v1ExchangeRate,
-            uint96 v1HighestExchangeRate,
-            uint16 v1AllowedExchangeRateChangeUpper,
-            uint16 v1AllowedExchangeRateChangeLower,
-            , // Skip last update timestamp
-            , // Skip isPaused
-            uint32 v1MinimumUpdateDelayInSeconds,
-            uint16 v1ManagementFee,
-            uint16 v1PerformanceFee
-        ) = accountant.accountantState();
+    function _acceptAllOwnershipsAsMultisig() internal {
+        vm.startPrank(multisig);
+        v2Teller.acceptOwnership();
+        v2Manager.acceptOwnership();
+        v2Accountant.acceptOwnership();
+        vm.stopPrank();
+    }
+
+    function _hashAccountantState(AccountantWithRateProviders accountant, bool isV1) internal returns (bytes32) {
+        address payoutAddress;
+        uint96 exchangeRate;
+        uint16 allowedExchangeRateChangeUpper;
+        uint16 allowedExchangeRateChangeLower;
+        uint32 minimumUpdateDelayInSeconds;
+        uint16 managementFee;
+
+        if (isV1) {
+            console.log("ACCOUNTANT V1 STATE VALUES: ");
+            (
+                payoutAddress,
+                ,
+                ,
+                exchangeRate,
+                allowedExchangeRateChangeUpper,
+                allowedExchangeRateChangeLower,
+                ,
+                ,
+                minimumUpdateDelayInSeconds,
+                managementFee
+            ) = V1Accountant(address(accountant)).accountantState();
+        } else {
+            console.log("ACCOUNTANT V2 STATE VALUES: ");
+            (
+                payoutAddress,
+                , // Skip fees owed
+                , // Skip TotalSharesLastUpdate
+                exchangeRate,
+                ,
+                allowedExchangeRateChangeUpper,
+                allowedExchangeRateChangeLower,
+                , // Skip last update timestamp
+                , // Skip isPaused
+                minimumUpdateDelayInSeconds,
+                managementFee,
+            ) = accountant.accountantState();
+        }
+        console.log("payoutAddress:", payoutAddress);
+        console.log("exchangeRate:", exchangeRate);
+        console.log("allowedExchangeRateChangeUpper:", allowedExchangeRateChangeUpper);
+        console.log("allowedExchangeRateChangeLower:", allowedExchangeRateChangeLower);
+        console.log("minimumUpdateDelayInSeconds:", minimumUpdateDelayInSeconds);
+        console.log("managementFee:", managementFee);
+
         return keccak256(
             abi.encodePacked(
-                v1PayoutAddress,
-                v1ExchangeRate,
-                v1HighestExchangeRate,
-                v1AllowedExchangeRateChangeUpper,
-                v1AllowedExchangeRateChangeLower,
-                v1MinimumUpdateDelayInSeconds,
-                v1ManagementFee,
-                v1PerformanceFee
+                payoutAddress,
+                exchangeRate,
+                allowedExchangeRateChangeUpper,
+                allowedExchangeRateChangeLower,
+                minimumUpdateDelayInSeconds,
+                managementFee
             )
         );
     }
