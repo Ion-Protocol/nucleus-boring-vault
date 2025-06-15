@@ -1,0 +1,54 @@
+{
+  "base": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "boringVaultAndBaseDecimals": "6",
+  "boringVault": {
+    "boringVaultSalt": "0xec635f5c84776ce08d2b50fc2e9672c5545250a70455759f049866e0c2a0906e",
+    "boringVaultName": "Nest ETF Vault",
+    "boringVaultSymbol": "nETF",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0xf94df705423e01ec1deb2529523d72561b44a6f0d9021e78db1b5ab751284aaf",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0xb642e15d92a972bd68111d20996d8dcb6ee5672d3b6daf7cfa4c9c3e71b9f55c",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x0fffb69c2f8f39f328ecc44754a3ec0881966f8ae117a1169fb1b5e3eb5c8125",
+    "maxGasForPeer": 300000,
+    "minGasForPeer": 0,
+    "peerEid": 30370,
+    "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": ["0x589dedbd617e0cbcb916a9223f4d1300c294236b"],
+      "optional": [
+        "0xa59ba433ac34d2927232918ef5b2eaafcf130ba5",
+        "0x8fafae7dd957044088b3d0f67359c327c6200d18"
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 1
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0xd627249369eca1249ac7b125c8811b877aa680cc698695bd0317af6e4dbd483d",
+    "strategist": "0xCb8FA722B2a138faC6B6D60013025E2504b9B753",
+    "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+    "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0xd526a2c99009d85040a5bfe34ca262d12714cad5148efe0209f311173460ebb7",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}
