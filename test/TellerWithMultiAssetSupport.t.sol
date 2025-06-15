@@ -363,7 +363,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
             inSolve: false
         });
         boringVault.approve(address(atomicQueue), shares);
-        atomicQueue.updateAtomicRequest(boringVault, WETH, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), WETH, req);
         vm.stopPrank();
 
         // Solver approves solver contract to spend enough assets to cover withdraw.
@@ -372,7 +372,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         // Solve withdraw request.
         address[] memory users = new address[](1);
         users[0] = user;
-        atomicSolverV3.redeemSolve(atomicQueue, boringVault, WETH, users, 0, type(uint256).max, teller);
+        atomicSolverV3.redeemSolve(atomicQueue, ERC20(address(boringVault)), WETH, users, 0, type(uint256).max, teller);
         vm.stopPrank();
     }
 

@@ -7,14 +7,15 @@ import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC11
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { HLERC20 } from "src/helper/HLERC20.sol";
+import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 
 /**
  * @title BoringVault
  * @custom:security-contact security@molecularlabs.io
  */
-contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
+contract BoringVault is HLERC20, Auth, ERC721Holder, ERC1155Holder {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -39,7 +40,7 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
         string memory _symbol,
         uint8 _decimals
     )
-        ERC20(_name, _symbol, _decimals)
+        HLERC20(_name, _symbol, _decimals)
         Auth(_owner, Authority(address(0)))
     { }
 
@@ -163,6 +164,10 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
     function setNameAndSymbol(string memory _name, string memory _symbol) external requiresAuth {
         name = _name;
         symbol = _symbol;
+    }
+
+    function setDeployerAddress(address _deployerAddress) external requiresAuth {
+        deployerAddress = _deployerAddress;
     }
 
     //============================== RECEIVE ===============================
