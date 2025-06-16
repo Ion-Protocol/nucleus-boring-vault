@@ -45,6 +45,17 @@ abstract contract AuthOwnable2Step is Auth {
     }
 
     /**
+     * @dev The new owner accepts the ownership transfer.
+     */
+    function acceptOwnership() public virtual {
+        address sender = msg.sender;
+        if (pendingOwner() != sender) {
+            revert OwnableUnauthorizedAccount(sender);
+        }
+        _transferOwnership(sender);
+    }
+
+    /**
      * @dev Returns the address of the pending owner.
      */
     function pendingOwner() public view virtual returns (address) {
@@ -61,16 +72,5 @@ abstract contract AuthOwnable2Step is Auth {
         owner = newOwner;
 
         emit OwnershipTransferred(msg.sender, newOwner);
-    }
-
-    /**
-     * @dev The new owner accepts the ownership transfer.
-     */
-    function acceptOwnership() public virtual {
-        address sender = msg.sender;
-        if (pendingOwner() != sender) {
-            revert OwnableUnauthorizedAccount(sender);
-        }
-        _transferOwnership(sender);
     }
 }
