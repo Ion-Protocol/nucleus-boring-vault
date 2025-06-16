@@ -82,24 +82,6 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
     }
 
     /**
-     * @notice function override to return the fee quote
-     * @param shareAmount to be sent as a message
-     * @param data Bridge data
-     */
-    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
-        uint256 nextNonce = nonce + 1;
-        bytes32 messageId = keccak256(abi.encodePacked(nextNonce, address(this), block.chainid));
-
-        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, messageId);
-
-        bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
-
-        return mailbox.quoteDispatch(
-            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas), hook
-        );
-    }
-
-    /**
      * @notice Called when data is received from the protocol. It overrides the equivalent function in the parent
      * contract.
      * Protocol messages are defined as packets, comprised of the following parameters.
@@ -179,6 +161,24 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
             StandardHookMetadata.overrideGasLimit(data.messageGas), // Sets the refund address to msg.sender, sets
                 // `_msgValue` to zero
             hook
+        );
+    }
+
+    /**
+     * @notice function override to return the fee quote
+     * @param shareAmount to be sent as a message
+     * @param data Bridge data
+     */
+    function _quote(uint256 shareAmount, BridgeData calldata data) internal view override returns (uint256) {
+        uint256 nextNonce = nonce + 1;
+        bytes32 messageId = keccak256(abi.encodePacked(nextNonce, address(this), block.chainid));
+
+        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver, messageId);
+
+        bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
+
+        return mailbox.quoteDispatch(
+            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas), hook
         );
     }
 
