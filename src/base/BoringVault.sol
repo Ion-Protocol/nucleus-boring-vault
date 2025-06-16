@@ -8,14 +8,14 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
-import { HLERC20 } from "src/helper/HLERC20.sol";
+import { HLSpot } from "src/helper/HLSpot.sol";
 import { BeforeTransferHook } from "src/interfaces/BeforeTransferHook.sol";
 
 /**
  * @title BoringVault
  * @custom:security-contact security@molecularlabs.io
  */
-contract BoringVault is HLERC20, Auth, ERC721Holder, ERC1155Holder {
+contract BoringVault is HLSpot, ERC20, Auth, ERC721Holder, ERC1155Holder {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -40,7 +40,7 @@ contract BoringVault is HLERC20, Auth, ERC721Holder, ERC1155Holder {
         string memory _symbol,
         uint8 _decimals
     )
-        HLERC20(_name, _symbol, _decimals)
+        ERC20(_name, _symbol, _decimals)
         Auth(_owner, Authority(address(0)))
     { }
 
