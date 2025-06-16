@@ -12,38 +12,21 @@ import { console2 } from "forge-std/console2.sol";
 import { stdJson } from "@forge-std/StdJson.sol";
 import { EtherFiLiquidDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/EtherFiLiquidDecoderAndSanitizer.sol";
 import { ManagerWithTokenBalanceVerification } from "src/base/Roles/ManagerWithTokenBalanceVerification.sol";
+import { V1Accountant } from "script/v2Migration/IV1Accountant.sol";
 
 using stdJson for string;
-
-interface V1Accountant {
-    struct AccountantState {
-        address payoutAddress;
-        uint128 feesOwedInBase;
-        uint128 totalSharesLastUpdate;
-        uint96 exchangeRate;
-        uint16 allowedExchangeRateChangeUpper;
-        uint16 allowedExchangeRateChangeLower;
-        uint64 lastUpdateTimestamp;
-        bool isPaused;
-        uint32 minimumUpdateDelayInSeconds;
-        uint16 managementFee;
-    }
-
-    function accountantState()
-        external
-        returns (address, uint128, uint128, uint96, uint16, uint16, uint64, bool, uint32, uint16);
-}
 
 /**
  * @notice made to test V2 Migrations as they are done.
  * IN: out.json from the migration script which contains deprecated addresses and new deployment addresses
- * @notice This test is meant to validate the state post merge. This means that post deployment steps are not yet taken.
+ * @notice This test is meant to validate the state post deploy. This means that post deployment steps are not yet
+ * taken.
  *  For example. The test asserts that the pending owners for the addresses are the multisig, as the environment this
  * test
  *  is made for, is the one in which contracts are newly deployed via the tooling, and not completely setup.
  *  For happy path tests, the multisig is pranked to accept these roles first.
  */
-contract LiveTest is Test {
+contract LiveTestPostDeploy is Test {
     address multisig;
     address deployer;
     ManagerWithTokenBalanceVerification managerWithTokenBalanceVerification =
@@ -87,10 +70,11 @@ contract LiveTest is Test {
         multisig = chainJson.readAddress(".multisig"); // Parse addresses from JSON
 
         boringVault = BoringVault(payable(json.readAddress(".boringVault")));
-        v1Manager = ManagerWithMerkleVerification(json.readAddress(".v1Manager"));
-        v1Teller = TellerWithMultiAssetSupport(json.readAddress(".v1Teller"));
-        v1Accountant = AccountantWithRateProviders(json.readAddress(".v1Accountant"));
-        v1RolesAuthority = RolesAuthority(json.readAddress(".v1RolesAuthority"));
+        v1Manager = ManagerWithMerkleVerification(json.readAddress(".manager"));
+        v1Teller = TellerWithMultiAssetSupport(json.readAddress(".teller"));
+        v1Accountant = AccountantWithRateProviders(json.readAddress(".accountant"));
+        v1RolesAuthority = RolesAuthority(json.readAddress(".rolesAuthority"));
+
         v2Manager = ManagerWithMerkleVerification(json.readAddress(".v2Manager"));
         v2Teller = TellerWithMultiAssetSupport(json.readAddress(".v2Teller"));
         v2Accountant = AccountantWithRateProviders(json.readAddress(".v2Accountant"));
@@ -119,11 +103,11 @@ contract LiveTest is Test {
         assertTrue(_isPaused, "v1 accountant is not paused");
     }
 
-    function testBoringVaultIsUsingV2Authority() external {
+    function testBoringVaultIsUsingV1AuthorityStill() external {
         assertEq(
             address(boringVault.authority()),
-            address(v2RolesAuthority),
-            "Boring Vault should have authority updated to new v2 authority"
+            address(v1RolesAuthority),
+            "Boring Vault not should have authority updated to new v2 authority yet"
         );
         assertTrue(
             address(v1RolesAuthority) != address(v2RolesAuthority), "Roles Authorities V1 and V2 must be different"
@@ -144,6 +128,19 @@ contract LiveTest is Test {
         assertEq(
             v2Accountant.owner(), deployer, string.concat("v2 accountant owner should be: ", vm.toString(deployer))
         );
+    }
+
+    function testV2ContractsArePausableByPauser() external {
+        address pauser = 0x858d3eE2a16F7B6E43C8D87a5E1F595dE32f4419;
+        vm.startPrank(pauser);
+        v2Manager.pause();
+        v2Teller.pause();
+        v2Accountant.pause();
+
+        assertTrue(v2Manager.isPaused(), "Manager should be paused");
+        assertTrue(v2Teller.isPaused(), "Manager should be paused");
+        assertTrue(v2Accountant.isPaused(), "Manager should be paused");
+        vm.stopPrank();
     }
 
     function testPendingOwnerOfAllV2ContractsIsMultisig() external {
@@ -464,7 +461,7 @@ contract LiveTest is Test {
     }
 
     function testManageWithMerkleVerification() external {
-        _acceptAllOwnershipsAsMultisig();
+        _acceptAllOwnershipsAsMultisigAndTransferRolesAuthority();
 
         address strategist = makeAddr("strategist");
         vm.startPrank(multisig);
@@ -482,8 +479,10 @@ contract LiveTest is Test {
 
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
-        v2Manager.setManageRoot(address(this), manageTree[1][0]);
+        v2Manager.setManageRoot(strategist, manageTree[1][0]);
+        console.logBytes32(manageTree[1][0]);
 
+        vm.stopPrank();
         address[] memory targets = new address[](2);
         targets[0] = address(USDC);
         targets[1] = address(USDT);
@@ -503,6 +502,7 @@ contract LiveTest is Test {
         decodersAndSanitizers[1] = rawDataDecoderAndSanitizer;
 
         uint256 gas = gasleft();
+        vm.prank(strategist);
         v2Manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
         console.log("Gas used", gas - gasleft());
 
@@ -512,9 +512,7 @@ contract LiveTest is Test {
     }
 
     function testManageWithNoVerification() external {
-        _acceptAllOwnershipsAsMultisig();
-        vm.prank(multisig);
-        v2RolesAuthority.setUserRole(address(managerWithTokenBalanceVerification), 2, true);
+        _acceptAllOwnershipsAsMultisigAndTransferRolesAuthority();
 
         address usdcSpender = vm.addr(0xDEAD);
         address usdtTo = vm.addr(0xDEAD1);
@@ -536,10 +534,23 @@ contract LiveTest is Test {
     }
 
     function testDepositBaseAssetAndUpdateRateHappyPath() public {
-        _acceptAllOwnershipsAsMultisig();
+        _acceptAllOwnershipsAsMultisigAndTransferRolesAuthority();
 
         // bound and cast since bound does not support uint96
         uint96 rateChange = 10_000;
+        (
+            ,
+            ,
+            ,
+            uint256 startingExchangeRate,
+            ,
+            ,
+            ,
+            , // Skip last update timestamp
+            , // Skip isPaused
+            ,
+            ,
+        ) = v2Accountant.accountantState();
 
         uint256 depositAmount = 10 ** v2Accountant.decimals();
         address base = address(v2Accountant.base());
@@ -551,7 +562,7 @@ contract LiveTest is Test {
         vm.startPrank(multisig);
         _depositAssetWithApprove(ERC20(base), depositAmount, multisig);
         vm.stopPrank();
-        uint256 expected_shares = depositAmount;
+        uint256 expected_shares = depositAmount * 10 ** v2Accountant.decimals() / startingExchangeRate;
 
         assertEq(
             boringVault.balanceOf(multisig), expected_shares, "Should have received expected shares 1:1 for base asset"
@@ -564,10 +575,11 @@ contract LiveTest is Test {
 
         // attempt a withdrawal after
         vm.prank(multisig);
-        v2Teller.bulkWithdraw(ERC20(base), expected_shares, expectedAssetsBack, multisig);
-        assertEq(
+        v2Teller.bulkWithdraw(ERC20(base), expected_shares, expectedAssetsBack - 1, multisig);
+        assertApproxEqAbs(
             ERC20(base).balanceOf(multisig),
             expectedAssetsBack,
+            1,
             "Should have been able to withdraw back the depositAmount with rate factored"
         );
     }
@@ -596,11 +608,12 @@ contract LiveTest is Test {
         }
     }
 
-    function _acceptAllOwnershipsAsMultisig() internal {
+    function _acceptAllOwnershipsAsMultisigAndTransferRolesAuthority() internal {
         vm.startPrank(multisig);
         v2Teller.acceptOwnership();
         v2Manager.acceptOwnership();
         v2Accountant.acceptOwnership();
+        boringVault.setAuthority(v2RolesAuthority);
         vm.stopPrank();
     }
 
@@ -674,7 +687,9 @@ contract LiveTest is Test {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
+            console.logBytes(rawDigest);
             leafs[0][i] = keccak256(bytes.concat(keccak256(rawDigest)));
+            console.logBytes32(leafs[0][i]);
         }
         tree = _buildTrees(leafs);
     }
@@ -703,6 +718,7 @@ contract LiveTest is Test {
         }
     }
 
+    // 2D bc it recurses as it builds new layers up to the root.
     function _buildTrees(bytes32[][] memory merkleTreeIn) internal pure returns (bytes32[][] memory merkleTreeOut) {
         // We are adding another row to the merkle tree, so make merkleTreeOut be 1 longer.
         uint256 merkleTreeIn_length = merkleTreeIn.length;
@@ -738,10 +754,15 @@ contract LiveTest is Test {
     }
 
     function _generateProof(bytes32 leaf, bytes32[][] memory tree) internal pure returns (bytes32[] memory proof) {
-        proof = new bytes32[](tree.length - 1);
-        for (uint256 i; i < tree.length - 1; ++i) {
+        // The length of each proof is the height of the tree - 1.
+        uint256 tree_length = tree.length;
+        proof = new bytes32[](tree_length - 1);
+
+        // Build the proof
+        for (uint256 i; i < tree_length - 1; ++i) {
+            // For each layer we need to find the leaf.
             for (uint256 j; j < tree[i].length; ++j) {
-                if (tree[i][j] == leaf) {
+                if (leaf == tree[i][j]) {
                     // We have found the leaf, so now figure out if the proof needs the next leaf or the previous one.
                     proof[i] = j % 2 == 0 ? tree[i][j + 1] : tree[i][j - 1];
                     leaf = _hashPair(leaf, proof[i]);

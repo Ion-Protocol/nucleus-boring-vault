@@ -1,9 +1,9 @@
 {
   "boringVault": "0xe72fe64840f4ef80e3ec73a1c749491b5c938cb9",
-  "v1Manager": "0xf713a353F38d2E90245B94c1B004c10AB3a34857",
-  "v1Teller": "0x1492062b3ae7996c71f87a2b390b6b82afea0c59",
-  "v1Accountant": "0x0b738cd187872b265a689e8e4130c336e76892ec",
-  "v1RolesAuthority": "0x0a4f939b5d51157c58ba053275eaf77a782b4996",
+  "manager": "0xf713a353F38d2E90245B94c1B004c10AB3a34857",
+  "teller": "0x1492062b3ae7996c71f87a2b390b6b82afea0c59",
+  "accountant": "0x0b738cd187872b265a689e8e4130c336e76892ec",
+  "rolesAuthority": "0x0a4f939b5d51157c58ba053275eaf77a782b4996",
   "v2Manager": "0x318a2553e08da02e5daa9183c89b6aeb803f0b32",
   "v2Teller": "0x4270820920017a6233183134ff7b8cba1441bb9c",
   "v2Accountant": "0x0d88dcf7d02200f6098263b9e0ba9fda0c25c87c",
