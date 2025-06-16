@@ -66,10 +66,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     error AccountantWithRateProviders__ZeroFeesOwed();
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
-    error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
     error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
-    error AccountantWithRateProviders__RateProviderDataEmpty();
-    error AccountantWithRateProviders__InvalidRateReturned();
     error AccountantWithRateProviders__ZeroRate();
     error AccountantWithRateProviders__ZeroQuoteRate();
 
@@ -88,12 +85,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     event ManagementFeesAccrued(uint256 managementFees);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
-
-    //============================== CONSTANTS ===============================
-    uint8 constant MIN_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 - 1) is the minimum accepted rate from a rate
-        // provider with 18 decimals
-    uint8 constant MAX_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 + 1) is the maximum accepted rate from a rate
-        // provider with 18 decimals
+    event NewRateProviderConfigSet(address indexed newRateProviderConfig);
 
     //============================== IMMUTABLES ===============================
     /**
@@ -164,6 +156,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function setRateProviderConfig(RateProviderConfig _rateProviderConfig) external requiresAuth {
         rateProviderConfig = _rateProviderConfig;
+        emit NewRateProviderConfigSet(address(_rateProviderConfig));
     }
 
     /**
