@@ -12,17 +12,15 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * @notice Reports the price of a token in terms of an underlying stablecoin. The underlying price
  * feed must be compatible with the Redstone interface.
  *
- * @notice TERMINOLOGY
- *  Base Asset: The asset being priced or valued. The underlying base asset of the vault and what positions are
- * denominated in.
- *  Quote Asset: The asset used to price the base asset. It represents the deposit/withdraw asset of a user.
- *  USD: An intermediary base asset used to derive the price in terms of Base/Quote via redstone oracles.
+ * @notice
+ *  Base Asset: Refers to the vault's base asset
+ *  Quote Asset: Refers to the asset user's are depositing/withdrawing from the vault
  *  EXAMPLE:
  *      - Base: USDC, a user wants to deposit into a USDC denominated vault
  *      - Quote: USDT, the vault needs to value their USDT deposit in terms of USDC
- *      - This rate provider will determine the rate of the USDT as QUOTE/USD / BASE/USD = QUOTE/BASE
- *      - Redstone will return the QUOTE/USD and BASE/USD. This contract
- *          will determine the BASE/QUOTE rate with appropriate decimal precision.
+ *      - This rate provider will determine the rate of the USDT as QUOTE per USD / BASE per USD = QUOTE per BASE
+ *      - Redstone will return the QUOTE per USD and BASE per USD. This contract
+ *          will determine the QUOTE per BASE rate with appropriate decimal precision.
  * @custom:security-contact security@molecularlabs.io
  */
 contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
@@ -126,7 +124,7 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
      * @notice Gets the price of the quote token in terms of the base feed stablecoin.
      * @return rate in terms of base feed stablecoin.
      */
-    function getRate() public view returns (uint256 rate) {
+    function getRate() public view returns (uint256) {
         _validityCheck();
 
         (, int256 _baseRate,, uint256 lastUpdatedAtUsd,) = PRICE_FEED_BaseFeed.latestRoundData();
@@ -142,7 +140,7 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
         }
 
         // rate(quote decimals) = quoteRate(8) * 10^(quote decimals) / baseRate(8)
-        rate = (_quoteRate.toUint256() * 10 ** (RATE_DECIMALS) / _baseRate.toUint256());
+        uint256 rate = (_quoteRate.toUint256() * 10 ** (RATE_DECIMALS) / _baseRate.toUint256());
 
         _rateCheck(rate);
 
@@ -151,6 +149,8 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
         if (rate > ONE) {
             return ONE;
         }
+
+        return rate;
     }
 
     /**
