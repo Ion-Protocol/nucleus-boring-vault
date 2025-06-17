@@ -100,7 +100,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
 
         emit Deposit(
-            address(desc.srcToken), msg.sender, address(supportedAsset), desc.amount, supportedAssetAmount, shares
+            address(desc.srcToken), recipient, address(supportedAsset), desc.amount, supportedAssetAmount, shares
         );
     }
 
@@ -182,7 +182,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         // Deposit assets
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
 
-        emit Deposit(fromToken, msg.sender, address(supportedAsset), fromTokenAmount, supportedAssetAmount, shares);
+        emit Deposit(fromToken, recipient, address(supportedAsset), fromTokenAmount, supportedAssetAmount, shares);
     }
 
     /**
