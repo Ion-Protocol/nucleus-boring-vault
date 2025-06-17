@@ -31,18 +31,19 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         require(config.protocolAdmin != address(0), "protocolAdmin");
 
         // Set Authority
-        IAuthority(config.boringVault).setAuthority(config.rolesAuthority);
+        // Boring Vault configuration commands are removed, as they cannot be ran by deployment wallet
+        // IAuthority(config.boringVault).setAuthority(config.rolesAuthority);
         IAuthority(config.accountant).setAuthority(config.rolesAuthority);
         IAuthority(config.manager).setAuthority(config.rolesAuthority);
         IAuthority(config.teller).setAuthority(config.rolesAuthority);
-        IAuthority(config.boringVault).transferOwnership(config.protocolAdmin);
+        // IAuthority(config.boringVault).transferOwnership(config.protocolAdmin);
         IAuthority(config.manager).transferOwnership(config.protocolAdmin);
         IAuthority(config.accountant).transferOwnership(config.protocolAdmin);
         IAuthority(config.teller).transferOwnership(config.protocolAdmin);
         IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
 
         // Post Configuration Check
-        require(AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin, "boringVault");
+        // require(AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin, "boringVault");
         require(AuthOwnable2Step(config.manager).pendingOwner() == config.protocolAdmin, "manager");
         require(AuthOwnable2Step(config.accountant).pendingOwner() == config.protocolAdmin, "accountant");
         require(AuthOwnable2Step(config.teller).pendingOwner() == config.protocolAdmin, "teller");

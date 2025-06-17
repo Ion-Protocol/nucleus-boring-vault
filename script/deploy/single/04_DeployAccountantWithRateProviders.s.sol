@@ -14,9 +14,15 @@ contract DeployAccountantWithRateProviders is BaseScript {
         return deploy(getConfig());
     }
 
-    function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
+    function deploy(
+        ConfigReader.Config memory config,
+        uint256 startingExchangeRate
+    )
+        public
+        broadcast
+        returns (address)
+    {
         // Require Config Values
-        uint256 startingExchangeRate = 10 ** ERC20(config.base).decimals();
         {
             require(config.boringVault.code.length != 0, "boringVault must have code");
             require(config.base.code.length != 0, "base must have code");
@@ -31,10 +37,11 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(config.minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
             require(config.managementFee < 1e4, "managementFee");
             require(config.performanceFee < 1e4, "performanceFee is too large");
-            require(
-                startingExchangeRate == 10 ** config.boringVaultAndBaseDecimals,
-                "starting exchange rate must be equal to the boringVault and base decimals"
-            );
+            // startingExchangeRate is based on the existing one, not 1
+            // require(
+            //     startingExchangeRate == 10 ** config.boringVaultAndBaseDecimals,
+            //     "starting exchange rate must be equal to the boringVault and base decimals"
+            // );
         }
         // Create Contract
         bytes memory creationCode = type(AccountantWithRateProviders).creationCode;
@@ -52,7 +59,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 config.allowedExchangeRateChangeLower,
                 config.minimumUpdateDelayInSeconds,
                 config.managementFee,
-                config.performanceFee
+                config.performanceFee,
+                config.rateProvider
             );
         }
 
@@ -95,7 +103,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
             // Post Deploy Checks
             require(_payoutAddress == config.payoutAddress, "payout address");
             require(_feesOwedInBase == 0, "fees owed in base");
-            require(_totalSharesLastUpdate == 0, "total shares last update");
+            // Removed total shares last update check, as they will not be 0 with an existing boring vault
+            // require(_totalSharesLastUpdate == 0, "total shares last update");
             require(_exchangeRate == startingExchangeRate, "exchange rate");
             require(_highestExchangeRate == startingExchangeRate, "highest exchange rate not set properly");
             require(

@@ -12,7 +12,6 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { CrossChainTellerBase, BridgeData, ERC20 } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
@@ -81,6 +80,10 @@ contract LiveDeploy is ForkTest, DeployAll {
             SOLVER_ROLE, mainConfig.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         vm.stopPrank();
+
+        // Warp to avoid minimum update delay post accountant deploy. This
+        // wouldn't work if there were multiple _updateRate calls in a test.
+        vm.warp(block.timestamp + 4000);
     }
 
     function testDepositAndBridge(uint256 amount) public {
@@ -139,6 +142,8 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // update the rate
         _updateRate(rateChange, accountant);
+        vm.warp(accountant.getLastUpdateTimestamp()); // _updateRate warps to future for bypassing minmum update delay,
+            // so we need to catch up
         _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
 
         BoringVault boringVault = BoringVault(payable(mainConfig.boringVault));
@@ -321,6 +326,7 @@ contract LiveDeploy is ForkTest, DeployAll {
             destinationChainReceiver: userChain2,
             bridgeFeeToken: NATIVE_ERC20,
             messageGas: 100_000,
+            refundRecipient: user,
             data: ""
         });
 
@@ -351,12 +357,9 @@ contract LiveDeploy is ForkTest, DeployAll {
     function _updateRate(uint96 rateChange, AccountantWithRateProviders accountant) internal {
         // update the rate
         // warp forward the minimumUpdateDelay for the accountant to prevent it from pausing on update test
-        uint256 time = block.timestamp;
-        vm.warp(time + mainConfig.minimumUpdateDelayInSeconds);
         vm.startPrank(mainConfig.exchangeRateBot);
         uint96 newRate = uint96(accountant.getRate()) * rateChange / 10_000;
         accountant.updateExchangeRate(newRate);
         vm.stopPrank();
-        vm.warp(time);
     }
 }

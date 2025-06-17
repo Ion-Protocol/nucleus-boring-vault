@@ -128,6 +128,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
         manager.setManageRoot(address(this), manageTree[1][0]);
+        console.logBytes32(manageTree[1][0]);
 
         address[] memory targets = new address[](2);
         targets[0] = address(USDC);
@@ -3235,7 +3236,9 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
+            console.logBytes(rawDigest);
             leafs[0][i] = keccak256(bytes.concat(keccak256(rawDigest)));
+            console.logBytes32(leafs[0][i]);
         }
         tree = _buildTrees(leafs);
     }
