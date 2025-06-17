@@ -29,6 +29,7 @@ contract BoringVault is ERC20, AuthOwnable2Step, ERC721Holder, ERC1155Holder {
 
     event Enter(address indexed from, address indexed asset, uint256 amount, address indexed to, uint256 shares);
     event Exit(address indexed to, address indexed asset, uint256 amount, address indexed from, uint256 shares);
+    event BeforeTransferHookSet(address indexed hook);
 
     //============================== CONSTRUCTOR ===============================
 
@@ -140,6 +141,7 @@ contract BoringVault is ERC20, AuthOwnable2Step, ERC721Holder, ERC1155Holder {
      */
     function setBeforeTransferHook(address _hook) external requiresAuth {
         hook = BeforeTransferHook(_hook);
+        emit BeforeTransferHookSet(_hook);
     }
 
     /**
