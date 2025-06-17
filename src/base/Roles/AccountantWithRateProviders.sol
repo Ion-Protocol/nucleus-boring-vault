@@ -118,7 +118,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     ERC20 public immutable base;
 
     /**
-     * @notice The decimals rates are provided in.
+     * @notice The decimals of the base asset and vault
      */
     uint8 public immutable decimals;
 
@@ -534,7 +534,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     /**
      * @notice helper function to return the max rate for a given asset among all rate providers
      * @param asset the asset to get the max rate for
-     * @return maxRate the max rate for the asset
+     * @return maxRate the max rate for the asset in quote decimals
      */
     function getMaxRate(ERC20 asset) public view returns (uint256 maxRate) {
         RateProviderData[] memory data = rateProviderData[asset];
@@ -560,7 +560,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     /**
      * @notice helper function to return the min rate for a given asset among all rate providers
      * @param asset the asset to get the min rate for
-     * @return minRate the min rate for the asset
+     * @return minRate the min rate for the asset in quote decimals
      */
     function getMinRate(ERC20 asset) public view returns (uint256 minRate) {
         RateProviderData[] memory data = rateProviderData[asset];
@@ -612,7 +612,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @notice helper function to get the rate from a rate provider
      * @param data the rate provider data
      * @param assetDecimals the decimals of the asset
-     * @return rate the rate from the rate provider
+     * @return rate the rate from the rate provider, is provided in quote decimals
      */
     function _getRateFromRateProvider(
         RateProviderData memory data,
