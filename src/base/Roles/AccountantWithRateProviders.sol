@@ -87,6 +87,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     error AccountantWithRateProviders__InvalidRateReturned();
     error AccountantWithRateProviders__ZeroRate();
     error AccountantWithRateProviders__ZeroQuoteRate();
+    error AccountantWithRateProviders__VaultBaseDecimalMismatch();
 
     //============================== EVENTS ===============================
 
@@ -150,7 +151,12 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         base = ERC20(_base);
         decimals = ERC20(_base).decimals();
         vault = BoringVault(payable(_vault));
-        ONE_SHARE = 10 ** vault.decimals();
+
+        if (decimals != vault.decimals()) {
+            revert AccountantWithRateProviders__VaultBaseDecimalMismatch();
+        }
+
+        ONE_SHARE = 10 ** decimals;
         accountantState = AccountantState({
             payoutAddress: payoutAddress,
             feesOwedInBase: 0,
