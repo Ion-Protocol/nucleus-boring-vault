@@ -25,7 +25,7 @@ contract CommunityCodeDepositor is Auth {
     error IncorrectNativeDepositAmount();
     error NativeWrapperAccountantDecimalsMismatch();
 
-    INativeWrapper immutable NATIVE_WRAPPER;
+    INativeWrapper public immutable NATIVE_WRAPPER;
 
     TellerWithMultiAssetSupport public immutable teller;
     address public immutable boringVault;
@@ -118,7 +118,9 @@ contract CommunityCodeDepositor is Auth {
         internal
         returns (uint256 shares)
     {
-        bytes32 depositHash = keccak256(abi.encodePacked(address(this), depositNonce++));
+        if (to == address(0)) revert ZeroAddress();
+
+        bytes32 depositHash = keccak256(abi.encodePacked(address(this), ++depositNonce));
 
         depositAsset.safeApprove(boringVault, depositAmount);
 

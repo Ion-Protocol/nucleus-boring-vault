@@ -79,4 +79,19 @@ contract CommunityCodeDepositorTest is TellerWithMultiAssetSupportTest {
         assertEq(boringVault.balanceOf(to), initialToBalance + shares, "BoringVault shares not received");
         assertEq(shares, depositAmount, "Shares minted should equal deposit amount for 1:1 asset");
     }
+
+    function testRevert_DepositToZeroAddress() public {
+        uint256 depositAmount = 1e18;
+        uint256 minimumMint = 0;
+
+        deal(address(NATIVE_WRAPPER), address(this), depositAmount);
+
+        NATIVE_WRAPPER.approve(address(communityCodeDepositor), depositAmount);
+
+        address recipient = address(0);
+
+        // Perform deposit
+        vm.expectRevert(abi.encodeWithSelector(CommunityCodeDepositor.ZeroAddress.selector));
+        uint256 shares = communityCodeDepositor.deposit(WETH, depositAmount, minimumMint, recipient, communityCode);
+    }
 }
