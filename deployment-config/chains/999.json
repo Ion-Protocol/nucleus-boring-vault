@@ -8,6 +8,11 @@
         "note": "LHYPE, rate provider is Accountant with base WHYPE",
         "isPegged": false,
         "rateProvider": "0xcE621a3CA6F72706678cFF0572ae8d15e5F001c3" 
+      },
+      "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb": {
+        "note": "USDT0, using custom redstone stablecoin rate provider",
+        "isPegged": false,
+        "rateProvider": "0xebdd4cc58915f9fb2f61cc052419f9ae88e58c82"
       }
     }
 }
