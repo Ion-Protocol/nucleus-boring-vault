@@ -1441,7 +1441,7 @@ contract BaseMerkleRootGenerator is Script, MainnetAddresses {
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
             }
-            leafs[0][i] = keccak256(rawDigest);
+            leafs[0][i] = keccak256(bytes.concat(keccak256(rawDigest)));
         }
         tree = _buildTrees(leafs);
     }
