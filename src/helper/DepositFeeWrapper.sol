@@ -5,7 +5,6 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
-import { console2 } from "forge-std/console2.sol";
 
 /**
  * @custom:security-contact security@molecularlabs.io
