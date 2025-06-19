@@ -66,7 +66,7 @@ contract HyperliquidForwarder is Auth {
 
     /**
      * @notice function to forward tokens to the Hyperliquid L1, ensuring they arrive on the desired address (as it
-     * mathces msg.sender on L1)
+     * matches msg.sender on L1)
      */
     function forward(ERC20 token, uint256 amount, address evmEOAToSendToAndForwardToL1) external {
         address bridge = tokenAddressToBridge[address(token)];
