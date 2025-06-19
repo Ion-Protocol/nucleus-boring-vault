@@ -16,12 +16,33 @@ contract HyperliquidForwarder is Auth {
 
     error HyperliquidForwarder__BridgeNotSet(address token);
     error HyperliquidForwarder__BridgeAddressDoesNotMatchTokenID();
+    error HyperliquidForwarder__EOANotAllowed(address eoa);
 
-    mapping(address => address) tokenAddressToBridge;
+    mapping(address => bool) public eoaAllowlist;
+    mapping(address => address) internal tokenAddressToBridge;
 
     constructor() Auth(msg.sender, Authority(address(0))) {
         // By default add WHYPE exception
         addTokenIDToBridgeMapping(WHYPE, address(0), 0);
+    }
+
+    /**
+     * @dev require EOA is in the eoaAllowlist
+     */
+    modifier requireAllowedEOA(address eoa) {
+        if (eoaAllowlist[eoa]) {
+            _;
+        } else {
+            revert HyperliquidForwarder__EOANotAllowed(eoa);
+        }
+    }
+
+    /**
+     * @dev To prevent mistakes we only allow approved EOA addresses for forwarding
+     * owner may set these addresses
+     */
+    function setEOAAllowStatus(address eoa, bool allowed) external requiresAuth {
+        eoaAllowlist[eoa] = allowed;
     }
 
     /**
@@ -68,7 +89,14 @@ contract HyperliquidForwarder is Auth {
      * @notice function to forward tokens to the Hyperliquid L1, ensuring they arrive on the desired address (as it
      * matches msg.sender on L1)
      */
-    function forward(ERC20 token, uint256 amount, address evmEOAToSendToAndForwardToL1) external {
+    function forward(
+        ERC20 token,
+        uint256 amount,
+        address evmEOAToSendToAndForwardToL1
+    )
+        external
+        requireAllowedEOA(evmEOAToSendToAndForwardToL1)
+    {
         address bridge = tokenAddressToBridge[address(token)];
         if (bridge == address(0)) {
             revert HyperliquidForwarder__BridgeNotSet(address(token));
