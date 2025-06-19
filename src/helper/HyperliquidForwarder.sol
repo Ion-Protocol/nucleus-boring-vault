@@ -18,6 +18,10 @@ contract HyperliquidForwarder is Auth {
     error HyperliquidForwarder__BridgeAddressDoesNotMatchTokenID();
     error HyperliquidForwarder__EOANotAllowed(address eoa);
 
+    event HyperliquidForwarder__EOAAllowStatusUpdated(address eoa, bool allowed);
+    event HyperliquidForwarder__ForwardComplete(ERC20 token, uint256 amount, address eoa);
+    event HyperliquidForwarder__TokenAddressUpdated(address tokenAddress, address bridgeAddress, uint16 tokenId);
+
     mapping(address => bool) public eoaAllowlist;
     mapping(address => address) internal tokenAddressToBridge;
 
@@ -43,6 +47,7 @@ contract HyperliquidForwarder is Auth {
      */
     function setEOAAllowStatus(address eoa, bool allowed) external requiresAuth {
         eoaAllowlist[eoa] = allowed;
+        HyperliquidForwarder__EOAAllowStatusUpdated(eoa, allowed);
     }
 
     /**
@@ -83,6 +88,7 @@ contract HyperliquidForwarder is Auth {
 
         // Store the mapping of token address to bridge based off what's created from the ID
         tokenAddressToBridge[tokenAddress] = bridgeAddress;
+        HyperliquidForwarder__TokenAddressUpdated(tokenAddress, bridgeAddress, tokenID);
     }
 
     /**
@@ -104,5 +110,6 @@ contract HyperliquidForwarder is Auth {
 
         token.safeTransferFrom(msg.sender, evmEOAToSendToAndForwardToL1, amount);
         token.safeTransferFrom(evmEOAToSendToAndForwardToL1, bridge, amount);
+        HyperliquidForwarder__ForwardComplete(token, amount, evmEOAToSendToAndForwardToL1);
     }
 }
