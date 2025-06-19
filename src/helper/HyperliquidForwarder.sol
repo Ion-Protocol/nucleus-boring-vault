@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.21;
 
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -17,20 +18,20 @@ contract HyperliquidForwarder is Auth {
     error HyperliquidForwarder__BridgeNotSet(address token);
     error HyperliquidForwarder__BridgeAddressDoesNotMatchTokenID();
     error HyperliquidForwarder__EOANotAllowed(address eoa);
+    error HyperliquidForwarder__SenderNotAllowed(address caller);
 
     event HyperliquidForwarder__EOAAllowStatusUpdated(address eoa, bool allowed);
     event HyperliquidForwarder__ForwardComplete(ERC20 token, uint256 amount, address eoa, address caller);
     event HyperliquidForwarder__TokenAddressUpdated(address tokenAddress, address bridgeAddress, uint16 tokenId);
     event HyperliquidForwarder__SenderStatusAllowUpdated(address sender, bool allowed);
-    event HyperliquidForwarder__SenderNotAllowed(address caller);
 
     mapping(address => bool) public eoaAllowlist;
-    mapping(address => address) public sendersAllowlist;
+    mapping(address => bool) public sendersAllowlist;
     mapping(address => address) internal tokenAddressToBridge;
 
     constructor(address owner) Auth(owner, Authority(address(0))) {
         // By default add WHYPE exception
-        addTokenIDToBridgeMapping(WHYPE, WHYPE_BRIDGE, 0);
+        tokenAddressToBridge[WHYPE] = WHYPE_BRIDGE;
     }
 
     /**
@@ -61,7 +62,7 @@ contract HyperliquidForwarder is Auth {
      */
     function setEOAAllowStatus(address eoa, bool allowed) external requiresAuth {
         eoaAllowlist[eoa] = allowed;
-        HyperliquidForwarder__EOAAllowStatusUpdated(eoa, allowed);
+        emit HyperliquidForwarder__EOAAllowStatusUpdated(eoa, allowed);
     }
 
     /**
@@ -69,7 +70,7 @@ contract HyperliquidForwarder is Auth {
      */
     function setSenderAllowStatus(address sender, bool allowed) external requiresAuth {
         sendersAllowlist[sender] = allowed;
-        HyperliquidForwarder__SenderStatusAllowUpdated(sender, allowed);
+        emit HyperliquidForwarder__SenderStatusAllowUpdated(sender, allowed);
     }
 
     /**
@@ -115,7 +116,7 @@ contract HyperliquidForwarder is Auth {
 
         // Store the mapping of token address to bridge based off what's created from the ID
         tokenAddressToBridge[tokenAddress] = bridgeAddress;
-        HyperliquidForwarder__TokenAddressUpdated(tokenAddress, bridgeAddress, tokenID);
+        emit HyperliquidForwarder__TokenAddressUpdated(tokenAddress, bridgeAddress, tokenID);
     }
 
     /**
@@ -138,6 +139,6 @@ contract HyperliquidForwarder is Auth {
 
         token.safeTransferFrom(msg.sender, evmEOAToSendToAndForwardToL1, amount);
         token.safeTransferFrom(evmEOAToSendToAndForwardToL1, bridge, amount);
-        HyperliquidForwarder__ForwardComplete(token, amount, evmEOAToSendToAndForwardToL1, msg.sender);
+        emit HyperliquidForwarder__ForwardComplete(token, amount, evmEOAToSendToAndForwardToL1, msg.sender);
     }
 }
