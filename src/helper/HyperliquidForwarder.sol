@@ -21,13 +21,16 @@ contract HyperliquidForwarder is Auth {
     event HyperliquidForwarder__EOAAllowStatusUpdated(address eoa, bool allowed);
     event HyperliquidForwarder__ForwardComplete(ERC20 token, uint256 amount, address eoa, address caller);
     event HyperliquidForwarder__TokenAddressUpdated(address tokenAddress, address bridgeAddress, uint16 tokenId);
+    event HyperliquidForwarder__SenderStatusAllowUpdated(address sender, bool allowed);
+    event HyperliquidForwarder__SenderNotAllowed(address caller);
 
     mapping(address => bool) public eoaAllowlist;
+    mapping(address => address) public sendersAllowlist;
     mapping(address => address) internal tokenAddressToBridge;
 
-    constructor() Auth(msg.sender, Authority(address(0))) {
+    constructor(address owner) Auth(owner, Authority(address(0))) {
         // By default add WHYPE exception
-        addTokenIDToBridgeMapping(WHYPE, address(0), 0);
+        addTokenIDToBridgeMapping(WHYPE, WHYPE_BRIDGE, 0);
     }
 
     /**
@@ -42,12 +45,31 @@ contract HyperliquidForwarder is Auth {
     }
 
     /**
+     * @dev require sender is in the sender allow list
+     */
+    modifier requireAllowedSender() {
+        if (sendersAllowlist[msg.sender]) {
+            _;
+        } else {
+            revert HyperliquidForwarder__SenderNotAllowed(msg.sender);
+        }
+    }
+
+    /**
      * @dev To prevent mistakes we only allow approved EOA addresses for forwarding
      * owner may set these addresses
      */
     function setEOAAllowStatus(address eoa, bool allowed) external requiresAuth {
         eoaAllowlist[eoa] = allowed;
         HyperliquidForwarder__EOAAllowStatusUpdated(eoa, allowed);
+    }
+
+    /**
+     * @dev Owner may set sender approvals
+     */
+    function setSenderAllowStatus(address sender, bool allowed) external requiresAuth {
+        sendersAllowlist[sender] = allowed;
+        HyperliquidForwarder__SenderStatusAllowUpdated(sender, allowed);
     }
 
     /**
@@ -70,6 +92,11 @@ contract HyperliquidForwarder is Auth {
         public
         requiresAuth
     {
+        if (bridgeAddress == address(0)) {
+            tokenAddressToBridge[tokenAddress] = address(0);
+            return;
+        }
+
         // HYPE/WHYPE is an exception and is handled separately, do not allow owner to incorrectly set it
         if (tokenAddress == WHYPE) {
             tokenAddressToBridge[WHYPE] = WHYPE_BRIDGE;
@@ -101,6 +128,7 @@ contract HyperliquidForwarder is Auth {
         address evmEOAToSendToAndForwardToL1
     )
         external
+        requireAllowedSender
         requireAllowedEOA(evmEOAToSendToAndForwardToL1)
     {
         address bridge = tokenAddressToBridge[address(token)];
