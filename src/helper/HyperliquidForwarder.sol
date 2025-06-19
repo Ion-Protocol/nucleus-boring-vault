@@ -19,7 +19,7 @@ contract HyperliquidForwarder is Auth {
     error HyperliquidForwarder__EOANotAllowed(address eoa);
 
     event HyperliquidForwarder__EOAAllowStatusUpdated(address eoa, bool allowed);
-    event HyperliquidForwarder__ForwardComplete(ERC20 token, uint256 amount, address eoa);
+    event HyperliquidForwarder__ForwardComplete(ERC20 token, uint256 amount, address eoa, address caller);
     event HyperliquidForwarder__TokenAddressUpdated(address tokenAddress, address bridgeAddress, uint16 tokenId);
 
     mapping(address => bool) public eoaAllowlist;
@@ -110,6 +110,6 @@ contract HyperliquidForwarder is Auth {
 
         token.safeTransferFrom(msg.sender, evmEOAToSendToAndForwardToL1, amount);
         token.safeTransferFrom(evmEOAToSendToAndForwardToL1, bridge, amount);
-        HyperliquidForwarder__ForwardComplete(token, amount, evmEOAToSendToAndForwardToL1);
+        HyperliquidForwarder__ForwardComplete(token, amount, evmEOAToSendToAndForwardToL1, msg.sender);
     }
 }
