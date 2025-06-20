@@ -14,6 +14,7 @@ contract HyperliquidForwarder is Auth {
 
     address public constant WHYPE = 0x5555555555555555555555555555555555555555;
     address private constant WHYPE_BRIDGE = 0x2222222222222222222222222222222222222222;
+    uint16 private constant HYPE_ID = 150;
 
     error HyperliquidForwarder__BridgeNotSet(address token);
     error HyperliquidForwarder__BridgeAddressDoesNotMatchTokenID();
@@ -24,6 +25,7 @@ contract HyperliquidForwarder is Auth {
     event HyperliquidForwarder__ForwardComplete(ERC20 token, uint256 amount, address eoa, address caller);
     event HyperliquidForwarder__TokenAddressUpdated(address tokenAddress, address bridgeAddress, uint16 tokenId);
     event HyperliquidForwarder__SenderStatusAllowUpdated(address sender, bool allowed);
+    event HyperliquidForwarder__TokenBridgeRemoved(address token);
 
     mapping(address => bool) public eoaAllowlist;
     mapping(address => bool) public sendersAllowlist;
@@ -95,12 +97,14 @@ contract HyperliquidForwarder is Auth {
     {
         if (bridgeAddress == address(0)) {
             tokenAddressToBridge[tokenAddress] = address(0);
+            emit HyperliquidForwarder__TokenBridgeRemoved(tokenAddress);
             return;
         }
 
         // HYPE/WHYPE is an exception and is handled separately, do not allow owner to incorrectly set it
         if (tokenAddress == WHYPE) {
             tokenAddressToBridge[WHYPE] = WHYPE_BRIDGE;
+            emit HyperliquidForwarder__TokenAddressUpdated(WHYPE, WHYPE_BRIDGE, HYPE_ID);
             return;
         }
 
