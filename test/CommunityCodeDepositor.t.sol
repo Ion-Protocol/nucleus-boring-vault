@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { TellerWithMultiAssetSupportTest } from "./TellerWithMultiAssetSupport.t.sol";
 import { CommunityCodeDepositor } from "src/helper/CommunityCodeDepositor.sol";
+import { CommunityCodeDepositorWithoutNative } from "src/helper/CommunityCodeDepositorWithoutNative.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
@@ -17,6 +18,7 @@ contract CommunityCodeDepositorTest is TellerWithMultiAssetSupportTest {
     using FixedPointMathLib for uint256;
 
     CommunityCodeDepositor public communityCodeDepositor;
+    CommunityCodeDepositorWithoutNative public communityCodeDepositorWithoutNative;
     address public to;
     bytes public communityCode;
 
@@ -27,6 +29,8 @@ contract CommunityCodeDepositorTest is TellerWithMultiAssetSupportTest {
 
         // Deploy CommunityCodeDepositor
         communityCodeDepositor = new CommunityCodeDepositor(address(teller), address(this), address(NATIVE_WRAPPER));
+
+        communityCodeDepositorWithoutNative = new CommunityCodeDepositorWithoutNative(address(teller), address(this));
 
         // Setup test recipient
         to = makeAddr("recipient");

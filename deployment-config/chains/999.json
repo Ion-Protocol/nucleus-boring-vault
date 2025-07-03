@@ -13,6 +13,15 @@
         "note": "USDT0, using custom redstone stablecoin rate provider",
         "isPegged": false,
         "rateProvider": "0xebdd4cc58915f9fb2f61cc052419f9ae88e58c82"
+      },
+      "0x1359b05241ca5076c9f59605214f4f84114c0de8": {
+        "note": "WHLP, rate provider is Accountant with base USDC standin",
+        "isPegged": false,
+        "rateProvider": "0x470bd109A24f608590d85fc1f5a4B6e625E8bDfF"
+      },
+      "0xb50a96253abdf803d85efcdce07ad8becbc52bd5": {
+        "note": "USDHL, rate provider is redstone stablecoin rate provider", 
+        "isPegged": true
       }
     }
 }
