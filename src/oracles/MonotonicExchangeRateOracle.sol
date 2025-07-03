@@ -9,7 +9,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  */
 contract MonotonicExchangeRateOracle is Auth {
     AccountantWithRateProviders public accountant;
-    uint8 internal accountantDecimals;
+    uint8 public accountantDecimals;
 
     // Stores in the Accountant Decimals, conversion to 18 decimals is done at the return step
     uint256 public highwaterMark;
@@ -32,7 +32,6 @@ contract MonotonicExchangeRateOracle is Auth {
         if (accountant.decimals() != accountantDecimals) {
             revert MonotonicExchangeRateOracle__NewAccountantDecimalsMissmatch();
         }
-        accountantDecimals = accountant.decimals();
         emit MonotonicExchangeRateOracle__AccountantUpdated(_newAccountant);
     }
 
@@ -55,6 +54,15 @@ contract MonotonicExchangeRateOracle is Auth {
             highwaterMark = rate;
             emit MonotonicExchangeRateOracle__HighwaterMarkUpdated(highwaterMark);
         }
+        return _convertTo18Decimals(highwaterMark);
+    }
+
+    /**
+     * @dev function to return the highwater mark in 18 decimals.
+     * NOTE: View only, does not query accountant or update the highwater mark, should NOT be used as the oracle
+     * function
+     */
+    function getHighwaterMark18Decimals() external view returns (uint256) {
         return _convertTo18Decimals(highwaterMark);
     }
 
