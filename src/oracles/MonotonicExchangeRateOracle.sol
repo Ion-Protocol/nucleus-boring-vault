@@ -44,11 +44,11 @@ contract MonotonicExchangeRateOracle is Auth {
     }
 
     /**
-     * @dev function to return accountant's getRate but with the following considerations:
-     *  1. The rate must never go down
-     *  2. The rate must be returned in 18 decimals
+     * @dev function to update the highwater mark with the accountant's getRate if and only if it's the highest rate
+     * yet.
+     *  Also returns the new highwater mark in 18 decimals
      */
-    function getRate() external returns (uint256) {
+    function update() external returns (uint256) {
         uint256 rate = accountant.getRate();
         if (rate > highwaterMark) {
             highwaterMark = rate;
@@ -58,11 +58,11 @@ contract MonotonicExchangeRateOracle is Auth {
     }
 
     /**
-     * @dev function to return the highwater mark in 18 decimals.
-     * NOTE: View only, does not query accountant or update the highwater mark, should NOT be used as the oracle
-     * function
+     * @dev function to return the highwater mark accountant rate with the following considerations
+     *  1. The rate must never go down (excluding manual owner updates)
+     *  2. The rate must be returned in 18 decimals
      */
-    function getHighwaterMark18Decimals() external view returns (uint256) {
+    function getRate() external view returns (uint256) {
         return _convertTo18Decimals(highwaterMark);
     }
 
