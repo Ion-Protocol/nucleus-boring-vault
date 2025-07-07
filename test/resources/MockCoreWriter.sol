@@ -7,10 +7,10 @@ contract MockCoreWriter {
         uint32 asset, bool isBuy, uint64 limitPx, uint64 sz, bool reduceOnly, uint8 encodedTif, uint128 cloid
     );
     event MockCoreWriter__VaultTransfer(address vault, bool isDeposit, uint64 usd);
-    event MockCoreWriter__TokenDelegate(address validator, uint64 wei, bool isUndelegate);
-    event MockCoreWriter__StakingDeposit(uint64 wei);
-    event MockCoreWriter__StakingWithdraw(uint64 wei);
-    event MockCoreWriter__SpotSend(address destination, uint64 token, uint64 wei);
+    event MockCoreWriter__TokenDelegate(address validator, uint64 _wei, bool isUndelegate);
+    event MockCoreWriter__StakingDeposit(uint64 _wei);
+    event MockCoreWriter__StakingWithdraw(uint64 _wei);
+    event MockCoreWriter__SpotSend(address destination, uint64 token, uint64 _wei);
     event MockCoreWriter__UsdClassTransfer(uint64 ntl, bool toPerp);
     event MockCoreWriter__FinalizeEvmContract(
         uint64 token, uint8 encodedFinalizeEvmContractVariant, uint64 createNonce
@@ -39,20 +39,20 @@ contract MockCoreWriter {
             emit MockCoreWriter__VaultTransfer(vault, isDeposit, usd);
         } else if (actionID == 0x03) {
             // Token delegate
-            (address validator, uint64 wei, bool isUndelegate) = abi.decode(data[4:], (address, uint64, bool));
-            emit MockCoreWriter__TokenDelegate(validator, wei, isUndelegate);
+            (address validator, uint64 _wei, bool isUndelegate) = abi.decode(data[4:], (address, uint64, bool));
+            emit MockCoreWriter__TokenDelegate(validator, _wei, isUndelegate);
         } else if (actionID == 0x04) {
             // Staking deposit
-            uint64 wei = abi.decode(data[4:], (uint64));
-            emit MockCoreWriter__StakingDeposit(wei);
+            uint64 _wei = abi.decode(data[4:], (uint64));
+            emit MockCoreWriter__StakingDeposit(_wei);
         } else if (actionID == 0x05) {
             // Staking withdraw
-            uint64 wei = abi.decode(data[4:], (uint64));
-            emit MockCoreWriter__StakingWithdraw(wei);
+            uint64 _wei = abi.decode(data[4:], (uint64));
+            emit MockCoreWriter__StakingWithdraw(_wei);
         } else if (actionID == 0x06) {
             // Spot Send
-            (address destination, uint64 token, uint64 wei) = abi.decode(data[4:], (address, uint64, uint64));
-            emit MockCoreWriter__SpotSend(destination, token, wei);
+            (address destination, uint64 token, uint64 _wei) = abi.decode(data[4:], (address, uint64, uint64));
+            emit MockCoreWriter__SpotSend(destination, token, _wei);
         } else if (actionID == 0x07) {
             // USD Class Transfer
             (uint64 ntl, bool toPerp) = abi.decode(data[4:], (uint64, bool));
