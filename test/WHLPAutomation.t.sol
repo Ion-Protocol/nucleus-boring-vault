@@ -59,7 +59,7 @@ contract WHLPAutomation is Test {
 
         // withdraw 50e6 USDC to owner
         vm.expectEmit();
-        emit MockCoreWriter__SpotSend(vault, account.USDC_ID(), 50e6);
+        emit MockCoreWriter__SpotSend(vault, account.USDC_INDEX(), 50e6);
         account.withdrawSpot(50e6);
     }
 
@@ -82,7 +82,7 @@ contract WHLPAutomation is Test {
 
         vm.expectEmit(address(mockCoreWriter));
         // note vault is the owner, but in this test we are the owner
-        emit MockCoreWriter__SpotSend(address(this), account.USDC_ID(), 100e6);
+        emit MockCoreWriter__SpotSend(address(this), account.USDC_INDEX(), 100e6);
 
         controller.sendToVault(account, 100e6);
     }

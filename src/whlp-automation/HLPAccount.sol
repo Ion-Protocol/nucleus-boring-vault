@@ -5,7 +5,7 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 contract HLPAccount is Auth {
     address public constant HLP_VAULT = 0xdfc24b077bc1425AD1DEA75bCB6f8158E10Df303;
-    uint64 public constant USDC_ID = 1;
+    uint64 public constant USDC_INDEX = 0;
 
     address public immutable coreWriter;
     address public immutable vault;
@@ -36,7 +36,7 @@ contract HLPAccount is Auth {
     }
 
     function withdrawSpot(uint64 amount) external requiresAuth {
-        bytes memory encodedAction = abi.encode(vault, USDC_ID, amount);
+        bytes memory encodedAction = abi.encode(vault, USDC_INDEX, amount);
         _sendCoreWriterCall(encodedAction, 0x06);
     }
 
