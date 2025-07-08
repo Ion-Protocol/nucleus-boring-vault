@@ -60,20 +60,67 @@ contract HLPController is Auth {
     }
 
     /**
+     * @dev function to do a USD Class Transfer, to/from perps
+     */
+    function USDClassTransfer(
+        HLPAccount account,
+        uint64 amount,
+        bool toPerps
+    )
+        external
+        requiresAuth
+        requireAccountInSet(account)
+    {
+        if (toPerps) {
+            account.toPerps(amount);
+        } else {
+            account.toSpot(amount);
+        }
+    }
+
+    /**
+     * @dev function to deposit or withdraw from HLP
+     */
+    function transferHLP(
+        HLPAccount account,
+        uint64 amount,
+        bool deposit
+    )
+        external
+        requiresAuth
+        requireAccountInSet(account)
+    {
+        if (deposit) {
+            account.depositHLP(amount);
+        } else {
+            account.withdrawHLP(amount);
+        }
+    }
+
+    /**
      * @dev sends the owner (vault) the specified funds
      */
     function sendToVault(HLPAccount account, uint64 amount) external requiresAuth requireAccountInSet(account) {
         account.withdrawSpot(amount);
     }
 
+    /**
+     * @dev getter for length of account set
+     */
     function getAccountsCount() external view returns (uint256) {
         return accountsSet.length();
     }
 
+    /**
+     * @dev getter for account
+     */
     function getAccountAt(uint256 index) external view returns (address) {
         return accountsSet.at(index);
     }
 
+    /**
+     * @dev getter for if an account exists in set
+     */
     function containsAccount(address account) public view returns (bool) {
         return accountsSet.contains(account);
     }
