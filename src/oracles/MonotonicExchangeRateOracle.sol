@@ -9,7 +9,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  */
 contract MonotonicExchangeRateOracle is Auth {
     AccountantWithRateProviders public accountant;
-    uint8 public accountantDecimals;
+    uint8 public immutable accountantDecimals;
 
     // Stores in the Accountant Decimals, conversion to 18 decimals is done at the return step
     uint256 public highwaterMark;
@@ -18,6 +18,7 @@ contract MonotonicExchangeRateOracle is Auth {
     event MonotonicExchangeRateOracle__AccountantUpdated(AccountantWithRateProviders newAccountant);
 
     error MonotonicExchangeRateOracle__NewAccountantDecimalsMissmatch();
+    error MonotonicExchangeRateOracle__NewAccountantReturnsZero();
 
     constructor(address _owner, AccountantWithRateProviders _accountant) Auth(_owner, Authority(address(0))) {
         accountant = _accountant;
@@ -31,6 +32,9 @@ contract MonotonicExchangeRateOracle is Auth {
         accountant = _newAccountant;
         if (accountant.decimals() != accountantDecimals) {
             revert MonotonicExchangeRateOracle__NewAccountantDecimalsMissmatch();
+        }
+        if (accountant.getRate() == 0) {
+            revert MonotonicExchangeRateOracle__NewAccountantReturnsZero();
         }
         emit MonotonicExchangeRateOracle__AccountantUpdated(_newAccountant);
     }
