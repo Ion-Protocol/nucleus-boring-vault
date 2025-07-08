@@ -5,6 +5,7 @@ import { HLPAccount } from "src/whlp-automation/HLPAccount.sol";
 import { ICreateX } from "lib/createx/src/ICreateX.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { console } from "@forge-std/Test.sol";
 
 contract HLPController is Auth {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -21,7 +22,7 @@ contract HLPController is Auth {
 
     constructor(address _boringVault, address _coreWriter) Auth(_boringVault, Authority(address(0))) {
         coreWriter = _coreWriter;
-        currentSalt = abi.decode(abi.encodePacked(address(this), bytes1(0xff), bytes11(0)), (bytes32));
+        currentSalt = abi.decode(abi.encodePacked(address(this), bytes1(0x00), bytes11(0)), (bytes32));
     }
 
     modifier requireAccountInSet(HLPAccount account) {
