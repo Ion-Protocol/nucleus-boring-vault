@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
+// TODO:due to this being a mock, we can't simulate how the REAL core writer will act.
+// So to properly test, a testnet run through of the tests should be done to assert that the controller
+// never custodies funds.
 contract MockCoreWriter {
     event RawAction(address indexed user, bytes data);
     event MockCoreWriter__LimitOrder(

@@ -4,9 +4,11 @@ pragma solidity 0.8.21;
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { MockCoreWriter } from "test/resources/MockCoreWriter.sol";
 import { HLPAccount } from "src/whlp-automation/HLPAccount.sol";
+import { HLPController } from "src/whlp-automation/HLPController.sol";
 
 contract WHLPAutomation is Test {
     MockCoreWriter mockCoreWriter;
+    HLPController controller;
 
     event MockCoreWriter__LimitOrder(
         uint32 asset, bool isBuy, uint64 limitPx, uint64 sz, bool reduceOnly, uint8 encodedTif, uint128 cloid
@@ -23,12 +25,15 @@ contract WHLPAutomation is Test {
     event MockCoreWriter__AddApiWallet(address apiWalletAddress, string apiWalletName);
 
     function setUp() external {
+        _startFork("HL_RPC_URL");
         mockCoreWriter = new MockCoreWriter();
+        controller = new HLPController(address(this), address(mockCoreWriter));
     }
 
     // test the account in isolation
     function testHLPAccount() external {
-        HLPAccount account = new HLPAccount(address(this), address(mockCoreWriter));
+        address vault = makeAddr("a vault");
+        HLPAccount account = new HLPAccount(address(this), vault, address(mockCoreWriter));
 
         // Assume some funds are sent on L1
 
@@ -54,7 +59,32 @@ contract WHLPAutomation is Test {
 
         // withdraw 50e6 USDC to owner
         vm.expectEmit();
-        emit MockCoreWriter__SpotSend(address(this), account.USDC_ID(), 50e6);
+        emit MockCoreWriter__SpotSend(vault, account.USDC_ID(), 50e6);
         account.withdrawSpot(50e6);
+    }
+
+    function testControllerHappyPath() external {
+        controller.deployAccounts(10);
+
+        HLPAccount account = HLPAccount(controller.getAccountAt(2));
+        controller.deposit(account, 100e6);
+        vm.expectEmit(address(account));
+        emit MockCoreWriter__UsdClassTransfer(100e6, true);
+        emit MockCoreWriter__VaultTransfer(account.HLP_VAULT(), true, 100e6);
+
+        controller.withdraw(account, 100e6);
+        vm.expectEmit(address(account));
+        emit MockCoreWriter__VaultTransfer(account.HLP_VAULT(), false, 100e6);
+        emit MockCoreWriter__UsdClassTransfer(100e6, false);
+
+        controller.sendToVault(account, 100e6);
+        vm.expectEmit(address(account));
+        // note vault is the owner, but in this test we are the owner
+        emit MockCoreWriter__SpotSend(address(this), account.USDC_ID(), 100e6);
+    }
+
+    function _startFork(string memory rpcKey) internal returns (uint256 forkId) {
+        forkId = vm.createFork(vm.envString(rpcKey));
+        vm.selectFork(forkId);
     }
 }

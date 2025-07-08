@@ -8,9 +8,11 @@ contract HLPAccount is Auth {
     uint64 public constant USDC_ID = 1;
 
     address public immutable coreWriter;
+    address public immutable vault;
 
-    constructor(address _owner, address _coreWriter) Auth(_owner, Authority(address(0))) {
+    constructor(address _owner, address _vault, address _coreWriter) Auth(_owner, Authority(address(0))) {
         coreWriter = _coreWriter;
+        vault = _vault;
     }
 
     function toPerps(uint64 amount) external requiresAuth {
@@ -34,7 +36,7 @@ contract HLPAccount is Auth {
     }
 
     function withdrawSpot(uint64 amount) external requiresAuth {
-        bytes memory encodedAction = abi.encode(owner, USDC_ID, amount);
+        bytes memory encodedAction = abi.encode(vault, USDC_ID, amount);
         _sendCoreWriterCall(encodedAction, 0x06);
     }
 
