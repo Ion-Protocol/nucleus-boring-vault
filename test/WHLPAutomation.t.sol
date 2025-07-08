@@ -67,20 +67,24 @@ contract WHLPAutomation is Test {
         controller.deployAccounts(10);
 
         HLPAccount account = HLPAccount(controller.getAccountAt(2));
-        controller.deposit(account, 100e6);
-        vm.expectEmit(address(account));
+        vm.expectEmit(address(mockCoreWriter));
         emit MockCoreWriter__UsdClassTransfer(100e6, true);
+        vm.expectEmit(address(mockCoreWriter));
         emit MockCoreWriter__VaultTransfer(account.HLP_VAULT(), true, 100e6);
 
-        controller.withdraw(account, 100e6);
-        vm.expectEmit(address(account));
-        emit MockCoreWriter__VaultTransfer(account.HLP_VAULT(), false, 100e6);
-        emit MockCoreWriter__UsdClassTransfer(100e6, false);
+        controller.deposit(account, 100e6);
 
-        controller.sendToVault(account, 100e6);
-        vm.expectEmit(address(account));
+        vm.expectEmit(address(mockCoreWriter));
+        emit MockCoreWriter__VaultTransfer(account.HLP_VAULT(), false, 100e6);
+        vm.expectEmit(address(mockCoreWriter));
+        emit MockCoreWriter__UsdClassTransfer(100e6, false);
+        controller.withdraw(account, 100e6);
+
+        vm.expectEmit(address(mockCoreWriter));
         // note vault is the owner, but in this test we are the owner
         emit MockCoreWriter__SpotSend(address(this), account.USDC_ID(), 100e6);
+
+        controller.sendToVault(account, 100e6);
     }
 
     function _startFork(string memory rpcKey) internal returns (uint256 forkId) {
