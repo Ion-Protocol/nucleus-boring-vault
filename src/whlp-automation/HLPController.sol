@@ -44,10 +44,10 @@ contract HLPController is Auth {
 
     /**
      * @dev this should be called after the account has already received funds in spot
-     * NOTE if toPerps fails here, deposit may still succeed and vis versa
+     * NOTE if toPerp fails here, deposit may still succeed and vis versa
      */
     function deposit(HLPAccount account, uint64 amount) external requiresAuth requireAccountInSet(account) {
-        account.toPerps(amount);
+        account.toPerp(amount);
         account.depositHLP(amount);
     }
 
@@ -65,14 +65,14 @@ contract HLPController is Auth {
     function USDClassTransfer(
         HLPAccount account,
         uint64 amount,
-        bool toPerps
+        bool toPerp
     )
         external
         requiresAuth
         requireAccountInSet(account)
     {
-        if (toPerps) {
-            account.toPerps(amount);
+        if (toPerp) {
+            account.toPerp(amount);
         } else {
             account.toSpot(amount);
         }

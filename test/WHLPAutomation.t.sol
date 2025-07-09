@@ -40,7 +40,7 @@ contract WHLPAutomation is Test {
         // transfer 100e6 USDC from spot to perps
         vm.expectEmit();
         emit MockCoreWriter__UsdClassTransfer(100e6, true);
-        account.toPerps(100e6);
+        account.toPerp(100e6);
 
         // deposit 100e6 USDC to HLP
         vm.expectEmit();

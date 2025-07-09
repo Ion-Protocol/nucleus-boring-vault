@@ -15,7 +15,7 @@ contract HLPAccount is Auth {
         vault = _vault;
     }
 
-    function toPerps(uint64 amount) external requiresAuth {
+    function toPerp(uint64 amount) external requiresAuth {
         bytes memory encodedAction = abi.encode(amount, true);
         _sendCoreWriterCall(encodedAction, 0x07);
     }
