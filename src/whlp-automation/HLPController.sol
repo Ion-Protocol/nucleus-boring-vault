@@ -52,7 +52,7 @@ contract HLPController is Auth {
     }
 
     /**
-     * @dev withdraws and converts the perps funds to spot
+     * @dev withdraws and converts the perp funds to spot
      */
     function withdraw(HLPAccount account, uint64 amount) external requiresAuth requireAccountInSet(account) {
         account.withdrawHLP(amount);
@@ -60,7 +60,7 @@ contract HLPController is Auth {
     }
 
     /**
-     * @dev function to do a USD Class Transfer, to/from perps
+     * @dev function to do a USD Class Transfer, to/from perp
      */
     function USDClassTransfer(
         HLPAccount account,
@@ -84,13 +84,13 @@ contract HLPController is Auth {
     function transferHLP(
         HLPAccount account,
         uint64 amount,
-        bool deposit
+        bool isDeposit
     )
         external
         requiresAuth
         requireAccountInSet(account)
     {
-        if (deposit) {
+        if (isDeposit) {
             account.depositHLP(amount);
         } else {
             account.withdrawHLP(amount);

@@ -19,7 +19,8 @@ import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protoc
 import { VelodromeV1DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
 import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FlashHypeDecoderAndSanitizer.sol";
-import { CoreWriterDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
+import { CoreWriterDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
 
 contract WHLPDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,

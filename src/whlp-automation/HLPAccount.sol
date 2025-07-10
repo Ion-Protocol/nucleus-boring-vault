@@ -10,6 +10,8 @@ contract HLPAccount is Auth {
     address public immutable coreWriter;
     address public immutable vault;
 
+    error HLPAccount__FailedCall(bytes);
+
     constructor(address _owner, address _vault, address _coreWriter) Auth(_owner, Authority(address(0))) {
         coreWriter = _coreWriter;
         vault = _vault;
@@ -50,6 +52,10 @@ contract HLPAccount is Auth {
         for (uint256 i = 0; i < encodedAction.length; i++) {
             data[4 + i] = encodedAction[i];
         }
-        coreWriter.call(abi.encodeWithSignature("sendRawAction(bytes)", data));
+
+        (bool success,) = coreWriter.call(abi.encodeWithSignature("sendRawAction(bytes)", data));
+        if (!success) {
+            revert HLPAccount__FailedCall(data);
+        }
     }
 }

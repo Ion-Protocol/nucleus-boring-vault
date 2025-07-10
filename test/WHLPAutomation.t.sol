@@ -37,7 +37,7 @@ contract WHLPAutomation is Test {
 
         // Assume some funds are sent on L1
 
-        // transfer 100e6 USDC from spot to perps
+        // transfer 100e6 USDC from spot to perp
         vm.expectEmit();
         emit MockCoreWriter__UsdClassTransfer(100e6, true);
         account.toPerp(100e6);
