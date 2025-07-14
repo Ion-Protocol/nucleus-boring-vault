@@ -65,26 +65,26 @@ contract AccountantChainlinkRedstoneAdapterTest is Test, MainnetAddresses {
     function testLatestRoundDataReturnsAccountantRate() external {
         // Get the rate directly from accountant
         uint256 accountantRate = accountant.getRate();
-        
+
         // Get the rate from the adapter
         (, int256 adapterAnswer,,,) = adapter.latestRoundData();
-        
+
         // They should be equal
         assertEq(uint256(adapterAnswer), accountantRate, "Adapter should return same rate as accountant");
-        
+
         // Test with updated exchange rate
         accountant.updateExchangeRate(1.5e18);
-        
+
         uint256 newAccountantRate = accountant.getRate();
         (, int256 newAdapterAnswer,,,) = adapter.latestRoundData();
-        
+
         assertEq(uint256(newAdapterAnswer), newAccountantRate, "Adapter should return updated rate");
     }
 
     function testDecimalsMatchAccountant() external {
         uint8 accountantDecimals = accountant.decimals();
         uint8 adapterDecimals = adapter.decimals();
-        
+
         assertEq(adapterDecimals, accountantDecimals, "Adapter decimals should match accountant decimals");
     }
 
@@ -94,4 +94,4 @@ contract AccountantChainlinkRedstoneAdapterTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
-} 
+}
