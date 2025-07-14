@@ -15,17 +15,32 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
     error AccountantChainlinkRedstoneAdapter__AnswerTooLargeForInt256(uint256 uint256Answer);
     error AccountantChainlinkRedstoneAdapter__NewAccountantReturnsZero();
     error AccountantChainlinkRedstoneAdapter__RateReturnsZero();
+    error AccountantChainlinkRedstoneAdapter__DecimalsMismatch();
 
     event AccountantChainlinkRedstoneAdapter__NewAccountant(AccountantWithRateProviders indexed accountant);
 
-    constructor(address _owner) Auth(_owner, Authority(address(0))) { }
+    uint8 public decimals;
+
+    constructor(address _owner, AccountantWithRateProviders _startingAccountant) Auth(_owner, Authority(address(0))) {
+        accountant = _startingAccountant;
+        decimals = _startingAccountant.decimals();
+        emit AccountantChainlinkRedstoneAdapter__NewAccountant(_startingAccountant);
+    }
 
     /**
      * @dev requires OWNER to set a new accountant
      * @param _newAccountant must not return 0 for an answer using the latestRoundData function
      */
     function setAccountant(AccountantWithRateProviders _newAccountant) external requiresAuth {
+        uint8 _newDecimals = _newAccountant.decimals();
+
+        if (_newDecimals != accountant.decimals()) {
+            revert AccountantChainlinkRedstoneAdapter__DecimalsMismatch();
+        }
+
         accountant = _newAccountant;
+        decimals = _newDecimals;
+
         (, int256 answer,,,) = latestRoundData();
 
         if (answer == 0) {
@@ -61,13 +76,5 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
             revert AccountantChainlinkRedstoneAdapter__RateReturnsZero();
         }
         answer = int256(uint256Answer);
-    }
-
-    /**
-     * @dev returns the accountant's decimals
-     * @return _decimals as the accountant decimals (base decimals)
-     */
-    function decimals() external view returns (uint8 _decimals) {
-        _decimals = accountant.decimals();
     }
 }

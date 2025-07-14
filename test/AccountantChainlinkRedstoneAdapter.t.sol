@@ -58,8 +58,7 @@ contract AccountantChainlinkRedstoneAdapterTest is Test, MainnetAddresses {
         boringVault.enter(address(this), WETH, 1000e18, address(this), 1000e18);
 
         // Deploy the adapter
-        adapter = new AccountantChainlinkRedstoneAdapter(address(this));
-        adapter.setAccountant(accountant);
+        adapter = new AccountantChainlinkRedstoneAdapter(address(this), accountant);
     }
 
     function testLatestRoundDataReturnsAccountantRate() external {
