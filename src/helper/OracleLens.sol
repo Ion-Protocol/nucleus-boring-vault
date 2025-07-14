@@ -8,13 +8,13 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
  * @dev Returns accountant price data in the interface of a Chainlink/Redstone oracle
  * @custom:security-contact security@molecularlabs.io
  */
-contract ChainlinkAccountantAdapter is Auth {
+contract AccountantChainlinkRedstoneAdapter is Auth {
     AccountantWithRateProviders public accountant;
 
-    error OracleLens__AnswerTooLargeForInt256(uint256 uint256Answer);
-    error OracleLens__NewAccountantReturnsZero();
+    error AccountantChainlinkRedstoneAdapter__AnswerTooLargeForInt256(uint256 uint256Answer);
+    error AccountantChainlinkRedstoneAdapter__NewAccountantReturnsZero();
 
-    event OracleLens__NewAccountant(AccountantWithRateProviders indexed accountant);
+    event AccountantChainlinkRedstoneAdapter__NewAccountant(AccountantWithRateProviders indexed accountant);
 
     constructor(address _owner) Auth(_owner, Authority(address(0))) { }
 
@@ -26,11 +26,11 @@ contract ChainlinkAccountantAdapter is Auth {
         (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
             latestRoundData();
 
-        if (answer == 0 || updatedAt == 0) {
-            revert OracleLens__NewAccountantReturnsZero();
+        if (answer == 0) {
+            revert AccountantChainlinkRedstoneAdapter__NewAccountantReturnsZero();
         }
 
-        emit OracleLens__NewAccountant(_newAccountant);
+        emit AccountantChainlinkRedstoneAdapter__NewAccountant(_newAccountant);
     }
 
     /**
@@ -43,19 +43,19 @@ contract ChainlinkAccountantAdapter is Auth {
         roundId = 0;
         startedAt = 0;
         answeredInRound = 0;
+        updatedAt = 0;
 
-        (,,, uint256 uint256Answer,,, uint64 uint64UpdateTimestamp,,,) = accountant.accountantState();
+        uint256 uint256Answer = accountant.getRate();
         if (uint256Answer > uint256(type(int256).max)) {
-            revert OracleLens__AnswerTooLargeForInt256(uint256Answer);
+            revert AccountantChainlinkRedstoneAdapter__AnswerTooLargeForInt256(uint256Answer);
         }
         answer = int256(uint256Answer);
-        updatedAt = uint256(uint64UpdateTimestamp);
     }
 
     /**
      * @dev returns the accountant's decimals
      */
-    function decimals() external returns (uint8) {
-        return accountant.decimals();
+    function decimals() external returns (uint8 decimals) {
+        decimals = accountant.decimals();
     }
 }
