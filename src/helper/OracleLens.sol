@@ -5,9 +5,10 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 /**
+ * @dev Returns accountant price data in the interface of a Chainlink/Redstone oracle
  * @custom:security-contact security@molecularlabs.io
  */
-contract OracleLens is Auth {
+contract ChainlinkAccountantAdapter is Auth {
     AccountantWithRateProviders public accountant;
 
     error OracleLens__AnswerTooLargeForInt256(uint256 uint256Answer);
@@ -23,7 +24,7 @@ contract OracleLens is Auth {
     function setAccountant(AccountantWithRateProviders _newAccountant) external requiresAuth {
         accountant = _newAccountant;
         (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
-            getLatestRoundData();
+            latestRoundData();
 
         if (answer == 0 || updatedAt == 0) {
             revert OracleLens__NewAccountantReturnsZero();
@@ -33,7 +34,7 @@ contract OracleLens is Auth {
     }
 
     /**
-     * @dev must type cast answer to int to mimic chainlink. Will error if this cannot be done
+     * @dev must type cast answer to int to mimic chainlink/redstone. Will error if this cannot be done
      */
     function latestRoundData()
         public
