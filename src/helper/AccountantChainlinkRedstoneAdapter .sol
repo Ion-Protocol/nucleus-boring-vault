@@ -13,6 +13,7 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
 
     error AccountantChainlinkRedstoneAdapter__AnswerTooLargeForInt256(uint256 uint256Answer);
     error AccountantChainlinkRedstoneAdapter__NewAccountantReturnsZero();
+    error AccountantChainlinkRedstoneAdapter__RateReturnsZero();
 
     event AccountantChainlinkRedstoneAdapter__NewAccountant(AccountantWithRateProviders indexed accountant);
 
@@ -48,6 +49,9 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
         uint256 uint256Answer = accountant.getRate();
         if (uint256Answer > uint256(type(int256).max)) {
             revert AccountantChainlinkRedstoneAdapter__AnswerTooLargeForInt256(uint256Answer);
+        }
+        if (uint256Answer == 0) {
+            revert AccountantChainlinkRedstoneAdapter__RateReturnsZero();
         }
         answer = int256(uint256Answer);
     }
