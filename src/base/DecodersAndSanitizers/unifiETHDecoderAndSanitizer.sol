@@ -14,6 +14,7 @@ import { CurveDecoderAndSanitizer } from "./Protocols/CurveDecoderAndSanitizer.s
 import { BalancerV2DecoderAndSanitizer } from "./Protocols/BalancerV2DecoderAndSanitizer.sol";
 import { AeraVaultDecoderAndSanitizer } from "./Protocols/AeraVaultDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "./Protocols/NucleusDecoderAndSanitizer.sol";
+import { MorphoPositionOracleDecoderAndSanitizer } from "./Protocols/MorphoPositionOracleDecoderAndSanitizer.sol";
 
 contract unifiETHDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
@@ -25,7 +26,8 @@ contract unifiETHDecoderAndSanitizer is
     CurveDecoderAndSanitizer,
     BalancerV2DecoderAndSanitizer,
     AeraVaultDecoderAndSanitizer,
-    NucleusDecoderAndSanitizer
+    NucleusDecoderAndSanitizer,
+    MorphoPositionOracleDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
