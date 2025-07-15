@@ -25,6 +25,7 @@ import { VelodromeBuybackDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
 import { HyperliquidForwarderDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/HyperliquidForwarderDecoderAndSanitizer.sol";
+import { PumpBTCDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PumpBTCDecoderAndSanitizer.sol";
 
 contract WHLPDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -41,7 +42,8 @@ contract WHLPDecoderAndSanitizer is
     FlashHypeDecoderAndSanitizer,
     FraxLendDecoderAndSanitizer,
     VelodromeBuybackDecoderAndSanitizer,
-    HyperliquidForwarderDecoderAndSanitizer
+    HyperliquidForwarderDecoderAndSanitizer,
+    PumpBTCDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
