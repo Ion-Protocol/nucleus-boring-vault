@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { AccountantChainlinkRedstoneAdapter } from "src/helper/AccountantChainlinkRedstoneAdapter .sol";
+import { AccountantChainlinkRedstoneAdapter } from "src/helper/AccountantChainlinkRedstoneAdapter.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
