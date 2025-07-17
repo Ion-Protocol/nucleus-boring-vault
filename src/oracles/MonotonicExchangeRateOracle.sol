@@ -29,13 +29,13 @@ contract MonotonicExchangeRateOracle is Auth {
      * @dev setAccountant and the decimals as reported
      */
     function setAccountant(AccountantWithRateProviders _newAccountant) external requiresAuth {
-        accountant = _newAccountant;
-        if (accountant.decimals() != accountantDecimals) {
+        if (_newAccountant.decimals() != accountantDecimals) {
             revert MonotonicExchangeRateOracle__NewAccountantDecimalsMissmatch();
         }
-        if (accountant.getRate() == 0) {
+        if (_newAccountant.getRate() == 0) {
             revert MonotonicExchangeRateOracle__NewAccountantReturnsZero();
         }
+        accountant = _newAccountant;
         emit MonotonicExchangeRateOracle__AccountantUpdated(_newAccountant);
     }
 
