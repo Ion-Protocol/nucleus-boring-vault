@@ -136,6 +136,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     event TellerWithMultiAssetSupport__NewSupplyCap(uint256 newCap);
     event TellerWithMultiAssetSupport__NewRateLimitPeriod(uint256 newRateLimitPeriod);
     event TellerWithMultiAssetSupport__NewShareLockPeriod(uint256 newShareLockPeriod);
+    event TellerWithMultiAssetSupport__MaxTimeFromLastUpdateSet(uint64 maxTimeFromLastUpdate);
 
     //============================== IMMUTABLES ===============================
 
@@ -171,6 +172,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     function setMaxTimeFromLastUpdate(uint64 _maxTimeFromLastUpdate) external requiresAuth {
         maxTimeFromLastUpdate = _maxTimeFromLastUpdate;
+        emit TellerWithMultiAssetSupport__MaxTimeFromLastUpdateSet(_maxTimeFromLastUpdate);
     }
 
     /**
