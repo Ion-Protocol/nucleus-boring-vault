@@ -341,8 +341,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         address to
     )
         external
-        requiresAuth
         nonReentrant
+        requiresAuth
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
@@ -367,8 +367,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         bytes32 s
     )
         external
-        requiresAuth
         nonReentrant
+        requiresAuth
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();

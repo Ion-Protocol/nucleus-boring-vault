@@ -51,8 +51,8 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     )
         external
         payable
-        requiresAuth
         nonReentrant
+        requiresAuth
     {
         uint256 shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shareAmount, shareLockPeriod);
