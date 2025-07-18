@@ -95,7 +95,11 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
         bytes32 msgRecipient = _addressToBytes32(selectorToChains[data.chainSelector].targetTeller);
 
         return mailbox.quoteDispatch(
-            data.chainSelector, msgRecipient, _payload, StandardHookMetadata.overrideGasLimit(data.messageGas), hook
+            data.chainSelector,
+            msgRecipient,
+            _payload,
+            StandardHookMetadata.formatMetadata(uint256(0), data.messageGas, data.refundRecipient, ""),
+            hook
         );
     }
 
@@ -176,8 +180,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
             data.chainSelector, // must be `destinationDomain` on hyperlane
             msgRecipient, // must be the teller address left-padded to bytes32
             _payload,
-            StandardHookMetadata.overrideGasLimit(data.messageGas), // Sets the refund address to msg.sender, sets
-                // `_msgValue` to zero
+            StandardHookMetadata.formatMetadata(uint256(0), data.messageGas, data.refundRecipient, ""),
             hook
         );
     }
