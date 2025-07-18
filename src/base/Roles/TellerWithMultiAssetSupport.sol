@@ -58,6 +58,12 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     uint256 public supplyCap = type(uint256).max;
 
     /**
+     * @notice The max time from last update on the Accountant before deposit or withdraw reverts.
+     * @dev Defaults to no cap
+     */
+    uint64 public maxTimeFromLastUpdate = type(uint64).max;
+
+    /**
      * @notice rate limit period, applies to all assets and defaults to 1 day
      */
     uint32 public rateLimitPeriod = 1 days;
@@ -108,6 +114,9 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     error TellerWithMultiAssetSupport__RateLimit();
     error TellerWithMultiAssetSupport__DepositCapReached();
     error TellerWithMultiAssetSupport__SupplyCapReached();
+    error TellerWithMultiAssetSupport__AccountantPaused();
+    error TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
+
     //============================== EVENTS ===============================
 
     event Paused();
@@ -122,9 +131,11 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         uint256 depositTimestamp,
         uint256 shareLockPeriodAtTimeOfDeposit
     );
-    event BulkDeposit(address indexed asset, uint256 depositAmount);
     event BulkWithdraw(address indexed asset, uint256 shareAmount);
     event DepositRefunded(uint256 indexed nonce, bytes32 depositHash, address indexed user);
+    event TellerWithMultiAssetSupport__NewSupplyCap(uint256 newCap);
+    event TellerWithMultiAssetSupport__NewRateLimitPeriod(uint256 newRateLimitPeriod);
+    event TellerWithMultiAssetSupport__NewShareLockPeriod(uint256 newShareLockPeriod);
 
     //============================== IMMUTABLES ===============================
 
@@ -138,14 +149,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     AccountantWithRateProviders public immutable accountant;
 
-    /**
-     * @notice One share of the BoringVault.
-     */
-    uint256 internal immutable ONE_SHARE;
-
     constructor(address _owner, address _vault, address _accountant) AuthOwnable2Step(_owner, Authority(address(0))) {
         vault = BoringVault(payable(_vault));
-        ONE_SHARE = 10 ** vault.decimals();
         accountant = AccountantWithRateProviders(_accountant);
     }
 
@@ -157,6 +162,15 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     function setSupplyCap(uint256 _supplyCap) external requiresAuth {
         supplyCap = _supplyCap;
+        emit TellerWithMultiAssetSupport__NewSupplyCap(_supplyCap);
+    }
+
+    /**
+     * @notice Sets the max time from last update.
+     * @dev Callable by MULTISIG_ROLE.
+     */
+    function setMaxTimeFromLastUpdate(uint64 _maxTimeFromLastUpdate) external requiresAuth {
+        maxTimeFromLastUpdate = _maxTimeFromLastUpdate;
     }
 
     /**
@@ -183,6 +197,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     function setRateLimitPeriod(uint32 _rateLimitPeriod) external requiresAuth {
         rateLimitPeriod = _rateLimitPeriod;
+        emit TellerWithMultiAssetSupport__NewRateLimitPeriod(_rateLimitPeriod);
     }
 
     /**
@@ -257,6 +272,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     function setShareLockPeriod(uint64 _shareLockPeriod) external requiresAuth {
         if (_shareLockPeriod > MAX_SHARE_LOCK_PERIOD) revert TellerWithMultiAssetSupport__ShareLockPeriodTooLong();
         shareLockPeriod = _shareLockPeriod;
+        emit TellerWithMultiAssetSupport__NewShareLockPeriod(_shareLockPeriod);
     }
 
     // ========================================= BeforeTransferHook FUNCTIONS =========================================
@@ -324,8 +340,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         address to
     )
         external
-        requiresAuth
         nonReentrant
+        requiresAuth
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
@@ -350,8 +366,8 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         bytes32 s
     )
         external
-        requiresAuth
         nonReentrant
+        requiresAuth
         returns (uint256 shares)
     {
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
@@ -382,6 +398,10 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         requiresAuth
         returns (uint256 assetsOut)
     {
+        if (accountant.isPaused()) revert TellerWithMultiAssetSupport__AccountantPaused();
+        if (block.timestamp - accountant.getLastUpdateTimestamp() > maxTimeFromLastUpdate) {
+            revert TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
+        }
         if (!isWithdrawSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetWithdrawNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();
@@ -407,12 +427,18 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
         internal
         returns (uint256 shares)
     {
+        if (accountant.isPaused()) revert TellerWithMultiAssetSupport__AccountantPaused();
+        if (block.timestamp - accountant.getLastUpdateTimestamp() > maxTimeFromLastUpdate) {
+            revert TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded();
+        }
+
         LimitData memory limitData = limitByAsset[address(depositAsset)];
         LimitData storage limitDataStorage = limitByAsset[address(depositAsset)];
         if (limitData.rateLimit == 0) {
             revert TellerWithMultiAssetSupport__AssetDepositNotSupported();
         }
         _checkRateLimit(address(depositAsset), depositAmount);
+
         limitDataStorage.totalDepositCount += uint128(depositAmount);
         if (limitData.depositCap < limitDataStorage.totalDepositCount) {
             revert TellerWithMultiAssetSupport__DepositCapReached();

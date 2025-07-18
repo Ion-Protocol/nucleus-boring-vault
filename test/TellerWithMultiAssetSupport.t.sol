@@ -5,6 +5,7 @@ import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { RateProviderConfig } from "src/base/Roles/RateProviderConfig.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -31,6 +32,8 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
     TellerWithMultiAssetSupport public teller;
     AccountantWithRateProviders public accountant;
+    RateProviderConfig public rateProviderContract;
+
     address public payout_address = vm.addr(7_777_777);
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     ERC20 internal constant NATIVE_ERC20 = ERC20(NATIVE);
@@ -50,8 +53,20 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
         ONE_SHARE = 10 ** boringVault.decimals();
 
+        rateProviderContract = new RateProviderConfig(address(this));
+
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
+            address(this),
+            address(boringVault),
+            payout_address,
+            1e18,
+            address(WETH),
+            1.001e4,
+            0.999e4,
+            1,
+            0,
+            0,
+            rateProviderContract
         );
 
         teller = new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));
@@ -102,17 +117,18 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         teller.addAssets(assets);
 
-        AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
-            new AccountantWithRateProviders.RateProviderData[](1);
-        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
-        accountant.setRateProviderData(EETH, rateProviderData);
-        rateProviderData = new AccountantWithRateProviders.RateProviderData[](2);
+        RateProviderConfig.RateProviderData[] memory rateProviderData = new RateProviderConfig.RateProviderData[](1);
+        rateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        rateProviderContract.setRateProviderData(WETH, EETH, rateProviderData);
+        rateProviderData = new RateProviderConfig.RateProviderData[](2);
         // WEETH rate provider getRate()
-        rateProviderData[0] = AccountantWithRateProviders.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce");
+        rateProviderData[0] =
+            RateProviderConfig.RateProviderData(false, WEETH_RATE_PROVIDER, hex"679aefce", 0, type(uint256).max);
         // ETH_PER_WEETH_CHAINLINK latestAnswer()
-        rateProviderData[1] =
-            AccountantWithRateProviders.RateProviderData(false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd");
-        accountant.setRateProviderData(WEETH, rateProviderData);
+        rateProviderData[1] = RateProviderConfig.RateProviderData(
+            false, address(ETH_PER_WEETH_CHAINLINK), hex"50d25bcd", 0, type(uint256).max
+        );
+        rateProviderContract.setRateProviderData(WETH, WEETH, rateProviderData);
     }
 
     function testDepositReverting(uint256 amount) external {
@@ -193,7 +209,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertGt(shares0, 0, "should have received shares");
 
-        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        wETH_amount = 51e18; // Default is 100 so try and deposit more
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
         );
@@ -229,7 +245,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertGt(shares0, 0, "should have received shares");
 
-        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        wETH_amount = 51e18; // Default is 100 so try and deposit more
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__RateLimit.selector)
         );
@@ -498,6 +514,36 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
 
         assertTrue(teller.isWithdrawSupported(WETH) == true, "WETH withdraw should be supported");
+    }
+
+    function testMaxTimeFromLastUpdateOnDeposit() external {
+        teller.setMaxTimeFromLastUpdate(1 days);
+
+        require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded.selector
+            )
+        );
+        teller.deposit(WETH, 0, 0, address(this));
+    }
+
+    function testMaxTimeFromLastUpdateOnBulkWithdraw() external {
+        teller.setMaxTimeFromLastUpdate(1 days);
+
+        require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded.selector
+            )
+        );
+        teller.bulkWithdraw(WETH, 0, 0, address(this));
     }
 
     function testReverts() external {

@@ -9,6 +9,7 @@ struct BridgeData {
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint64 messageGas;
+    address refundRecipient;
     bytes data;
 }
 
@@ -25,7 +26,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     event MessageSent(
         bytes32 messageId, uint32 indexed destinationId, uint256 shareAmount, address indexed from, address indexed to
     );
-    event MessageReceived(bytes32 messageId, uint32 sourceId, uint256 shareAmount, address indexed to);
+    event MessageReceived(bytes32 messageId, uint32 indexed sourceId, uint256 shareAmount, address indexed to);
 
     constructor(
         address _owner,
@@ -50,8 +51,8 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     )
         external
         payable
-        requiresAuth
         nonReentrant
+        requiresAuth
     {
         uint256 shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shareAmount, shareLockPeriod);
@@ -61,7 +62,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     /**
      * @notice Preview fee required to bridge shares in a given feeToken.
      */
-    function previewFee(uint256 shareAmount, BridgeData calldata data) external view returns (uint256 fee) {
+    function previewFee(uint256 shareAmount, BridgeData calldata data) external view returns (uint256) {
         return _quote(shareAmount, data);
     }
 
