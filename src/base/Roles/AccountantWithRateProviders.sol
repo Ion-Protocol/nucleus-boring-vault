@@ -49,45 +49,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         uint16 performanceFee;
     }
 
-    // ========================================= STATE =========================================
-
-    /**
-     * @notice Store the accountant state in 3 packed slots.
-     */
-    AccountantState public accountantState;
-
-    //============================== ERRORS ===============================
-
-    error AccountantWithRateProviders__UpperBoundTooSmall();
-    error AccountantWithRateProviders__LowerBoundTooLarge();
-    error AccountantWithRateProviders__ManagementFeeTooLarge();
-    error AccountantWithRateProviders__PerformanceFeeTooLarge();
-    error AccountantWithRateProviders__Paused();
-    error AccountantWithRateProviders__ZeroFeesOwed();
-    error AccountantWithRateProviders__OnlyCallableByBoringVault();
-    error AccountantWithRateProviders__UpdateDelayTooLarge();
-    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
-    error AccountantWithRateProviders__ZeroRate();
-    error AccountantWithRateProviders__ZeroQuoteRate();
-    error AccountantWithRateProviders__VaultBaseDecimalMismatch();
-
-    //============================== EVENTS ===============================
-
-    event Paused();
-    event Unpaused();
-    event DelayInSecondsUpdated(uint32 oldDelay, uint32 newDelay);
-    event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
-    event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
-    event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
-    event PerformanceFeeUpdated(uint16 oldFee, uint16 newFee);
-    event PayoutAddressUpdated(address oldPayout, address newPayout);
-    event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
-    event PerformanceFeesAccrued(uint256 performanceFees);
-    event ManagementFeesAccrued(uint256 managementFees);
-    event FeesClaimed(address indexed feeAsset, uint256 amount);
-    event HighestExchangeRateReset();
-    event NewRateProviderConfigSet(address indexed newRateProviderConfig);
-
     //============================== IMMUTABLES ===============================
     /**
      * @notice The base asset rates are provided in.
@@ -110,8 +71,47 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     uint256 internal immutable ONE_SHARE;
 
+    // ========================================= STATE =========================================
+
+    /**
+     * @notice Store the accountant state in 3 packed slots.
+     */
+    AccountantState public accountantState;
+
     // Add RateProvider reference
     RateProviderConfig public rateProviderConfig;
+
+    //============================== EVENTS ===============================
+
+    event Paused();
+    event Unpaused();
+    event DelayInSecondsUpdated(uint32 oldDelay, uint32 newDelay);
+    event UpperBoundUpdated(uint16 oldBound, uint16 newBound);
+    event LowerBoundUpdated(uint16 oldBound, uint16 newBound);
+    event ManagementFeeUpdated(uint16 oldFee, uint16 newFee);
+    event PerformanceFeeUpdated(uint16 oldFee, uint16 newFee);
+    event PayoutAddressUpdated(address oldPayout, address newPayout);
+    event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
+    event PerformanceFeesAccrued(uint256 performanceFees);
+    event ManagementFeesAccrued(uint256 managementFees);
+    event FeesClaimed(address indexed feeAsset, uint256 amount);
+    event HighestExchangeRateReset();
+    event NewRateProviderConfigSet(address indexed newRateProviderConfig);
+
+    //============================== ERRORS ===============================
+
+    error AccountantWithRateProviders__UpperBoundTooSmall();
+    error AccountantWithRateProviders__LowerBoundTooLarge();
+    error AccountantWithRateProviders__ManagementFeeTooLarge();
+    error AccountantWithRateProviders__PerformanceFeeTooLarge();
+    error AccountantWithRateProviders__Paused();
+    error AccountantWithRateProviders__ZeroFeesOwed();
+    error AccountantWithRateProviders__OnlyCallableByBoringVault();
+    error AccountantWithRateProviders__UpdateDelayTooLarge();
+    error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
+    error AccountantWithRateProviders__ZeroRate();
+    error AccountantWithRateProviders__ZeroQuoteRate();
+    error AccountantWithRateProviders__VaultBaseDecimalMismatch();
 
     constructor(
         address _owner,
@@ -397,13 +397,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     // ========================================= RATE FUNCTIONS =========================================
 
     /**
-     * @notice Get this BoringVault's current rate in the base.
-     */
-    function getRate() public view returns (uint256 rate) {
-        rate = accountantState.exchangeRate;
-    }
-
-    /**
      * @notice helper function to return the shares out for 1 deposit asset
      */
     function getDepositRate(ERC20 depositAsset) external view returns (uint256 rate) {
@@ -416,6 +409,29 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function getLastUpdateTimestamp() external view returns (uint64) {
         return accountantState.lastUpdateTimestamp;
+    }
+
+    /**
+     * @notice helper function to return the assets out for 1 share
+     * @param withdrawAsset the asset to get the withdraw rate for
+     * @return rate the assets out for 1 share withdrawn
+     */
+    function getWithdrawRate(ERC20 withdrawAsset) external view returns (uint256 rate) {
+        rate = getAssetsOutForShares(withdrawAsset, ONE_SHARE);
+    }
+
+    /**
+     * @notice Whether the accountant is paused or not.
+     */
+    function isPaused() external view returns (bool) {
+        return accountantState.isPaused;
+    }
+
+    /**
+     * @notice Get this BoringVault's current rate in the base.
+     */
+    function getRate() public view returns (uint256 rate) {
+        rate = accountantState.exchangeRate;
     }
 
     /**
@@ -495,22 +511,6 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         if (q == 0) revert AccountantWithRateProviders__ZeroQuoteRate();
 
         assetsOut = shareAmount.mulDiv(e * 10 ** (2 * Q), q * 10 ** (2 * B));
-    }
-
-    /**
-     * @notice helper function to return the assets out for 1 share
-     * @param withdrawAsset the asset to get the withdraw rate for
-     * @return rate the assets out for 1 share withdrawn
-     */
-    function getWithdrawRate(ERC20 withdrawAsset) external view returns (uint256 rate) {
-        rate = getAssetsOutForShares(withdrawAsset, ONE_SHARE);
-    }
-
-    /**
-     * @notice Whether the accountant is paused or not.
-     */
-    function isPaused() external view returns (bool) {
-        return accountantState.isPaused;
     }
 
     /**
