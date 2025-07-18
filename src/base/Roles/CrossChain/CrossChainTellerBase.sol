@@ -9,6 +9,7 @@ struct BridgeData {
     address destinationChainReceiver;
     ERC20 bridgeFeeToken;
     uint64 messageGas;
+    address refundRecipient;
     bytes data;
 }
 
@@ -17,8 +18,15 @@ struct BridgeData {
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
  */
 abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
-    event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
-    event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
+    /**
+     * @notice Native address, used for handling fees
+     */
+    address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    event MessageSent(
+        bytes32 messageId, uint32 indexed destinationId, uint256 shareAmount, address indexed from, address indexed to
+    );
+    event MessageReceived(bytes32 messageId, uint32 indexed sourceId, uint256 shareAmount, address indexed to);
 
     constructor(
         address _owner,
@@ -46,10 +54,6 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
         requiresAuth
         nonReentrant
     {
-        if (!isSupported[depositAsset]) {
-            revert TellerWithMultiAssetSupport__AssetNotSupported();
-        }
-
         uint256 shareAmount = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shareAmount, shareLockPeriod);
         bridge(shareAmount, data);
@@ -58,7 +62,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     /**
      * @notice Preview fee required to bridge shares in a given feeToken.
      */
-    function previewFee(uint256 shareAmount, BridgeData calldata data) external view returns (uint256 fee) {
+    function previewFee(uint256 shareAmount, BridgeData calldata data) external view returns (uint256) {
         return _quote(shareAmount, data);
     }
 
@@ -118,7 +122,7 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
      * @param messageId message id returned when bridged
      */
     function _afterBridge(uint256 shareAmount, BridgeData calldata data, bytes32 messageId) internal virtual {
-        emit MessageSent(messageId, shareAmount, data.destinationChainReceiver);
+        emit MessageSent(messageId, data.chainSelector, shareAmount, msg.sender, data.destinationChainReceiver);
     }
 
     /**
@@ -134,7 +138,15 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
      * @param destinationChainReceiver the receiver of the shares
      * @param messageId the message ID
      */
-    function _afterReceive(uint256 shareAmount, address destinationChainReceiver, bytes32 messageId) internal virtual {
-        emit MessageReceived(messageId, shareAmount, destinationChainReceiver);
+    function _afterReceive(
+        uint256 shareAmount,
+        uint32 sourceId,
+        address destinationChainReceiver,
+        bytes32 messageId
+    )
+        internal
+        virtual
+    {
+        emit MessageReceived(messageId, sourceId, shareAmount, destinationChainReceiver);
     }
 }

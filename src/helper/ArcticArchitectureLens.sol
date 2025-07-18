@@ -51,7 +51,7 @@ contract ArcticArchitectureLens {
     {
         uint8 shareDecimals = boringVault.decimals();
 
-        shares = depositAmount.mulDivDown(10 ** shareDecimals, accountant.getRateInQuote(depositAsset));
+        shares = accountant.getSharesForDepositAmount(depositAsset, depositAmount);
     }
 
     /**
@@ -119,7 +119,8 @@ contract ArcticArchitectureLens {
         if (depositAsset.balanceOf(account) < depositAmount) return false;
         if (depositAsset.allowance(account, address(boringVault)) < depositAmount) return false;
         if (teller.isPaused()) return false;
-        if (!teller.isSupported(depositAsset)) return false;
+        (, uint112 rateLimit,,,) = teller.limitByAsset(address(depositAsset));
+        if (rateLimit == 0) return false;
         return true;
     }
 
@@ -143,7 +144,8 @@ contract ArcticArchitectureLens {
     {
         if (depositAsset.balanceOf(account) < depositAmount) return false;
         if (teller.isPaused()) return false;
-        if (!teller.isSupported(depositAsset)) return false;
+        (, uint112 rateLimit,,,) = teller.limitByAsset(address(depositAsset));
+        if (rateLimit == 0) return false;
         return true;
     }
 
