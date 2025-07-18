@@ -9,6 +9,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { RateProviderConfig } from "src/base/Roles/RateProviderConfig.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { IAuthority } from "../../../script/ConfigReader.s.sol";
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
@@ -65,6 +66,8 @@ contract DexAggregatorWrapperTest is Test {
     AccountantWithRateProviders usdAccountant;
     AccountantWithRateProviders btcAccountant;
 
+    RateProviderConfig rateProviderContract;
+
     // Additional wrappers for test-specific deployments
     DexAggregatorWrapper testWrapper;
 
@@ -95,6 +98,8 @@ contract DexAggregatorWrapperTest is Test {
         recipient = makeAddr("recipient");
 
         // ========== Deploy Accountants ==========
+        rateProviderContract = new RateProviderConfig(MAINNET_MULTISIG);
+
         // Deploy USD accountant
         usdAccountant = new AccountantWithRateProviders(
             MAINNET_MULTISIG, // owner
@@ -106,7 +111,8 @@ contract DexAggregatorWrapperTest is Test {
             0.999e4, // conversionBpsDown
             1, // priceDecimals
             0, // bpsDecimals
-            0 // baseRateDecimals
+            0, // baseRateDecimals
+            rateProviderContract
         );
         console.log("USD Accountant deployed at:", address(usdAccountant));
 
@@ -121,7 +127,8 @@ contract DexAggregatorWrapperTest is Test {
             0.999e4, // conversionBpsDown
             1, // priceDecimals
             0, // bpsDecimals
-            0 // baseRateDecimals
+            0, // baseRateDecimals
+            rateProviderContract
         );
         console.log("BTC Accountant deployed at:", address(btcAccountant));
 
@@ -211,14 +218,12 @@ contract DexAggregatorWrapperTest is Test {
         vm.stopPrank();
 
         vm.startPrank(MAINNET_MULTISIG);
-        AccountantWithRateProviders.RateProviderData[] memory usdRateProviderData =
-            new AccountantWithRateProviders.RateProviderData[](1);
-        usdRateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
-        usdAccountant.setRateProviderData(ERC20(dstToken), usdRateProviderData);
-        AccountantWithRateProviders.RateProviderData[] memory btcRateProviderData =
-            new AccountantWithRateProviders.RateProviderData[](1);
-        btcRateProviderData[0] = AccountantWithRateProviders.RateProviderData(true, address(0), "");
-        btcAccountant.setRateProviderData(ERC20(okxDstToken), btcRateProviderData);
+        RateProviderConfig.RateProviderData[] memory usdRateProviderData = new RateProviderConfig.RateProviderData[](1);
+        usdRateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        rateProviderContract.setRateProviderData(ERC20(usdAssets[0]), ERC20(dstToken), usdRateProviderData);
+        RateProviderConfig.RateProviderData[] memory btcRateProviderData = new RateProviderConfig.RateProviderData[](1);
+        btcRateProviderData[0] = RateProviderConfig.RateProviderData(true, address(0), "", 0, type(uint256).max);
+        rateProviderContract.setRateProviderData(ERC20(btcAssets[0]), ERC20(okxDstToken), btcRateProviderData);
         vm.stopPrank();
 
         // ========== Deploy Wrapper ==========
