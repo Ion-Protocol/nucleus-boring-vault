@@ -133,6 +133,9 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     );
     event BulkWithdraw(address indexed asset, uint256 shareAmount);
     event DepositRefunded(uint256 indexed nonce, bytes32 depositHash, address indexed user);
+    event TellerWithMultiAssetSupport__NewSupplyCap(uint256 newCap);
+    event TellerWithMultiAssetSupport__NewRateLimitPeriod(uint256 newRateLimitPeriod);
+    event TellerWithMultiAssetSupport__NewShareLockPeriod(uint256 newShareLockPeriod);
 
     //============================== IMMUTABLES ===============================
 
@@ -159,6 +162,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     function setSupplyCap(uint256 _supplyCap) external requiresAuth {
         supplyCap = _supplyCap;
+        emit TellerWithMultiAssetSupport__NewSupplyCap(_supplyCap);
     }
 
     /**
@@ -193,6 +197,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
      */
     function setRateLimitPeriod(uint32 _rateLimitPeriod) external requiresAuth {
         rateLimitPeriod = _rateLimitPeriod;
+        emit TellerWithMultiAssetSupport__NewRateLimitPeriod(_rateLimitPeriod);
     }
 
     /**
@@ -267,6 +272,7 @@ contract TellerWithMultiAssetSupport is AuthOwnable2Step, BeforeTransferHook, Re
     function setShareLockPeriod(uint64 _shareLockPeriod) external requiresAuth {
         if (_shareLockPeriod > MAX_SHARE_LOCK_PERIOD) revert TellerWithMultiAssetSupport__ShareLockPeriodTooLong();
         shareLockPeriod = _shareLockPeriod;
+        emit TellerWithMultiAssetSupport__NewShareLockPeriod(_shareLockPeriod);
     }
 
     // ========================================= BeforeTransferHook FUNCTIONS =========================================

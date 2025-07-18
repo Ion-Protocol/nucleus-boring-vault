@@ -68,7 +68,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     //============================== EVENTS ===============================
 
     event ManageRootUpdated(address indexed strategist, bytes32 oldRoot, bytes32 newRoot);
-    event BoringVaultManaged(uint256 callsMade);
+    event BoringVaultManaged(address[] targets, bytes[] targetData, uint256[] values);
     event Paused();
     event Unpaused();
 
@@ -165,7 +165,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         if (totalSupply != vault.totalSupply()) {
             revert ManagerWithMerkleVerification__TotalSupplyMustRemainConstantDuringManagement();
         }
-        emit BoringVaultManaged(targetsLength);
+        emit BoringVaultManaged(targets, targetData, values);
     }
 
     // ========================================= FLASH LOAN FUNCTIONS =========================================
