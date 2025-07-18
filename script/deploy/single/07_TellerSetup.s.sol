@@ -6,6 +6,7 @@ import { ManagerWithMerkleVerification } from "./../../../src/base/Roles/Manager
 import { BoringVault } from "./../../../src/base/BoringVault.sol";
 import { TellerWithMultiAssetSupport } from "./../../../src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
+import { RateProviderConfig } from "./../../../src/base/Roles/RateProviderConfig.sol";
 import { BaseScript } from "../../Base.s.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 import { CrossChainTellerBase } from "../../../src/base/Roles/CrossChain/CrossChainTellerBase.sol";
@@ -26,6 +27,7 @@ contract TellerSetup is BaseScript {
         string memory _chainConfig = getChainConfigFile();
 
         TellerWithMultiAssetSupport teller = TellerWithMultiAssetSupport(config.teller);
+        RateProviderConfig rateProviderContract = RateProviderConfig(config.rateProvider);
 
         uint256 len = config.assets.length + 1;
         ERC20[] memory assets = new ERC20[](len);
@@ -39,8 +41,8 @@ contract TellerSetup is BaseScript {
                 string(abi.encodePacked(".assetToRateProviderAndPriceFeed.", config.assets[i].toHexString()));
 
             uint256 length = _chainConfig.readUint(string(abi.encodePacked(assetKey, ".numberOfRateProviders")));
-            AccountantWithRateProviders.RateProviderData[] memory rateProviderData =
-                new AccountantWithRateProviders.RateProviderData[](length);
+            RateProviderConfig.RateProviderData[] memory rateProviderData =
+                new RateProviderConfig.RateProviderData[](length);
 
             for (uint256 j; j < length; ++j) {
                 string memory rateProviderKey = string(abi.encodePacked(assetKey, ".rateProviders[", j.toString(), "]"));
@@ -61,9 +63,13 @@ contract TellerSetup is BaseScript {
                 rateProviderData[j].isPeggedToBase = isPeggedToBase;
                 rateProviderData[j].rateProvider = rateProvider;
                 rateProviderData[j].functionCalldata = rateCalldata;
+                rateProviderData[j].minRate =
+                    _chainConfig.readUint(string(abi.encodePacked(rateProviderKey, ".minRate")));
+                rateProviderData[j].maxRate =
+                    _chainConfig.readUint(string(abi.encodePacked(rateProviderKey, ".maxRate")));
             }
 
-            teller.accountant().setRateProviderData(ERC20(config.assets[i]), rateProviderData);
+            rateProviderContract.setRateProviderData(ERC20(config.base), ERC20(config.assets[i]), rateProviderData);
         }
         teller.addAssets(assets);
     }
