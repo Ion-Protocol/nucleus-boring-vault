@@ -27,10 +27,8 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     bytes4 private constant UNXSWAP_TO_SELECTOR = 0x08298b5a;
 
     error DexAggregatorWrapper__InvalidSwapDescription();
-    error DexAggregatorWrapper__InvalidOkxSwapDescription();
     error DexAggregatorWrapper__UnsupportedOkxFunction();
     error DexAggregatorWrapper__OkxSwapFailed();
-    error DexAggregatorWrapper__InvalidFromToken();
     error DexAggregatorWrapper__InsufficientEthForSwap();
     error DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
 
