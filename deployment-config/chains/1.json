@@ -18,8 +18,8 @@
         "args": [],
         "calldata": "0x035faf82"
       }], 
-      "expectedMin": "1000000000000000000",
-      "expectedMax": "1200000000000000000"
+      "expectedMin": "1100000000000000000",
+      "expectedMax": "1300000000000000000"
     },
     "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee": {
       "denomination": "eeETH/weETH",
