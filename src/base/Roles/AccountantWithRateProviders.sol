@@ -405,6 +405,14 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     }
 
     /**
+     * @notice Get the last update timestamp of the base exchange rate.
+     * @return The last update timestamp.
+     */
+    function getLastUpdateTimestamp() external view returns (uint64) {
+        return accountantState.lastUpdateTimestamp;
+    }
+
+    /**
      * @notice Return the shares output for a given deposit amount of a token
      * @dev Math is used to compute this value among assets with varying decimals with minimal rounding errors
      * Key:
@@ -490,6 +498,13 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function getWithdrawRate(ERC20 withdrawAsset) external view returns (uint256 rate) {
         rate = getAssetsOutForShares(withdrawAsset, ONE_SHARE);
+    }
+
+    /**
+     * @notice Whether the accountant is paused or not.
+     */
+    function isPaused() external view returns (bool) {
+        return accountantState.isPaused;
     }
 
     /**

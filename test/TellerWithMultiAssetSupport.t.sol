@@ -516,6 +516,36 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         assertTrue(teller.isWithdrawSupported(WETH) == true, "WETH withdraw should be supported");
     }
 
+    function testMaxTimeFromLastUpdateOnDeposit() external {
+        teller.setMaxTimeFromLastUpdate(1 days);
+
+        require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded.selector
+            )
+        );
+        teller.deposit(WETH, 0, 0, address(this));
+    }
+
+    function testMaxTimeFromLastUpdateOnBulkWithdraw() external {
+        teller.setMaxTimeFromLastUpdate(1 days);
+
+        require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded.selector
+            )
+        );
+        teller.bulkWithdraw(WETH, 0, 0, address(this));
+    }
+
     function testReverts() external {
         // Test pause logic
         teller.pause();
