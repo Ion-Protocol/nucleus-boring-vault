@@ -45,6 +45,10 @@ contract RateProviderConfig is Auth {
         emit RateProviderDataUpdated(address(base), address(quote), _rateProviderData);
     }
 
+    function getLength(ERC20 base, ERC20 quote) external view returns (uint256 length) {
+        length = rateProviderData[base][quote].length;
+    }
+
     function getMaxRate(ERC20 base, ERC20 quote) public view returns (uint256 maxRate) {
         RateProviderData[] memory data = rateProviderData[base][quote];
         uint8 quoteDecimals = quote.decimals();
