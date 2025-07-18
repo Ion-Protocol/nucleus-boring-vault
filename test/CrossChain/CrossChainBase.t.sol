@@ -156,7 +156,7 @@ abstract contract CrossChainBaseTest is Test, MainnetAddresses {
             bytes(abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__Paused.selector))
         );
 
-        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, "");
+        BridgeData memory data = BridgeData(DESTINATION_SELECTOR, address(0), ERC20(address(0)), 80_000, address(0), "");
         sourceTeller.bridge(0, data);
 
         sourceTeller.unpause();

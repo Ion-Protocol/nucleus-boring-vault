@@ -209,7 +209,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertGt(shares0, 0, "should have received shares");
 
-        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        wETH_amount = 51e18; // Default is 100 so try and deposit more
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
         );
@@ -245,7 +245,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertGt(shares0, 0, "should have received shares");
 
-        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        wETH_amount = 51e18; // Default is 100 so try and deposit more
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__RateLimit.selector)
         );
@@ -514,6 +514,36 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         teller.configureAssets(assets, rateLimits, depositCaps, withdrawStatusByAssets);
 
         assertTrue(teller.isWithdrawSupported(WETH) == true, "WETH withdraw should be supported");
+    }
+
+    function testMaxTimeFromLastUpdateOnDeposit() external {
+        teller.setMaxTimeFromLastUpdate(1 days);
+
+        require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded.selector
+            )
+        );
+        teller.deposit(WETH, 0, 0, address(this));
+    }
+
+    function testMaxTimeFromLastUpdateOnBulkWithdraw() external {
+        teller.setMaxTimeFromLastUpdate(1 days);
+
+        require(accountant.getLastUpdateTimestamp() == block.timestamp, "Last update timestamp should be set");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__MaxTimeFromLastUpdateExceeded.selector
+            )
+        );
+        teller.bulkWithdraw(WETH, 0, 0, address(this));
     }
 
     function testReverts() external {

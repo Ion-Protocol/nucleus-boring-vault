@@ -66,10 +66,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     error AccountantWithRateProviders__ZeroFeesOwed();
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
-    error AccountantWithRateProviders__RateProviderCallFailed(address rateProvider);
     error AccountantWithRateProviders__ExchangeRateAlreadyHighest();
-    error AccountantWithRateProviders__RateProviderDataEmpty();
-    error AccountantWithRateProviders__InvalidRateReturned();
     error AccountantWithRateProviders__ZeroRate();
     error AccountantWithRateProviders__ZeroQuoteRate();
 
@@ -88,12 +85,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     event ManagementFeesAccrued(uint256 managementFees);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighestExchangeRateReset();
-
-    //============================== CONSTANTS ===============================
-    uint8 constant MIN_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 - 1) is the minimum accepted rate from a rate
-        // provider with 18 decimals
-    uint8 constant MAX_RATE_DECIMALS_DEVIATION = 1; // ie 10 ** (18 + 1) is the maximum accepted rate from a rate
-        // provider with 18 decimals
+    event NewRateProviderConfigSet(address indexed newRateProviderConfig);
 
     //============================== IMMUTABLES ===============================
     /**
@@ -164,6 +156,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function setRateProviderConfig(RateProviderConfig _rateProviderConfig) external requiresAuth {
         rateProviderConfig = _rateProviderConfig;
+        emit NewRateProviderConfigSet(address(_rateProviderConfig));
     }
 
     /**
@@ -256,14 +249,14 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @dev Callable by OWNER_ROLE.
      */
     function resetHighestExchangeRate() external virtual requiresAuth {
-        AccountantState storage state = accountantState;
+        AccountantState memory state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
 
         if (state.exchangeRate > state.highestExchangeRate) {
             revert AccountantWithRateProviders__ExchangeRateAlreadyHighest();
         }
 
-        state.highestExchangeRate = state.exchangeRate;
+        accountantState.highestExchangeRate = state.exchangeRate;
 
         emit HighestExchangeRateReset();
     }
@@ -278,7 +271,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      * @dev Callable by UPDATE_EXCHANGE_RATE_ROLE.
      */
     function updateExchangeRate(uint96 newExchangeRate) external requiresAuth {
-        AccountantState storage state = accountantState;
+        AccountantState memory state = accountantState;
 
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         uint64 currentTime = uint64(block.timestamp);
@@ -292,7 +285,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
             // Instead of reverting, pause the contract. This way the exchange rate updater is able to update the
             // exchange rate
             // to a better value, and pause it.
-            state.isPaused = true;
+            accountantState.isPaused = true;
             emit Paused();
             return;
         } else {
@@ -325,17 +318,17 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
                         emit PerformanceFeesAccrued(performanceFees);
                     }
                 }
-                state.highestExchangeRate = newExchangeRate;
+                accountantState.highestExchangeRate = newExchangeRate;
             }
 
             unchecked {
-                state.feesOwedInBase += uint128(newFeesOwedInBase);
+                accountantState.feesOwedInBase += uint128(newFeesOwedInBase);
             }
         }
 
-        state.exchangeRate = newExchangeRate;
-        state.totalSharesLastUpdate = uint128(currentTotalShares);
-        state.lastUpdateTimestamp = currentTime;
+        accountantState.exchangeRate = newExchangeRate;
+        accountantState.totalSharesLastUpdate = uint128(currentTotalShares);
+        accountantState.lastUpdateTimestamp = currentTime;
 
         emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
     }
@@ -363,7 +356,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
     function claimFees(ERC20 feeAsset) external {
         if (msg.sender != address(vault)) revert AccountantWithRateProviders__OnlyCallableByBoringVault();
 
-        AccountantState storage state = accountantState;
+        AccountantState memory state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
         if (state.feesOwedInBase == 0) revert AccountantWithRateProviders__ZeroFeesOwed();
 
@@ -388,7 +381,7 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
         }
 
         // Zero out fees owed.
-        state.feesOwedInBase = 0;
+        accountantState.feesOwedInBase = 0;
         // Transfer fee asset to payout address.
         feeAsset.safeTransferFrom(msg.sender, state.payoutAddress, feesOwedInFeeAsset);
 
@@ -409,6 +402,14 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function getDepositRate(ERC20 depositAsset) external view returns (uint256 rate) {
         rate = getSharesForDepositAmount(depositAsset, 10 ** depositAsset.decimals());
+    }
+
+    /**
+     * @notice Get the last update timestamp of the base exchange rate.
+     * @return The last update timestamp.
+     */
+    function getLastUpdateTimestamp() external view returns (uint64) {
+        return accountantState.lastUpdateTimestamp;
     }
 
     /**
@@ -497,6 +498,13 @@ contract AccountantWithRateProviders is AuthOwnable2Step, IRateProvider {
      */
     function getWithdrawRate(ERC20 withdrawAsset) external view returns (uint256 rate) {
         rate = getAssetsOutForShares(withdrawAsset, ONE_SHARE);
+    }
+
+    /**
+     * @notice Whether the accountant is paused or not.
+     */
+    function isPaused() external view returns (bool) {
+        return accountantState.isPaused;
     }
 
     /**

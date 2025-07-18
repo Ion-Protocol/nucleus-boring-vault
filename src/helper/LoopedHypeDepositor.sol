@@ -16,13 +16,17 @@ interface IWHYPE {
     function withdraw(uint256 wad) external;
 }
 
+/**
+ * @title LoopedHypeDepositor
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract LoopedHypeDepositor is Auth {
     using SafeTransferLib for ERC20;
 
     error ZeroAddress();
     error IncorrectNativeDepositAmount();
 
-    IWHYPE constant WHYPE = IWHYPE(0x5555555555555555555555555555555555555555);
+    IWHYPE public constant WHYPE = IWHYPE(0x5555555555555555555555555555555555555555);
 
     TellerWithMultiAssetSupport public immutable teller;
     address public immutable boringVault;
@@ -65,7 +69,7 @@ contract LoopedHypeDepositor is Auth {
         external
         payable
         requiresAuth
-        returns (uint256 shares)
+        returns (uint256)
     {
         if (msg.value != depositAmount) revert IncorrectNativeDepositAmount();
         WHYPE.deposit{ value: msg.value }();
@@ -89,7 +93,7 @@ contract LoopedHypeDepositor is Auth {
     )
         external
         requiresAuth
-        returns (uint256 shares)
+        returns (uint256)
     {
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         return _deposit(depositAsset, depositAmount, minimumMint, to, communityCode);

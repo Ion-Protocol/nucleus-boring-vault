@@ -8,15 +8,20 @@ import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/Cros
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 import { WETH } from "@solmate/tokens/WETH.sol";
+import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 /**
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorWrapper is ReentrancyGuard {
-    AggregationRouterV6 immutable aggregator;
-    IOKXRouter immutable okxRouter;
-    address immutable okxApprover;
-    WETH immutable canonicalWrapToken;
+    using SafeTransferLib for ERC20;
+    using FixedPointMathLib for uint256;
+
+    AggregationRouterV6 public immutable aggregator;
+    IOKXRouter public immutable okxRouter;
+    address public immutable okxApprover;
+    WETH public immutable canonicalWrapToken;
 
     // Function selectors for OKX router functions
     bytes4 private constant SMART_SWAP_BY_ORDER_ID_SELECTOR = 0xb80c2f09;
@@ -26,12 +31,21 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     bytes4 private constant UNXSWAP_BY_ORDER_ID_SELECTOR = 0x9871efa4;
     bytes4 private constant UNXSWAP_TO_SELECTOR = 0x08298b5a;
 
+    event Deposit(
+        address indexed depositAsset,
+        address indexed receiver,
+        address indexed supportedAsset,
+        uint256 depositAmount,
+        uint256 supportedAssetAmount,
+        uint256 shareAmount
+    );
+
     error DexAggregatorWrapper__InvalidSwapDescription();
-    error DexAggregatorWrapper__InvalidOkxSwapDescription();
     error DexAggregatorWrapper__UnsupportedOkxFunction();
     error DexAggregatorWrapper__OkxSwapFailed();
-    error DexAggregatorWrapper__InvalidFromToken();
     error DexAggregatorWrapper__InsufficientEthForSwap();
+    error DexAggregatorWrapper__EthRefundFailed();
+    error DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
 
     /**
      * @notice Initializes the DexAggregatorWrapper with necessary contract addresses
@@ -79,11 +93,18 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         nonReentrant
         returns (uint256 shares)
     {
+        if (msg.value > nativeValueToWrap) {
+            revert DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
+        }
         uint256 supportedAssetAmount =
             _oneInchHelper(supportedAsset, address(teller), executor, desc, data, nativeValueToWrap);
 
         // Deposit into the vault
         shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+
+        emit Deposit(
+            address(desc.srcToken), recipient, address(supportedAsset), desc.amount, supportedAssetAmount, shares
+        );
     }
 
     /**
@@ -115,8 +136,19 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             _oneInchHelper(supportedAsset, address(teller), executor, desc, data, nativeValueToWrap);
 
         // Deposit and bridge assets
-        teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
+        (uint256 shares,) = teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
+        );
+
+        _refundExcessEth(payable(msg.sender));
+
+        emit Deposit(
+            address(desc.srcToken),
+            bridgeData.destinationChainReceiver,
+            address(supportedAsset),
+            desc.amount,
+            supportedAssetAmount,
+            shares
         );
     }
 
@@ -147,11 +179,16 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         nonReentrant
         returns (uint256 shares)
     {
+        if (msg.value > nativeValueToWrap) {
+            revert DexAggregatorWrapper__ValueMustEqualNativeSwapAmount();
+        }
         uint256 supportedAssetAmount =
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit assets
-        teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+        shares = teller.deposit(supportedAsset, supportedAssetAmount, minimumMint, recipient);
+
+        emit Deposit(fromToken, recipient, address(supportedAsset), fromTokenAmount, supportedAssetAmount, shares);
     }
 
     /**
@@ -183,8 +220,20 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             _okxHelper(supportedAsset, address(teller), fromToken, fromTokenAmount, okxCallData, nativeValueToWrap);
 
         // Deposit and bridge the assets
-        teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
+        (uint256 shares,) = teller.depositAndBridge{ value: msg.value - nativeValueToWrap }(
             supportedAsset, supportedAssetAmount, minimumMint, bridgeData
+        );
+
+        // Refund any excess ETH
+        _refundExcessEth(payable(msg.sender));
+
+        emit Deposit(
+            fromToken,
+            bridgeData.destinationChainReceiver,
+            address(supportedAsset),
+            fromTokenAmount,
+            supportedAssetAmount,
+            shares
         );
     }
 
@@ -207,33 +256,38 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         uint256 nativeValueToWrap
     )
         internal
-        returns (uint256 supportedAssetAmount)
+        returns (uint256)
     {
         bool useNative = _checkAndMintNativeAmount(nativeValueToWrap);
         if (desc.dstToken != supportedAsset || desc.dstReceiver != address(this)) {
             revert DexAggregatorWrapper__InvalidSwapDescription();
         }
 
+        ERC20 depositAsset = desc.srcToken;
+        uint256 depositAmount = desc.amount;
+
         if (useNative) {
-            if (desc.srcToken != canonicalWrapToken || desc.amount != nativeValueToWrap) {
+            if (depositAsset != canonicalWrapToken || depositAmount != nativeValueToWrap) {
                 revert DexAggregatorWrapper__InvalidSwapDescription();
             }
             canonicalWrapToken.approve(address(aggregator), nativeValueToWrap);
         } else {
-            ERC20 depositAsset = desc.srcToken;
-            uint256 depositAmount = desc.amount;
-
             // Transfer tokens from sender to this contract
-            depositAsset.transferFrom(msg.sender, address(this), depositAmount);
+            depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
             // Perform swap
-            depositAsset.approve(address(aggregator), depositAmount);
+            depositAsset.safeApprove(address(aggregator), depositAmount);
         }
 
-        (supportedAssetAmount,) = aggregator.swap(executor, desc, data);
+        (uint256 supportedAssetAmount, uint256 sourceTokenSpentAmount) = aggregator.swap(executor, desc, data);
+
+        // refund the unspent amount of source token
+        if (depositAmount > sourceTokenSpentAmount) {
+            depositAsset.transfer(msg.sender, depositAmount - sourceTokenSpentAmount);
+        }
 
         // Approve teller's vault to spend the supported asset
-        supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
+        supportedAsset.safeApprove(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
 
         return supportedAssetAmount;
     }
@@ -281,10 +335,10 @@ contract DexAggregatorWrapper is ReentrancyGuard {
                 canonicalWrapToken.approve(okxApprover, nativeValueToWrap);
             } else {
                 // Transfer tokens from sender to this contract
-                ERC20(fromToken).transferFrom(msg.sender, address(this), fromTokenAmount);
+                ERC20(fromToken).safeTransferFrom(msg.sender, address(this), fromTokenAmount);
 
                 // Approve OKX token approver to spend tokens (not the router directly)
-                ERC20(fromToken).approve(okxApprover, fromTokenAmount);
+                ERC20(fromToken).safeApprove(okxApprover, fromTokenAmount);
             }
 
             // Execute the swap with the provided calldata
@@ -296,11 +350,17 @@ contract DexAggregatorWrapper is ReentrancyGuard {
                 }
             }
 
+            // Always refund any unspent amount of from tokens to the caller.
+            uint256 unspentFromToken = ERC20(fromToken).balanceOf(address(this));
+            if (unspentFromToken > 0) {
+                ERC20(fromToken).transfer(msg.sender, unspentFromToken);
+            }
+
             // Decode the return value (all functions return uint256)
             supportedAssetAmount = abi.decode(result, (uint256));
 
             // Approve teller's vault to spend the supported asset
-            supportedAsset.approve(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
+            supportedAsset.safeApprove(address(TellerWithMultiAssetSupport(teller).vault()), supportedAssetAmount);
         } else {
             revert DexAggregatorWrapper__UnsupportedOkxFunction();
         }
@@ -314,5 +374,22 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             canonicalWrapToken.deposit{ value: nativeAmount }();
             useNative = true;
         }
+    }
+
+    /**
+     * @notice Transfers the entire current ETH balance of this contract to the specified recipient.
+     * @param _recipient The address to receive the ETH refund.
+     * @dev Uses a low-level call and reverts if the transfer fails. This ensures atomicity,
+     *      either the whole operation succeeds including refund, or it fails.
+     */
+    function _refundExcessEth(address payable _recipient) internal {
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success,) = _recipient.call{ value: balance }("");
+            if (!success) {
+                revert DexAggregatorWrapper__EthRefundFailed();
+            }
+        }
+        // If balance is 0, do nothing.
     }
 }

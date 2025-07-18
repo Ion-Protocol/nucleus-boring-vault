@@ -13,7 +13,6 @@ contract RateProviderConfig is Auth {
         uint256 maxRate;
     }
 
-    error RateProvider__InvalidRate();
     error RateProvider__RateProviderCallFailed(address rateProvider);
     error RateProvider__RateProviderDataEmpty();
     error RateProvider__ZeroRate();
@@ -110,6 +109,10 @@ contract RateProviderConfig is Auth {
             revert RateProvider__RateProviderCallFailed(data.rateProvider);
         }
         rate = abi.decode(returnBytes, (uint256));
+
+        if (rate == 0) {
+            revert RateProvider__ZeroRate();
+        }
 
         // Add bounds checking
         if (rate < data.minRate) {
