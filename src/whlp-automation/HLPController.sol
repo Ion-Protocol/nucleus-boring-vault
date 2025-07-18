@@ -126,6 +126,13 @@ contract HLPController is Auth {
     }
 
     /**
+     * @dev getter for the accountSet as an array
+     */
+    function getAccounts() public view returns (address[] memory) {
+        return accountsSet.values();
+    }
+
+    /**
      * @dev helper function to deploy a vault using CREATEX
      */
     function _deployAccount() internal {
