@@ -217,7 +217,7 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
         flashLoanIntentHash = bytes32(0);
 
         // Transfer tokens to vault.
-        for (uint256 i = 0; i < amounts.length; ++i) {
+        for (uint256 i; i < amounts.length; ++i) {
             ERC20(tokens[i]).safeTransfer(address(vault), amounts[i]);
         }
         {
