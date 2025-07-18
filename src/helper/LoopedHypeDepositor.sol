@@ -16,6 +16,10 @@ interface IWHYPE {
     function withdraw(uint256 wad) external;
 }
 
+/**
+ * @title LoopedHypeDepositor
+ * @custom:security-contact security@molecularlabs.io
+ */
 contract LoopedHypeDepositor is Auth {
     using SafeTransferLib for ERC20;
 
