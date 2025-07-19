@@ -8,3 +8,4 @@ ds-test/=lib/forge-std/lib/ds-test/src/
 
 @layerzerolabs/=node_modules/@layerzerolabs/
 @predicate/=lib/predicate-contracts/
+@uniswap/v3-core/=lib/v3-core/
