@@ -1,0 +1,8 @@
+{
+    "name": "Hyperliquid Testnet",
+    "balancerVault": "0x0000000000000000000000000000000000000000",
+    "lzEndpoint": "0x0000000000000000000000000000000000000000",
+    "mailbox": "0x0000000000000000000000000000000000000000",
+    "assetToRateProviderAndPriceFeed": {
+    }
+}
