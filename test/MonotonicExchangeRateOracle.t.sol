@@ -22,13 +22,11 @@ contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
         accountantUsdc = new AccountantWithRateProviders(
             address(this), address(USDC), address(this), 1e6, address(USDC), 2.5e4, 0.5e4, 0, 0
         );
-
-        oracleRelay = new OracleRelay(address(this));
     }
 
     function testAccountantWeth() external {
         MonotonicExchangeRateOracle oracle = new MonotonicExchangeRateOracle(address(this), accountantWeth);
-        oracleRelay.setImplementation(address(oracle));
+        oracleRelay = new OracleRelay(address(this), address(oracle));
         oracle.update();
         assertEq(oracleRelay.getRate(), 1e18, "starting rate should be 1e18");
 
@@ -46,7 +44,7 @@ contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
 
     function testAccountantUsdc() external {
         MonotonicExchangeRateOracle oracle = new MonotonicExchangeRateOracle(address(this), accountantUsdc);
-        oracleRelay.setImplementation(address(oracle));
+        oracleRelay = new OracleRelay(address(this), address(oracle));
         oracle.update();
         assertEq(oracleRelay.getRate(), 1e18, "starting rate should be 1e18");
 
@@ -68,7 +66,7 @@ contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
             address(this), address(WETH), address(this), 1e18, address(WETH), 2.5e4, 0.5e4, 0, 0
         );
         MonotonicExchangeRateOracle oracle2 = new MonotonicExchangeRateOracle(address(this), accountantUsdc2);
-        oracleRelay.setImplementation(address(oracle1));
+        oracleRelay = new OracleRelay(address(this), address(oracle1));
         oracle1.update();
 
         oracleRelay.setImplementation(address(oracle1));
