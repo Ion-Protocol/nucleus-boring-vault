@@ -21,6 +21,9 @@ contract DeployCurveMonotonicOracle is BaseScript {
 
         assert(address(oracle.owner()) == multisig);
         assert(address(relay.owner()) == multisig);
+        // We assert the oracle rate = accountant.getRate() * 10**12 since the accountant oracle returns in 6 decimals
+        // While the curve oracle must return in 18
+        assert(relay.getRate() == accountant.getRate() * 10 ** 12);
         console.log("CurveMonotonicOracle deployed at", address(oracle));
         console.log("OracleRelay deployed at", address(relay));
     }
