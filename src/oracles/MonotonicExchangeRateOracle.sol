@@ -23,6 +23,13 @@ contract MonotonicExchangeRateOracle is Auth {
     constructor(address _owner, AccountantWithRateProviders _accountant) Auth(_owner, Authority(address(0))) {
         accountant = _accountant;
         accountantDecimals = _accountant.decimals();
+
+        uint256 rate = _accountant.getRate();
+        if (rate == 0) {
+            revert MonotonicExchangeRateOracle__NewAccountantReturnsZero();
+        }
+        highwaterMark = rate;
+        emit MonotonicExchangeRateOracle__HighwaterMarkUpdated(highwaterMark);
     }
 
     /**
