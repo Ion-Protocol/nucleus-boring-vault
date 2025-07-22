@@ -19,7 +19,13 @@ contract OracleRelay is Auth {
     error OracleRelay__ImplementationMustNotBeZero();
     error OracleRelay__ImplementationReturnedZero(address implementation, bytes data);
 
-    constructor(address _owner) Auth(_owner, Authority(address(0))) { }
+    constructor(address _owner, address _implementation) Auth(_owner, Authority(address(0))) {
+        if (_implementation == address(0)) {
+            revert OracleRelay__ImplementationMustNotBeZero();
+        }
+        implementation = _implementation;
+        emit OracleRelay__ImplementationAddressSet(_implementation);
+    }
 
     function getRate() external view returns (uint256) {
         if (implementation == address(0)) {
