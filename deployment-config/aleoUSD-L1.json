@@ -3,7 +3,7 @@
     "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
     "boringVaultAndBaseDecimals": "6",
     "boringVault": {
-      "boringVaultSalt": "0x23b5d49469bec0f3a7c7df3f6e2c03232028f822199a4f67a5503e2d66a0e9aa",
+      "boringVaultSalt": "0xb6e99f9892ece80722fbd80c6eca9e3212d84ddc2ff64278a05952b06d859dad",
       "boringVaultName": "Aleo USD",
       "boringVaultSymbol": "aleoUSD",
       "address": "0x0000000000000000000000000000000000000000"
@@ -41,7 +41,7 @@
     },
     "rolesAuthority": {
       "rolesAuthoritySalt": "0xfdc74d51bd37618ae74c459429d98dd01449931d863a63ad4618a2a52a1df980",
-      "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+      "strategist": "0xCb8FA722B2a138faC6B6D60013025E2504b9B753",
       "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
       "pauser": "0x858d3eE2a16F7B6E43C8D87a5E1F595dE32f4419",
       "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
