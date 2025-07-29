@@ -16,7 +16,7 @@ contract DeployAccountantWithRateProviders is BaseScript {
 
     function deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
         // Require Config Values
-        uint256 startingExchangeRate = 10 ** ERC20(config.base).decimals();
+        uint256 startingExchangeRate = 10 ** config.boringVaultAndBaseDecimals;
         {
             require(config.boringVault.code.length != 0, "boringVault must have code");
             require(config.base.code.length != 0, "base must have code");
@@ -35,6 +35,69 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 startingExchangeRate == 10 ** config.boringVaultAndBaseDecimals,
                 "starting exchange rate must be equal to the boringVault and base decimals"
             );
+        }
+        // Create Contract
+        bytes memory creationCode = type(AccountantWithRateProviders).creationCode;
+        AccountantWithRateProviders accountant;
+
+        bytes memory params;
+        {
+            params = abi.encode(
+                broadcaster,
+                config.boringVault,
+                config.payoutAddress,
+                startingExchangeRate,
+                config.base,
+                config.allowedExchangeRateChangeUpper,
+                config.allowedExchangeRateChangeLower,
+                config.minimumUpdateDelayInSeconds,
+                config.managementFee,
+                config.performanceFee,
+                config.rateProvider
+            );
+        }
+
+        bytes memory initCode;
+        {
+            initCode = abi.encodePacked(creationCode, params);
+        }
+
+        {
+            accountant = AccountantWithRateProviders(CREATEX.deployCreate3(config.accountantSalt, initCode));
+        }
+
+        _accountantStateCheck(accountant, config, startingExchangeRate);
+        return address(accountant);
+    }
+
+    function deploy(
+        ConfigReader.Config memory config,
+        uint256 startingExchangeRate
+    )
+        public
+        broadcast
+        returns (address)
+    {
+        // Require Config Values
+        {
+            require(config.boringVault.code.length != 0, "boringVault must have code");
+            require(config.base.code.length != 0, "base must have code");
+            require(config.accountantSalt != bytes32(0), "accountant salt must not be zero");
+            require(config.boringVault != address(0), "boring vault address must not be zero");
+            require(config.payoutAddress != address(0), "payout address must not be zero");
+            require(config.base != address(0), "base address must not be zero");
+            require(config.allowedExchangeRateChangeUpper > 1e4, "allowedExchangeRateChangeUpper");
+            require(config.allowedExchangeRateChangeUpper <= 1.003e4, "allowedExchangeRateChangeUpper upper bound");
+            require(config.allowedExchangeRateChangeLower <= 1e4, "allowedExchangeRateChangeLower");
+            require(config.allowedExchangeRateChangeLower >= 0.997e4, "allowedExchangeRateChangeLower lower bound");
+            require(config.minimumUpdateDelayInSeconds >= 3600, "minimumUpdateDelayInSeconds");
+            require(config.managementFee < 1e4, "managementFee");
+            require(config.performanceFee < 1e4, "performanceFee is too large");
+            // startingExchangeRate is based on the existing one, not 1
+            // require(
+            //     startingExchangeRate == 10 ** config.boringVaultAndBaseDecimals,
+            //     "starting exchange rate must be equal to the boringVault and base decimals"
+            // );
         }
         // Create Contract
         bytes memory creationCode = type(AccountantWithRateProviders).creationCode;
@@ -96,7 +159,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
             // Post Deploy Checks
             require(_payoutAddress == config.payoutAddress, "payout address");
             require(_feesOwedInBase == 0, "fees owed in base");
-            require(_totalSharesLastUpdate == 0, "total shares last update");
+            // Removed total shares last update check, as they will not be 0 with an existing boring vault
+            // require(_totalSharesLastUpdate == 0, "total shares last update");
             require(_exchangeRate == startingExchangeRate, "exchange rate");
             require(_highestExchangeRate == startingExchangeRate, "highest exchange rate not set properly");
             require(

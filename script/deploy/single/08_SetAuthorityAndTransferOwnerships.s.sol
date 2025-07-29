@@ -5,6 +5,8 @@ import { BaseScript } from "./../../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader, IAuthority } from "../../ConfigReader.s.sol";
 import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { console } from "forge-std/console.sol";
 /**
  * Update `rolesAuthority` and transfer ownership from deployer EOA to the
  * protocol.
@@ -31,18 +33,23 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         require(config.protocolAdmin != address(0), "protocolAdmin");
 
         // Set Authority
-        IAuthority(config.boringVault).setAuthority(config.rolesAuthority);
+        if (BoringVault(payable(config.boringVault)).owner() != config.protocolAdmin) {
+            console.log(
+                "setting authority and transferring ownership of boring vault as it's owner is not the protocol admin and we assume that means it is a new deployment"
+            );
+            IAuthority(config.boringVault).setAuthority(config.rolesAuthority);
+            IAuthority(config.boringVault).transferOwnership(config.protocolAdmin);
+        }
         IAuthority(config.accountant).setAuthority(config.rolesAuthority);
         IAuthority(config.manager).setAuthority(config.rolesAuthority);
         IAuthority(config.teller).setAuthority(config.rolesAuthority);
-        IAuthority(config.boringVault).transferOwnership(config.protocolAdmin);
         IAuthority(config.manager).transferOwnership(config.protocolAdmin);
         IAuthority(config.accountant).transferOwnership(config.protocolAdmin);
         IAuthority(config.teller).transferOwnership(config.protocolAdmin);
         IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
 
         // Post Configuration Check
-        require(AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin, "boringVault");
+        // require(AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin, "boringVault");
         require(AuthOwnable2Step(config.manager).pendingOwner() == config.protocolAdmin, "manager");
         require(AuthOwnable2Step(config.accountant).pendingOwner() == config.protocolAdmin, "accountant");
         require(AuthOwnable2Step(config.teller).pendingOwner() == config.protocolAdmin, "teller");

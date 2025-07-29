@@ -28,6 +28,8 @@ contract TellerSetup is BaseScript {
 
         TellerWithMultiAssetSupport teller = TellerWithMultiAssetSupport(config.teller);
         RateProviderConfig rateProviderContract = RateProviderConfig(config.rateProvider);
+        require(address(rateProviderContract) != address(0), "rate provider config zero address");
+        require(address(rateProviderContract).code.length != 0, "rate provider config has no code");
 
         uint256 len = config.assets.length + 1;
         ERC20[] memory assets = new ERC20[](len);
@@ -36,6 +38,17 @@ contract TellerSetup is BaseScript {
         for (uint256 i; i < config.assets.length; ++i) {
             // add asset
             assets[i + 1] = ERC20(config.assets[i]);
+
+            require(
+                rateProviderContract.getLength(ERC20(config.base), ERC20(config.assets[i])) != 0,
+                string.concat(
+                    "Base: ",
+                    vm.toString(config.base),
+                    " Asset: ",
+                    vm.toString(config.assets[i]),
+                    " has no rate rateProviderData. Please configure it"
+                )
+            );
         }
         teller.addAssets(assets);
     }
