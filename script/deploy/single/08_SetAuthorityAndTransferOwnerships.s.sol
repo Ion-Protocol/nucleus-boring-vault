@@ -39,7 +39,17 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
             );
             IAuthority(config.boringVault).setAuthority(config.rolesAuthority);
             IAuthority(config.boringVault).transferOwnership(config.protocolAdmin);
+            require(
+                AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin,
+                "boringVault is a new deployment, pending owner should be protocolAdmin"
+            );
+        } else {
+            require(
+                AuthOwnable2Step(config.boringVault).owner() == config.protocolAdmin,
+                "boringVault is a not a new deployment, current owner should be protocolAdmin"
+            );
         }
+
         IAuthority(config.accountant).setAuthority(config.rolesAuthority);
         IAuthority(config.manager).setAuthority(config.rolesAuthority);
         IAuthority(config.teller).setAuthority(config.rolesAuthority);
@@ -49,7 +59,6 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
 
         // Post Configuration Check
-        // require(AuthOwnable2Step(config.boringVault).pendingOwner() == config.protocolAdmin, "boringVault");
         require(AuthOwnable2Step(config.manager).pendingOwner() == config.protocolAdmin, "manager");
         require(AuthOwnable2Step(config.accountant).pendingOwner() == config.protocolAdmin, "accountant");
         require(AuthOwnable2Step(config.teller).pendingOwner() == config.protocolAdmin, "teller");
