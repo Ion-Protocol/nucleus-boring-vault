@@ -9,7 +9,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 
 /**
- * @title ManagerWithTokenBalanceVerification
+ * @title ManagerSimulator
  * @custom:security-contact security@molecularlabs.io
  */
 contract ManagerSimulator {
