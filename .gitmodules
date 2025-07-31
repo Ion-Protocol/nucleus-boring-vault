@@ -22,3 +22,6 @@
 [submodule "lib/maverick"]
 	path = lib/maverick
 	url = https://github.com/maverickprotocol/maverick-v2-examples/tree/main/solidity
+[submodule "lib/aave-v3-core"]
+	path = lib/aave-v3-core
+	url = https://github.com/aave/aave-v3-core
