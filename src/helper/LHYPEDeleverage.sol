@@ -66,7 +66,7 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         returns (uint256 amountWstHypePaid)
     {
         // initiate a flashswap
-        amountWstHypePaid = exactOutputInternal(hypeToDeleverage, address(this), 0, "");
+        amountWstHypePaid = exactOutputInternal(hypeToDeleverage, address(this), "");
 
         // Check the slippage on the swap
         if (amountWstHypePaid > maxWstHypeWithdrawn) {
@@ -107,24 +107,18 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     function exactOutputInternal(
         uint256 amountOut,
         address recipient,
-        uint160 sqrtPriceLimitX96,
         bytes memory data
     )
         private
         returns (uint256 amountIn)
     {
-        // allow swapping to the router address with address 0
-        if (recipient == address(0)) recipient = address(this);
-
         bool zeroForOne = tokenIn < tokenOut;
 
         (int256 amount0Delta, int256 amount1Delta) = uniswapV3Pool.swap(
             recipient,
             zeroForOne,
             -amountOut.toInt256(),
-            sqrtPriceLimitX96 == 0
-                ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
-                : sqrtPriceLimitX96,
+            (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
             data
         );
 
@@ -134,7 +128,7 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
             : (uint256(amount1Delta), uint256(-amount0Delta));
 
         // it's technically possible to not receive the full output amount,
-        // so if no price limit has been specified, require this possibility away
-        if (sqrtPriceLimitX96 == 0) require(amountOutReceived == amountOut);
+        // so as no price limit has been specified, require this possibility away
+        require(amountOutReceived == amountOut);
     }
 }
