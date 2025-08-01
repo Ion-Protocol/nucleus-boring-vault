@@ -39,14 +39,13 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     error LHYPEDeleverage__HealthFactorMinimumInvalid(uint256 minimumEndingHealthFactor);
 
     constructor(
-        address _owner,
         address _aaveV3Pool,
         address _uniswapV3Pool,
         BoringVault _boringVault,
         address _tokenIn, // token that you are withdrawing from the aave v3 pool
         address _tokenOut // token that you are repaying to the aave v3 pool
     )
-        Auth(_owner, Authority(address(0)))
+        Auth(address(_boringVault), Authority(address(0)))
     {
         aaveV3Pool = IPool(_aaveV3Pool);
         uniswapV3Pool = IUniswapV3Pool(_uniswapV3Pool);

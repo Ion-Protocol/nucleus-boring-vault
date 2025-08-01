@@ -54,10 +54,10 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         accountant = AccountantWithRateProviders(0xcE621a3CA6F72706678cFF0572ae8d15e5F001c3);
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
         lhypeDeleverage_hfi = new AaveV3FlashswapDeleverage(
-            address(boringVault), address(hypurrfiPool_hfi), address(hyperswapPool), boringVault, wstHYPE, WHYPE
+            address(hypurrfiPool_hfi), address(hyperswapPool), boringVault, wstHYPE, WHYPE
         );
         lhypeDeleverage_hlend = new AaveV3FlashswapDeleverage(
-            address(boringVault), address(hyperlendPool_hlend), address(hyperswapPool), boringVault, wstHYPE, WHYPE
+            address(hyperlendPool_hlend), address(hyperswapPool), boringVault, wstHYPE, WHYPE
         );
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setUserRole(address(lhypeDeleverage_hfi), 2, true);
