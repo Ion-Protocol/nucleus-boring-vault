@@ -8,7 +8,7 @@ import { SafeCast } from "@uniswap/v3-core/contracts/libraries/SafeCast.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
-import { console } from "forge-std/console.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 library TickMath {
     /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
@@ -21,7 +21,7 @@ interface IHyperswapV3SwapCallback {
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
 }
 
-contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
+contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     using SafeCast for uint256;
 
     IPool public aaveV3Pool;
@@ -30,18 +30,22 @@ contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
 
     address tokenIn;
     address tokenOut;
-    uint256 interestRateMode = 2; // 1 for stable, 2 for variable
+    uint256 constant INTEREST_RATE_MODE = 2; // 1 for stable, 2 for variable
 
     error LHYPEDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
     error LHYPEDeleverage__SlippageTooHigh(uint256 wstHYPEReceived, uint256 maxWstHypePaid);
+    error LHYPEDeleverage__InvalidSender();
 
     constructor(
+        address _owner,
         address _aaveV3Pool,
         address _uniswapV3Pool,
         BoringVault _boringVault,
         address _tokenIn, // token that you are withdrawing from the aave v3 pool
         address _tokenOut // token that you are repaying to the aave v3 pool
-    ) {
+    )
+        Auth(_owner, Authority(address(0)))
+    {
         aaveV3Pool = IPool(_aaveV3Pool);
         uniswapV3Pool = IUniswapV3Pool(_uniswapV3Pool);
         boringVault = BoringVault(_boringVault);
@@ -54,18 +58,22 @@ contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
 
     function deleverage(
         uint256 hypeToDeleverage,
-        uint256 maxwstHypeWithdrawn,
+        uint256 maxWstHypeWithdrawn,
         uint256 minimumEndingHealthFactor
     )
         external
+        requiresAuth
         returns (uint256 amountWstHypePaid)
     {
         // initiate a flashswap
         amountWstHypePaid = exactOutputInternal(hypeToDeleverage, address(this), 0, "");
-        if (amountWstHypePaid > maxwstHypeWithdrawn) {
-            revert LHYPEDeleverage__SlippageTooHigh(amountWstHypePaid, maxwstHypeWithdrawn);
+
+        // Check the slippage on the swap
+        if (amountWstHypePaid > maxWstHypeWithdrawn) {
+            revert LHYPEDeleverage__SlippageTooHigh(amountWstHypePaid, maxWstHypeWithdrawn);
         }
 
+        // Check the health factor after the deleverage
         (,,,,, uint256 healthFactor) = aaveV3Pool.getUserAccountData(address(boringVault));
 
         if (healthFactor < minimumEndingHealthFactor) {
@@ -75,25 +83,19 @@ contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
 
     /// @inheritdoc IHyperswapV3SwapCallback
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external override {
-        // get the desired HYPE
-        console.log("hyperswapV3SwapCallback");
-        console.log("amount0Delta", amount0Delta);
-        console.log("amount1Delta", amount1Delta);
-        console.log("WHYPE BAL: ", ERC20(tokenOut).balanceOf(address(this)));
+        if (msg.sender != address(uniswapV3Pool)) {
+            revert LHYPEDeleverage__InvalidSender();
+        }
 
+        // get the desired HYPE
         // Repay on behalf of boringVault
         // hardcoding token0 amount, as tokenIn and out do not change
-        aaveV3Pool.repay(tokenOut, uint256(-amount0Delta), interestRateMode, address(boringVault));
+        aaveV3Pool.repay(tokenOut, uint256(-amount0Delta), INTEREST_RATE_MODE, address(boringVault));
 
         // Call manage() on boringVault to make the withdraw of stHYPE to this address
         boringVault.manage(
             address(aaveV3Pool),
-            abi.encodeWithSelector(
-                IPool.withdraw.selector,
-                0x94e8396e0869c9F2200760aF0621aFd240E1CF38,
-                uint256(amount1Delta),
-                address(this)
-            ),
+            abi.encodeWithSelector(IPool.withdraw.selector, tokenIn, uint256(amount1Delta), address(this)),
             0
         );
 
