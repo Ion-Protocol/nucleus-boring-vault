@@ -31,10 +31,12 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     address tokenIn;
     address tokenOut;
     uint256 constant INTEREST_RATE_MODE = 2; // 1 for stable, 2 for variable
+    uint256 constant SANITY_CHECK_HEALTH_FACTOR = 1_050_000_000_000_000_000;
 
     error LHYPEDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
     error LHYPEDeleverage__SlippageTooHigh(uint256 wstHYPEReceived, uint256 maxWstHypePaid);
     error LHYPEDeleverage__InvalidSender();
+    error LHYPEDeleverage__HealthFactorMinimumInvalid(uint256 minimumEndingHealthFactor);
 
     constructor(
         address _owner,
@@ -65,6 +67,10 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         requiresAuth
         returns (uint256 amountWstHypePaid)
     {
+        if (minimumEndingHealthFactor < SANITY_CHECK_HEALTH_FACTOR) {
+            revert LHYPEDeleverage__HealthFactorMinimumInvalid(minimumEndingHealthFactor);
+        }
+
         // initiate a flashswap
         amountWstHypePaid = exactOutputInternal(hypeToDeleverage, address(this), "");
 
