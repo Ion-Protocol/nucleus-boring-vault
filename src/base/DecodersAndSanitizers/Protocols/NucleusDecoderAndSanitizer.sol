@@ -74,4 +74,9 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encode(offer, want, userRequest.recipient);
     }
+
+    // @desc deleverage using the LHYPEDeleverage contract
+    function deleverage() external pure returns (bytes memory addressesFound) {
+        // Nothing to decode
+    }
 }
