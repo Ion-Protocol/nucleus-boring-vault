@@ -6,7 +6,7 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-import { AaveV3FlashswapDeleverage } from "src/helper/LHYPEDeleverage.sol";
+import { AaveV3FlashswapDeleverage } from "src/helper/AaveV3FlashswapDeleverage.sol";
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -74,7 +74,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         vm.prank(address(boringVault));
         vm.expectRevert(
             abi.encodeWithSelector(
-                AaveV3FlashswapDeleverage.LHYPEDeleverage__HealthFactorBelowMinimum.selector,
+                AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__HealthFactorBelowMinimum.selector,
                 realEndingHealthFactor,
                 minimumEndingHealthFactor
             )
@@ -91,7 +91,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         vm.prank(address(boringVault));
         vm.expectRevert(
             abi.encodeWithSelector(
-                AaveV3FlashswapDeleverage.LHYPEDeleverage__SlippageTooHigh.selector,
+                AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__SlippageTooHigh.selector,
                 realStHypeWithdrawn,
                 maxStHypeWithdrawn
             )
@@ -152,12 +152,12 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
     //     vm.prank(address(boringVault));
     //     vm.expectRevert(
     //         abi.encodeWithSelector(
-    //             AaveV3FlashswapDeleverage.LHYPEDeleverage__HealthFactorBelowMinimum.selector,
+    //             AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__HealthFactorBelowMinimum.selector,
     //             realEndingHealthFactor,
     //             minimumEndingHealthFactor
     //         )
     //     );
-    //     lhypeDeleverage.deleverage(hypeToDeleverage, maxStHypeWithdrawn, minimumEndingHealthFactor);
+    //     lhypeDeleverage_hlend.deleverage(hypeToDeleverage, maxStHypeWithdrawn, minimumEndingHealthFactor);
     // }
 
     // function test_deleverage_fails_when_slippage_too_high_hlend() public {
@@ -169,12 +169,12 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
     //     vm.prank(address(boringVault));
     //     vm.expectRevert(
     //         abi.encodeWithSelector(
-    //             AaveV3FlashswapDeleverage.LHYPEDeleverage__SlippageTooHigh.selector,
+    //             AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__SlippageTooHigh.selector,
     //             realStHypeWithdrawn,
     //             maxStHypeWithdrawn
     //         )
     //     );
-    //     lhypeDeleverage.deleverage(hypeToDeleverage, maxStHypeWithdrawn, minimumEndingHealthFactor);
+    //     lhypeDeleverage_hlend.deleverage(hypeToDeleverage, maxStHypeWithdrawn, minimumEndingHealthFactor);
     // }
 
     function test_deleverage_hlend() public {

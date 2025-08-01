@@ -2,11 +2,11 @@
 pragma solidity 0.8.21;
 
 import { BaseScript } from "../Base.s.sol";
-import { AaveV3FlashswapDeleverage } from "src/helper/LHYPEDeleverage.sol";
+import { AaveV3FlashswapDeleverage } from "src/helper/AaveV3FlashswapDeleverage.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { console } from "forge-std/console.sol";
 
-contract DeployLHYPEDeleverage is BaseScript {
+contract DeployAaveV3FlashswapDeleverage is BaseScript {
     // LHYPE
     BoringVault public boringVault = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
 

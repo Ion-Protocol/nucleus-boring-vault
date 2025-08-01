@@ -33,10 +33,10 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     uint256 constant INTEREST_RATE_MODE = 2; // 1 for stable, 2 for variable
     uint256 constant SANITY_CHECK_HEALTH_FACTOR = 1_050_000_000_000_000_000;
 
-    error LHYPEDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
-    error LHYPEDeleverage__SlippageTooHigh(uint256 wstHYPEReceived, uint256 maxWstHypePaid);
-    error LHYPEDeleverage__InvalidSender();
-    error LHYPEDeleverage__HealthFactorMinimumInvalid(uint256 minimumEndingHealthFactor);
+    error AaveV3FlashswapDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
+    error AaveV3FlashswapDeleverage__SlippageTooHigh(uint256 wstHYPEReceived, uint256 maxWstHypePaid);
+    error AaveV3FlashswapDeleverage__InvalidSender();
+    error AaveV3FlashswapDeleverage__HealthFactorMinimumInvalid(uint256 minimumEndingHealthFactor);
 
     constructor(
         address _aaveV3Pool,
@@ -67,7 +67,7 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         returns (uint256 amountWstHypePaid)
     {
         if (minimumEndingHealthFactor < SANITY_CHECK_HEALTH_FACTOR) {
-            revert LHYPEDeleverage__HealthFactorMinimumInvalid(minimumEndingHealthFactor);
+            revert AaveV3FlashswapDeleverage__HealthFactorMinimumInvalid(minimumEndingHealthFactor);
         }
 
         // initiate a flashswap
@@ -75,21 +75,21 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
 
         // Check the slippage on the swap
         if (amountWstHypePaid > maxWstHypeWithdrawn) {
-            revert LHYPEDeleverage__SlippageTooHigh(amountWstHypePaid, maxWstHypeWithdrawn);
+            revert AaveV3FlashswapDeleverage__SlippageTooHigh(amountWstHypePaid, maxWstHypeWithdrawn);
         }
 
         // Check the health factor after the deleverage
         (,,,,, uint256 healthFactor) = aaveV3Pool.getUserAccountData(address(boringVault));
 
         if (healthFactor < minimumEndingHealthFactor) {
-            revert LHYPEDeleverage__HealthFactorBelowMinimum(healthFactor, minimumEndingHealthFactor);
+            revert AaveV3FlashswapDeleverage__HealthFactorBelowMinimum(healthFactor, minimumEndingHealthFactor);
         }
     }
 
     /// @inheritdoc IHyperswapV3SwapCallback
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external override {
         if (msg.sender != address(uniswapV3Pool)) {
-            revert LHYPEDeleverage__InvalidSender();
+            revert AaveV3FlashswapDeleverage__InvalidSender();
         }
 
         // get the desired HYPE
