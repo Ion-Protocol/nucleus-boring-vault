@@ -21,22 +21,35 @@ interface IHyperswapV3SwapCallback {
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
 }
 
-contract LHYPEDeleverage is IHyperswapV3SwapCallback {
+contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
     using SafeCast for uint256;
 
-    IPool public hypurrfiPool = IPool(0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b);
-    IUniswapV3Pool public hyperswapPool = IUniswapV3Pool(0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB);
-    BoringVault public LHYPE = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
+    IPool public aaveV3Pool = IPool(0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b);
+    IUniswapV3Pool public uniswapV3Pool = IUniswapV3Pool(0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB);
+    BoringVault public boringVault = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
 
-    address tokenIn = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHYPE
-    address tokenOut = 0x5555555555555555555555555555555555555555; // WHYPE
+    address tokenIn;
+    address tokenOut;
     uint256 interestRateMode = 2; // 1 for stable, 2 for variable
 
     error LHYPEDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
     error LHYPEDeleverage__SlippageTooHigh(uint256 wstHYPEReceived, uint256 maxWstHypePaid);
 
-    constructor() {
-        ERC20(tokenOut).approve(address(hypurrfiPool), type(uint256).max);
+    constructor(
+        address _aaveV3Pool,
+        address _uniswapV3Pool,
+        BoringVault _boringVault,
+        address _tokenIn, // token that you are withdrawing from the aave v3 pool
+        address _tokenOut // token that you are repaying to the aave v3 pool
+    ) {
+        aaveV3Pool = aaveV3Pool;
+        uniswapV3Pool = uniswapV3Pool;
+        boringVault = _boringVault;
+
+        tokenIn = _tokenIn;
+        tokenOut = _tokenOut;
+
+        ERC20(tokenOut).approve(address(pool), type(uint256).max);
     }
 
     function deleverage(
@@ -53,7 +66,7 @@ contract LHYPEDeleverage is IHyperswapV3SwapCallback {
             revert LHYPEDeleverage__SlippageTooHigh(amountWstHypePaid, maxwstHypeWithdrawn);
         }
 
-        (,,,,, uint256 healthFactor) = hypurrfiPool.getUserAccountData(address(LHYPE));
+        (,,,,, uint256 healthFactor) = aaveV3Pool.getUserAccountData(address(boringVault));
 
         if (healthFactor < minimumEndingHealthFactor) {
             revert LHYPEDeleverage__HealthFactorBelowMinimum(healthFactor, minimumEndingHealthFactor);
@@ -68,13 +81,13 @@ contract LHYPEDeleverage is IHyperswapV3SwapCallback {
         console.log("amount1Delta", amount1Delta);
         console.log("WHYPE BAL: ", ERC20(tokenOut).balanceOf(address(this)));
 
-        // Repay on behalf of LHYPE
+        // Repay on behalf of boringVault
         // hardcoding token0 amount, as tokenIn and out do not change
-        hypurrfiPool.repay(tokenOut, uint256(-amount0Delta), interestRateMode, address(LHYPE));
+        aaveV3Pool.repay(tokenOut, uint256(-amount0Delta), interestRateMode, address(boringVault));
 
-        // Call manage() on LHYPE to make the withdraw of stHYPE to this address
-        LHYPE.manage(
-            address(hypurrfiPool),
+        // Call manage() on boringVault to make the withdraw of stHYPE to this address
+        boringVault.manage(
+            address(aaveV3Pool),
             abi.encodeWithSelector(
                 IPool.withdraw.selector,
                 0x94e8396e0869c9F2200760aF0621aFd240E1CF38,
@@ -85,7 +98,7 @@ contract LHYPEDeleverage is IHyperswapV3SwapCallback {
         );
 
         // Repay the flashswap using the stHYPE
-        ERC20(tokenIn).transfer(address(hyperswapPool), uint256(amount1Delta));
+        ERC20(tokenIn).transfer(address(uniswapV3Pool), uint256(amount1Delta));
     }
 
     /// @dev function is taken from UniswapV3 Router, but uses the identical provided _getPool() instead of getPool()
@@ -103,7 +116,7 @@ contract LHYPEDeleverage is IHyperswapV3SwapCallback {
 
         bool zeroForOne = tokenIn < tokenOut;
 
-        (int256 amount0Delta, int256 amount1Delta) = hyperswapPool.swap(
+        (int256 amount0Delta, int256 amount1Delta) = uniswapV3Pool.swap(
             recipient,
             zeroForOne,
             -amountOut.toInt256(),
