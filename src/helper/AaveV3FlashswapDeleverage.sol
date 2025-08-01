@@ -108,6 +108,11 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         ERC20(tokenIn).transfer(address(uniswapV3Pool), uint256(amount1Delta));
     }
 
+    /// @notice Drain any tokens stuck in the contract
+    function drain(ERC20 token, address to, uint256 amount) external requiresAuth {
+        token.transfer(to, amount);
+    }
+
     /// @dev function is taken from UniswapV3 Router, but uses the identical provided _getPool() instead of getPool()
     function exactOutputInternal(
         uint256 amountOut,
