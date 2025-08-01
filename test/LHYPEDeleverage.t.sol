@@ -6,9 +6,10 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-import { LHYPEDeleverage } from "src/helper/LHYPEDeleverage.sol";
+import { AaveV3FlashswapDeleverage } from "src/helper/LHYPEDeleverage.sol";
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 interface IGetRate {
     function getRate() external view returns (uint256);
@@ -19,10 +20,15 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
 
     ERC20 WHYPE_DEBT = ERC20(0x37E44F3070b5455f1f5d7aaAd9Fc8590229CC5Cb);
     ERC20 wstHYPE_COLLATERAL = ERC20(0xC8b6E0acf159E058E22c564C0C513ec21f8a1Bf5);
+    address wstHYPE = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38;
+    address WHYPE = 0x5555555555555555555555555555555555555555;
+
+    IPool public hypurrfiPool = IPool(0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b);
+    IUniswapV3Pool public hyperswapPool = IUniswapV3Pool(0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB);
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
-    LHYPEDeleverage public lhypeDeleverage;
+    AaveV3FlashswapDeleverage public lhypeDeleverage;
     RolesAuthority public rolesAuthority;
 
     IPool public pool = IPool(0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b);
@@ -36,7 +42,8 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         boringVault = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
         accountant = AccountantWithRateProviders(0xcE621a3CA6F72706678cFF0572ae8d15e5F001c3);
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
-        lhypeDeleverage = new LHYPEDeleverage();
+        lhypeDeleverage =
+            new AaveV3FlashswapDeleverage(address(hypurrfiPool), address(hyperswapPool), boringVault, wstHYPE, WHYPE);
 
         vm.prank(rolesAuthority.owner());
         rolesAuthority.setUserRole(address(lhypeDeleverage), 2, true);
@@ -51,7 +58,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         vm.prank(address(boringVault));
         vm.expectRevert(
             abi.encodeWithSelector(
-                LHYPEDeleverage.LHYPEDeleverage__HealthFactorBelowMinimum.selector,
+                AaveV3FlashswapDeleverage.LHYPEDeleverage__HealthFactorBelowMinimum.selector,
                 realEndingHealthFactor,
                 minimumEndingHealthFactor
             )
@@ -68,7 +75,9 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         vm.prank(address(boringVault));
         vm.expectRevert(
             abi.encodeWithSelector(
-                LHYPEDeleverage.LHYPEDeleverage__SlippageTooHigh.selector, realStHypeWithdrawn, maxStHypeWithdrawn
+                AaveV3FlashswapDeleverage.LHYPEDeleverage__SlippageTooHigh.selector,
+                realStHypeWithdrawn,
+                maxStHypeWithdrawn
             )
         );
         lhypeDeleverage.deleverage(hypeToDeleverage, maxStHypeWithdrawn, minimumEndingHealthFactor);

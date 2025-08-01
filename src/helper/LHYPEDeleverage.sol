@@ -24,9 +24,9 @@ interface IHyperswapV3SwapCallback {
 contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
     using SafeCast for uint256;
 
-    IPool public aaveV3Pool = IPool(0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b);
-    IUniswapV3Pool public uniswapV3Pool = IUniswapV3Pool(0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB);
-    BoringVault public boringVault = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
+    IPool public aaveV3Pool;
+    IUniswapV3Pool public uniswapV3Pool;
+    BoringVault public boringVault;
 
     address tokenIn;
     address tokenOut;
@@ -42,14 +42,14 @@ contract AaveV3FlashswapDeleverage is IHyperswapV3SwapCallback {
         address _tokenIn, // token that you are withdrawing from the aave v3 pool
         address _tokenOut // token that you are repaying to the aave v3 pool
     ) {
-        aaveV3Pool = aaveV3Pool;
-        uniswapV3Pool = uniswapV3Pool;
-        boringVault = _boringVault;
+        aaveV3Pool = IPool(_aaveV3Pool);
+        uniswapV3Pool = IUniswapV3Pool(_uniswapV3Pool);
+        boringVault = BoringVault(_boringVault);
 
         tokenIn = _tokenIn;
         tokenOut = _tokenOut;
 
-        ERC20(tokenOut).approve(address(pool), type(uint256).max);
+        ERC20(tokenOut).approve(address(aaveV3Pool), type(uint256).max);
     }
 
     function deleverage(
