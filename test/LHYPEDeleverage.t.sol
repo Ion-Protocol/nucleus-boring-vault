@@ -10,6 +10,10 @@ import { LHYPEDeleverage } from "src/helper/LHYPEDeleverage.sol";
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 
+interface IGetRate {
+    function getRate() external view returns (uint256);
+}
+
 contract LHYPEDeleverageTest is Test, MainnetAddresses {
     using stdStorage for StdStorage;
 
@@ -75,27 +79,36 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         uint256 hypeToDeleverage = 10_000e18;
         uint256 maxStHypeWithdrawn = 10_053e18;
 
-        (uint256 totalCollateralBaseBefore, uint256 totalDebtBaseBefore,,,, uint256 healthFactorBefore) =
-            pool.getUserAccountData(address(boringVault));
+        (
+            uint256 totalCollateralBaseBefore,
+            uint256 totalDebtBaseBefore,
+            ,
+            uint256 liquidationThresholdBefore,
+            ,
+            uint256 healthFactorBefore
+        ) = pool.getUserAccountData(address(boringVault));
 
         uint256 debtBefore = WHYPE_DEBT.balanceOf(address(boringVault));
         uint256 collateralBefore = wstHYPE_COLLATERAL.balanceOf(address(boringVault));
 
         vm.prank(address(boringVault));
-        uint256 val = lhypeDeleverage.deleverage(hypeToDeleverage, maxStHypeWithdrawn, healthFactorBefore);
+        uint256 amountWstHypePaid = lhypeDeleverage.deleverage(hypeToDeleverage, maxStHypeWithdrawn, healthFactorBefore);
+        console.log("liquidationThresholdBefore", liquidationThresholdBefore);
 
-        // TODO: assert that the health factor is what is expected from that
+        uint256 expectedHealthFactor = ((collateralBefore - amountWstHypePaid) * 1_008_857_603_665_968_334 / 1e18)
+            * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because liquidation
+            // threshold has 4 decimals
 
         (uint256 totalCollateralBaseAfter, uint256 totalDebtBaseAfter,,,, uint256 healthFactorAfter) =
             pool.getUserAccountData(address(boringVault));
 
-        uint256 debtAfter = WHYPE_DEBT.balanceOf(address(boringVault));
-        uint256 collateralAfter = wstHYPE_COLLATERAL.balanceOf(address(boringVault));
+        // uint256 debtAfter = WHYPE_DEBT.balanceOf(address(boringVault));
+        // uint256 collateralAfter = wstHYPE_COLLATERAL.balanceOf(address(boringVault));
 
         console.log("collateralBefore", collateralBefore);
-        console.log("collateralAfter", collateralAfter);
+        // console.log("collateralAfter", collateralAfter);
         console.log("debtBefore", debtBefore);
-        console.log("debtAfter", debtAfter);
+        // console.log("debtAfter", debtAfter);
         console.log("totalCollateralBaseBefore", totalCollateralBaseBefore);
         console.log("totalCollateralBaseAfter", totalCollateralBaseAfter);
         console.log("totalDebtBaseBefore", totalDebtBaseBefore);
@@ -103,6 +116,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         console.log("healthFactor before", healthFactorBefore);
         console.log("healthFactor after", healthFactorAfter);
 
+        assertApproxEqAbs(healthFactorAfter, expectedHealthFactor, 1e13);
         assertGt(healthFactorAfter, healthFactorBefore, "Health factor should improve");
         // assertEq(debtAfter, debtBefore - hypeToDeleverage);
         // assertLt(ltvAfter, ltvBefore);
