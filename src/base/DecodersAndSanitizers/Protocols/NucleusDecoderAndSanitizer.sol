@@ -76,7 +76,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     }
 
     // @desc deleverage using the LHYPEDeleverage contract
-    function deleverage() external pure returns (bytes memory addressesFound) {
+    function deleverage(uint256, uint256, uint256) external pure returns (bytes memory addressesFound) {
         // Nothing to decode
     }
 }
