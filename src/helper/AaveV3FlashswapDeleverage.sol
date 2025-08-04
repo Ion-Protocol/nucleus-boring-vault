@@ -21,29 +21,33 @@ interface IHyperswapV3SwapCallback {
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
 }
 
-contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
+interface IGetRate {
+    function balancePerShare() external view returns (uint256);
+}
+
+contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     using SafeCast for uint256;
 
     IPool public aaveV3Pool;
     IUniswapV3Pool public uniswapV3Pool;
     BoringVault public boringVault;
 
-    address tokenIn;
-    address tokenOut;
+    address public constant tokenIn = 0xfFaa4a3D97fE9107Cef8a3F48c069F577Ff76cC1; // stHYPE
+    address public constant tokenOut = 0x5555555555555555555555555555555555555555; // WHYPE
+    address public constant wstHYPE = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38;
+
     uint256 constant INTEREST_RATE_MODE = 2; // 1 for stable, 2 for variable
     uint256 constant SANITY_CHECK_HEALTH_FACTOR = 1_050_000_000_000_000_000;
 
-    error AaveV3FlashswapDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
-    error AaveV3FlashswapDeleverage__SlippageTooHigh(uint256 wstHYPEReceived, uint256 maxWstHypePaid);
-    error AaveV3FlashswapDeleverage__InvalidSender();
-    error AaveV3FlashswapDeleverage__HealthFactorMinimumInvalid(uint256 minimumEndingHealthFactor);
+    error LHYPEFlashswapDeleverage__HealthFactorBelowMinimum(uint256 healthFactor, uint256 minimumEndingHealthFactor);
+    error LHYPEFlashswapDeleverage__SlippageTooHigh(uint256 stHypePaid, uint256 maxStHypePaid);
+    error LHYPEFlashswapDeleverage__InvalidSender();
+    error LHYPEFlashswapDeleverage__HealthFactorMinimumInvalid(uint256 minimumEndingHealthFactor);
 
     constructor(
         address _aaveV3Pool,
         address _uniswapV3Pool,
-        BoringVault _boringVault,
-        address _tokenIn, // token that you are withdrawing from the aave v3 pool
-        address _tokenOut // token that you are repaying to the aave v3 pool
+        BoringVault _boringVault
     )
         Auth(address(_boringVault), Authority(address(0)))
     {
@@ -51,45 +55,42 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         uniswapV3Pool = IUniswapV3Pool(_uniswapV3Pool);
         boringVault = BoringVault(_boringVault);
 
-        tokenIn = _tokenIn;
-        tokenOut = _tokenOut;
-
         ERC20(tokenOut).approve(address(aaveV3Pool), type(uint256).max);
     }
 
     function deleverage(
         uint256 hypeToDeleverage,
-        uint256 maxWstHypeWithdrawn,
+        uint256 maxStHypePaid,
         uint256 minimumEndingHealthFactor
     )
         external
         requiresAuth
-        returns (uint256 amountWstHypePaid)
+        returns (uint256 amountStHypePaid)
     {
         if (minimumEndingHealthFactor < SANITY_CHECK_HEALTH_FACTOR) {
-            revert AaveV3FlashswapDeleverage__HealthFactorMinimumInvalid(minimumEndingHealthFactor);
+            revert LHYPEFlashswapDeleverage__HealthFactorMinimumInvalid(minimumEndingHealthFactor);
         }
 
         // initiate a flashswap
-        amountWstHypePaid = exactOutputInternal(hypeToDeleverage, address(this), "");
+        amountStHypePaid = exactOutputInternal(hypeToDeleverage, address(this), "");
 
         // Check the slippage on the swap
-        if (amountWstHypePaid > maxWstHypeWithdrawn) {
-            revert AaveV3FlashswapDeleverage__SlippageTooHigh(amountWstHypePaid, maxWstHypeWithdrawn);
+        if (amountStHypePaid > maxStHypePaid) {
+            revert LHYPEFlashswapDeleverage__SlippageTooHigh(amountStHypePaid, maxStHypePaid);
         }
 
         // Check the health factor after the deleverage
         (,,,,, uint256 healthFactor) = aaveV3Pool.getUserAccountData(address(boringVault));
 
         if (healthFactor < minimumEndingHealthFactor) {
-            revert AaveV3FlashswapDeleverage__HealthFactorBelowMinimum(healthFactor, minimumEndingHealthFactor);
+            revert LHYPEFlashswapDeleverage__HealthFactorBelowMinimum(healthFactor, minimumEndingHealthFactor);
         }
     }
 
     /// @inheritdoc IHyperswapV3SwapCallback
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external override {
         if (msg.sender != address(uniswapV3Pool)) {
-            revert AaveV3FlashswapDeleverage__InvalidSender();
+            revert LHYPEFlashswapDeleverage__InvalidSender();
         }
 
         // get the desired HYPE
@@ -97,10 +98,14 @@ contract AaveV3FlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         // hardcoding token0 amount, as tokenIn and out do not change
         aaveV3Pool.repay(tokenOut, uint256(-amount0Delta), INTEREST_RATE_MODE, address(boringVault));
 
-        // Call manage() on boringVault to make the withdraw of stHYPE to this address
+        // Calculate the amount of wstHYPE to withdraw, as in this case wstHYPE MUST be the withdraw asset but we repay
+        // in stHYPE
+        uint256 wstHypeToWithdraw = (uint256(amount1Delta) * 1e18 / IGetRate(tokenIn).balancePerShare()) + 1;
+
+        // Call manage() on boringVault to make the withdraw of wstHYPE to this address
         boringVault.manage(
             address(aaveV3Pool),
-            abi.encodeWithSelector(IPool.withdraw.selector, tokenIn, uint256(amount1Delta), address(this)),
+            abi.encodeWithSelector(IPool.withdraw.selector, wstHYPE, wstHypeToWithdraw, address(this)),
             0
         );
 

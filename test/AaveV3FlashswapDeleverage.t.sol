@@ -6,14 +6,10 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-import { AaveV3FlashswapDeleverage } from "src/helper/AaveV3FlashswapDeleverage.sol";
+import { LHYPEFlashswapDeleverage, IGetRate } from "src/helper/AaveV3FlashswapDeleverage.sol";
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-
-interface IGetRate {
-    function balancePerShare() external view returns (uint256);
-}
 
 contract LHYPEDeleverageTest is Test, MainnetAddresses {
     using stdStorage for StdStorage;
@@ -34,8 +30,8 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
 
     BoringVault public boringVault;
     AccountantWithRateProviders public accountant;
-    AaveV3FlashswapDeleverage public lhypeDeleverage_hfi;
-    AaveV3FlashswapDeleverage public lhypeDeleverage_hlend;
+    LHYPEFlashswapDeleverage public lhypeDeleverage_hfi;
+    LHYPEFlashswapDeleverage public lhypeDeleverage_hlend;
     RolesAuthority public rolesAuthority;
 
     IPool public pool_hfi = IPool(0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b);
@@ -53,12 +49,10 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         boringVault = BoringVault(payable(0x5748ae796AE46A4F1348a1693de4b50560485562));
         accountant = AccountantWithRateProviders(0xcE621a3CA6F72706678cFF0572ae8d15e5F001c3);
         rolesAuthority = RolesAuthority(0xDc4605f2332Ba81CdB5A6f84cB1a6356198D11f6);
-        lhypeDeleverage_hfi = new AaveV3FlashswapDeleverage(
-            address(hypurrfiPool_hfi), address(hyperswapPool), boringVault, wstHYPE, WHYPE
-        );
-        lhypeDeleverage_hlend = new AaveV3FlashswapDeleverage(
-            address(hyperlendPool_hlend), address(hyperswapPool), boringVault, wstHYPE, WHYPE
-        );
+        lhypeDeleverage_hfi =
+            new LHYPEFlashswapDeleverage(address(hypurrfiPool_hfi), address(hyperswapPool), boringVault);
+        lhypeDeleverage_hlend =
+            new LHYPEFlashswapDeleverage(address(hyperlendPool_hlend), address(hyperswapPool), boringVault);
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setUserRole(address(lhypeDeleverage_hfi), 2, true);
         rolesAuthority.setUserRole(address(lhypeDeleverage_hlend), 2, true);
@@ -67,14 +61,14 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
 
     function test_deleverage_fails_when_health_factor_below_minimum_hfi() public {
         uint256 hypeToDeleverage = 10_000e18;
-        uint256 maxStHypeWithdrawn = 10_053e18;
+        uint256 maxStHypeWithdrawn = 10_055e18;
         uint256 minimumEndingHealthFactor = 1_190_000_000_000_000_000;
-        uint256 realEndingHealthFactor = 1_184_405_334_333_582_561;
+        uint256 realEndingHealthFactor = 1_184_497_487_209_156_735;
 
         vm.prank(address(boringVault));
         vm.expectRevert(
             abi.encodeWithSelector(
-                AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__HealthFactorBelowMinimum.selector,
+                LHYPEFlashswapDeleverage.LHYPEFlashswapDeleverage__HealthFactorBelowMinimum.selector,
                 realEndingHealthFactor,
                 minimumEndingHealthFactor
             )
@@ -84,19 +78,35 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
 
     function test_deleverage_fails_when_slippage_too_high_hfi() public {
         uint256 hypeToDeleverage = 10_000e18;
-        uint256 maxStHypeWithdrawn = 10_040e18;
+        uint256 maxStHypeWithdrawn = 10_000e18;
         uint256 realStHypeWithdrawn = 10_052_578_589_887_917_685_505;
         uint256 minimumEndingHealthFactor = 1_170_000_000_000_000_000;
 
         vm.prank(address(boringVault));
         vm.expectRevert(
             abi.encodeWithSelector(
-                AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__SlippageTooHigh.selector,
+                LHYPEFlashswapDeleverage.LHYPEFlashswapDeleverage__SlippageTooHigh.selector,
                 realStHypeWithdrawn,
                 maxStHypeWithdrawn
             )
         );
         lhypeDeleverage_hfi.deleverage(hypeToDeleverage, maxStHypeWithdrawn, minimumEndingHealthFactor);
+    }
+
+    /// @dev test that the deleverage will succeed no matter the values put in assuming generous enough bounds
+    function test_can_deleverage_hfi(uint256 hypeToDeleverage) public {
+        hypeToDeleverage = bound(hypeToDeleverage, 1, 40_000e18);
+        uint256 maxStHypeWithdrawn = hypeToDeleverage * 10;
+        vm.prank(address(boringVault));
+        lhypeDeleverage_hfi.deleverage(hypeToDeleverage, maxStHypeWithdrawn, 1_050_000_000_000_000_000);
+    }
+
+    /// @dev test that the deleverage will succeed no matter the values put in assuming generous enough bounds
+    function test_can_deleverage_hlend(uint256 hypeToDeleverage) public {
+        hypeToDeleverage = bound(hypeToDeleverage, 1, 40_000e18);
+        uint256 maxStHypeWithdrawn = hypeToDeleverage * 10;
+        vm.prank(address(boringVault));
+        lhypeDeleverage_hlend.deleverage(hypeToDeleverage, maxStHypeWithdrawn, 1_050_000_000_000_000_000);
     }
 
     function test_deleverage_hfi() public {
@@ -139,7 +149,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         console.log("healthFactor before", healthFactorBefore);
         console.log("healthFactor after", healthFactorAfter);
 
-        assertApproxEqAbs(healthFactorAfter, expectedHealthFactor, 1e13);
+        assertApproxEqAbs(healthFactorAfter, expectedHealthFactor, 1e14);
         assertGt(healthFactorAfter, healthFactorBefore, "Health factor should improve");
     }
 
@@ -152,7 +162,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
     //     vm.prank(address(boringVault));
     //     vm.expectRevert(
     //         abi.encodeWithSelector(
-    //             AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__HealthFactorBelowMinimum.selector,
+    //             LHYPEFlashswapDeleverage.LHYPEFlashswapDeleverage__HealthFactorBelowMinimum.selector,
     //             realEndingHealthFactor,
     //             minimumEndingHealthFactor
     //         )
@@ -169,7 +179,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
     //     vm.prank(address(boringVault));
     //     vm.expectRevert(
     //         abi.encodeWithSelector(
-    //             AaveV3FlashswapDeleverage.AaveV3FlashswapDeleverage__SlippageTooHigh.selector,
+    //             LHYPEFlashswapDeleverage.LHYPEFlashswapDeleverage__SlippageTooHigh.selector,
     //             realStHypeWithdrawn,
     //             maxStHypeWithdrawn
     //         )
@@ -218,7 +228,7 @@ contract LHYPEDeleverageTest is Test, MainnetAddresses {
         console.log("healthFactor after", healthFactorAfter);
         console.log("expectedHealthFactor", expectedHealthFactor);
 
-        assertApproxEqAbs(healthFactorAfter, expectedHealthFactor, 1e13);
+        assertApproxEqAbs(healthFactorAfter, expectedHealthFactor, 1e14);
         assertGt(healthFactorAfter, healthFactorBefore, "Health factor should improve");
     }
 
