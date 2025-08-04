@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import { BaseScript } from "../Base.s.sol";
-import { LHYPEFlashswapDeleverage } from "src/helper/AaveV3FlashswapDeleverage.sol";
+import { LHYPEFlashswapDeleverage } from "src/helper/LHYPEFlashswapDeleverage.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { console } from "forge-std/console.sol";
 

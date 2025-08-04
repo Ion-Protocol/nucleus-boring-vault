@@ -6,7 +6,7 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-import { LHYPEFlashswapDeleverage, IGetRate } from "src/helper/AaveV3FlashswapDeleverage.sol";
+import { LHYPEFlashswapDeleverage, IGetRate } from "src/helper/LHYPEFlashswapDeleverage.sol";
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
