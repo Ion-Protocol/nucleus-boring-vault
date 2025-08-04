@@ -100,7 +100,10 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
 
         // Calculate the amount of wstHYPE to withdraw, as in this case wstHYPE MUST be the withdraw asset but we repay
         // in stHYPE
-        uint256 wstHypeToWithdraw = (uint256(amount1Delta) * 1e18 / IGetRate(tokenIn).balancePerShare()) + 1;
+        uint256 balancePerShare = IGetRate(tokenIn).balancePerShare();
+        uint256 wstHypeToWithdraw = uint256(amount1Delta) * 1e18 % balancePerShare == 0
+            ? (uint256(amount1Delta) * 1e18 / balancePerShare)
+            : ((uint256(amount1Delta) * 1e18 / balancePerShare) + 1);
 
         // Call manage() on boringVault to make the withdraw of wstHYPE to this address
         boringVault.manage(
