@@ -24,6 +24,8 @@ abstract contract CoreWriterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             // Spot Send
             (address destination, uint64 token, uint64 _wei) = abi.decode(data[4:], (address, uint64, uint64));
             return abi.encodePacked(destination);
+        } else {
+            revert CoreWriterDecoderAndSanitizer__InvalidActionID();
         }
     }
 }
