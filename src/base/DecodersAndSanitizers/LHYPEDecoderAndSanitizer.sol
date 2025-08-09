@@ -23,6 +23,7 @@ import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Pro
 import { FraxLendDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FraxLendDecoderAndSanitizer.sol";
 import { VelodromeBuybackDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
+import { SpectraDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/SpectraDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -38,7 +39,8 @@ contract LHYPEDecoderAndSanitizer is
     VelodromeV1DecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
     FraxLendDecoderAndSanitizer,
-    VelodromeBuybackDecoderAndSanitizer
+    VelodromeBuybackDecoderAndSanitizer,
+    SpectraDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
@@ -68,5 +70,31 @@ contract LHYPEDecoderAndSanitizer is
     {
         // Nothing to sanitize or return
         return addressesFound;
+    }
+
+    function withdraw(
+        uint256,
+        address receiver,
+        address owner
+    )
+        external
+        pure
+        override(ERC4626DecoderAndSanitizer, SpectraDecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(receiver, owner);
+    }
+
+    function redeem(
+        uint256,
+        address receiver,
+        address owner
+    )
+        external
+        pure
+        override(ERC4626DecoderAndSanitizer, SpectraDecoderAndSanitizer)
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(receiver, owner);
     }
 }
