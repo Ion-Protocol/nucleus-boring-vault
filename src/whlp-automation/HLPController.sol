@@ -11,10 +11,8 @@ contract HLPController is Auth {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     EnumerableSet.AddressSet private accountsSet;
-    ICreateX public constant CREATEX = ICreateX(0x1077f8ea07EA34D9F23BC39256BF234665FB391f);
 
     address public immutable coreWriter;
-    bytes32 public currentSalt;
 
     event HLPController__NewAccount(HLPAccount indexed account);
 
@@ -22,7 +20,6 @@ contract HLPController is Auth {
 
     constructor(address _boringVault, address _coreWriter) Auth(_boringVault, Authority(address(0))) {
         coreWriter = _coreWriter;
-        currentSalt = abi.decode(abi.encodePacked(address(this), bytes1(0x00), bytes11(0)), (bytes32));
     }
 
     modifier requireAccountInSet(HLPAccount account) {
@@ -136,12 +133,9 @@ contract HLPController is Auth {
      * @dev helper function to deploy a vault using CREATEX
      */
     function _deployAccount() internal {
-        bytes memory creationCode =
-            abi.encodePacked(type(HLPAccount).creationCode, abi.encode(address(this), owner, coreWriter));
-        address account = CREATEX.deployCreate3(currentSalt, creationCode);
-        currentSalt = bytes32(uint256(currentSalt) + 1);
+        HLPAccount account = new HLPAccount(address(this), owner, coreWriter);
 
-        accountsSet.add(account);
+        accountsSet.add(address(account));
         emit HLPController__NewAccount(HLPAccount(account));
     }
 }

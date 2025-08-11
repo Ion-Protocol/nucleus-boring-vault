@@ -9,7 +9,7 @@ abstract contract CoreWriterDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error CoreWriterDecoderAndSanitizer__InvalidEncodingVersion();
     error CoreWriterDecoderAndSanitizer__InvalidActionID();
 
-    function SendRawAction(bytes calldata data) external view virtual returns (bytes memory addressesFound) {
+    function sendRawAction(bytes calldata data) external view virtual returns (bytes memory addressesFound) {
         if (data[0] != 0x01) {
             revert CoreWriterDecoderAndSanitizer__InvalidEncodingVersion();
         }
@@ -24,6 +24,8 @@ abstract contract CoreWriterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             // Spot Send
             (address destination, uint64 token, uint64 _wei) = abi.decode(data[4:], (address, uint64, uint64));
             return abi.encodePacked(destination);
+        } else {
+            revert CoreWriterDecoderAndSanitizer__InvalidActionID();
         }
     }
 }
