@@ -7,6 +7,7 @@ import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { SafeCast } from "@uniswap/v3-core/contracts/libraries/SafeCast.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
+import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
@@ -28,9 +29,10 @@ interface IGetRate {
 contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     using SafeCast for uint256;
 
-    IPool public aaveV3Pool;
-    IUniswapV3Pool public uniswapV3Pool;
-    BoringVault public boringVault;
+    IPool public immutable aaveV3Pool;
+    IUniswapV3Pool public immutable uniswapV3Pool;
+    ManagerWithMerkleVerification public immutable manager;
+    BoringVault public immutable boringVault;
 
     address public constant tokenIn = 0xfFaa4a3D97fE9107Cef8a3F48c069F577Ff76cC1; // stHYPE
     address public constant tokenOut = 0x5555555555555555555555555555555555555555; // WHYPE
@@ -47,13 +49,14 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     constructor(
         address _aaveV3Pool,
         address _uniswapV3Pool,
-        BoringVault _boringVault
+        ManagerWithMerkleVerification _manager
     )
-        Auth(address(_boringVault), Authority(address(0)))
+        Auth(address(_manager.vault()), Authority(address(0)))
     {
         aaveV3Pool = IPool(_aaveV3Pool);
         uniswapV3Pool = IUniswapV3Pool(_uniswapV3Pool);
-        boringVault = BoringVault(_boringVault);
+        manager = _manager;
+        boringVault = _manager.vault();
 
         ERC20(tokenOut).approve(address(aaveV3Pool), type(uint256).max);
     }
@@ -61,7 +64,9 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     function deleverage(
         uint256 hypeToDeleverage,
         uint256 maxStHypePaid,
-        uint256 minimumEndingHealthFactor
+        uint256 minimumEndingHealthFactor,
+        bytes32[] memory manageProofs,
+        address decoderAndSanitizer
     )
         external
         requiresAuth
@@ -72,7 +77,8 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         }
 
         // initiate a flashswap
-        amountStHypePaid = exactOutputInternal(hypeToDeleverage, address(this), "");
+        amountStHypePaid =
+            exactOutputInternal(hypeToDeleverage, address(this), abi.encode(manageProofs, decoderAndSanitizer));
 
         // Check the slippage on the swap
         if (amountStHypePaid > maxStHypePaid) {
@@ -106,11 +112,17 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
             : ((uint256(amount1Delta) * 1e18 / balancePerShare) + 1);
 
         // Call manage() on boringVault to make the withdraw of wstHYPE to this address
-        boringVault.manage(
-            address(aaveV3Pool),
-            abi.encodeWithSelector(IPool.withdraw.selector, wstHYPE, wstHypeToWithdraw, address(this)),
-            0
-        );
+        bytes32[][] memory manageProofs = new bytes32[][](1);
+        address[] memory decodersAndSanitizers = new address[](1);
+        address[] memory targets = new address[](1);
+        bytes[] memory manageCalldata = new bytes[](1);
+        uint256[] memory values = new uint256[](1);
+
+        (manageProofs[0], decodersAndSanitizers[0]) = abi.decode(data, (bytes32[], address));
+        targets[0] = address(aaveV3Pool);
+        manageCalldata[0] = abi.encodeWithSelector(IPool.withdraw.selector, wstHYPE, wstHypeToWithdraw, address(this));
+
+        manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, manageCalldata, values);
 
         // Repay the flashswap using the stHYPE
         ERC20(tokenIn).transfer(address(uniswapV3Pool), uint256(amount1Delta));
