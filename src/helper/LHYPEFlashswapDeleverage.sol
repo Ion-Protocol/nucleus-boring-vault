@@ -65,7 +65,7 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         uint256 hypeToDeleverage,
         uint256 maxStHypePaid,
         uint256 minimumEndingHealthFactor,
-        bytes32[] memory manageProofs,
+        bytes32[] memory manageProof,
         address decoderAndSanitizer
     )
         external
@@ -78,7 +78,7 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
 
         // initiate a flashswap
         amountStHypePaid =
-            exactOutputInternal(hypeToDeleverage, address(this), abi.encode(manageProofs, decoderAndSanitizer));
+            exactOutputInternal(hypeToDeleverage, address(this), abi.encode(manageProof, decoderAndSanitizer));
 
         // Check the slippage on the swap
         if (amountStHypePaid > maxStHypePaid) {
