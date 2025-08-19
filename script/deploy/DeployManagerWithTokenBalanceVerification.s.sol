@@ -10,7 +10,7 @@ contract DeployManagerWithTokenBalanceVerification is BaseScript {
     address immutable EXPECTED;
 
     // Deployer protected:  0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f
-    bytes32 constant SALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f008085885858585858585858;
+    bytes32 constant SALT = 0x12341ed9cb38ae1b15016c6ed9f88e247f2af76f008085885858585858585858;
 
     constructor() BaseScript() {
         EXPECTED = vm.envAddress("SIMULATOR");
@@ -25,7 +25,6 @@ contract DeployManagerWithTokenBalanceVerification is BaseScript {
         address simulator = CREATEX.deployCreate3(
             SALT, abi.encodePacked(creationCode, abi.encode(nativeDecimalsForThisChain, multisig))
         );
-
         console.log(simulator);
         require(address(simulator) == EXPECTED, "address is not expected");
         require(ManagerWithTokenBalanceVerification(simulator).owner() == multisig, "Not owner");
@@ -45,6 +44,8 @@ contract DeployManagerWithTokenBalanceVerification is BaseScript {
             return 0x823873F5E05564a2F8374c56053ac65E3Add061b;
         } else if (block.chainid == 999) {
             return 0x413f2e80070a069eB1051772Fdc4f0af8e8303d7;
+        } else if (block.chainid == 288) {
+            return 0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826;
         } else {
             revert("bad chain id");
         }
