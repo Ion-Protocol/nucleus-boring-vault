@@ -46,6 +46,8 @@ contract DeployManagerWithTokenBalanceVerification is BaseScript {
             return 0x413f2e80070a069eB1051772Fdc4f0af8e8303d7;
         } else if (block.chainid == 288) {
             return 0x0888c3D797E13892C5e67cD802F93Ffe55Ea2826;
+        } else if (block.chainid == 1_380_012_617) {
+            return 0x6d0C5a20ac08ED00256aD224F74Ca53afF3D011d;
         } else {
             revert("bad chain id");
         }
