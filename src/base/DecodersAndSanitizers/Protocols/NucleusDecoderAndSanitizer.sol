@@ -97,4 +97,20 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function claimFees(ERC20 token) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(token);
     }
+
+    // @desc bulk withdraw from teller
+    // @tag withdrawAsset:address:ERC20 to withdraw
+    // @tag to:address:receiver
+    function bulkWithdraw(
+        ERC20 withdrawAsset,
+        uint256 shareAmount,
+        uint256 minimumAssets,
+        address to
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(withdrawAsset, to);
+    }
 }
