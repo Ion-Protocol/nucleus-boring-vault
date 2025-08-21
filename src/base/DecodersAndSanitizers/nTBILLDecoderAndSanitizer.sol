@@ -21,6 +21,8 @@ import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protoc
 import { AnemoyDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AnemoyDecoderAndSanitizer.sol";
 import { CircleDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CircleDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
+import { SuperstateDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/SuperstateDecoderAndSanitizer.sol";
 
 contract nTBILLDecoderAndSanitizer is
     AnemoyDecoderAndSanitizer,
@@ -34,7 +36,8 @@ contract nTBILLDecoderAndSanitizer is
     OneInchDecoderAndSanitizer,
     PendleRouterDecoderAndSanitizer,
     AaveV3DecoderAndSanitizer,
-    NucleusDecoderAndSanitizer
+    NucleusDecoderAndSanitizer,
+    SuperstateDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
