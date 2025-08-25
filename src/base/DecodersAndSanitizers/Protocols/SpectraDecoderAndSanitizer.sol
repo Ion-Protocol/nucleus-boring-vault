@@ -33,7 +33,7 @@ abstract contract SpectraDecoderAndSanitizer {
         return abi.encodePacked(ptReceiver, ytReceiver);
     }
 
-    // @desc deposit IBT in Spectra PT wihtout minShares specified
+    // @desc deposit IBT in Spectra PT without minShares specified
     // @tag ptReceiver:address:address of the ptReceiver
     // @tag ytReceiver:address:address of the ytReceiver
     function depositIBT(
