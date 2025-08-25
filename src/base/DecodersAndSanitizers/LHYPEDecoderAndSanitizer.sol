@@ -23,6 +23,7 @@ import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Pro
 import { FraxLendDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FraxLendDecoderAndSanitizer.sol";
 import { VelodromeBuybackDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
+import { ValantisDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/ValantisDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
@@ -40,6 +41,7 @@ contract LHYPEDecoderAndSanitizer is
     FlashHypeDecoderAndSanitizer,
     FraxLendDecoderAndSanitizer,
     VelodromeBuybackDecoderAndSanitizer,
+    ValantisDecoderAndSanitizer,
     NucleusDecoderAndSanitizer
 {
     constructor(
