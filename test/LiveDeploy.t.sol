@@ -178,7 +178,7 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         // update the rate
         _updateRate(rateChange, accountant);
-        vm.warp(accountant.getLastUpdateTimestamp()); // _updateRate warps to future for bypassing minmum update delay,
+        vm.warp(accountant.getLastUpdateTimestamp()); // _updateRate warps to future for bypassing minimum update delay,
             // so we need to catch up
         _depositAssetWithApprove(ERC20(mainConfig.base), depositAmount);
 
