@@ -80,4 +80,19 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function claimFees(ERC20 token) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(token);
     }
+
+    // @desc deleverage using the LHYPEDeleverage contract
+    function deleverage(
+        uint256,
+        uint256,
+        uint256,
+        bytes32[] memory,
+        address
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
+        // Nothing to decode
+    }
 }
