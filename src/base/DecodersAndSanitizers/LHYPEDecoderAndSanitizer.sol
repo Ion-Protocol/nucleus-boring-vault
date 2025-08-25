@@ -23,6 +23,7 @@ import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Pro
 import { FraxLendDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FraxLendDecoderAndSanitizer.sol";
 import { VelodromeBuybackDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
+import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -38,7 +39,8 @@ contract LHYPEDecoderAndSanitizer is
     VelodromeV1DecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
     FraxLendDecoderAndSanitizer,
-    VelodromeBuybackDecoderAndSanitizer
+    VelodromeBuybackDecoderAndSanitizer,
+    NucleusDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
