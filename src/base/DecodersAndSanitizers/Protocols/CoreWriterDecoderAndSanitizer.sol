@@ -9,6 +9,9 @@ abstract contract CoreWriterDecoderAndSanitizer is BaseDecoderAndSanitizer {
     error CoreWriterDecoderAndSanitizer__InvalidEncodingVersion();
     error CoreWriterDecoderAndSanitizer__InvalidActionID();
 
+    // @desc send a raw action to CoreWriter, supports only Limit Order and Spot Send
+    // @tag data:bytes:decoding depends on the core writer action, Limit Order uses the Granularity system for slippage
+    // protection
     function sendRawAction(bytes calldata data) external view virtual returns (bytes memory addressesFound) {
         if (data[0] != 0x01) {
             revert CoreWriterDecoderAndSanitizer__InvalidEncodingVersion();
