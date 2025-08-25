@@ -84,4 +84,11 @@ abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Nothing to sanitize or return
         return addressesFound;
     }
+
+    // @desc Borrow ETH from the Aave V3 protocol, address is ignored by protocol and WETH is used for internal
+    // POOL.borrow
+    function borrowETH(address, uint256, uint16) external pure returns (bytes memory addressesFound) {
+        // nothing to sanitize or return
+        return addressesFound;
+    }
 }
