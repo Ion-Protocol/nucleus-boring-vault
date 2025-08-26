@@ -77,6 +77,7 @@ contract GetSetRateProviderCalldata is BaseScript {
             );
             console.log("Set RateProviderCalldata: ");
             console.logBytes(setRateProviderCalldata[i]);
+            console.log("\n");
         }
     }
 
@@ -102,11 +103,14 @@ contract GetSetRateProviderCalldata is BaseScript {
             require(rateProvider.code.length > 0, "rate provider must have code");
             require(rateCalldata.length > 0, "calldata must be set");
         }
-
         data.isPeggedToBase = isPeggedToBase;
         data.rateProvider = rateProvider;
         data.functionCalldata = rateCalldata;
         data.minRate = _chainConfig.readUint(string(abi.encodePacked(assetKey, ".expectedMin")));
         data.maxRate = _chainConfig.readUint(string(abi.encodePacked(assetKey, ".expectedMax")));
+        console.log("rate provider data: ");
+        console.log("assetKey: ", assetKey);
+        console.log("minRate: ", data.minRate);
+        console.log("maxRate: ", data.maxRate);
     }
 }

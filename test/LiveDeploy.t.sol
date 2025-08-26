@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { DeployAll } from "script/deploy/deployAll.s.sol";
-import { ConfigReader } from "script/ConfigReader.s.sol";
+import { ConfigReader, IAuthority } from "script/ConfigReader.s.sol";
 import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
 import { SOLVER_ROLE } from "script/deploy/single/06_DeployRolesAuthority.s.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
@@ -13,7 +13,6 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { DeployRateProviders } from "script/deploy/01_DeployRateProviders.s.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { CrossChainTellerBase, BridgeData, ERC20 } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
@@ -82,29 +81,31 @@ contract LiveDeploy is ForkTest, DeployAll {
 
         console.log("Owner: ", AccountantWithRateProviders(mainConfig.accountant).owner());
 
-        // If there's no rateProvider configured onchain yet, deploy a mock one,
-        // also set the rate provider data as a pranked multisig:
-        if (mainConfig.rateProvider == address(0)) {
-            console.log("No Rate Provider Config set. Creating a test version...");
-            mainConfig.rateProvider = address(new RateProviderConfig(mainConfig.protocolAdmin));
-            console.log("Test Rate Provider Config: ", mainConfig.rateProvider);
+        // If you need to run the live test with a mock rate provider, the below code will deploy and configure one
+        // This is not enabled by default as we want the live test to indicate if a rate provider is properly configured
+        // or not already
+        // if (mainConfig.rateProvider == address(0x000000000000000000000000000000000000dead)) {
+        //     console.log("No Rate Provider Config set. Creating a test version...");
+        //     mainConfig.rateProvider = address(new RateProviderConfig(mainConfig.protocolAdmin));
+        //     console.log("Test Rate Provider Config: ", mainConfig.rateProvider);
 
-            // set the rate provider data
-            bytes[] memory setRateProviderCalldata = new GetSetRateProviderCalldata().run(mainConfig);
-            vm.startPrank(mainConfig.protocolAdmin);
-            for (uint256 i; i < setRateProviderCalldata.length; ++i) {
-                (bool success,) = mainConfig.rateProvider.call(setRateProviderCalldata[i]);
-                if (!success) {
-                    console.log("FAILED CALLDATA: ");
-                    console.logBytes(setRateProviderCalldata[i]);
-                    require(success, "Failed to set rate provider config data in a prank");
-                }
-            }
-            AccountantWithRateProviders(mainConfig.accountant).setRateProviderConfig(
-                RateProviderConfig(mainConfig.rateProvider)
-            );
-            vm.stopPrank();
-        }
+        //     // set the rate provider data
+        //     bytes[] memory setRateProviderCalldata = new GetSetRateProviderCalldata().run(mainConfig);
+        //     vm.startPrank(mainConfig.protocolAdmin);
+        //     for (uint256 i; i < setRateProviderCalldata.length; ++i) {
+        //         (bool success,) = mainConfig.rateProvider.call(setRateProviderCalldata[i]);
+        //         if (!success) {
+        //             console.log("FAILED CALLDATA: ");
+        //             console.logBytes(setRateProviderCalldata[i]);
+        //             require(success, "Failed to set rate provider config data in a prank");
+        //         }
+        //     }
+        //     AccountantWithRateProviders(mainConfig.accountant).setRateProviderConfig(
+        //         RateProviderConfig(mainConfig.rateProvider)
+        //     );
+        //     vm.stopPrank();
+        // }
+
         // define one share based off of vault decimals
         ONE_SHARE = 10 ** BoringVault(payable(mainConfig.boringVault)).decimals();
 
