@@ -10,6 +10,7 @@ import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/lib
 /**
  * @title MultiChainLayerZeroTellerWithMultiAssetSupport
  * @notice LayerZero implementation of MultiChainTeller
+ * @custom:security-contact security@molecularlabs.io
  */
 contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase, OAppAuth {
     using OptionsBuilder for bytes;
@@ -72,7 +73,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         (uint256 shareAmount, address receiver) = abi.decode(payload, (uint256, address));
         vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
 
-        _afterReceive(shareAmount, receiver, _guid);
+        _afterReceive(shareAmount, _origin.srcEid, receiver, _guid);
     }
 
     /**
@@ -95,7 +96,7 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
             // Fee in native gas and ZRO token.
             MessagingFee(msg.value, 0),
             // Refund address in case of failed source message.
-            payable(msg.sender)
+            payable(data.refundRecipient)
         );
 
         return receipt.guid;
