@@ -138,6 +138,12 @@ contract DeployRolesAuthority is BaseScript {
             rolesAuthority.setUserRole(config.pauser, PAUSER_ROLE, true);
         }
 
+        // Give the manager simulator the manager role
+        RolesAuthority(rolesAuthority).setUserRole(config.managerWithTokenBalanceVerification, 2, true);
+
+        // Give the pause contract the pauser role
+        RolesAuthority(rolesAuthority).setUserRole(config.pauseContract, 6, true);
+
         // Post Deploy Checks
         require(
             rolesAuthority.doesUserHaveRole(config.strategist, STRATEGIST_ROLE),
