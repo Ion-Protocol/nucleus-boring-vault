@@ -38,6 +38,23 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(depositAsset, to);
     }
 
+    // @desc bridge shares using teller
+    // @tag chainSelector:uint32:chain selector
+    // @tag destinationChainReceiver:address:receiver
+    // @tag bridgeFeeToken:address:fee token
+    // @tag messageGas:uint64:gas for message
+    function bridge(
+        uint256 shareAmount,
+        BridgeData calldata data
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
+        addressesFound =
+            abi.encodePacked(data.chainSelector, data.destinationChainReceiver, data.bridgeFeeToken, data.messageGas);
+    }
+
     // @desc teller deposit and bridge
     // @tag depositAsset:address:ERC20 to deposit
     // @tag chainSelector:uint32:chain selector
@@ -97,5 +114,21 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory addressesFound)
     {
         addressesFound = abi.encodePacked(from, asset, to);
+    }
+
+    // @desc bulk withdraw from teller
+    // @tag withdrawAsset:address:ERC20 to withdraw
+    // @tag to:address:receiver
+    function bulkWithdraw(
+        ERC20 withdrawAsset,
+        uint256 shareAmount,
+        uint256 minimumAssets,
+        address to
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(withdrawAsset, to);
     }
 }
