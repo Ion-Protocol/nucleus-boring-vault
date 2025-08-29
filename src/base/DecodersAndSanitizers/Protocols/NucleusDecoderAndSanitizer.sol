@@ -104,7 +104,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     // @tag to:address:receiver of assets out
     // @tag asset:address:asset token out
     // @tag from:address:who's boring vault tokens are burned
-    // @tag assetAmount:uint256:asset amount, must always be zero, reuire that explicity stated in tree as well
+    // @tag assetAmount:uint256:asset amount, must always be zero, require that explicitly stated in tree as well
     function exit(
         address to,
         ERC20 asset,
