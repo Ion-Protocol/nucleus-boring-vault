@@ -7,6 +7,8 @@ import { BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
+    error NucleusDecoderAndSanitizer__ExitFunctionForInternalBurnUseOnly();
+
     // @desc deposit into nucleus via the teller
     // @tag depositAsset:address:ERC20 to deposit, must be supported and approved
     function deposit(
@@ -105,14 +107,17 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function exit(
         address to,
         ERC20 asset,
-        uint256,
+        uint256 assetAmount,
         address from,
         uint256
     )
         external
-        pure
+        view
         returns (bytes memory addressesFound)
     {
+        if (to != address(0) || address(asset) != address(0) || assetAmount != 0 || from != boringVault) {
+            revert NucleusDecoderAndSanitizer__ExitFunctionForInternalBurnUseOnly();
+        }
         addressesFound = abi.encodePacked(from, asset, to);
     }
 
