@@ -26,6 +26,7 @@ import { VelodromeBuybackDecoderAndSanitizer } from
 import { HyperliquidForwarderDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/HyperliquidForwarderDecoderAndSanitizer.sol";
 import { PumpBTCDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PumpBTCDecoderAndSanitizer.sol";
+import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract WHLPDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -33,6 +34,7 @@ contract WHLPDecoderAndSanitizer is
     OneInchDecoderAndSanitizer,
     CurveDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
+    NucleusDecoderAndSanitizer,
     ERC4626DecoderAndSanitizer,
     EigenpieDecoderAndSanitizer,
     PirexEthDecoderAndSanitizer,
