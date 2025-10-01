@@ -324,4 +324,23 @@ contract DecoderCustomTypes {
         // dynamic bytes data, interpreted differently across operation types
         bytes data;
     }
+    // ========================================= Valantis =========================================
+
+    struct SovereignPoolSwapContextData {
+        bytes externalContext;
+        bytes verifierContext;
+        bytes swapCallbackContext;
+        bytes swapFeeModuleContext;
+    }
+
+    struct SovereignPoolSwapParams {
+        bool isSwapCallback;
+        bool isZeroToOne;
+        uint256 amountIn;
+        uint256 amountOutMin;
+        uint256 deadline;
+        address recipient;
+        address swapTokenOut;
+        SovereignPoolSwapContextData swapContext;
+    }
 }
