@@ -100,11 +100,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(token);
     }
 
-    // @desc Allows burner to burn shares, in exchange for assets
-    // @tag to:address:receiver of assets out
-    // @tag asset:address:asset token out
-    // @tag from:address:who's boring vault tokens are burned
-    // @tag assetAmount:uint256:asset amount, must always be zero, reuire that explicity stated in tree as well
+    // @desc Allows burner to burn shares, in exchange for assets, only supports burning with all but share amount 0
     function exit(
         address to,
         ERC20 asset,
@@ -119,7 +115,6 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (to != address(0) || address(asset) != address(0) || assetAmount != 0 || from != boringVault) {
             revert NucleusDecoderAndSanitizer__ExitFunctionForInternalBurnUseOnly();
         }
-        addressesFound = abi.encodePacked(from, asset, to, assetAmount);
     }
 
     // @desc bulk withdraw from teller
