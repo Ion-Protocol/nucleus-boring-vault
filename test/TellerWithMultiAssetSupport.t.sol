@@ -193,7 +193,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertGt(shares0, 0, "should have received shares");
 
-        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        wETH_amount = 51e18; // Default is 100 so try and deposit more
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__DepositCapReached.selector)
         );
@@ -229,7 +229,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         assertGt(shares0, 0, "should have received shares");
 
-        wETH_amount = 51e18; // Defaut is 100 so try and deposit more
+        wETH_amount = 51e18; // Defaultis 100 so try and deposit more
         vm.expectRevert(
             abi.encodeWithSelector(TellerWithMultiAssetSupport.TellerWithMultiAssetSupport__RateLimit.selector)
         );
