@@ -26,6 +26,7 @@ import { VelodromeBuybackDecoderAndSanitizer } from
 import { SpectraDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/SpectraDecoderAndSanitizer.sol";
 import { ValantisDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/ValantisDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
+import { MorphoBlueDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/MorphoBlueDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -44,7 +45,8 @@ contract LHYPEDecoderAndSanitizer is
     VelodromeBuybackDecoderAndSanitizer,
     SpectraDecoderAndSanitizer,
     ValantisDecoderAndSanitizer,
-    NucleusDecoderAndSanitizer
+    NucleusDecoderAndSanitizer,
+    MorphoBlueDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
