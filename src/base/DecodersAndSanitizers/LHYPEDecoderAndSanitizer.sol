@@ -20,6 +20,8 @@ import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protoc
 import { VelodromeV1DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
 import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FlashHypeDecoderAndSanitizer.sol";
+import { VelodromeBuybackDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
@@ -35,6 +37,7 @@ contract LHYPEDecoderAndSanitizer is
     AaveV3DecoderAndSanitizer,
     VelodromeV1DecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
+    VelodromeBuybackDecoderAndSanitizer,
     NucleusDecoderAndSanitizer
 {
     constructor(
