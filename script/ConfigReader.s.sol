@@ -23,6 +23,7 @@ library ConfigReader {
         uint16 allowedExchangeRateChangeLower;
         uint32 minimumUpdateDelayInSeconds;
         uint16 managementFee;
+        uint16 performanceFee;
         bytes32 boringVaultSalt;
         string boringVaultName;
         string boringVaultSymbol;
@@ -44,17 +45,14 @@ library ConfigReader {
         bytes32 rolesAuthoritySalt;
         address manager;
         address teller;
+        address rateProvider;
         string tellerContractName;
         address strategist;
         address exchangeRateBot;
         address pauser;
         address rolesAuthority;
-        bytes32 decoderSalt;
-        address decoder;
-        bytes32 rateProviderSalt;
         uint256 maxTimeFromLastUpdate;
         address[] assets;
-        address[] rateProviders;
         address[] priceFeeds;
     }
 
@@ -72,6 +70,7 @@ library ConfigReader {
         config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
         config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
         config.managementFee = uint16(_config.readUint(".accountant.managementFee"));
+        config.performanceFee = uint16(_config.readUint(".accountant.performanceFee"));
 
         // Reading from the 'boringVault' section
         config.boringVault = _config.readAddress(".boringVault.address");
@@ -90,6 +89,8 @@ library ConfigReader {
         config.minGasForPeer = uint64(_config.readUint(".teller.minGasForPeer"));
         config.tellerContractName = _config.readString(".teller.tellerContractName");
         config.assets = _config.readAddressArray(".teller.assets");
+
+        config.rateProvider = _chainConfig.readAddress(".rateProvider");
 
         // layerzero
         if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
@@ -112,10 +113,6 @@ library ConfigReader {
         config.strategist = _config.readAddress(".rolesAuthority.strategist");
         config.exchangeRateBot = _config.readAddress(".rolesAuthority.exchangeRateBot");
         config.pauser = _config.readAddress(".rolesAuthority.pauser");
-
-        // Reading from the 'decoder' section
-        config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
-        config.decoder = _config.readAddress(".decoder.address");
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");

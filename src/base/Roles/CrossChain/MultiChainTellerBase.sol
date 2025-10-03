@@ -38,12 +38,13 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase {
         uint64 messageGasLimit,
         uint64 messageGasMin
     );
-    event ChainRemoved(uint256 chainSelector);
-    event ChainAllowMessagesFrom(uint256 chainSelector, address targetTeller);
-    event ChainAllowMessagesTo(uint256 chainSelector, address targetTeller);
-    event ChainStopMessagesFrom(uint256 chainSelector);
-    event ChainStopMessagesTo(uint256 chainSelector);
-    event ChainSetGasLimit(uint256 chainSelector, uint64 messageGasLimit);
+    event ChainRemoved(uint256 indexed chainSelector);
+    event ChainAllowMessagesFrom(uint256 indexed chainSelector, address indexed targetTeller);
+    event ChainAllowMessagesTo(uint256 indexed chainSelector, address indexed targetTeller);
+    event ChainStopMessagesFrom(uint256 indexed chainSelector);
+    event ChainStopMessagesTo(uint256 indexed chainSelector);
+    event ChainSetGasLimit(uint256 indexed chainSelector, uint64 messageGasLimit);
+    event ChainSetMinimumMessageGas(uint256 indexed chainSelector, uint64 messageGasMin);
 
     mapping(uint32 => Chain) public selectorToChains;
 
@@ -167,6 +168,17 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase {
         chain.messageGasLimit = messageGasLimit;
 
         emit ChainSetGasLimit(chainSelector, messageGasLimit);
+    }
+
+    /**
+     * @dev Callable by OWNER_ROLE.
+     * @notice Set the gas minimum for messages to a chain.
+     */
+    function setMinimumMessageGas(uint32 chainSelector, uint64 minimumMessageGas) external requiresAuth {
+        Chain storage chain = selectorToChains[chainSelector];
+        chain.minimumMessageGas = minimumMessageGas;
+
+        emit ChainSetMinimumMessageGas(chainSelector, minimumMessageGas);
     }
 
     /**
