@@ -54,6 +54,12 @@ contract DecoderCustomTypes {
         uint160 sqrtPriceX96;
     }
 
+    struct VelodromeV2Route {
+        address from;
+        address to;
+        bool stable;
+    }
+
     // ========================================= UNISWAP V3 =========================================
 
     struct MintParams {
