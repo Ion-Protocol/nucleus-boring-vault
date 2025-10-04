@@ -7,6 +7,7 @@ optimizer = true
 optimizer_runs = 200
 fs_permissions = [{ access = "read-write", path = "./" }]
 cbor_metadata = true
+gas_limit = "18446744073709551615"        
 
 libs = [
     'lib',
