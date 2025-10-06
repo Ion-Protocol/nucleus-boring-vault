@@ -44,7 +44,6 @@ contract WHLPDecoderAndSanitizer is
     VelodromeV1DecoderAndSanitizer,
     CoreWriterDecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
-    NucleusDecoderAndSanitizer,
     FraxLendDecoderAndSanitizer,
     VelodromeBuybackDecoderAndSanitizer,
     HyperliquidForwarderDecoderAndSanitizer,
