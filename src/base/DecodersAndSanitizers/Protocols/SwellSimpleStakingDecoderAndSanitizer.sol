@@ -11,7 +11,7 @@ abstract contract SwellSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanitiz
     // @tag receiver:address:The receiver of the tokens
     function deposit(
         address _token,
-        uint256, /*_amount*/
+        uint256,
         address _receiver
     )
         external
@@ -27,7 +27,7 @@ abstract contract SwellSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanitiz
     // @tag receiver:address:The receiver of the tokens
     function withdraw(
         address _token,
-        uint256, /*_amount*/
+        uint256,
         address _receiver
     )
         external

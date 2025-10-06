@@ -54,6 +54,12 @@ contract DecoderCustomTypes {
         uint160 sqrtPriceX96;
     }
 
+    struct VelodromeV2Route {
+        address from;
+        address to;
+        bool stable;
+    }
+
     // ========================================= UNISWAP V3 =========================================
 
     struct MintParams {
@@ -317,5 +323,24 @@ contract DecoderCustomTypes {
         Operation op;
         // dynamic bytes data, interpreted differently across operation types
         bytes data;
+    }
+    // ========================================= Valantis =========================================
+
+    struct SovereignPoolSwapContextData {
+        bytes externalContext;
+        bytes verifierContext;
+        bytes swapCallbackContext;
+        bytes swapFeeModuleContext;
+    }
+
+    struct SovereignPoolSwapParams {
+        bool isSwapCallback;
+        bool isZeroToOne;
+        uint256 amountIn;
+        uint256 amountOutMin;
+        uint256 deadline;
+        address recipient;
+        address swapTokenOut;
+        SovereignPoolSwapContextData swapContext;
     }
 }
