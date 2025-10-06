@@ -21,6 +21,12 @@ import { VelodromeV1DecoderAndSanitizer } from
 import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FlashHypeDecoderAndSanitizer.sol";
 import { CoreWriterDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
+import { FraxLendDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FraxLendDecoderAndSanitizer.sol";
+import { VelodromeBuybackDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
+import { HyperliquidForwarderDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/HyperliquidForwarderDecoderAndSanitizer.sol";
+import { PumpBTCDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PumpBTCDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract WHLPDecoderAndSanitizer is
@@ -29,6 +35,7 @@ contract WHLPDecoderAndSanitizer is
     OneInchDecoderAndSanitizer,
     CurveDecoderAndSanitizer,
     NativeWrapperDecoderAndSanitizer,
+    NucleusDecoderAndSanitizer,
     ERC4626DecoderAndSanitizer,
     EigenpieDecoderAndSanitizer,
     PirexEthDecoderAndSanitizer,
@@ -37,7 +44,11 @@ contract WHLPDecoderAndSanitizer is
     VelodromeV1DecoderAndSanitizer,
     CoreWriterDecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
-    NucleusDecoderAndSanitizer
+    NucleusDecoderAndSanitizer,
+    FraxLendDecoderAndSanitizer,
+    VelodromeBuybackDecoderAndSanitizer,
+    HyperliquidForwarderDecoderAndSanitizer,
+    PumpBTCDecoderAndSanitizer
 {
     constructor(
         address _boringVault,
