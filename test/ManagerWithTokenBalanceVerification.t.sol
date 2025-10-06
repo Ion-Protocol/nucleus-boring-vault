@@ -201,7 +201,6 @@ contract ManagerWithTokenBalanceVerificationTest is Test, MainnetAddresses {
         manager.transferOwnership(caller);
 
         vm.startPrank(caller);
-        manager.acceptOwnership();
 
         data[1] = abi.encodeWithSelector(ERC20.approve.selector, usdtTo, 0);
         (success,) = address(manager).call(

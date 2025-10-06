@@ -7,15 +7,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
-import { Authority } from "@solmate/auth/Auth.sol";
-import { AuthOwnable2Step } from "src/helper/AuthOwnable2Step.sol";
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { ManagerSimulator } from "src/base/Roles/ManagerSimulator.sol";
 
 /**
  * @title ManagerWithTokenBalanceVerification
  * @custom:security-contact security@molecularlabs.io
  */
-contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2Step {
+contract ManagerWithTokenBalanceVerification is ManagerSimulator, Auth {
     // ERRORS
     error ManagerWithTokenBalanceVerification__InvalidArrayLength();
     error ManagerWithTokenBalanceVerification__TokenDeltaViolation(
@@ -42,7 +41,7 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, AuthOwnable2St
         address _owner
     )
         ManagerSimulator(_nativeTokenDecimals)
-        AuthOwnable2Step(_owner, Authority(address(0)))
+        Auth(_owner, Authority(address(0)))
     { }
 
     function manageVaultWithTokenBalanceVerification(
