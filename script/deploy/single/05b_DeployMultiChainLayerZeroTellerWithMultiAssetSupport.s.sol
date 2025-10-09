@@ -82,8 +82,8 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         require(receiveLib != address(0), "receiveLib = 0, check peerEid");
 
         // check if a default config exists for these libraries and if not set the config
-        _checkUlnConfig(address(teller), config, sendLib);
-        _checkUlnConfig(address(teller), config, receiveLib);
+        _checkUlnConfig(address(teller), config, sendLib, "sendLib: ");
+        _checkUlnConfig(address(teller), config, receiveLib, "receiveLib: ");
 
         // confirm the library is set
         sendLib = endpoint.getSendLibrary(config.teller, config.peerEid);
@@ -97,7 +97,14 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         return address(teller);
     }
 
-    function _checkUlnConfig(address newTeller, ConfigReader.Config memory config, address lib) internal {
+    function _checkUlnConfig(
+        address newTeller,
+        ConfigReader.Config memory config,
+        address lib,
+        string memory name
+    )
+        internal
+    {
         ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(config.lzEndpoint);
 
         bytes memory configBytes = endpoint.getConfig(newTeller, lib, config.peerEid, 2);
@@ -123,7 +130,11 @@ contract DeployMultiChainLayerZeroTellerWithMultiAssetSupport is BaseScript {
         // config file
         if (!isDead) {
             string memory a = vm.prompt(
-                "There is a default onchain configuration for this chain/peerEid combination. Would you like to use it? (y/n)"
+                string.concat(
+                    "There is a default onchain configuration for this ",
+                    name,
+                    "chain/peerEid combination. Would you like to use it? (y/n)"
+                )
             );
             if (compareStrings(a, "y")) {
                 console2.log("using default onchain config");
