@@ -147,13 +147,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         // Refund any excess ETH
         _refundExcessEth(payable(msg.sender));
 
-        _calcSharesAndEmitEvent(
-            supportedAsset, 
-            teller, 
-            address(desc.srcToken), 
-            desc.amount, 
-            supportedAssetAmount
-        );
+        _calcSharesAndEmitEvent(supportedAsset, teller, address(desc.srcToken), desc.amount, supportedAssetAmount);
     }
 
     function depositOkxUniversal(
@@ -186,11 +180,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         // Use safeTransfer to send shares to msg.sender
         ERC20(vaultAddress).safeTransfer(msg.sender, shares);
         _calcSharesAndEmitEvent(
-            supportedAsset, 
-            CrossChainTellerBase(address(teller)), 
-            fromToken, 
-            fromTokenAmount, 
-            supportedAssetAmount
+            supportedAsset, CrossChainTellerBase(address(teller)), fromToken, fromTokenAmount, supportedAssetAmount
         );
     }
 
@@ -221,13 +211,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
         // Refund any excess ETH
         _refundExcessEth(payable(msg.sender));
 
-        _calcSharesAndEmitEvent(
-            supportedAsset, 
-            teller, 
-            fromToken, 
-            fromTokenAmount, 
-            supportedAssetAmount
-        );
+        _calcSharesAndEmitEvent(supportedAsset, teller, fromToken, fromTokenAmount, supportedAssetAmount);
     }
 
     // --- Internal Helper Functions ---

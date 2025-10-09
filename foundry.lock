@@ -1,6 +1,9 @@
 {
   "lib/aave-v3-core": {
-    "rev": "782f51917056a53a2c228701058a6c3fb233684a"
+    "tag": {
+      "name": "v1.19.4",
+      "rev": "b74526a7bc67a3a117a1963fc871b3eb8cea8435"
+    }
   },
   "lib/createx": {
     "rev": "cbac803268835138f86a69bfe01fcf05a50e0447"
