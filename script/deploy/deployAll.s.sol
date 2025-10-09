@@ -6,6 +6,7 @@ import { console } from "forge-std/console.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
+// import {DeployRateProviders} from "./single/01_DeployRateProviders.s.sol";
 import { DeployIonBoringVaultScript } from "./single/02_DeployBoringVault.s.sol";
 import { DeployManagerWithMerkleVerification } from "./single/03_DeployManagerWithMerkleVerification.s.sol";
 import { DeployAccountantWithRateProviders } from "./single/04_DeployAccountantWithRateProviders.s.sol";
