@@ -1,0 +1,26 @@
+{
+  "lib/aave-v3-core": {
+    "rev": "782f51917056a53a2c228701058a6c3fb233684a"
+  },
+  "lib/createx": {
+    "rev": "cbac803268835138f86a69bfe01fcf05a50e0447"
+  },
+  "lib/devtools": {
+    "rev": "222b5cf49f4b3043305094ed6f0a994a771e5e0e"
+  },
+  "lib/forge-std": {
+    "rev": "c28115db8d90ebffb41953cf83aac63130f4bd40"
+  },
+  "lib/ion-protocol": {
+    "rev": "3da1aadb970a3e1e866ab714b14525b1cefb22ed"
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "e30b390d84ea27e430f56efcf39d19c1ec4d30eb"
+  },
+  "lib/solmate": {
+    "rev": "97bdb2003b70382996a79a406813f76417b1cf90"
+  },
+  "lib/v3-periphery": {
+    "rev": "0682387198a24c7cd63566a2c58398533860a5d1"
+  }
+}
