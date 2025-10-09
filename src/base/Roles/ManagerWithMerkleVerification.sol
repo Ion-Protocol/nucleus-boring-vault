@@ -18,18 +18,6 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     using SafeTransferLib for ERC20;
     using Address for address;
 
-    //============================== IMMUTABLES ===============================
-
-    /**
-     * @notice The BoringVault this contract can manage.
-     */
-    BoringVault public immutable vault;
-
-    /**
-     * @notice The balancer vault this contract can use for flash loans.
-     */
-    BalancerVault public immutable balancerVault;
-
     // ========================================= STATE =========================================
 
     /**
@@ -62,13 +50,6 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
      */
     bool public isPaused;
 
-    //============================== EVENTS ===============================
-
-    event ManageRootUpdated(address indexed strategist, bytes32 oldRoot, bytes32 newRoot);
-    event BoringVaultManaged(address[] targets, bytes[] targetData, uint256[] values);
-    event Paused();
-    event Unpaused();
-
     //============================== ERRORS ===============================
 
     error ManagerWithMerkleVerification__InvalidManageProofLength();
@@ -83,6 +64,25 @@ contract ManagerWithMerkleVerification is AuthOwnable2Step {
     error ManagerWithMerkleVerification__OnlyCallableByBoringVault();
     error ManagerWithMerkleVerification__OnlyCallableByBalancerVault();
     error ManagerWithMerkleVerification__TotalSupplyMustRemainConstantDuringManagement();
+
+    //============================== EVENTS ===============================
+
+    event ManageRootUpdated(address indexed strategist, bytes32 oldRoot, bytes32 newRoot);
+    event BoringVaultManaged(address[] targets, bytes[] targetData, uint256[] values);
+    event Paused();
+    event Unpaused();
+
+    //============================== IMMUTABLES ===============================
+
+    /**
+     * @notice The BoringVault this contract can manage.
+     */
+    BoringVault public immutable vault;
+
+    /**
+     * @notice The balancer vault this contract can use for flash loans.
+     */
+    BalancerVault public immutable balancerVault;
 
     constructor(
         address _owner,

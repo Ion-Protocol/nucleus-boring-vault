@@ -7,7 +7,6 @@ interface IAuthority {
     function setAuthority(address newAuthority) external;
     function transferOwnership(address newOwner) external;
     function owner() external returns (address);
-    function authority() external returns (address);
 }
 
 library ConfigReader {
@@ -55,8 +54,6 @@ library ConfigReader {
         uint256 maxTimeFromLastUpdate;
         address[] assets;
         address[] priceFeeds;
-        address managerWithTokenBalanceVerification;
-        address pauseContract;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
@@ -119,8 +116,6 @@ library ConfigReader {
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
-        config.managerWithTokenBalanceVerification = _chainConfig.readAddress(".managerWithTokenBalanceVerification");
-        config.pauseContract = _chainConfig.readAddress(".pauseContract");
 
         return config;
     }
