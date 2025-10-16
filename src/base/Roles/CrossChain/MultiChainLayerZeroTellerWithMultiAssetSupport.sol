@@ -15,16 +15,23 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
     using OptionsBuilder for bytes;
 
     error MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
+    error MultiChainTellerBase_ShareAmountTooSmall(uint256 shareAmount);
+
+    uint256 private decimalConversionRate;
+    uint8 private constant SHARED_DECIMALS = 6;
 
     constructor(
         address _owner,
         address _vault,
         address _accountant,
-        address _endpoint
+        address _endpoint,
+        uint8 _localDecimals
     )
         MultiChainTellerBase(_owner, _vault, _accountant)
         OAppAuth(_endpoint, _owner)
-    { }
+    {
+        decimalConversionRate = 10 ** (uint256(_localDecimals) - SHARED_DECIMALS);
+    }
 
     /**
      * @notice function override to return the fee quote
@@ -70,9 +77,11 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
 
         // Decode the payload to get the message
         (uint256 shareAmount, address receiver) = abi.decode(payload, (uint256, address));
-        vault.enter(address(0), ERC20(address(0)), 0, receiver, shareAmount);
+        
+        uint256 ldShareAmount = _toLD(shareAmount);
+        vault.enter(address(0), ERC20(address(0)), 0, receiver, ldShareAmount);
 
-        _afterReceive(shareAmount, receiver, _guid);
+        _afterReceive(ldShareAmount, receiver, _guid);
     }
 
     /**
@@ -84,8 +93,13 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         if (address(data.bridgeFeeToken) != NATIVE) {
             revert MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
         }
+        uint256 sdShareAmount = _toSD(shareAmount);
+        if (sdShareAmount == 0) {
+            // If the shareAmount is too small to be represented in shared decimals, we cannot bridge it.
+            revert MultiChainTellerBase_ShareAmountTooSmall(shareAmount);
+        }
 
-        bytes memory _payload = abi.encode(shareAmount, data.destinationChainReceiver);
+        bytes memory _payload = abi.encode(sdShareAmount, data.destinationChainReceiver);
         bytes memory _options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(data.messageGas, 0);
 
         MessagingReceipt memory receipt = _lzSend(
@@ -99,5 +113,23 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
         );
 
         return receipt.guid;
+    }
+
+    /**
+     * @dev Internal function to convert an amount from shared decimals into local decimals.
+     * @param _amountSD The amount in shared decimals.
+     * @return amountLD The amount in local decimals.
+     */
+    function _toLD(uint256 _amountSD) internal view virtual returns (uint256 amountLD) {
+        return _amountSD * decimalConversionRate;
+    }
+
+    /**
+     * @dev Internal function to convert an amount from local decimals into shared decimals.
+     * @param _amountLD The amount in local decimals.
+     * @return amountSD The amount in shared decimals.
+     */
+    function _toSD(uint256 _amountLD) internal view virtual returns (uint64 amountSD) {
+        return uint64(_amountLD / decimalConversionRate);
     }
 }
