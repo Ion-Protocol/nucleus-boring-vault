@@ -1,11 +1,10 @@
 import fs from 'fs';
 import { execSync } from 'child_process';
-import PocketBase from 'pocketbase';
+import { PrismaClient } from '@prisma/client';
 import keccak256 from 'keccak256';
 import path from 'path';
 
-const pbUrl = process.env.POCKETBASE_URL || 'http://34.201.251.108:8090';
-const pb = new PocketBase(pbUrl);
+const prisma = new PrismaClient();
 
 // Function to compute the 4-byte selector using keccak256
 function computeSelector(signature) {
@@ -489,7 +488,7 @@ async function processContract(filePath, shouldPost = false) {
         const functionInfos = parseSourceFile(filePath);
         
         if (shouldPost && functionInfos.length > 0) {
-            return await postToPocketBase(functionInfos);
+            return await postToDatabase(functionInfos);
         } else if (functionInfos.length > 0) {
             // Print output when not posting
             console.log(`\nProcessed ${filePath}:`);
@@ -515,17 +514,15 @@ async function processContract(filePath, shouldPost = false) {
 
 // Add a new function to generate a hash-based ID from function data
 function generateRecordId(data) {
-    // Create a string that combines all relevant data
-    const tagString = JSON.stringify(data.tags);
-    const contentToHash = `${data.signature}|${data.description}|${tagString}`;
+    // Create a string that combines core function data (excluding tags since they're in separate table)
+    const contentToHash = `${data.signature}|${data.description}`;
     
     // Generate a hash using keccak256 (already imported for selector calculation)
     return '0x' + keccak256(contentToHash).toString('hex').slice(0, 24);
 }
 
-// Update the checkExistingSelectors function to check for both selectors and IDs
+// Update the checkExistingRecords function to use Prisma
 async function checkExistingRecords(functionsData) {
-    const existingSelectors = [];
     const existingIds = [];
     
     for (const data of functionsData) {
@@ -534,22 +531,24 @@ async function checkExistingRecords(functionsData) {
         
         try {
             // Check if this ID already exists
-            const resultById = await pb.collection('decoder_selectors').getFirstListItem(`id="${data.id}"`);
-            if (resultById) {
+            const existingRecord = await prisma.decoderSelector.findUnique({
+                where: { id: data.id }
+            });
+            if (existingRecord) {
                 console.log(`Found existing record with ID: ${data.id}`);
                 existingIds.push(data.id);
-                continue;
             }
         } catch (error) {
             // Not found, which is fine
+            console.error(`Error checking existing record: ${error.message}`);
         }
     }
     
     return existingIds;
 }
 
-// Update the postToPocketBase function to use the new checking method
-async function postToPocketBase(functionsData) {
+// Update the postToDatabase function to use Prisma
+async function postToDatabase(functionsData) {
     try {
         let successCount = 0;
         
@@ -569,13 +568,21 @@ async function postToPocketBase(functionsData) {
                     continue;
                 }
                 
-                // Create the new record with our custom ID
-                await pb.collection('decoder_selectors').create({
-                    id: data.id,
-                    selector: data.selector,
-                    description: data.description,
-                    tags: JSON.stringify(data.tags),
-                    signature: data.signature
+                // Create the new record with our custom ID and related tags
+                await prisma.decoderSelector.create({
+                    data: {
+                        id: data.id,
+                        selector: data.selector,
+                        description: data.description,
+                        signature: data.signature,
+                        tags: {
+                            create: data.tags.map(tag => ({
+                                title: tag.title,
+                                type: tag.type,
+                                description: tag.description
+                            }))
+                        }
+                    }
                 });
                 
                 console.log(`Created record for: ${data.signature} => ${data.selector} (ID: ${data.id})`);
@@ -588,8 +595,11 @@ async function postToPocketBase(functionsData) {
         
         return successCount;
     } catch (error) {
-        console.error(red(`Error posting to PocketBase: ${error}`));
+        console.error(red(`Error posting to database: ${error}`));
         return 0;
+    } finally {
+        // Close the Prisma connection
+        await prisma.$disconnect();
     }
 }
 
@@ -657,7 +667,7 @@ async function main() {
     } else {
         console.error(red('Error: Please provide file paths as arguments or use --all-decoders flag'));
         console.error(red('Usage: node tag_parse.js [file_paths...] [--post] [--all-decoders] [--include-subdirs]'));
-        console.error(red('  --post: Post the data to PocketBase (otherwise dry run)'));
+        console.error(red('  --post: Post the data to PostgreSQL database (otherwise dry run)'));
         console.error(red('  --all-decoders: Process all files in src/base/DecodersAndSanitizers'));
         console.error(red('  --include-subdirs: Include files in subdirectories when using --all-decoders'));
         process.exit(1);
@@ -678,9 +688,9 @@ async function main() {
     // Add summary output
     console.log(`\nTotal functions processed: ${totalFunctions}`);
     if (shouldPost) {
-        console.log(`Data has been posted to PocketBase at ${pbUrl}`);
+        console.log(`Data has been posted to PostgreSQL database`);
     } else {
-        console.log('This was a dry run. Use --post to upload data to PocketBase.');
+        console.log('This was a dry run. Use --post to upload data to the database.');
     }
 }
 
