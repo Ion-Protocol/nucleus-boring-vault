@@ -599,7 +599,6 @@ async function postToDatabase(functionsData) {
         return 0;
     } finally {
         // Close the Prisma connection
-        await prisma.$disconnect();
     }
 }
 
@@ -692,10 +691,14 @@ async function main() {
     } else {
         console.log('This was a dry run. Use --post to upload data to the database.');
     }
+        
+    await prisma.$disconnect();
+
 }
 
 // Execute the main function
-main().catch(error => {
+main().catch(async error => {
     console.error(red(`Unhandled error: ${error}`));
+    await prisma.$disconnect();
     process.exit(1);
 }); 
