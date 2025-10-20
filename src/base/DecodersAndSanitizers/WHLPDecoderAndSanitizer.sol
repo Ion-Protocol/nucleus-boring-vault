@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.21;
 
 import {
@@ -20,6 +19,8 @@ import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protoc
 import { VelodromeV1DecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
 import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FlashHypeDecoderAndSanitizer.sol";
+import { CoreWriterDecoderAndSanitizer } from
+    "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
 import { FraxLendDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FraxLendDecoderAndSanitizer.sol";
 import { VelodromeBuybackDecoderAndSanitizer } from
     "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
@@ -41,6 +42,7 @@ contract WHLPDecoderAndSanitizer is
     ThunderheadDecoderAndSanitizer,
     AaveV3DecoderAndSanitizer,
     VelodromeV1DecoderAndSanitizer,
+    CoreWriterDecoderAndSanitizer,
     FlashHypeDecoderAndSanitizer,
     FraxLendDecoderAndSanitizer,
     VelodromeBuybackDecoderAndSanitizer,
@@ -76,4 +78,16 @@ contract WHLPDecoderAndSanitizer is
         // Nothing to sanitize or return
         return addressesFound;
     }
+
+    function sendToVault(address, uint64) external view virtual returns (bytes memory addressesFound) { }
+
+    function transferHLP(address, uint64, bool) external view virtual returns (bytes memory addressesfound) { }
+
+    function USDClassTransfer(address, uint64, bool) external view virtual returns (bytes memory addressesfound) { }
+
+    function withdraw(address, uint64) external view virtual returns (bytes memory addressesfound) { }
+
+    function deposit(address, uint64) external view virtual returns (bytes memory addressesfound) { }
+
+    function deployAccounts(uint256) external view virtual returns (bytes memory addressesfound) { }
 }

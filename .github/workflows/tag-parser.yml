@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - carson/decoders
+      - master 
     paths:
       - 'src/base/DecodersAndSanitizers/**/*.sol'  # Only run when Solidity files in this directory change
 
