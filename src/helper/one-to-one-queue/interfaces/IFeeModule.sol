@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { OneToOneQueue } from "../OneToOneQueue.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 /**
  * @title IFeeModule
@@ -17,14 +18,14 @@ interface IFeeModule {
     }
 
     /**
-     * @notice Calculate fees for a batch of orders being processed
+     * @notice Calculate fees on want assets for a batch of orders being processed
      * @param orders Array of orders being processed
      * @param orderIDs, array of orderIDs, since they may not always be in order after filtering out pre-fills
      * @return postFeeProcessedOrders object regarding how much of what should be sent where
      * @return feeAssets array of addresses of assets to be taken in fees
      * @return feeAmounts array of amounts of assets to be taken in fees
      */
-    function calculateFees(
+    function calculateWantFees(
         OneToOneQueue.Order[] calldata orders,
         uint256[] calldata orderIDs
     )
@@ -35,4 +36,24 @@ interface IFeeModule {
             IERC20[] memory feeAssets,
             uint256[] memory feeAmounts
         );
+
+    /**
+     * @notice calculate fees on offer assets for a single order being submitted
+     * @param amount deposited
+     * @param offerAsset address
+     * @param wantAsset address
+     * @param receiver of the receiver
+     * @return newAmountForReceiver to have logged in Queue
+     * @return feeAsset to take of fees (offerAsset)
+     * @return feeAmount to take
+     */
+    function calculateOfferFees(
+        uint256 amount,
+        ERC20 offerAsset,
+        ERC20 wantAsset,
+        address receiver
+    )
+        external
+        view
+        returns (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount);
 }

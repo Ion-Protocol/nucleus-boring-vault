@@ -343,7 +343,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
         uint256[] memory orderIDs = new uint256[](1);
         orderIDs[0] = orderIndex;
-        (postFeeProcessedOrders, feeAssets, feeAmounts) = IFeeModule(feeModule).calculateFees(orderArray, orderIDs);
+        (postFeeProcessedOrders, feeAssets, feeAmounts) = IFeeModule(feeModule).calculateWantFees(orderArray, orderIDs);
 
         postFeeProcessedOrders[0].asset.safeTransfer(
             postFeeProcessedOrders[0].receiver, postFeeProcessedOrders[0].finalAmount
@@ -396,20 +396,28 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
                 depositor, address(this), amount, params.deadline, params.approvalV, params.approvalR, params.approvalS
             );
         }
-        IERC20(address(offerAsset)).safeTransferFrom(msg.sender, boringVault, amount);
 
         unchecked {
             orderIndex = ++latestOrder;
         }
 
+        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
+            IFeeModule(feeModule).calculateOfferFees(amount, offerAsset, wantAsset, receiver);
+
+        IERC20(address(offerAsset)).safeTransferFrom(msg.sender, boringVault, newAmountForReceiver);
+        feeAsset.safeTransferFrom(msg.sender, feeRecipient, feeAmount);
+
         // Create order
         queue[orderIndex] = Order({
-            amount: amount,
+            amount: newAmountForReceiver,
             offerAsset: offerAsset,
             wantAsset: wantAsset,
             refundReceiver: refundReceiver,
             status: Status.DEFAULT
         });
+
+        console.log(newAmountForReceiver);
+        console.log(feeAmount);
 
         // Mint NFT receipt to receiver
         _safeMint(receiver, orderIndex);
@@ -475,7 +483,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         require(feeAssets.length == feeAmounts.length, "array length missmatch");
 
         (postFeeProcessedOrders, feeAssets, feeAmounts) =
-            IFeeModule(feeModule).calculateFees(ordersAmountsModifiedToWantAssetArray, orderIDs);
+            IFeeModule(feeModule).calculateWantFees(ordersAmountsModifiedToWantAssetArray, orderIDs);
 
         // TODO: Big one, change fees to be charged on submission not on process
 

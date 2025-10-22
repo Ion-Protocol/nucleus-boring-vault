@@ -11,6 +11,8 @@ contract tERC20 is ERC20 {
     constructor(uint8 decimals) ERC20("test name", "test", decimals) { }
 }
 
+/// TODO: test the gas of processing, how many can be processed? Should we remove fee module calls on process for
+/// simplicity
 contract OneToOneQueueTest is Test {
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
@@ -19,7 +21,8 @@ contract OneToOneQueueTest is Test {
     ERC20 public USDG0;
     ERC20 public DAI;
 
-    uint256 TEST_FEE_PERCENTAGE = 0; // 0% fee
+    uint256 TEST_WANT_FEE_PERCENTAGE = 0; // 0% fee
+    uint256 TEST_OFFER_FEE_PERCENTAGE = 10; // 0.1% fee
 
     address mockBoringVaultAddress = makeAddr("boring vault");
     address owner = makeAddr("owner");
@@ -30,7 +33,7 @@ contract OneToOneQueueTest is Test {
     address feeRecipient = makeAddr("fee recipient");
 
     function setUp() external {
-        feeModule = new SimpleFeeModule(TEST_FEE_PERCENTAGE);
+        feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE, TEST_WANT_FEE_PERCENTAGE);
         queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, address(feeModule), owner);
         rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
 
@@ -123,10 +126,15 @@ contract OneToOneQueueTest is Test {
         console.log("Failing before this single: ");
         queue.processOrders(1);
 
-        totalFees += 1e6 * TEST_FEE_PERCENTAGE / 10_000;
+        uint256 user1Fees = 1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000;
+        totalFees += user1Fees;
+        uint256 user2Fees = 2e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000;
+        totalFees += user2Fees;
+        uint256 user3Fees = 3e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000;
+        totalFees += user3Fees;
 
         assertEq(queue.totalSupply(), 2, "total supply should be 2 after 1 solve");
-        assertEq(USDG0.balanceOf(user1), 1e6 - totalFees, "User1 should have received their 1 USDG0 - fees");
+        assertEq(USDG0.balanceOf(user1), 1e6 - user1Fees, "User1 should have received their 1 USDG0 - fees");
         assertEq(USDC.balanceOf(feeRecipient), totalFees, "Fee receiver should have received fees");
 
         // User1 now deposit and sovles atomically to get all orders solved including their new one
@@ -137,11 +145,6 @@ contract OneToOneQueueTest is Test {
         queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, params);
         vm.stopPrank();
 
-        uint256 user2Fees = 2e6 * TEST_FEE_PERCENTAGE / 10_000;
-        totalFees += user2Fees;
-        uint256 user3Fees = 3e6 * TEST_FEE_PERCENTAGE / 10_000;
-        totalFees += user3Fees;
-        uint256 user1Fees = 1e6 * TEST_FEE_PERCENTAGE / 10_000;
         totalFees += user1Fees;
 
         assertEq(queue.totalSupply(), 0, "total supply should be 0 after submitAndSolve");
@@ -154,9 +157,43 @@ contract OneToOneQueueTest is Test {
             "User1 should have received their 2 USDG0 total - 2x fees (2 transactions)"
         );
         assertEq(USDC.balanceOf(address(queue)), 0, "Contract should have no more USDC");
+        vm.stopPrank();
     }
 
-    function testAssetsOfDifferentDecimals() external { }
+    function testAssetsOfDifferentDecimals() external {
+        uint256 depositAmount1 = 1e18;
+        uint256 depositAmount2 = 1e6;
+
+        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
+            approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
+            approvalV: 0,
+            approvalR: bytes32(0),
+            approvalS: bytes32(0),
+            submitWithSignature: false,
+            deadline: block.timestamp + 1000,
+            eip2612Signature: "",
+            submissionSignature: "",
+            nonce: 0
+        });
+
+        vm.startPrank(owner);
+        queue.addOfferAsset(address(DAI), 0);
+        vm.stopPrank();
+
+        deal(address(DAI), user1, 1e18);
+
+        uint256 user1FeesWant = 1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000;
+        uint256 user1FeesOffer = 1e18 * TEST_OFFER_FEE_PERCENTAGE / 10_000;
+        deal(address(USDG0), address(queue), 1e6 - user1FeesWant);
+
+        vm.startPrank(user1);
+        DAI.approve(address(queue), 1e18);
+        queue.submitOrderAndProcess(depositAmount1, DAI, USDG0, user1, user1, params);
+        vm.stopPrank();
+
+        assertEq(USDG0.balanceOf(user1), 1e6 - user1FeesWant, "User should have received USDG0 in 6 decimals");
+        assertEq(DAI.balanceOf(feeRecipient), user1FeesOffer, "Fee Recipient should have received DAI in 18 decimals");
+    }
 
     function testDeprecation() external { }
 

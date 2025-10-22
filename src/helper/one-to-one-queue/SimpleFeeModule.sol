@@ -2,6 +2,7 @@
 pragma solidity 0.8.21;
 
 import { IFeeModule, IERC20 } from "./interfaces/IFeeModule.sol";
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { OneToOneQueue } from "./OneToOneQueue.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -11,7 +12,8 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  * @dev Fees are sent to a designated fee recipient
  */
 contract SimpleFeeModule is IFeeModule {
-    uint256 public immutable feePercentage;
+    uint256 public immutable offerFeePercentage;
+    uint256 public immutable wantFeePercentage;
 
     /*//////////////////////////////////////////////////////////////
                              CONSTRUCTOR
@@ -19,18 +21,37 @@ contract SimpleFeeModule is IFeeModule {
 
     /**
      * @notice Initialize the SimpleFeeModule
-     * @param _feePercentage Fee percentage in basis points
+     * @param _offerFeePercentage Fee percentage on offer assets in basis points
+     * @param _wantFeePercentage Fee percentage on want assets in basis points
      */
-    constructor(uint256 _feePercentage) {
-        require(_feePercentage <= 10_000, "SimpleFeeModule: fee percentage too high");
+    constructor(uint256 _offerFeePercentage, uint256 _wantFeePercentage) {
+        require(
+            _offerFeePercentage <= 10_000 && _wantFeePercentage <= 10_000, "SimpleFeeModule: fee percentage too high"
+        );
 
-        feePercentage = _feePercentage;
+        offerFeePercentage = _offerFeePercentage;
+        wantFeePercentage = _wantFeePercentage;
     }
 
     /*//////////////////////////////////////////////////////////////
                           FEE CALCULATION
     //////////////////////////////////////////////////////////////*/
-    function calculateFees(
+    function calculateOfferFees(
+        uint256 amount,
+        ERC20 offerAsset,
+        ERC20 wantAsset,
+        address receiver
+    )
+        external
+        view
+        returns (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount)
+    {
+        feeAmount = (amount * offerFeePercentage) / 10_000;
+        newAmountForReceiver = amount - feeAmount;
+        feeAsset = IERC20(address(offerAsset));
+    }
+
+    function calculateWantFees(
         OneToOneQueue.Order[] calldata orders,
         uint256[] calldata orderIDs
     )
@@ -47,7 +68,7 @@ contract SimpleFeeModule is IFeeModule {
         feeAssets = new IERC20[](length);
         feeAmounts = new uint256[](length);
         for (uint256 i; i < length; ++i) {
-            uint256 fee = orders[i].amount * feePercentage / 10_000;
+            uint256 fee = orders[i].amount * wantFeePercentage / 10_000;
             uint256 finalAmount = orders[i].amount - fee;
 
             postFeeProcessedOrders[i] = IFeeModule.PostFeeProcessedOrder({
