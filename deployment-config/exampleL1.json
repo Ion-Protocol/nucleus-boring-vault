@@ -13,7 +13,7 @@
     "address": "0x0000000000fAd6Db23abdC1a85621B97bd1Dc82f"
   },
   "accountant": {
-    "accountantSalt": "0x6a184dbea6f3cc0318679f00000000000000000000000000000000000000001c",
+    "accountantSalt": "0xc0526309e52b21f7403db0f526c6efb846493bb91d2d567c819ea06f7b08d092",
     "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
     "allowedExchangeRateChangeUpper": "10003",
     "allowedExchangeRateChangeLower": "9998",
@@ -55,6 +55,7 @@
     "rolesAuthoritySalt": "0x66bbc3b3b3000b01466a3a00000000000000000000000000000000000000001c",
     "strategist": "0x00000000004F96C07B83e86600D86F0000000000",
     "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "solver": "0x7933CD3b02DE77b043FF0f39Af4D5cd2B2C0fD9C",
     "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
     "address": "0x00000000004F96C07B83e86600D86F0000000000"
   },
