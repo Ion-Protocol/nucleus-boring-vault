@@ -242,8 +242,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     function deposit(
         ERC20 depositAsset,
         uint256 depositAmount,
-        uint256 minimumMint,
-        address to
+        uint256 minimumMint
     )
         external
         requiresAuth
@@ -253,7 +252,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
 
         _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
     }

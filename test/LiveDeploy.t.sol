@@ -313,7 +313,7 @@ contract LiveDeploy is ForkTest, DeployAll {
     function _depositAssetWithApprove(ERC20 asset, uint256 depositAmount) internal {
         deal(address(asset), address(this), depositAmount);
         asset.approve(mainConfig.boringVault, depositAmount);
-        TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, 0, address(this));
+        TellerWithMultiAssetSupport(mainConfig.teller).deposit(asset, depositAmount, 0);
     }
 
     function _testLZDepositAndBridge(ERC20 asset, uint256 amount) internal {

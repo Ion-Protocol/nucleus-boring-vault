@@ -25,7 +25,7 @@ contract CommunityCodeDepositor is Auth {
     error IncorrectNativeDepositAmount();
     error NativeWrapperAccountantDecimalsMismatch();
 
-    INativeWrapper constant NATIVE_WRAPPER = INativeWrapper(0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9);
+    INativeWrapper public immutable nativeWrapper;
 
     TellerWithMultiAssetSupport public immutable teller;
     address public immutable boringVault;
@@ -37,24 +37,35 @@ contract CommunityCodeDepositor is Auth {
         ERC20 indexed depositAsset,
         uint256 depositAmount,
         uint256 minimumMint,
-        address indexed to,
+        address to,
         bytes32 depositHash,
-        bytes communityCode
+        bytes indexed communityCode
     );
 
-    constructor(address _teller, address _owner) Auth(_owner, Authority(address(0))) {
-        if (_teller == address(0)) revert ZeroAddress();
+    constructor(
+        TellerWithMultiAssetSupport _teller,
+        INativeWrapper _nativeWrapper,
+        address _owner
+    )
+        Auth(_owner, Authority(address(0)))
+    {
+        if (address(_teller) == address(0)) revert ZeroAddress();
+        // if (address(_nativeWrapper) == address(0)) revert ZeroAddress();
+
         if (_owner == address(0)) revert ZeroAddress();
 
-        teller = TellerWithMultiAssetSupport(_teller);
-        boringVault = address(teller.vault());
+        // check that if we're depositing native asset, the accountant decimals is equal to base decimals
+        if (address(_nativeWrapper) != address(0)) {
+            if (_teller.accountant().decimals() != _nativeWrapper.decimals()) {
+                revert NativeWrapperAccountantDecimalsMismatch();
+            }
+        }
+
+        teller = _teller;
+        boringVault = address(_teller.vault());
+        nativeWrapper = _nativeWrapper;
 
         if (boringVault == address(0)) revert ZeroAddress();
-
-        // check that if we're depositing native asset, the accountant decimals is equal to base decimals
-        if (teller.accountant().decimals() != NATIVE_WRAPPER.decimals()) {
-            revert NativeWrapperAccountantDecimalsMismatch();
-        }
     }
 
     /**
@@ -76,8 +87,8 @@ contract CommunityCodeDepositor is Auth {
         returns (uint256 shares)
     {
         if (msg.value != depositAmount) revert IncorrectNativeDepositAmount();
-        NATIVE_WRAPPER.deposit{ value: msg.value }();
-        return _deposit(ERC20(address(NATIVE_WRAPPER)), depositAmount, minimumMint, to, communityCode);
+        nativeWrapper.deposit{ value: msg.value }();
+        return _deposit(ERC20(address(nativeWrapper)), depositAmount, minimumMint, to, communityCode);
     }
 
     /**
@@ -103,6 +114,32 @@ contract CommunityCodeDepositor is Auth {
         return _deposit(depositAsset, depositAmount, minimumMint, to, communityCode);
     }
 
+    function depositWithPermit(
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint,
+        address to,
+        bytes calldata communityCode,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        external
+        requiresAuth
+        returns (uint256 shares)
+    {
+        // cannot just wrap the teller.depositWithPermit because
+        // we need to use permit to process approval on this contract before making a deposit.
+
+        // solhint-disable-next-line no-empty-blocks
+        depositAsset.permit(msg.sender, address(this), depositAmount, deadline, v, r, s);
+
+        depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
+
+        return _deposit(depositAsset, depositAmount, minimumMint, to, communityCode);
+    }
+
     /**
      * Always assumes that the `depositAsset` is on this contract's balance.
      */
@@ -120,7 +157,9 @@ contract CommunityCodeDepositor is Auth {
 
         depositAsset.safeApprove(boringVault, depositAmount);
 
-        shares = teller.deposit(depositAsset, depositAmount, minimumMint, to);
+        // TODO: THIS MUST BE TRANSFERRED OUT
+        shares = teller.deposit(depositAsset, depositAmount, minimumMint);
+        ERC20(boringVault).safeTransfer(to, shares);
 
         emit DepositWithCommunityCode(
             msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, communityCode
