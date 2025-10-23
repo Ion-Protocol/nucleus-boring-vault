@@ -68,6 +68,9 @@ contract SimpleFeeModule is IFeeModule {
         feeAssets = new IERC20[](length);
         feeAmounts = new uint256[](length);
         for (uint256 i; i < length; ++i) {
+            if (orderIDs[i] == 0) {
+                continue;
+            }
             uint256 fee = orders[i].amount * wantFeePercentage / 10_000;
             uint256 finalAmount = orders[i].amount - fee;
 
@@ -78,7 +81,6 @@ contract SimpleFeeModule is IFeeModule {
                     // reference the caller as the ERC721 to lookup token owners
              });
 
-            /// NOTE: taking fees in offer assets... Curious if any opinions here (USDC most of the time)
             feeAssets[i] = IERC20(address(orders[i].offerAsset));
             feeAmounts[i] = fee;
         }

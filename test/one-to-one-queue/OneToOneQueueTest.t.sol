@@ -32,6 +32,18 @@ contract OneToOneQueueTest is Test {
     address solver = makeAddr("solver");
     address feeRecipient = makeAddr("fee recipient");
 
+    // A simple params struct used in most tests
+    OneToOneQueue.SubmissionParams params = OneToOneQueue.SubmissionParams({
+        approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
+        approvalV: 0,
+        approvalR: bytes32(0),
+        approvalS: bytes32(0),
+        submitWithSignature: false,
+        deadline: block.timestamp + 1000,
+        eip2612Signature: "",
+        nonce: 0
+    });
+
     function setUp() external {
         vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE, TEST_WANT_FEE_PERCENTAGE);
@@ -68,18 +80,6 @@ contract OneToOneQueueTest is Test {
         uint256 depositAmount2 = 2e6;
         uint256 depositAmount3 = 3e6;
         uint256 totalFees;
-
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
-            approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-            approvalV: 0,
-            approvalR: bytes32(0),
-            approvalS: bytes32(0),
-            submitWithSignature: false,
-            deadline: block.timestamp + 1000,
-            eip2612Signature: "",
-            submissionSignature: "",
-            nonce: 0
-        });
 
         // set up balances
         deal(address(USDC), user1, depositAmount1);
@@ -164,18 +164,6 @@ contract OneToOneQueueTest is Test {
         uint256 depositAmount1 = 1e18;
         uint256 depositAmount2 = 1e6;
 
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
-            approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-            approvalV: 0,
-            approvalR: bytes32(0),
-            approvalS: bytes32(0),
-            submitWithSignature: false,
-            deadline: block.timestamp + 1000,
-            eip2612Signature: "",
-            submissionSignature: "",
-            nonce: 0
-        });
-
         vm.startPrank(owner);
         queue.addOfferAsset(address(DAI), 0);
         vm.stopPrank();
@@ -209,17 +197,6 @@ contract OneToOneQueueTest is Test {
         USDC.approve(address(queue), 11e6);
         vm.stopPrank();
 
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
-            approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-            approvalV: 0,
-            approvalR: bytes32(0),
-            approvalS: bytes32(0),
-            submitWithSignature: false,
-            deadline: block.timestamp + 1000,
-            eip2612Signature: "",
-            submissionSignature: "",
-            nonce: 0
-        });
         vm.startPrank(user1);
 
         deal(address(USDC), user1, 11e6);
@@ -250,7 +227,43 @@ contract OneToOneQueueTest is Test {
         vm.stopPrank();
     }
 
-    function testCancellations() external { }
+    function testRefund() external {
+        deal(address(USDC), user1, 11e6);
+        vm.startPrank(user1);
+        USDC.approve(address(queue), 11e6);
+
+        deal(address(USDC), address(queue), 11e6);
+        deal(address(USDG0), address(queue), 11e6);
+
+        // user submits 3 orders
+        queue.submitOrder(1e6, USDC, USDG0, user1, user1, params);
+        queue.submitOrder(2e6, USDC, USDG0, user1, user1, params);
+        queue.submitOrder(3e6, USDC, USDG0, user1, user1, params);
+        vm.stopPrank();
+
+        // owner refunds 1
+        uint256 balanceUSDCBefore = USDC.balanceOf(user1);
+
+        // Refund the second order
+        vm.startPrank(owner);
+        queue.refund(2);
+
+        // assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 0, "User shouldn't get their refund until processed");
+        // assertEq(USDG0.balanceOf(user1), 0, "USDG0 balance of user should be 0");
+
+        queue.processOrders(3);
+        vm.stopPrank();
+        assertEq(
+            USDC.balanceOf(user1) - balanceUSDCBefore,
+            2e6,
+            "User should just have their 2 USDC balance back including fees paid: note this is excess in the queue in this test as the fee receiver receives this amount"
+        );
+        assertEq(
+            USDG0.balanceOf(user1),
+            4e6 - (4e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+            "User should only have the USDG0 of orders 1 and 3"
+        );
+    }
 
     function testPreFill() external { }
 

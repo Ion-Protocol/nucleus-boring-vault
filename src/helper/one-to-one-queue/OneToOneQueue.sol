@@ -53,7 +53,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         bool submitWithSignature;
         uint256 deadline;
         bytes eip2612Signature;
-        bytes submissionSignature;
         uint256 nonce;
     }
 
@@ -322,6 +321,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         if (order.status == Status.REFUND) {
             order.status = Status.PRE_FILLED;
             IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amount);
+            // TODO: EVENT here
             return;
         }
 
@@ -447,6 +447,9 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         require(endIndex <= latestOrder, "Queue: not enough orders to process");
 
         // Build arrays of orders for fee module
+        // TODO: This needs to be "dynamic" since we don't know at creation time actually how many orders are valid and
+        // need to be processed... I kinda want to take a step back here on how we're going to handle this data
+        // structure. IE make it more.. Structured
         Order[] memory ordersAmountsModifiedToWantAssetArray = new Order[](ordersToProcess);
         // Must keep track of order ids to send to the fee module, as PRE_FILLED or REFUND orders can mess up ordering
         uint256[] memory orderIDs = new uint256[](ordersToProcess);
@@ -467,14 +470,15 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
             if (order.status == Status.REFUND) {
                 // handle refund now since no need to adjust decimals or apply fees and ignore
                 IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amount);
+                _burn(orderIndex);
                 continue;
             }
 
+            ordersAmountsModifiedToWantAssetArray[validOrdersCount] = order;
+            orderIDs[validOrdersCount++] = orderIndex;
             unchecked {
                 orderIndex = ++lastProcessedOrder;
             }
-            ordersAmountsModifiedToWantAssetArray[validOrdersCount] = order;
-            orderIDs[validOrdersCount++] = orderIndex;
         }
 
         IFeeModule.PostFeeProcessedOrder[] memory postFeeProcessedOrders;
@@ -485,8 +489,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
         (postFeeProcessedOrders, feeAssets, feeAmounts) =
             IFeeModule(feeModule).calculateWantFees(ordersAmountsModifiedToWantAssetArray, orderIDs);
-
-        // TODO: Big one, change fees to be charged on submission not on process
 
         // Process each order
         for (uint256 i; i < postFeeProcessedOrders.length; ++i) {
