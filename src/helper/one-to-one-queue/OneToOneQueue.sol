@@ -368,6 +368,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         SubmissionParams calldata params
     )
         public
+        requiresAuth
         returns (uint256 orderIndex)
     {
         require(supportedOfferAssets[address(offerAsset)], "Queue: offer asset not supported");
@@ -432,7 +433,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      *      Skips PRE_FILLED orders, processes REFUND orders differently
      *      Requires sufficient want asset balance in contract
      */
-    function processOrders(uint256 ordersToProcess) public {
+    function processOrders(uint256 ordersToProcess) public requiresAuth {
         require(ordersToProcess > 0, "Queue: must process at least one order");
 
         uint256 startIndex;
@@ -523,6 +524,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         SubmissionParams calldata params
     )
         external
+        requiresAuth
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(amount, offerAsset, wantAsset, receiver, refundReceiver, params);

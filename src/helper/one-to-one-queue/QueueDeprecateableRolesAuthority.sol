@@ -10,6 +10,11 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
 
     constructor(address _owner, address _queue) RolesAuthority(_owner, Authority(address(0))) {
         queue = _queue;
+        // TODO: Right now only owner can call these functions, so only owner may deploy... see if there's an internal
+        // function
+        setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
+        setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);
+        setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
     }
 
     /// @dev 2 deprecation steps

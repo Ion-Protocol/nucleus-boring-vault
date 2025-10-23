@@ -33,11 +33,11 @@ contract OneToOneQueueTest is Test {
     address feeRecipient = makeAddr("fee recipient");
 
     function setUp() external {
+        vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE, TEST_WANT_FEE_PERCENTAGE);
         queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, address(feeModule), owner);
         rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
 
-        vm.startPrank(owner);
         queue.setAuthority(rolesAuthority);
 
         USDC = new tERC20(6);
@@ -195,7 +195,60 @@ contract OneToOneQueueTest is Test {
         assertEq(DAI.balanceOf(feeRecipient), user1FeesOffer, "Fee Recipient should have received DAI in 18 decimals");
     }
 
-    function testDeprecation() external { }
+    function testDeprecation() external {
+        vm.startPrank(user1);
+        vm.expectRevert("UNAUTHORIZED");
+        rolesAuthority.beginDeprecation();
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        rolesAuthority.beginDeprecation();
+
+        deal(address(USDC), owner, 11e6);
+        deal(address(USDG0), address(queue), 11e6);
+        USDC.approve(address(queue), 11e6);
+        vm.stopPrank();
+
+        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
+            approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
+            approvalV: 0,
+            approvalR: bytes32(0),
+            approvalS: bytes32(0),
+            submitWithSignature: false,
+            deadline: block.timestamp + 1000,
+            eip2612Signature: "",
+            submissionSignature: "",
+            nonce: 0
+        });
+        vm.startPrank(user1);
+
+        deal(address(USDC), user1, 11e6);
+        USDC.approve(address(queue), 11e6);
+        vm.expectRevert("UNAUTHORIZED");
+        queue.submitOrder(1e6, USDC, USDG0, user1, user1, params);
+
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        queue.submitOrder(1e6, USDC, USDG0, owner, owner, params);
+        assertEq(queue.ownerOf(1), owner, "owner could mint because deprecation doesn't apply to the owner");
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        queue.processOrders(1);
+        assertTrue(true, "This should pass as the orders can still be solved");
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        rolesAuthority.continueDeprecation();
+        vm.stopPrank();
+
+        vm.prank(user1);
+        // TODO: upgrade to custom errors and confirm it's that
+        vm.expectRevert();
+        queue.processOrders(1);
+        vm.stopPrank();
+    }
 
     function testCancellations() external { }
 
