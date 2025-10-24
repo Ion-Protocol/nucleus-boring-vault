@@ -1,0 +1,56 @@
+{
+    "base": "0x78adD880A697070c1e765Ac44D65323a0DcCE913",
+    "protocolAdmin": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0x185add50812f7443e33e97e2c747a69d1b4545ab6d016f171ccea20ac43c5419",
+      "boringVaultName": "Nest PayFi Optimizer",
+      "boringVaultSymbol": "op-nPAYFI",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x626bb501f85ee55f731dc106822bfc09628c542993eede4a342fbbc83dc7fde4",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0x6f2bf8f6a94c3cfbc439d0f77807cb3ff3e94aadc99eb17687def408d986044f",
+      "payoutAddress": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0x437dc236e913e09f6dec59f0ce9dfac0305e7571bd526e977bee2ecb90f9e0eb",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 0,
+      "tellerContractName": "TellerWithMultiAssetSupport",
+      "assets": [
+        "0xdddd73f5df1f0dc31373357beac77545dc5a6f3f",
+        "0xb52b090837a035f93A84487e5A7D3719C32Aa8A9"
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+        ],
+        "optional": [
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 1
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0xa3a55223b4ba4133da4923e3b93bb2ef45cf0417ba9be1deb39ed601f325df57",
+      "strategist": "0xCb8FA722B2a138faC6B6D60013025E2504b9B753",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x3f3a259b6520fbd5df5f01b3a3f499a3ff0f77182003a47eccff1d3a9aa8f6e2",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+}

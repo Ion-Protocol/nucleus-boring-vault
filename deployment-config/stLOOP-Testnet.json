@@ -1,0 +1,52 @@
+{
+  "protocolAdmin": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+  "base": "0x0042BBd70b07e533FB7376356b12cF8835Dd4109",
+  "boringVaultAndBaseDecimals": "18",
+  "boringVault": {
+    "boringVaultSalt": "0xda0af143484c2e6500413b7bb56b1600e69a7d4643ff623af7c4c491e4c8e511",
+    "boringVaultName": "Staked LOOP",
+    "boringVaultSymbol": "stLOOP",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0xc6f6ec9911a49cdac58990b86ebf46fae9e6d29655e225ca389f265de999f7f0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x692e76c48e700458197b3ebb455754ba2828937c258e7aac54becf4d6188120c",
+    "payoutAddress": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x559dbaa6118632769a6102e77825a0dcf3893adb12dfa855ba73037bb305972c",
+    "maxGasForPeer": 0,
+    "minGasForPeer": 0,
+    "peerEid": 0,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "opMessenger": "0x0000000000000000000000000000000000000000",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": [],
+      "optional": [],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 2
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0xc0133a13b46654c934608b32612ac633424602a6c1a881481e7db875efa3199e",
+    "strategist": "0x04354e44ed31022716e77eC6320C04Eda153010c",
+    "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+    "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0xa17a1398e434d64c03289e9c3492a833e1cfc3af1bf114c459f6c62a98a0c05a",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}

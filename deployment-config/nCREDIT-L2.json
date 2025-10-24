@@ -1,0 +1,58 @@
+{
+    "base": "0x78adD880A697070c1e765Ac44D65323a0DcCE913",
+    "protocolAdmin": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0xd6382a159525a8b65de904a24319c13780d5638c2739d0469043246a37056888",
+      "boringVaultName": "Nest Credit Vault",
+      "boringVaultSymbol": "nCREDIT",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x4257c3dfde8acd18cffb8c8b5e649a47c3401b60e4568e95059a18f9f888b69e",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0x5eea8e4407898bb0eee0bfa416ac4f8d368606d7d2c42629b1b13b731b6e8c27",
+      "payoutAddress": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0xb3aaa54019341dd5048ea60f10bb93da2ba34a40501718f457b4df7aa02c7811",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 30101,
+      "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+      "assets": [
+        "0xdddD73F5Df1F0DC31373357beAC77545dC5A6f3F"
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+            "0x4208d6e27538189bb48e603d6123a94b8abe0a0b"
+        ],
+        "optional": [
+            "0x882a1ee8891c7d22310dedf032ef9653785532b8",
+            "0xdd7b5e1db4aafd5c8ec3b764efb8ed265aa5445b"
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 1
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x98a949fd2713a87a00eb7ee15884b38f84a34750d27ff5a4bbf242a2939b3741",
+      "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x0fa7093c07583a4097f8b5c383130bcf0651643fa79edd6aa2ea01308551a5c0",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+}
