@@ -19,6 +19,15 @@
 [submodule "lib/v3-periphery"]
 	path = lib/v3-periphery
 	url = https://github.com/Uniswap/v3-periphery
+[submodule "lib/v3-core"]
+	path = lib/v3-core
+	url = https://github.com/Uniswap/v3-core
 [submodule "lib/maverick"]
 	path = lib/maverick
 	url = https://github.com/maverickprotocol/maverick-v2-examples/tree/main/solidity
+[submodule "lib/predicate-contracts"]
+	path = lib/predicate-contracts
+	url = https://github.com/PredicateLabs/predicate-contracts
+[submodule "lib/aave-v3-core"]
+	path = lib/aave-v3-core
+	url = https://github.com/aave/aave-v3-core
