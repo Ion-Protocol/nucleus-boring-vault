@@ -1,0 +1,13 @@
+{
+    "name": "Hyperliquid",
+    "balancerVault": "0x0000000000000000000000000000000000000000",
+    "lzEndpoint": "0x0000000000000000000000000000000000000000",
+    "mailbox": "0x0000000000000000000000000000000000000000",
+    "assetToRateProviderAndPriceFeed": {
+      "0x5748ae796ae46a4f1348a1693de4b50560485562": {
+        "note": "LHYPE, rate provider is Accountant with base WHYPE",
+        "isPegged": false,
+        "rateProvider": "0xcE621a3CA6F72706678cFF0572ae8d15e5F001c3" 
+      }
+    }
+}
