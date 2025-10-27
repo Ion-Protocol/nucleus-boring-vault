@@ -12,9 +12,11 @@ contract ITBPositionDecoderAndSanitizer is
     CurveAndConvexDecoderAndSanitizer,
     GearboxDecoderAndSanitizer
 {
+
     constructor(address _boringVault) BoringDecoderAndSanitizer(_boringVault) { }
 
     function transfer(address _to, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_to);
     }
+
 }

@@ -14,6 +14,7 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexSwapperUManager is UManager {
+
     using FixedPointMathLib for uint256;
 
     // ========================================= STRUCTS =========================================
@@ -323,4 +324,5 @@ contract DexSwapperUManager is UManager {
             );
         }
     }
+
 }

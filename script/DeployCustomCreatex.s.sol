@@ -6,6 +6,7 @@ import { CreateX } from "lib/createx/src/CreateX.sol";
 import { Script, stdJson } from "@forge-std/Script.sol";
 
 contract DeployCustomCreateX is Script {
+
     address broadcaster;
     string internal mnemonic;
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
@@ -37,4 +38,5 @@ contract DeployCustomCreateX is Script {
         console.log(address(createx));
         require(address(createx) == EXPECTED, "address is not expected");
     }
+
 }

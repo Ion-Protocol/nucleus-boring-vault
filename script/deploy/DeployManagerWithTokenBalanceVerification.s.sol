@@ -7,6 +7,7 @@ import { stdJson } from "@forge-std/Script.sol";
 import { BaseScript } from "script/Base.s.sol";
 
 contract DeployManagerWithTokenBalanceVerification is BaseScript {
+
     address immutable EXPECTED;
 
     // Deployer protected:  0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f
@@ -30,4 +31,5 @@ contract DeployManagerWithTokenBalanceVerification is BaseScript {
         require(ManagerWithTokenBalanceVerification(simulator).owner() == multisig, "Not owner");
         console.log("Simulator deployed. Remember to grant MANAGE role for all vaults on this chain");
     }
+
 }

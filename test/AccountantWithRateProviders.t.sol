@@ -14,6 +14,7 @@ import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -168,12 +169,9 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             ,
             uint128 fees_owed,
             uint128 total_shares,
-            uint96 current_exchange_rate,
-            ,
-            ,
+            uint96 current_exchange_rate,,,
             uint64 last_update_timestamp,
-            bool is_paused,
-            ,
+            bool is_paused,,
         ) = accountant.accountantState();
         assertEq(fees_owed, 0, "Fees owed should be 0");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
@@ -435,12 +433,17 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }
 
 interface MantleLspStaking {
+
     function mETHToETH(uint256) external view returns (uint256);
+
 }
 
 interface PriceRouter {
+
     function getValue(address, uint256, address) external view returns (uint256);
+
 }

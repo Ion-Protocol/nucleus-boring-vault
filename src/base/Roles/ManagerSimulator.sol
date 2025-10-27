@@ -13,6 +13,7 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract ManagerSimulator {
+
     // CONSTANTS
     bytes4 SINGLE_MANAGE_SELECTOR = 0xf6e715d0;
 
@@ -149,9 +150,8 @@ contract ManagerSimulator {
         // Do each manage call and collect token balances after
         for (uint256 i; i < length;) {
             ManageCall memory call = manageCalls[i];
-            (bool success, bytes memory response) = address(boringVault).call(
-                abi.encodeWithSelector(SINGLE_MANAGE_SELECTOR, call.target, call.targetData, call.valueToSend)
-            );
+            (bool success, bytes memory response) = address(boringVault)
+                .call(abi.encodeWithSelector(SINGLE_MANAGE_SELECTOR, call.target, call.targetData, call.valueToSend));
 
             if (!success) {
                 revert ManagerSimulator__ManagementError(call.target, call.targetData, call.valueToSend, response);
@@ -175,9 +175,8 @@ contract ManagerSimulator {
         uint256 length = manageCalls.length;
         for (uint256 i; i < length;) {
             ManageCall memory call = manageCalls[i];
-            (bool success, bytes memory response) = address(boringVault).call(
-                abi.encodeWithSelector(SINGLE_MANAGE_SELECTOR, call.target, call.targetData, call.valueToSend)
-            );
+            (bool success, bytes memory response) = address(boringVault)
+                .call(abi.encodeWithSelector(SINGLE_MANAGE_SELECTOR, call.target, call.targetData, call.valueToSend));
 
             if (!success) {
                 revert ManagerSimulator__ManagementError(call.target, call.targetData, call.valueToSend, response);
@@ -188,4 +187,5 @@ contract ManagerSimulator {
             }
         }
     }
+
 }

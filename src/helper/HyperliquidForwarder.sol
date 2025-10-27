@@ -10,6 +10,7 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract HyperliquidForwarder is Auth {
+
     using SafeTransferLib for ERC20;
 
     address public constant WHYPE = 0x5555555555555555555555555555555555555555;
@@ -145,4 +146,5 @@ contract HyperliquidForwarder is Auth {
         token.safeTransferFrom(evmEOAToSendToAndForwardToL1, bridge, amount);
         emit HyperliquidForwarder__ForwardComplete(token, amount, evmEOAToSendToAndForwardToL1, msg.sender);
     }
+
 }

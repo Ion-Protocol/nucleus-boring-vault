@@ -8,6 +8,7 @@ import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployAccountantWithRateProviders is BaseScript {
+
     using StdJson for string;
 
     function run() public returns (address accountant) {
@@ -112,4 +113,5 @@ contract DeployAccountantWithRateProviders is BaseScript {
             require(accountant.decimals() == ERC20(config.base).decimals(), "decimals");
         }
     }
+
 }

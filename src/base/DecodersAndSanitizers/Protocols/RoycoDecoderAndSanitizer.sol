@@ -4,10 +4,13 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 interface IWeirollWallet {
+
     function owner() external view returns (address);
+
 }
 
 abstract contract RoycoDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error RoycoDecoderAndSanitizer__FundingVaultMustBeZeroAddress();
     error RoycoDecoderAndSanitizer__OwnerMustBeBoringVault();
 
@@ -23,7 +26,9 @@ abstract contract RoycoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         pure
         returns (bytes memory addressesFound)
     {
-        if (fundingVault != address(0)) revert RoycoDecoderAndSanitizer__FundingVaultMustBeZeroAddress();
+        if (fundingVault != address(0)) {
+            revert RoycoDecoderAndSanitizer__FundingVaultMustBeZeroAddress();
+        }
         addressesFound = abi.encodePacked(fundingVault, frontendFeeRecipient);
     }
 
@@ -52,4 +57,5 @@ abstract contract RoycoDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
         addressesFound = abi.encodePacked();
     }
+
 }

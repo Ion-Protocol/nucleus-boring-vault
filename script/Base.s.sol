@@ -10,6 +10,7 @@ import { Script, stdJson } from "@forge-std/Script.sol";
 import { ConfigReader, IAuthority } from "./ConfigReader.s.sol";
 
 abstract contract BaseScript is Script {
+
     using stdJson for string;
     using Strings for uint256;
 
@@ -113,4 +114,5 @@ abstract contract BaseScript is Script {
             revert("bad chain id");
         }
     }
+
 }

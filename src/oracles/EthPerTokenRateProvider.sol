@@ -13,6 +13,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract EthPerTokenRateProvider is IRateProvider {
+
     using SafeCast for int256;
 
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
@@ -123,4 +124,5 @@ contract EthPerTokenRateProvider is IRateProvider {
     function _isEqual(string memory a, bytes32 b) internal pure returns (bool) {
         return bytes32(bytes(a)) == b;
     }
+
 }

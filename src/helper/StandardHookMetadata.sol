@@ -23,6 +23,7 @@ pragma solidity >=0.8.0;
  * [86:] Custom metadata
  */
 library StandardHookMetadata {
+
     struct Metadata {
         uint16 variant;
         uint256 msgValue;
@@ -138,4 +139,5 @@ library StandardHookMetadata {
     function overrideRefundAddress(address _refundAddress) internal pure returns (bytes memory) {
         return formatMetadata(uint256(0), uint256(0), _refundAddress, "");
     }
+
 }

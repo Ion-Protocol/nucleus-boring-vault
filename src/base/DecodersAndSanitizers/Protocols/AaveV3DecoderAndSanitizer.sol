@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== AAVEV3 ===============================
 
     // @desc Supply to the Aave V3 protocol
@@ -91,4 +92,5 @@ abstract contract AaveV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize or return
         return addressesFound;
     }
+
 }

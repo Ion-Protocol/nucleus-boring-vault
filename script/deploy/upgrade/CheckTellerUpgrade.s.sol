@@ -8,6 +8,7 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 
 // forge script script/deploy/ --sig run(address, address) <oldTellerAddress> <newTellerAddress> --rpc-url <RPC_URL>
 contract CheckTellerUpgrade is BaseScript {
+
     function run(address oldTeller, address newTeller) public {
         require(oldTeller != address(0));
         require(newTeller != address(0));
@@ -62,7 +63,9 @@ contract CheckTellerUpgrade is BaseScript {
         // roles
         require(!authority.doesUserHaveRole(oldTeller, TELLER_ROLE), "oldTeller must not have the TELLER_ROLE");
         require(
-            !authority.doesRoleHaveCapability(SOLVER_ROLE, oldTeller, TellerWithMultiAssetSupport.bulkWithdraw.selector),
+            !authority.doesRoleHaveCapability(
+                SOLVER_ROLE, oldTeller, TellerWithMultiAssetSupport.bulkWithdraw.selector
+            ),
             "SOLVER_ROLE must not be able to call oldTeller's bulkWithdraw"
         );
 
@@ -108,4 +111,5 @@ contract CheckTellerUpgrade is BaseScript {
             "SOLVER_ROLE must be able to call newTeller's bulkWithdraw"
         );
     }
+
 }

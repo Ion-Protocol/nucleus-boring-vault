@@ -8,6 +8,7 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { console } from "forge-std/console.sol";
 
 contract DeployLHYPEFlashswapDeleverage is BaseScript {
+
     // LHYPE
     ManagerWithMerkleVerification public manager =
         ManagerWithMerkleVerification(0xe661393C409f7CAec8564bc49ED92C22A63e81d0);
@@ -24,4 +25,5 @@ contract DeployLHYPEFlashswapDeleverage is BaseScript {
         console.log("hyperlend: ", address(hlend));
         console.log("hypurrfi: ", address(hfi));
     }
+
 }

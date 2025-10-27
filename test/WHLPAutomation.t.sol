@@ -7,6 +7,7 @@ import { HLPAccount } from "src/whlp-automation/HLPAccount.sol";
 import { HLPController } from "src/whlp-automation/HLPController.sol";
 
 contract WHLPAutomation is Test {
+
     MockCoreWriter mockCoreWriter;
     HLPController controller;
 
@@ -91,4 +92,5 @@ contract WHLPAutomation is Test {
         forkId = vm.createFork(vm.envString(rpcKey));
         vm.selectFork(forkId);
     }
+
 }

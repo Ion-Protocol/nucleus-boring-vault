@@ -14,6 +14,7 @@ struct AssetValue {
 }
 
 abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     // @desc Deposit assets into the Aera Vault
     // @tag assets:bytes:packed bytes of every asset in each AssetValue[] input.
     function deposit(AssetValue[] memory amounts) external pure returns (bytes memory addressesFound) {
@@ -56,4 +57,5 @@ abstract contract AeraVaultDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function resume() external pure returns (bytes memory addressesFound) {
         // Nothing to decode
     }
+
 }

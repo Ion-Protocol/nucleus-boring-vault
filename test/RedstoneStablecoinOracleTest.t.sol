@@ -9,6 +9,7 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 import { RedstoneStablecoinRateProvider, IPriceFeed } from "src/oracles/RedstoneStablecoinRateProvider.sol";
 
 contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProvider;
     // April 7, 2025, lowest price on coingecko in the last 3 months
     uint256 internal constant BLOCK_NUMBER = 2_157_009;
@@ -40,9 +41,11 @@ contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
         );
         rateProvider.getRate();
     }
+
 }
 
 contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProvider;
     // March 28, 2025, lowest price on coingecko in the last 3 months
     uint256 internal constant BLOCK_NUMBER = 1_700_000;
@@ -74,9 +77,11 @@ contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
         );
         rateProvider.getRate();
     }
+
 }
 
 contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProviderUSDT;
     RedstoneStablecoinRateProvider rateProviderUSDe;
     // Jun 3, 2025, all are above 1
@@ -119,4 +124,5 @@ contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
         uint256 rate = rateProviderUSDe.getRate();
         assertEq(rate, 10 ** 18);
     }
+
 }

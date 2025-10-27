@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 interface EtherFiLiquid1 {
+
     struct AdaptorCall {
         address adaptor;
         bytes[] callData;
@@ -69,7 +70,13 @@ interface EtherFiLiquid1 {
 
     function DOMAIN_SEPARATOR() external view returns (bytes32);
     function addAdaptorToCatalogue(address adaptor) external;
-    function addPosition(uint32 index, uint32 positionId, bytes memory configurationData, bool inDebtArray) external;
+    function addPosition(
+        uint32 index,
+        uint32 positionId,
+        bytes memory configurationData,
+        bool inDebtArray
+    )
+        external;
     function addPositionToCatalogue(uint32 positionId) external;
     function allowance(address, address) external view returns (uint256);
     function alternativeAssetData(address)
@@ -81,7 +88,12 @@ interface EtherFiLiquid1 {
     function authority() external view returns (address);
     function balanceOf(address) external view returns (uint256);
     function blockExternalReceiver() external view returns (bool);
-    function cachePriceRouter(bool checkTotalAssets, uint16 allowableRange, address expectedPriceRouter) external;
+    function cachePriceRouter(
+        bool checkTotalAssets,
+        uint16 allowableRange,
+        address expectedPriceRouter
+    )
+        external;
     function callOnAdaptor(AdaptorCall[] memory data) external;
     function convertToAssets(uint256 shares) external view returns (uint256 assets);
     function convertToShares(uint256 assets) external view returns (uint256 shares);
@@ -134,7 +146,13 @@ interface EtherFiLiquid1 {
         external;
     function previewDeposit(uint256 assets) external view returns (uint256 shares);
     function previewMint(uint256 shares) external view returns (uint256 assets);
-    function previewMultiAssetDeposit(address depositAsset, uint256 assets) external view returns (uint256 shares);
+    function previewMultiAssetDeposit(
+        address depositAsset,
+        uint256 assets
+    )
+        external
+        view
+        returns (uint256 shares);
     function previewRedeem(uint256 shares) external view returns (uint256 assets);
     function previewWithdraw(uint256 assets) external view returns (uint256 shares);
     function priceRouter() external view returns (address);
@@ -174,4 +192,5 @@ interface EtherFiLiquid1 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transferOwnership(address newOwner) external;
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+
 }

@@ -2,8 +2,9 @@
 pragma solidity 0.8.21;
 
 import { AccountantWithRateProviders } from "./../../../src/base/Roles/AccountantWithRateProviders.sol";
-import { MultiChainHyperlaneTellerWithMultiAssetSupport } from
-    "./../../../src/base/Roles/CrossChain/MultiChainHyperlaneTellerWithMultiAssetSupport.sol";
+import {
+    MultiChainHyperlaneTellerWithMultiAssetSupport
+} from "./../../../src/base/Roles/CrossChain/MultiChainHyperlaneTellerWithMultiAssetSupport.sol";
 import { IMailbox } from "./../../../src/interfaces/hyperlane/IMailbox.sol";
 import { BaseScript } from "./../../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
@@ -11,6 +12,7 @@ import { ConfigReader } from "../../ConfigReader.s.sol";
 import { console2 } from "@forge-std/console2.sol";
 
 contract DeployMultiChainHyperlaneTeller is BaseScript {
+
     using StdJson for string;
 
     function run() public returns (address teller) {
@@ -51,4 +53,5 @@ contract DeployMultiChainHyperlaneTeller is BaseScript {
 
         return address(teller);
     }
+
 }

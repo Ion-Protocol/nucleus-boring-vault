@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract EigenpieDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error EigenpieDecoderAndSanitizer__CanOnlyReceiveAsTokens();
@@ -25,4 +29,5 @@ abstract contract EigenpieDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         return addressesFound;
     }
+
 }

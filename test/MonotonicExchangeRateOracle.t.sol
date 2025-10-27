@@ -8,6 +8,7 @@ import { MonotonicExchangeRateOracle } from "src/oracles/MonotonicExchangeRateOr
 import { OracleRelay } from "src/helper/OracleRelay.sol";
 
 contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
+
     AccountantWithRateProviders public accountantWeth;
     AccountantWithRateProviders public accountantUsdc;
 
@@ -91,4 +92,5 @@ contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey));
         vm.selectFork(forkId);
     }
+
 }

@@ -21,6 +21,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorWrapper is ReentrancyGuard {
+
     // Apply SafeTransferLib only to ERC20 (WETH inherits from ERC20)
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -355,4 +356,5 @@ contract DexAggregatorWrapper is ReentrancyGuard {
     }
 
     receive() external payable { }
+
 }

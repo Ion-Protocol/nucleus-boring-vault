@@ -13,6 +13,7 @@ import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthor
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -179,4 +180,5 @@ contract AccountantWithRateProvidersUsingDifferentDecimalTest is Test, MainnetAd
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }
