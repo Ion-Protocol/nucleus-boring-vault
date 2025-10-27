@@ -7,7 +7,11 @@
     "coverage": "./coverage.sh",
     "solhint": "solhint -w 0 'src/**/*.sol'",
     "slither": "slither src",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^2.3.25",
@@ -25,10 +29,11 @@
     "@layerzerolabs/lz-evm-oapp-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
+    "@prisma/client": "^5.20.0",
     "forge-std": "^1.1.2",
     "keccak256": "^1.0.6",
-    "pocketbase": "^0.25.2",
     "prettier": "^3.3.2",
+    "prisma": "^5.20.0",
     "solhint": "^5.0.1"
   }
 }

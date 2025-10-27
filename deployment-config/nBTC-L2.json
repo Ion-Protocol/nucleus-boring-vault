@@ -1,0 +1,57 @@
+{
+    "base": "0xfe6c47fe352103cab601c44769c7260b7eb3f81e",
+    "protocolAdmin": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+    "boringVaultAndBaseDecimals": "8",
+    "boringVault": {
+      "boringVaultSalt": "0x371775ff3a32b67b86c9f30a99a87a1b7df774a58df72da815b8abc27dc2974c",
+      "boringVaultName": "Nest Bitcoin Vault",
+      "boringVaultSymbol": "nBTC",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x37480cb2ed9b61bd3c9f8f9b75628853373a10cb76ffef1cd2abbeb50200b158",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0xf946889176b9cfa1a6f6914f9a4928ef0beb20ebda6e9ece652f5cb7ee9b26ce",
+      "payoutAddress": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0x516a6205c6eca84c379091daa189fa3150f688e40d7f02b9c39ab8a2672d0a90",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 30101,
+      "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+      "assets": [
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+            "0x4208d6e27538189bb48e603d6123a94b8abe0a0b"
+        ],
+        "optional": [
+            "0x882a1ee8891c7d22310dedf032ef9653785532b8",
+            "0xdd7b5e1db4aafd5c8ec3b764efb8ed265aa5445b"
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 1
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x30cb4bd8a5e310b5a0125bcfa9ac2d6c8048fffccd266bce226a9ede774294aa",
+      "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x0fa7093c07583a4097f8b5c383130bcf0651643fa79edd6aa2ea01308551a5c0",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+}
