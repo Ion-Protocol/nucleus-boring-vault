@@ -1,0 +1,51 @@
+{
+  "base": "0x6a6394F47DD0BAF794808F2749C09bd4Ee874E70",
+  "protocolAdmin": "0x0d7Dc701ff55a6A4CdeFf716E2436A2fD7EB7C16",
+  "boringVaultAndBaseDecimals": "6",
+  "boringVault": {
+    "boringVaultSalt": "0x35878620fded8a236fc6b460ffaafc6bb8fd296088f1fef032be3bea9da0bb2b",
+    "boringVaultName": "Zerion USD",
+    "boringVaultSymbol": "zUSD",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0xa92e0c2bf621e7bb59c87e8605ac8092b06969e4fa3e073fc91f6fea346c01ab",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x4d9812aff374bcb51677c55f2a9c85f41839842bb8e2c7c0a2ae07e75025d4ec",
+    "payoutAddress": "0x0d7Dc701ff55a6A4CdeFf716E2436A2fD7EB7C16",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x0ec7476afe2c37dde1c0fc09b48e57bc98377c70c695af3e6f7626b0edb9f3fd",
+    "maxGasForPeer": 200000,
+    "minGasForPeer": 0,
+    "peerEid": 1,
+    "tellerContractName": "MultiChainHyperlaneTellerWithMultiAssetSupport",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": [],
+      "optional": [],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 0
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x001b504494709ef228aa69f169605677252ac4bdb0cedcc997df8df72d028ca2",
+    "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+    "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+    "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x4ed55221bcbfb88cbdc39dd27024463e761e074e2b7056c2cc9dc5c39e4aff43",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}

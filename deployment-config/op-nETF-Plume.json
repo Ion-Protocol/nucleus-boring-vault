@@ -1,0 +1,56 @@
+{
+    "base": "0x78adD880A697070c1e765Ac44D65323a0DcCE913",
+    "protocolAdmin": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0x55347a03086c8f648b759cb05d3b1dcf6b27360ed413837fca6e9d8caf74d9ba",
+      "boringVaultName": "Nest ETF Optimizer",
+      "boringVaultSymbol": "op-nETF",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x19ed69a83ca2afc43b52445620f263c6048af58530d98864496cc1cc01e64ee1",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0x38040c7a963dd4d56fedf90612eccb5255d1f6fe5dc23bc0adc01d2b368c6c71",
+      "payoutAddress": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0x5029623512f220e4c38d91a7220c4f2360f416bde18de21410f281bd280f0a37",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 0,
+      "tellerContractName": "TellerWithMultiAssetSupport",
+      "assets": [
+        "0xdddd73f5df1f0dc31373357beac77545dc5a6f3f",
+        "0xdeA736937d464d288eC80138bcd1a2E109A200e3"
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+        ],
+        "optional": [
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 1
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x547c2fc0e02acb4b8aec1088448ea3fba79a520e3983883a7c78f74bfc1ea6bd",
+      "strategist": "0xCb8FA722B2a138faC6B6D60013025E2504b9B753",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0xe62d69f55728d65530b8fbb8361a74dc3447a21aa27a35ed71ae95edd637b278",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+}
