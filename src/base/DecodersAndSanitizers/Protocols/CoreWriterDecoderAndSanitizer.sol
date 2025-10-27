@@ -27,6 +27,14 @@ abstract contract CoreWriterDecoderAndSanitizer is BaseDecoderAndSanitizer {
             // Spot Send
             (address destination, uint64 token, uint64 _wei) = abi.decode(data[4:], (address, uint64, uint64));
             return abi.encodePacked(destination);
+        } else if (actionID == 0x0a) {
+            // Cancel Limit Order by OID
+            (uint32 asset, uint64 oid) = abi.decode(data[4:], (uint32, uint64));
+            return abi.encodePacked(asset);
+        } else if (actionID == 0x0b) {
+            // Cancel Limit Order by CLOID
+            (uint32 asset, uint128 cloid) = abi.decode(data[4:], (uint32, uint128));
+            return abi.encodePacked(asset);
         } else {
             revert CoreWriterDecoderAndSanitizer__InvalidActionID();
         }
