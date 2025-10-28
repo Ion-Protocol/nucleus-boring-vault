@@ -22,7 +22,7 @@ abstract contract RateProviderSimpleTest is Test {
     uint256 internal expectedMaxPrice;
 
     function setUp() public virtual {
-        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 22_498_822);
     }
 
     function test_GetRateExpectedPrice() public virtual {
