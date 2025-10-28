@@ -17,10 +17,13 @@ In order to run the tests make sure the following is done.
 1. Foundry is [installed](https://book.getfoundry.sh/getting-started/installation)
 2. Run `forge install`
 3. Run `bun install`
-4. Copy `.env.example` to `.env`. 
- - Populate the env variable required for tests.
+4. Copy `.env.example` to `.env`.
+
+- Populate the env variable required for tests.
+
 3. Run `forge test`
- - Ignore failing test on `LiveDeploy` as it is only used in the production deployment pipeline.
+
+- Ignore failing test on `LiveDeploy` as it is only used in the production deployment pipeline.
 
 # Boring Vault Architectures
 

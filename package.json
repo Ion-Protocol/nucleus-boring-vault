@@ -5,7 +5,7 @@
   "scripts": {
     "prettier": "prettier --write '**/*.{md,yml,yaml,ts,js}'",
     "coverage": "./coverage.sh",
-    "solhint": "solhint -w 0 'src/**/*.sol'",
+    "solhint": "solhint -wq 0 'src/**/*.sol'",
     "slither": "slither src",
     "prepare": "husky",
     "db:generate": "prisma generate",

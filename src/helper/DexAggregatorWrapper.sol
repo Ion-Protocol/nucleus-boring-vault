@@ -235,7 +235,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             // Use safeTransferFrom
             depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
-            // Approve agregator to take tokens from this contract
+            // Approve aggregator to take tokens from this contract
             depositAsset.safeApprove(address(aggregator), depositAmount);
         }
 
