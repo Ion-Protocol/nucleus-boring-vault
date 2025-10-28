@@ -8,7 +8,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IFeeModule } from "./interfaces/IFeeModule.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { console } from "@forge-std/Test.sol";
 
 /**
  * @title OneToOneQueue
@@ -16,6 +15,7 @@ import { console } from "@forge-std/Test.sol";
  * @dev Implements ERC721Enumerable for tokenized order receipts
  */
 contract OneToOneQueue is ERC721Enumerable, Auth {
+
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -27,13 +27,13 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on solve
         REFUND // Order marked for refund, return offer asset
-
     }
 
     /// @notice Represents a withdrawal order in the queue
     struct Order {
-        uint256 amount; // Amount of offer asset to exchange for the same amount of the want asset. NOTE: Decimals may
-            // differ among these assets, and on processing we convert the offer decimals to want decimals
+        uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
+            // minus fees.
+        uint128 amountWant; // Amount of want asset to give the user in want decimals. This is not inclusive of fees.
         ERC20 offerAsset; // Asset being offered
         ERC20 wantAsset; // Asset being requested
         address refundReceiver; // Address to receive refunds
@@ -92,7 +92,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     /// @notice Emitted when boring vault address is updated
     /// @param oldVault Previous boring vault address
     /// @param newVault New boring vault address
-    event BoringVaultUpdated(address indexed oldVault, address indexed newVault);
+    event OfferAssetRecipientUpdated(address indexed oldVault, address indexed newVault);
 
     // Order Events
     /// @notice Emitted when a new order is submitted
@@ -155,7 +155,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     address public feeModule;
 
     /// @notice Address of the boring vault
-    address public boringVault;
+    address public offerAssetRecipient;
 
     /// @notice recipient of queue fees
     address public feeRecipient;
@@ -168,24 +168,26 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @notice Initialize the contract
      * @param _name Name for the ERC721 receipt tokens
      * @param _symbol Symbol for the ERC721 receipt tokens
-     * @param _boringVault Address of the boring vault
+     * @param _offerAssetRecipient Address of the boring vault
      */
     constructor(
         string memory _name,
         string memory _symbol,
-        address _boringVault,
+        address _offerAssetRecipient,
+        address _feeRecipient,
         address _feeModule,
         address _owner
     )
         ERC721(_name, _symbol)
         Auth(_owner, Authority(address(0)))
     {
-        require(_boringVault != address(0), "Queue: boring vault is zero address");
-        require(_owner != address(0), "Queue: owner is zero address");
+        require(_offerAssetRecipient != address(0), "Queue: boring vault is zero address");
+        require(_feeRecipient != address(0), "Queue: fee recipient is zero address");
         require(_feeModule != address(0), "Queue: fee module is zero address");
+        require(_owner != address(0), "Queue: owner is zero address");
 
-        boringVault = _boringVault;
-        feeRecipient = _owner;
+        offerAssetRecipient = _offerAssetRecipient;
+        feeRecipient = _feeRecipient;
         feeModule = _feeModule;
     }
 
@@ -281,23 +283,22 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
     /**
      * @notice Update boring vault address
-     * @param _newVault Address of the new boring vault
+     * @param _newAddress Address of the new boring vault
      */
-    function updateBoringVault(address _newVault) external requiresAuth {
-        require(_newVault != address(0), "Queue: vault is zero address");
+    function updateOfferAssetRecipient(address _newAddress) external requiresAuth {
+        require(_newAddress != address(0), "Queue: vault is zero address");
 
-        address oldVault = boringVault;
-        boringVault = _newVault;
+        address oldVal = offerAssetRecipient;
+        offerAssetRecipient = _newAddress;
 
-        emit BoringVaultUpdated(oldVault, _newVault);
+        emit OfferAssetRecipientUpdated(oldVal, _newAddress);
     }
 
     /**
-     * @notice Mark an order for refund
-     * @dev This does not burn the NFT, as the order is not "filed" until it's processed
+     * @notice refund an order and force process it
      * @param orderIndex Index of the order to refund
      */
-    function refund(uint256 orderIndex) external requiresAuth {
+    function forceRefund(uint256 orderIndex) external requiresAuth {
         require(orderIndex > lastProcessedOrder, "Cannot mark processed orders for refund");
 
         Order storage order = queue[orderIndex];
@@ -306,21 +307,23 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         order.status = Status.REFUND;
 
         emit OrderMarkedForRefund(orderIndex, order);
+
+        forceProcess(orderIndex);
     }
 
     /**
      * @notice Force process an order out of sequence
      * @param orderIndex Index of the order to force process
      */
-    function forceProcess(uint256 orderIndex) external requiresAuth {
+    function forceProcess(uint256 orderIndex) public requiresAuth {
         require(orderIndex > lastProcessedOrder, "Cannot force process processed orders");
 
-        Order storage order = queue[orderIndex];
+        Order memory order = queue[orderIndex];
 
         // If order was previously marked for refund, fill it as a refund and change to PRE_FILLED
         if (order.status == Status.REFUND) {
-            order.status = Status.PRE_FILLED;
-            IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amount);
+            queue[orderIndex].status = Status.PRE_FILLED;
+            IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
             // TODO: EVENT here
             return;
         }
@@ -329,30 +332,14 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         require(order.status == Status.DEFAULT, "Queue: order not in default status");
 
         // Mark as pre-filled
-        order.status = Status.PRE_FILLED;
+        queue[orderIndex].status = Status.PRE_FILLED;
 
-        Order[] memory orderArray;
-        // set order as the processed version with want asset decimals
-        orderArray[0] = _modifyAmountFromOfferToWantDecimals(order);
-
-        IFeeModule.PostFeeProcessedOrder[] memory postFeeProcessedOrders;
-        IERC20[] memory feeAssets;
-        uint256[] memory feeAmounts;
-
-        require(feeAssets.length == 0 && feeAmounts.length == 0, "array length missmatch");
-
-        uint256[] memory orderIDs = new uint256[](1);
-        orderIDs[0] = orderIndex;
-        (postFeeProcessedOrders, feeAssets, feeAmounts) = IFeeModule(feeModule).calculateWantFees(orderArray, orderIDs);
-
-        postFeeProcessedOrders[0].asset.safeTransfer(
-            postFeeProcessedOrders[0].receiver, postFeeProcessedOrders[0].finalAmount
-        );
-        feeAssets[0].safeTransfer(feeRecipient, feeAmounts[0]);
+        address receiver = ownerOf(orderIndex);
+        IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
 
         _burn(orderIndex);
 
-        emit OrderForceProcessed(orderIndex, order, postFeeProcessedOrders[0].receiver);
+        emit OrderForceProcessed(orderIndex, order, receiver);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -360,7 +347,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     //////////////////////////////////////////////////////////////*/
 
     function submitOrder(
-        uint256 amount,
+        uint256 amountOffer,
         ERC20 offerAsset,
         ERC20 wantAsset,
         address receiver,
@@ -373,7 +360,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     {
         require(supportedOfferAssets[address(offerAsset)], "Queue: offer asset not supported");
         require(supportedWantAssets[address(wantAsset)], "Queue: want asset not supported");
-        require(amount >= minimumOrderSizePerAsset[address(offerAsset)], "Queue: amount below minimum");
+        require(amountOffer >= minimumOrderSizePerAsset[address(offerAsset)], "Queue: amount below minimum");
         require(receiver != address(0), "Queue: receiver is zero address");
         require(refundReceiver != address(0), "Queue: refund receiver is zero address");
         require(block.timestamp <= params.deadline, "Queue: signature expired");
@@ -381,7 +368,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         address depositor;
         if (params.submitWithSignature) {
             bytes32 hash = keccak256(
-                abi.encode(amount, offerAsset, wantAsset, receiver, refundReceiver, params.deadline, params.nonce)
+                abi.encode(amountOffer, offerAsset, wantAsset, receiver, refundReceiver, params.deadline, params.nonce)
             );
             require(!usedSignatureHashes[hash], "hash already used, re-sign with new nonce");
             usedSignatureHashes[hash] = true;
@@ -393,9 +380,16 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
         // Do nothing if using standard ERC20 approve
         if (params.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            ERC20(address(offerAsset)).permit(
-                depositor, address(this), amount, params.deadline, params.approvalV, params.approvalR, params.approvalS
-            );
+            ERC20(address(offerAsset))
+                .permit(
+                    depositor,
+                    address(this),
+                    amountOffer,
+                    params.deadline,
+                    params.approvalV,
+                    params.approvalR,
+                    params.approvalS
+                );
         }
 
         unchecked {
@@ -403,22 +397,22 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
 
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
-            IFeeModule(feeModule).calculateOfferFees(amount, offerAsset, wantAsset, receiver);
+            IFeeModule(feeModule).calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
 
-        IERC20(address(offerAsset)).safeTransferFrom(msg.sender, boringVault, newAmountForReceiver);
+        IERC20(address(offerAsset)).safeTransferFrom(msg.sender, offerAssetRecipient, newAmountForReceiver);
         feeAsset.safeTransferFrom(msg.sender, feeRecipient, feeAmount);
 
         // Create order
-        queue[orderIndex] = Order({
-            amount: newAmountForReceiver,
+        // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
+        Order memory order = Order({
+            amountOffer: uint128(amountOffer),
+            amountWant: _getWantAmountInWantDecimals(uint128(newAmountForReceiver), offerAsset, wantAsset),
             offerAsset: offerAsset,
             wantAsset: wantAsset,
             refundReceiver: refundReceiver,
             status: Status.DEFAULT
         });
-
-        console.log(newAmountForReceiver);
-        console.log(feeAmount);
+        queue[orderIndex] = order;
 
         // Mint NFT receipt to receiver
         _safeMint(receiver, orderIndex);
@@ -446,15 +440,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         // Ensure we don't go beyond existing orders
         require(endIndex <= latestOrder, "Queue: not enough orders to process");
 
-        // Build arrays of orders for fee module
-        // TODO: This needs to be "dynamic" since we don't know at creation time actually how many orders are valid and
-        // need to be processed... I kinda want to take a step back here on how we're going to handle this data
-        // structure. IE make it more.. Structured
-        Order[] memory ordersAmountsModifiedToWantAssetArray = new Order[](ordersToProcess);
-        // Must keep track of order ids to send to the fee module, as PRE_FILLED or REFUND orders can mess up ordering
-        uint256[] memory orderIDs = new uint256[](ordersToProcess);
-
-        uint256 validOrdersCount;
         for (uint256 i; i < ordersToProcess; ++i) {
             uint256 orderIndex = startIndex + i;
 
@@ -465,43 +450,31 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
                 continue;
             }
 
-            order = _modifyAmountFromOfferToWantDecimals(order);
-
             if (order.status == Status.REFUND) {
                 // handle refund now since no need to adjust decimals or apply fees and ignore
-                IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amount);
+                // TODO: Error type here should include the index
+                require(
+                    IERC20(address(order.offerAsset)).balanceOf(address(this)) >= order.amountOffer,
+                    "Queue: asset balance is less than order amount"
+                );
+                IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
                 _burn(orderIndex);
                 continue;
             }
 
-            ordersAmountsModifiedToWantAssetArray[validOrdersCount] = order;
-            orderIDs[validOrdersCount++] = orderIndex;
+            address receiver = ownerOf(orderIndex);
+            // TODO: Error type here should include the index
+            require(
+                IERC20(address(order.wantAsset)).balanceOf(address(this)) >= order.amountWant,
+                "Queue: asset balance is less than order amount"
+            );
+
+            IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
+            _burn(orderIndex);
+
             unchecked {
                 orderIndex = ++lastProcessedOrder;
             }
-        }
-
-        IFeeModule.PostFeeProcessedOrder[] memory postFeeProcessedOrders;
-        IERC20[] memory feeAssets;
-        uint256[] memory feeAmounts;
-
-        require(feeAssets.length == feeAmounts.length, "array length missmatch");
-
-        (postFeeProcessedOrders, feeAssets, feeAmounts) =
-            IFeeModule(feeModule).calculateWantFees(ordersAmountsModifiedToWantAssetArray, orderIDs);
-
-        // Process each order
-        for (uint256 i; i < postFeeProcessedOrders.length; ++i) {
-            postFeeProcessedOrders[i].asset.safeTransfer(
-                postFeeProcessedOrders[i].receiver, postFeeProcessedOrders[i].finalAmount
-            );
-            // burn NFTs after consulting fee module
-            _burn(orderIDs[i]);
-        }
-
-        // Sent sees to fee recipient
-        for (uint256 i; i < feeAssets.length; ++i) {
-            feeAssets[i].safeTransfer(feeRecipient, feeAmounts[i]);
         }
 
         emit OrdersProcessed(startIndex, endIndex);
@@ -509,7 +482,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
     /**
      * @notice Submit and immediately process an order if liquidity is available
-     * @param amount Amount of offer asset
+     * @param amountOffer Amount of offer asset
      * @param offerAsset Asset being offered
      * @param wantAsset Asset being requested
      * @param receiver Address to receive the NFT receipt and want asset
@@ -518,7 +491,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @return orderIndex The index of the created order
      */
     function submitOrderAndProcess(
-        uint256 amount,
+        uint256 amountOffer,
         ERC20 offerAsset,
         ERC20 wantAsset,
         address receiver,
@@ -529,7 +502,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         requiresAuth
         returns (uint256 orderIndex)
     {
-        orderIndex = submitOrder(amount, offerAsset, wantAsset, receiver, refundReceiver, params);
+        orderIndex = submitOrder(uint128(amountOffer), offerAsset, wantAsset, receiver, refundReceiver, params);
         processOrders(orderIndex - lastProcessedOrder);
     }
 
@@ -537,27 +510,29 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
                          INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Modifies an order's amount from want decimals to offer decimals
-     * @dev This is used to avoid storing another value in memory
-     * return modifiedOrder
-     */
-    function _modifyAmountFromOfferToWantDecimals(Order memory order) internal returns (Order memory modifiedOrder) {
-        modifiedOrder = order;
-        uint8 offerDecimals = order.offerAsset.decimals();
-        uint8 wantDecimals = order.wantAsset.decimals();
+    function _getWantAmountInWantDecimals(
+        uint128 amountOfferAfterFees,
+        ERC20 offerAsset,
+        ERC20 wantAsset
+    )
+        internal
+        view
+        returns (uint128 amountWant)
+    {
+        uint8 offerDecimals = offerAsset.decimals();
+        uint8 wantDecimals = wantAsset.decimals();
 
         if (offerDecimals == wantDecimals) {
-            return modifiedOrder;
+            return amountOfferAfterFees;
         }
 
         if (offerDecimals > wantDecimals) {
             uint8 difference = offerDecimals - wantDecimals;
-            modifiedOrder.amount = order.amount / 10 ** difference;
-            return modifiedOrder;
+            return amountOfferAfterFees / uint128(10 ** difference);
         }
 
         uint8 difference = wantDecimals - offerDecimals;
-        modifiedOrder.amount = order.amount * 10 ** difference;
+        return amountOfferAfterFees * uint128(10 ** difference);
     }
+
 }

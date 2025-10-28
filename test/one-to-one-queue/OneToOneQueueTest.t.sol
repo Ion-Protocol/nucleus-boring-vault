@@ -8,20 +8,23 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract tERC20 is ERC20 {
+
     constructor(uint8 decimals) ERC20("test name", "test", decimals) { }
+
 }
 
 /// TODO: test the gas of processing, how many can be processed? Should we remove fee module calls on process for
 /// simplicity
 contract OneToOneQueueTest is Test {
+
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
     QueueDeprecateableRolesAuthority rolesAuthority;
+
     ERC20 public USDC;
     ERC20 public USDG0;
     ERC20 public DAI;
 
-    uint256 TEST_WANT_FEE_PERCENTAGE = 0; // 0% fee
     uint256 TEST_OFFER_FEE_PERCENTAGE = 10; // 0.1% fee
 
     address mockBoringVaultAddress = makeAddr("boring vault");
@@ -46,8 +49,8 @@ contract OneToOneQueueTest is Test {
 
     function setUp() external {
         vm.startPrank(owner);
-        feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE, TEST_WANT_FEE_PERCENTAGE);
-        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, address(feeModule), owner);
+        feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
+        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, address(feeModule), owner);
         rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
 
         queue.setAuthority(rolesAuthority);
@@ -58,7 +61,6 @@ contract OneToOneQueueTest is Test {
 
         queue.addOfferAsset(address(USDC), 0);
         queue.addWantAsset(address(USDG0));
-        queue.setFeeRecipient(feeRecipient);
     }
 
     /**
@@ -246,26 +248,22 @@ contract OneToOneQueueTest is Test {
 
         // Refund the second order
         vm.startPrank(owner);
-        queue.refund(2);
+        queue.forceRefund(2);
 
         // assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 0, "User shouldn't get their refund until processed");
         // assertEq(USDG0.balanceOf(user1), 0, "USDG0 balance of user should be 0");
 
-        queue.processOrders(3);
         vm.stopPrank();
         assertEq(
             USDC.balanceOf(user1) - balanceUSDCBefore,
             2e6,
             "User should just have their 2 USDC balance back including fees paid: note this is excess in the queue in this test as the fee receiver receives this amount"
         );
-        assertEq(
-            USDG0.balanceOf(user1),
-            4e6 - (4e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
-            "User should only have the USDG0 of orders 1 and 3"
-        );
+        assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0");
     }
 
     function testPreFill() external { }
 
     function testFuzzOrders() external { }
+
 }

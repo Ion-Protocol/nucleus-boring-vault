@@ -11,31 +11,6 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
  * @dev Allows different fee implementations to be plugged into the Queue contract
  */
 interface IFeeModule {
-    struct PostFeeProcessedOrder {
-        uint256 finalAmount;
-        IERC20 asset;
-        address receiver;
-    }
-
-    /**
-     * @notice Calculate fees on want assets for a batch of orders being processed
-     * @param orders Array of orders being processed
-     * @param orderIDs, array of orderIDs, since they may not always be in order after filtering out pre-fills
-     * @return postFeeProcessedOrders object regarding how much of what should be sent where
-     * @return feeAssets array of addresses of assets to be taken in fees
-     * @return feeAmounts array of amounts of assets to be taken in fees
-     */
-    function calculateWantFees(
-        OneToOneQueue.Order[] calldata orders,
-        uint256[] calldata orderIDs
-    )
-        external
-        view
-        returns (
-            PostFeeProcessedOrder[] memory postFeeProcessedOrders,
-            IERC20[] memory feeAssets,
-            uint256[] memory feeAmounts
-        );
 
     /**
      * @notice calculate fees on offer assets for a single order being submitted
@@ -56,4 +31,5 @@ interface IFeeModule {
         external
         view
         returns (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount);
+
 }

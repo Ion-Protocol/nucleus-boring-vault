@@ -9,6 +9,7 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
  * @notice Abstract contract for managing roles, deprecation at the system level
  */
 abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
+
     REASON public pauseReason;
 
     function pause() external requiresAuth {
@@ -121,4 +122,5 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
      * @dev Override to implement step-specific logic
      */
     function _onDeprecationContinue(uint8 newStep) internal virtual { }
+
 }
