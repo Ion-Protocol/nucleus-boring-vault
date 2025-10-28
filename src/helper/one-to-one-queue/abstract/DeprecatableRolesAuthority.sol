@@ -38,6 +38,8 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
     }
 
     error DeprecatableRolesAuthority__paused(REASON reason, uint8 deprecationStepIfInDeprecation);
+    error DeprecationAlreadyBegun(uint8 currentStep);
+    error DeprecationNotBegun();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -74,7 +76,7 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
      * @dev Sets deprecation step from 0 to 1 and executes step-specific logic
      */
     function beginDeprecation() external virtual requiresAuth {
-        require(deprecationStep == 0, "Deprecatable: deprecation already begun");
+        if (deprecationStep != 0) revert DeprecationAlreadyBegun(deprecationStep);
 
         deprecationStep = 1;
         _onDeprecationBegin();
@@ -87,7 +89,7 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
      * @dev Advances from current non-zero step to step + 1
      */
     function continueDeprecation() external virtual requiresAuth whenNotPaused {
-        require(deprecationStep > 0, "Deprecatable: deprecation not begun");
+        if (deprecationStep == 0) revert DeprecationNotBegun();
 
         ++deprecationStep;
         _onDeprecationContinue(deprecationStep);

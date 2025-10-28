@@ -29,6 +29,19 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         REFUND // Order marked for refund, return offer asset
     }
 
+    /// @notice Custom errors for better gas efficiency
+    error ZeroAddress();
+    error AssetAlreadySupported(address asset);
+    error AssetNotSupported(address asset);
+    error OrderAlreadyProcessed(uint256 orderIndex);
+    error InvalidOrderStatus(uint256 orderIndex, Status currentStatus);
+    error AmountBelowMinimum(uint256 amount, uint256 minimum);
+    error SignatureExpired(uint256 deadline, uint256 currentTimestamp);
+    error SignatureHashAlreadyUsed(bytes32 hash);
+    error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
+    error InsufficientBalance(uint256 orderIndex, address asset, uint256 required, uint256 available);
+    error InvalidOrdersCount(uint256 ordersToProcess);
+
     /// @notice Represents a withdrawal order in the queue
     struct Order {
         uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
@@ -181,10 +194,10 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         ERC721(_name, _symbol)
         Auth(_owner, Authority(address(0)))
     {
-        require(_offerAssetRecipient != address(0), "Queue: boring vault is zero address");
-        require(_feeRecipient != address(0), "Queue: fee recipient is zero address");
-        require(_feeModule != address(0), "Queue: fee module is zero address");
-        require(_owner != address(0), "Queue: owner is zero address");
+        if (_offerAssetRecipient == address(0)) revert ZeroAddress();
+        if (_feeRecipient == address(0)) revert ZeroAddress();
+        if (_feeModule == address(0)) revert ZeroAddress();
+        if (_owner == address(0)) revert ZeroAddress();
 
         offerAssetRecipient = _offerAssetRecipient;
         feeRecipient = _feeRecipient;
@@ -221,8 +234,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _minimumOrderSize Minimum order size for this asset
      */
     function addOfferAsset(address _asset, uint256 _minimumOrderSize) external requiresAuth {
-        require(_asset != address(0), "Queue: asset is zero address");
-        require(!supportedOfferAssets[_asset], "Queue: asset already supported");
+        if (_asset == address(0)) revert ZeroAddress();
+        if (supportedOfferAssets[_asset]) revert AssetAlreadySupported(_asset);
 
         supportedOfferAssets[_asset] = true;
         minimumOrderSizePerAsset[_asset] = _minimumOrderSize;
@@ -236,7 +249,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _newMinimum for this asset to update to
      */
     function updateAssetMinimumOrderSize(address _asset, uint256 _newMinimum) external requiresAuth {
-        require(_asset != address(0), "Queue: asset is zero address");
+        if (!supportedOfferAssets[_asset]) revert AssetNotSupported(_asset);
 
         uint256 oldMinimum = minimumOrderSizePerAsset[_asset];
         minimumOrderSizePerAsset[_asset] = _newMinimum;
@@ -249,7 +262,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      */
 
     function removeOfferAsset(address _asset) external requiresAuth {
-        require(supportedOfferAssets[_asset], "Queue: asset not supported");
+        if (!supportedOfferAssets[_asset]) revert AssetNotSupported(_asset);
 
         supportedOfferAssets[_asset] = false;
 
@@ -261,8 +274,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _asset Address of the want asset to add
      */
     function addWantAsset(address _asset) external requiresAuth {
-        require(_asset != address(0), "Queue: asset is zero address");
-        require(!supportedWantAssets[_asset], "Queue: asset already supported");
+        if (_asset == address(0)) revert ZeroAddress();
+        if (supportedWantAssets[_asset]) revert AssetAlreadySupported(_asset);
 
         supportedWantAssets[_asset] = true;
 
@@ -274,7 +287,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _asset Address of the want asset to remove
      */
     function removeWantAsset(address _asset) external requiresAuth {
-        require(supportedWantAssets[_asset], "Queue: asset not supported");
+        if (!supportedWantAssets[_asset]) revert AssetNotSupported(_asset);
 
         supportedWantAssets[_asset] = false;
 
@@ -286,7 +299,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _newAddress Address of the new boring vault
      */
     function updateOfferAssetRecipient(address _newAddress) external requiresAuth {
-        require(_newAddress != address(0), "Queue: vault is zero address");
+        if (_newAddress == address(0)) revert ZeroAddress();
 
         address oldVal = offerAssetRecipient;
         offerAssetRecipient = _newAddress;
@@ -299,10 +312,10 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param orderIndex Index of the order to refund
      */
     function forceRefund(uint256 orderIndex) external requiresAuth {
-        require(orderIndex > lastProcessedOrder, "Cannot mark processed orders for refund");
+        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
 
         Order storage order = queue[orderIndex];
-        require(order.status == Status.DEFAULT, "Queue: order not in default status");
+        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
 
         order.status = Status.REFUND;
 
@@ -316,7 +329,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param orderIndex Index of the order to force process
      */
     function forceProcess(uint256 orderIndex) public requiresAuth {
-        require(orderIndex > lastProcessedOrder, "Cannot force process processed orders");
+        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
 
         Order memory order = queue[orderIndex];
 
@@ -329,7 +342,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
 
         // otherwise require order is set to DEFAULT status
-        require(order.status == Status.DEFAULT, "Queue: order not in default status");
+        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
 
         // Mark as pre-filled
         queue[orderIndex].status = Status.PRE_FILLED;
@@ -358,19 +371,20 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         requiresAuth
         returns (uint256 orderIndex)
     {
-        require(supportedOfferAssets[address(offerAsset)], "Queue: offer asset not supported");
-        require(supportedWantAssets[address(wantAsset)], "Queue: want asset not supported");
-        require(amountOffer >= minimumOrderSizePerAsset[address(offerAsset)], "Queue: amount below minimum");
-        require(receiver != address(0), "Queue: receiver is zero address");
-        require(refundReceiver != address(0), "Queue: refund receiver is zero address");
-        require(block.timestamp <= params.deadline, "Queue: signature expired");
+        if (!supportedOfferAssets[address(offerAsset)]) revert AssetNotSupported(address(offerAsset));
+        if (!supportedWantAssets[address(wantAsset)]) revert AssetNotSupported(address(wantAsset));
+        uint256 minimumOrderSize = minimumOrderSizePerAsset[address(offerAsset)];
+        if (amountOffer < minimumOrderSize) revert AmountBelowMinimum(amountOffer, minimumOrderSize);
+        if (receiver == address(0)) revert ZeroAddress();
+        if (refundReceiver == address(0)) revert ZeroAddress();
+        if (block.timestamp > params.deadline) revert SignatureExpired(params.deadline, block.timestamp);
 
         address depositor;
         if (params.submitWithSignature) {
             bytes32 hash = keccak256(
                 abi.encode(amountOffer, offerAsset, wantAsset, receiver, refundReceiver, params.deadline, params.nonce)
             );
-            require(!usedSignatureHashes[hash], "hash already used, re-sign with new nonce");
+            if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
             usedSignatureHashes[hash] = true;
 
             depositor = ECDSA.recover(hash, params.eip2612Signature);
@@ -428,7 +442,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      *      Requires sufficient want asset balance in contract
      */
     function processOrders(uint256 ordersToProcess) public requiresAuth {
-        require(ordersToProcess > 0, "Queue: must process at least one order");
+        if (ordersToProcess == 0) revert InvalidOrdersCount(ordersToProcess);
 
         uint256 startIndex;
         uint256 endIndex;
@@ -438,7 +452,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
 
         // Ensure we don't go beyond existing orders
-        require(endIndex <= latestOrder, "Queue: not enough orders to process");
+        if (endIndex > latestOrder) revert NotEnoughOrdersToProcess(ordersToProcess, latestOrder);
 
         for (uint256 i; i < ordersToProcess; ++i) {
             uint256 orderIndex = startIndex + i;
@@ -452,22 +466,20 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
             if (order.status == Status.REFUND) {
                 // handle refund now since no need to adjust decimals or apply fees and ignore
-                // TODO: Error type here should include the index
-                require(
-                    IERC20(address(order.offerAsset)).balanceOf(address(this)) >= order.amountOffer,
-                    "Queue: asset balance is less than order amount"
-                );
+                uint256 balance = IERC20(address(order.offerAsset)).balanceOf(address(this));
+                if (balance < order.amountOffer) {
+                    revert InsufficientBalance(orderIndex, address(order.offerAsset), order.amountOffer, balance);
+                }
                 IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
                 _burn(orderIndex);
                 continue;
             }
 
             address receiver = ownerOf(orderIndex);
-            // TODO: Error type here should include the index
-            require(
-                IERC20(address(order.wantAsset)).balanceOf(address(this)) >= order.amountWant,
-                "Queue: asset balance is less than order amount"
-            );
+            uint256 balance = IERC20(address(order.wantAsset)).balanceOf(address(this));
+            if (balance < order.amountWant) {
+                revert InsufficientBalance(orderIndex, address(order.wantAsset), order.amountWant, balance);
+            }
 
             IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
             _burn(orderIndex);
