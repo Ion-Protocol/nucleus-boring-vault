@@ -22,14 +22,14 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
                                  TYPES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Status of an order in the queue
+    // Status of an order in the queue
     enum Status {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on solve
         REFUND // Order marked for refund, return offer asset
     }
 
-    /// @notice Custom errors for better gas efficiency
+    // Custom errors for better gas efficiency
     error ZeroAddress();
     error AssetAlreadySupported(address asset);
     error AssetNotSupported(address asset);
@@ -42,7 +42,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     error InsufficientBalance(uint256 orderIndex, address asset, uint256 required, uint256 available);
     error InvalidOrdersCount(uint256 ordersToProcess);
 
-    /// @notice Represents a withdrawal order in the queue
+    // Represents a withdrawal order in the queue
     struct Order {
         uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
             // minus fees.
@@ -213,6 +213,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _feeModule Address of the new fee module
      */
     function setFeeModule(address _feeModule) external requiresAuth {
+        if (_feeModule == address(0)) revert ZeroAddress();
+
         address oldFeeModule = feeModule;
         feeModule = _feeModule;
         emit FeeModuleUpdated(oldFeeModule, _feeModule);
@@ -223,6 +225,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param _feeRecipient Address of the new fee module
      */
     function setFeeRecipient(address _feeRecipient) external requiresAuth {
+        if (_feeRecipient == address(0)) revert ZeroAddress();
+
         address oldFeeRecipient = feeRecipient;
         feeRecipient = _feeRecipient;
         emit FeeRecipientUpdated(oldFeeRecipient, _feeRecipient);
