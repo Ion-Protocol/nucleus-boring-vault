@@ -1,0 +1,51 @@
+{
+  "base": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "boringVaultAndBaseDecimals": "6",
+  "boringVault": {
+    "boringVaultSalt": "0x04354e44ed31022716e77ec6320c04eda153010c0003fa77e03fd8073c5717b7",
+    "boringVaultName": "Earn USDG",
+    "boringVaultSymbol": "earnUSDG",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x04354e44ed31022716e77ec6320c04eda153010c001b26b34259e0431d64ec38",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x04354e44ed31022716e77ec6320c04eda153010c00f7158d61fe182a2635f46f",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x04354e44ed31022716e77ec6320c04eda153010c00df94c9dc3a3a7e4059cad7",
+    "maxGasForPeer": 300000,
+    "minGasForPeer": 0,
+    "peerEid": 0,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": [],
+      "optional": [],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 1
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x04354e44ed31022716e77ec6320c04eda153010c002c9bbaedbaca933716c88e",
+    "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+    "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+    "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x04354e44ed31022716e77ec6320c04eda153010c001d1c5d9046a5290c432265",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}

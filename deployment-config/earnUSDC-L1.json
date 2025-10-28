@@ -1,0 +1,51 @@
+{
+  "base": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "boringVaultAndBaseDecimals": "6",
+  "boringVault": {
+    "boringVaultSalt": "0x04354e44ed31022716e77ec6320c04eda153010c00cd8d2bc405184340c9ef59",
+    "boringVaultName": "Earn USDC",
+    "boringVaultSymbol": "earnUSDC",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x04354e44ed31022716e77ec6320c04eda153010c00905af6d69e543f9abc0b79",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x04354e44ed31022716e77ec6320c04eda153010c009e9db66477a4e16d71be98",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x04354e44ed31022716e77ec6320c04eda153010c00441e0d2512e63653585bf8",
+    "maxGasForPeer": 300000,
+    "minGasForPeer": 0,
+    "peerEid": 0,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "assets": [],
+    "dvnIfNoDefault": {
+      "required": [],
+      "optional": [],
+      "blockConfirmationsRequiredIfNoDefault": 15,
+      "optionalThreshold": 1
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x04354e44ed31022716e77ec6320c04eda153010c00e426782d645d95c8d0da9d",
+    "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+    "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "pauser": "0x858d3eE2a16F7B6E43C8D87a5E1F595dE32f4419",
+    "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x04354e44ed31022716e77ec6320c04eda153010c00956eb4dec4d78071362a7f",
+    "address": "0x0000000000000000000000000000000000000000"
+  }
+}
