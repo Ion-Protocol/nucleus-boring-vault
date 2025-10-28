@@ -1,0 +1,57 @@
+{
+    "base": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0x00a96bfcb951515292b09d091c4b744da4de1ce87ce18002dc6230ccf39b962f",
+      "boringVaultName": "Eclipse Turbo USD",
+      "boringVaultSymbol": "tUSD",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0x7fa11d8ce46cd6a8443202403066b904664a9f75b7227e9b2c73386ce508880f",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0x508b33bca692f8275f2efc8435692b56f3f6719e867c2d9b8ec710ab2fd1f8c9",
+      "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0xb0d8450ccb2bbba9024ed4ae626464ba7da533544483f48a5a197b30126388e3",
+      "maxGasForPeer": 300000,
+      "minGasForPeer": 0,
+      "peerEid": 30110,
+      "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+      "assets": [
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+            "0x589dedbd617e0cbcb916a9223f4d1300c294236b"
+        ],
+        "optional": [
+            "0xa59ba433ac34d2927232918ef5b2eaafcf130ba5",
+            "0x8fafae7dd957044088b3d0f67359c327c6200d18"
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 1
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x05033f62a121287c15e25364d06b0805311cd8e740d86bc72bdeba089abf834a",
+      "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0x25d79940d78d0eed2a8b90b766f4bffff79498b5423e8d7180ce9c2ade5a2835",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+}

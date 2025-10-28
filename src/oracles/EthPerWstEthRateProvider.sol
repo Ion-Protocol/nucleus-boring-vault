@@ -13,6 +13,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract EthPerWstEthRateProvider is IRateProvider {
+
     using SafeCast for int256;
 
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
@@ -52,4 +53,5 @@ contract EthPerWstEthRateProvider is IRateProvider {
         uint256 ethPerStEth = _ethPerStEth.toUint256();
         ethPerWstEth = WST_ETH.getStETHByWstETH(ethPerStEth); // stEth per wstETH
     }
+
 }

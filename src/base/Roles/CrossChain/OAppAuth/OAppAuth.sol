@@ -21,6 +21,7 @@ import { OAppAuthSender } from "./OAppAuthSender.sol";
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuth is OAppAuthSender, OAppAuthReceiver {
+
     /**
      * @dev Constructor to initialize the OApp with the provided endpoint and owner.
      * @param _endpoint The address of the LOCAL LayerZero endpoint.
@@ -42,4 +43,5 @@ abstract contract OAppAuth is OAppAuthSender, OAppAuthReceiver {
     {
         return (SENDER_VERSION, RECEIVER_VERSION);
     }
+
 }

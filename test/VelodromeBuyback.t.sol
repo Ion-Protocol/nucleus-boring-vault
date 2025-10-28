@@ -33,6 +33,7 @@ import { LHYPEDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/LHYPEDe
 import { IVelodromeV1Router } from "src/interfaces/IVelodromeV1Router.sol";
 
 contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -253,4 +254,5 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }

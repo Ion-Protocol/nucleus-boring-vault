@@ -5,6 +5,7 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { CREATE3 } from "@solmate/utils/CREATE3.sol";
 
 contract Deployer is Auth {
+
     mapping(address => bool) public isDeployer;
 
     error Deployer__NotADeployer();
@@ -67,4 +68,5 @@ contract Deployer is Auth {
     function convertNameToBytes32(string calldata name) public pure returns (bytes32) {
         return keccak256(abi.encode(name));
     }
+
 }

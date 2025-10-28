@@ -5,6 +5,7 @@ import { CrossChainBaseTest, ERC20 } from "./CrossChainBase.t.sol";
 import "src/base/Roles/CrossChain/MultiChainTellerBase.sol";
 
 abstract contract MultiChainBaseTest is CrossChainBaseTest {
+
     function setUp() public virtual override {
         super.setUp();
     }
@@ -66,4 +67,5 @@ abstract contract MultiChainBaseTest is CrossChainBaseTest {
         vm.expectRevert(abi.encodeWithSelector(MultiChainTellerBase_GasTooLow.selector));
         sourceTeller.bridge(1e18, data);
     }
+
 }

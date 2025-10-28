@@ -6,6 +6,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 contract ArcticArchitectureLens {
+
     using FixedPointMathLib for uint256;
 
     /**
@@ -153,7 +154,14 @@ contract ArcticArchitectureLens {
      * @param teller The TellerWithMultiAssetSupport contract.
      * @return time The unlock time for the user's shares.
      */
-    function userUnlockTime(address account, TellerWithMultiAssetSupport teller) external view returns (uint256 time) {
+    function userUnlockTime(
+        address account,
+        TellerWithMultiAssetSupport teller
+    )
+        external
+        view
+        returns (uint256 time)
+    {
         time = teller.shareUnlockTime(account);
     }
 
@@ -163,4 +171,5 @@ contract ArcticArchitectureLens {
     function isTellerPaused(TellerWithMultiAssetSupport teller) external view returns (bool) {
         return teller.isPaused();
     }
+
 }

@@ -8,6 +8,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  * @custom:security-contact security@molecularlabs.io
  */
 contract MonotonicExchangeRateOracle is Auth {
+
     AccountantWithRateProviders public accountant;
     uint8 public immutable accountantDecimals;
 
@@ -91,4 +92,5 @@ contract MonotonicExchangeRateOracle is Auth {
             return _rate / 10 ** diff;
         }
     }
+
 }

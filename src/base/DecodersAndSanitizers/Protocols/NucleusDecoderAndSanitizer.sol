@@ -7,6 +7,7 @@ import { BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error NucleusDecoderAndSanitizer__ExitFunctionForInternalBurnUseOnly();
 
     // @desc deposit into nucleus via the teller
@@ -147,4 +148,5 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         // Nothing to decode
     }
+
 }

@@ -1,0 +1,58 @@
+{
+    "base": "0x78adD880A697070c1e765Ac44D65323a0DcCE913",
+    "protocolAdmin": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+    "boringVaultAndBaseDecimals": "6",
+    "boringVault": {
+      "boringVaultSalt": "0x723e5711ac7d2a1679ee2ab0cde424e20b9585557fa06279a462e97bbdd8105f",
+      "boringVaultName": "Nest Institutional Vault",
+      "boringVaultSymbol": "nINSTO",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "manager": {
+      "managerSalt": "0xad7553a992dcbfc78f661550b217a690bf52ab52734668fdf7218a5d9ea8ab23",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "accountant": {
+      "accountantSalt": "0xe4ca3b274003b0182e4512db8a933a41c20849b24485cce63b52b6e25436fe52",
+      "payoutAddress": "0x823873F5E05564a2F8374c56053ac65E3Add061b",
+      "allowedExchangeRateChangeUpper": "10003",
+      "allowedExchangeRateChangeLower": "10000",
+      "minimumUpdateDelayInSeconds": "3600",
+      "managementFee": "0",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "teller": {
+      "tellerSalt": "0x6545c0d7bcb6035b2371d09fd23c29f0328219efbeac40b4cfbed2368d1d17b4",
+      "maxGasForPeer": 100000,
+      "minGasForPeer": 0,
+      "peerEid": 30101,
+      "tellerContractName": "MultiChainLayerZeroTellerWithMultiAssetSupport",
+      "assets": [
+        "0xdddD73F5Df1F0DC31373357beAC77545dC5A6f3F"
+      ],
+      "dvnIfNoDefault": {
+        "required": [
+            "0x4208d6e27538189bb48e603d6123a94b8abe0a0b"
+        ],
+        "optional": [
+            "0x882a1ee8891c7d22310dedf032ef9653785532b8",
+            "0xdd7b5e1db4aafd5c8ec3b764efb8ed265aa5445b"
+        ],
+        "blockConfirmationsRequiredIfNoDefault": 15,
+        "optionalThreshold": 1
+      },
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "rolesAuthority": {
+      "rolesAuthoritySalt": "0x9d2c45aaa4e2c885ffa15384ce93156147863c59f2b3e3d23074fdfa526a404a",
+      "strategist": "0xE08fbEAf818cd8C954AD99C7Ee390a1eecf481F8",
+      "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+      "pauser": "0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E",
+      "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "decoder": {
+      "decoderSalt": "0xc937c4d671b8556e11fc75abdcf9cd0dd6632498aa73f4c08783b4f176a8595b",
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+}

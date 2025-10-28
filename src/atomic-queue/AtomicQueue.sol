@@ -22,6 +22,7 @@ import { IAtomicSolver } from "./IAtomicSolver.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract AtomicQueue is ReentrancyGuard {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -111,7 +112,15 @@ contract AtomicQueue is ReentrancyGuard {
      * @param offer the ERC0 token they want to exchange for the want
      * @param want the ERC20 token they want in exchange for the offer
      */
-    function getUserAtomicRequest(address user, ERC20 offer, ERC20 want) external view returns (AtomicRequest memory) {
+    function getUserAtomicRequest(
+        address user,
+        ERC20 offer,
+        ERC20 want
+    )
+        external
+        view
+        returns (AtomicRequest memory)
+    {
         return userAtomicRequest[user][offer][want];
     }
 
@@ -159,7 +168,14 @@ contract AtomicQueue is ReentrancyGuard {
      * @param want the ERC20 token the user wants in exchange for offer
      * @param userRequest the users request
      */
-    function updateAtomicRequest(ERC20 offer, ERC20 want, AtomicRequest calldata userRequest) external nonReentrant {
+    function updateAtomicRequest(
+        ERC20 offer,
+        ERC20 want,
+        AtomicRequest calldata userRequest
+    )
+        external
+        nonReentrant
+    {
         AtomicRequest storage request = userAtomicRequest[msg.sender][offer][want];
 
         request.deadline = userRequest.deadline;
@@ -326,4 +342,5 @@ contract AtomicQueue is ReentrancyGuard {
     {
         return atomicPrice.mulDivDown(offerAmount, 10 ** offerDecimals);
     }
+
 }

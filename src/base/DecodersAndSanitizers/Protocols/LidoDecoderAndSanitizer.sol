@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== LIDO ===============================
 
     function submit(address referral) external pure virtual returns (bytes memory addressesFound) {
@@ -71,4 +72,5 @@ abstract contract LidoDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encodePacked(l1Token_, l2Token_, to_);
     }
+
 }

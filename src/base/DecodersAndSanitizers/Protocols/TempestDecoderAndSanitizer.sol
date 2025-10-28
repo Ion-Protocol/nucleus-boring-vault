@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error TempestDecoderAndSanitizer__CheckSlippageRequired();
 
     // @desc function to deposit into Tempest, will revert if checkSlippage is false
@@ -115,4 +116,5 @@ abstract contract TempestDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encodePacked(receiver);
     }
+
 }

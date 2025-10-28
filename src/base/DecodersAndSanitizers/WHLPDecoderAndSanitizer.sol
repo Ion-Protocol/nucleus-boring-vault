@@ -5,27 +5,37 @@ import {
     PendleRouterDecoderAndSanitizer,
     BaseDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
-import { UniswapV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/UniswapV3DecoderAndSanitizer.sol";
+import {
+    UniswapV3DecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/UniswapV3DecoderAndSanitizer.sol";
 import { OneInchDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/OneInchDecoderAndSanitizer.sol";
 import { CurveDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CurveDecoderAndSanitizer.sol";
-import { NativeWrapperDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/NativeWrapperDecoderAndSanitizer.sol";
+import {
+    NativeWrapperDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/NativeWrapperDecoderAndSanitizer.sol";
 import { ERC4626DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/ERC4626DecoderAndSanitizer.sol";
 import { EigenpieDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EigenpieDecoderAndSanitizer.sol";
 import { PirexEthDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PirexEthDecoderAndSanitizer.sol";
-import { ThunderheadDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/ThunderheadDecoderAndSanitizer.sol";
+import {
+    ThunderheadDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/ThunderheadDecoderAndSanitizer.sol";
 import { AaveV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/AaveV3DecoderAndSanitizer.sol";
-import { VelodromeV1DecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
-import { FlashHypeDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FlashHypeDecoderAndSanitizer.sol";
-import { CoreWriterDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
+import {
+    VelodromeV1DecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/VelodromeV1DecoderAndSanitizer.sol";
+import {
+    FlashHypeDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/FlashHypeDecoderAndSanitizer.sol";
+import {
+    CoreWriterDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
 import { FraxLendDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/FraxLendDecoderAndSanitizer.sol";
-import { VelodromeBuybackDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
-import { HyperliquidForwarderDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/HyperliquidForwarderDecoderAndSanitizer.sol";
+import {
+    VelodromeBuybackDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/VelodromeBuybackDecoderAndSanitizer.sol";
+import {
+    HyperliquidForwarderDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/HyperliquidForwarderDecoderAndSanitizer.sol";
 import { PumpBTCDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/PumpBTCDecoderAndSanitizer.sol";
 import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
@@ -49,6 +59,7 @@ contract WHLPDecoderAndSanitizer is
     HyperliquidForwarderDecoderAndSanitizer,
     PumpBTCDecoderAndSanitizer
 {
+
     constructor(
         address _boringVault,
         address _uniswapV3NonFungiblePositionManager
@@ -90,4 +101,5 @@ contract WHLPDecoderAndSanitizer is
     function deposit(address, uint64) external view virtual returns (bytes memory addressesfound) { }
 
     function deployAccounts(uint256) external view virtual returns (bytes memory addressesfound) { }
+
 }

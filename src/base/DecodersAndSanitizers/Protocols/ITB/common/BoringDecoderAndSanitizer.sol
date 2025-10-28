@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 contract BoringDecoderAndSanitizer {
+
     //============================== IMMUTABLES ===============================
 
     /**
@@ -16,4 +17,5 @@ contract BoringDecoderAndSanitizer {
     function approve(address spender, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(spender);
     }
+
 }

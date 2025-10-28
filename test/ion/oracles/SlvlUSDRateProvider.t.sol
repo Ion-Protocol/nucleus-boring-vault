@@ -7,19 +7,22 @@ import { LvlUSDRateProvider } from "src/oracles/LvlUSDRateProvider.sol";
 import { Test } from "@forge-std/Test.sol";
 
 interface AggregatorV3Interface {
+
     function decimals() external view returns (uint8);
     function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80);
     function latestAnswer() external view returns (int256);
+
 }
 
 abstract contract RateProviderSimpleTest is Test {
+
     IRateProvider internal rateProvider;
 
     uint256 internal expectedMinPrice;
     uint256 internal expectedMaxPrice;
 
     function setUp() public virtual {
-        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 22_498_822);
     }
 
     function test_GetRateExpectedPrice() public virtual {
@@ -28,9 +31,11 @@ abstract contract RateProviderSimpleTest is Test {
         assertGe(rate, expectedMinPrice, "min price");
         assertLe(rate, expectedMaxPrice, "max price");
     }
+
 }
 
 contract LvlUSDRateProviderTest is RateProviderSimpleTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -53,9 +58,11 @@ contract LvlUSDRateProviderTest is RateProviderSimpleTest {
             assertEq(rate, 1e18, "if USDC is equal to or under peg, rate must be 1");
         }
     }
+
 }
 
 contract SlvlUSDRateProviderTest is RateProviderSimpleTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -64,4 +71,5 @@ contract SlvlUSDRateProviderTest is RateProviderSimpleTest {
         expectedMinPrice = 1e18;
         expectedMaxPrice = 1.1e18;
     }
+
 }

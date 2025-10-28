@@ -7,6 +7,7 @@ import { BaseScript } from "../Base.s.sol";
 import "@forge-std/Script.sol";
 
 contract DeployPauser is BaseScript {
+
     // State variables for deployed contracts
     Pauser internal pauser;
 
@@ -27,4 +28,5 @@ contract DeployPauser is BaseScript {
         require(pauser.isApprovedPauser(approvedPausers[1]));
         console.log(address(pauser));
     }
+
 }

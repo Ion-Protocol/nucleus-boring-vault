@@ -7,6 +7,7 @@ import { stdJson } from "@forge-std/Script.sol";
 import { BaseScript } from "script/Base.s.sol";
 
 contract DeployManagerSimulator is BaseScript {
+
     // Deployer protected:  0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f
     bytes32 constant SALT = 0xe73b8960335581747836c0133959a00ff523cbf8ab66f509f0a7e31c2147cafe;
 
@@ -20,4 +21,5 @@ contract DeployManagerSimulator is BaseScript {
         console.log(simulator);
         console.log("Simulator deployed. Remember to grant MANAGE role for all vaults on this chain");
     }
+
 }

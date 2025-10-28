@@ -7,6 +7,7 @@ import { SWBTC } from "./../../../src/helper/Constants.sol";
 import "forge-std/Test.sol";
 
 abstract contract GenericRateProviderTest is Test {
+
     GenericRateProvider rateProvider;
     address target;
     bytes4 selector;
@@ -41,9 +42,11 @@ abstract contract GenericRateProviderTest is Test {
     function _expectedRateMinMax() public virtual returns (uint256, uint256);
 
     function _getRpcUrl() public pure virtual returns (string memory);
+
 }
 
 contract SwBtcRateProviderTest is GenericRateProviderTest {
+
     function _initialize() public override {
         target = SWBTC;
         selector = bytes4(keccak256("pricePerShare()"));
@@ -61,4 +64,5 @@ contract SwBtcRateProviderTest is GenericRateProviderTest {
     function _getRpcUrl() public pure override returns (string memory) {
         return "MAINNET_RPC_URL";
     }
+
 }

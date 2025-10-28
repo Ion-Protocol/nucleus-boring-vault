@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract NativeWrapperDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ETHERFI ===============================
 
     // @desc deposit native token for wrapped token
@@ -17,4 +18,5 @@ abstract contract NativeWrapperDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Nothing to sanitize or return
         return addressesFound;
     }
+
 }

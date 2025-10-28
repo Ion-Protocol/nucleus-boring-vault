@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 enum OrderType {
     MINT,
@@ -18,6 +21,7 @@ struct Order {
 }
 
 abstract contract LevelDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error LevelDecoderAndSanitizer__BoringVaultOnly();
@@ -58,4 +62,5 @@ abstract contract LevelDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function completeRedeem(address token) external pure returns (bytes memory addressesFound) {
         return addressesFound;
     }
+
 }

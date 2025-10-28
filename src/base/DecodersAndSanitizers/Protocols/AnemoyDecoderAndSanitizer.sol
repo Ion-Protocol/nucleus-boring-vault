@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract AnemoyDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error AnemoyDecoderAndSanitizer__MustBeBoringVault();
 
     // @desc Request a deposit into the Anemoy Vault, will revert if controller or owner is not the boring vault
@@ -70,4 +71,5 @@ abstract contract AnemoyDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
         // nothing to sanitize
     }
+
 }

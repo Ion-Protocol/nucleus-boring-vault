@@ -16,6 +16,7 @@ import "./../../../src/helper/Constants.sol";
  * NOTE Deploys with `Authority` set to zero bytes.
  */
 contract DeployRolesAuthority is BaseScript {
+
     using StdJson for string;
 
     function run() public virtual returns (address rolesAuthority) {
@@ -38,11 +39,15 @@ contract DeployRolesAuthority is BaseScript {
     //     - accountant.updateExchangeRate()
     //     - assigned to EXCHHANGE_RATE_BOT & OWNER
     // 5. SOLVER_ROLE
-    //     - Not yet a part of this script
+    //     - teller.bulkWithdraw()
+    //     - assigned to SOLVER CONTRACT
     // 6. PAUSER_ROLE
     //     - teller.pause()
     //     - accountant.pause()
     //     - manager.pause()
+    // 7. DEPOSITOR_ROLE
+    //     - teller.deposit()
+    //     - teller.depositAndBridge()
     // --- Public Functions ---
     // 1. teller.deposit()
     // 2. teller.bridge()
@@ -107,6 +112,10 @@ contract DeployRolesAuthority is BaseScript {
             UPDATE_EXCHANGE_RATE_ROLE, config.accountant, AccountantWithRateProviders.updateExchangeRate.selector, true
         );
 
+        rolesAuthority.setRoleCapability(
+            SOLVER_ROLE, config.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+        );
+
         rolesAuthority.setRoleCapability(PAUSER_ROLE, config.teller, TellerWithMultiAssetSupport.pause.selector, true);
         rolesAuthority.setRoleCapability(
             PAUSER_ROLE, config.accountant, AccountantWithRateProviders.pause.selector, true
@@ -131,6 +140,10 @@ contract DeployRolesAuthority is BaseScript {
         rolesAuthority.setUserRole(config.protocolAdmin, UPDATE_EXCHANGE_RATE_ROLE, true);
         if (config.exchangeRateBot != address(0)) {
             rolesAuthority.setUserRole(config.exchangeRateBot, UPDATE_EXCHANGE_RATE_ROLE, true);
+        }
+
+        if (config.solver != address(0)) {
+            rolesAuthority.setUserRole(config.solver, SOLVER_ROLE, true);
         }
 
         rolesAuthority.setUserRole(config.protocolAdmin, PAUSER_ROLE, true);
@@ -244,4 +257,5 @@ contract DeployRolesAuthority is BaseScript {
             "pauser should be able to call manager.pause"
         );
     }
+
 }

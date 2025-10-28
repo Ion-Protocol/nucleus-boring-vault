@@ -12,6 +12,7 @@ import { IOAppCore, ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-oapp-v2/c
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthCore is IOAppCore, Auth {
+
     // The LayerZero endpoint associated with the given OApp
     ILayerZeroEndpointV2 public immutable endpoint;
 
@@ -87,4 +88,5 @@ abstract contract OAppAuthCore is IOAppCore, Auth {
     function setDelegate(address _delegate) public requiresAuth {
         endpoint.setDelegate(_delegate);
     }
+
 }

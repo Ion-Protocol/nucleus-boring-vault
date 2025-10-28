@@ -9,9 +9,10 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 import { RedstoneStablecoinRateProvider, IPriceFeed } from "src/oracles/RedstoneStablecoinRateProvider.sol";
 
 contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProvider;
-    // April 7, 2025, lowest price on coingecko in the last 3 months
-    uint256 internal constant BLOCK_NUMBER = 2_157_009;
+    // 4/29/2025, 7:51:00 PM | there's no date since contract creation to test the lower bound
+    uint256 internal constant BLOCK_NUMBER = 3_161_820;
 
     function setUp() external {
         _startFork("HL_RPC_URL", BLOCK_NUMBER);
@@ -33,19 +34,17 @@ contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
 
     function testGetRateUSDT() external {
         uint256 expectedRate = 999_400;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RedstoneStablecoinRateProvider.BoundsViolated.selector, expectedRate, rateProvider.lowerBound()
-            )
-        );
-        rateProvider.getRate();
+        uint256 rate = rateProvider.getRate();
+        assertGt(rate, rateProvider.lowerBound());
     }
+
 }
 
 contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProvider;
-    // March 28, 2025, lowest price on coingecko in the last 3 months
-    uint256 internal constant BLOCK_NUMBER = 1_700_000;
+    // 4/28/2025, 12:00:00 AM | A date when USDe is depegged and rate tests lower bound
+    uint256 internal constant BLOCK_NUMBER = 3_080_259;
 
     function setUp() external {
         _startFork("HL_RPC_URL", BLOCK_NUMBER);
@@ -66,7 +65,7 @@ contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
     }
 
     function testGetRateUSDe() external {
-        uint256 expectedRate = 998_731_875_063_157_990;
+        uint256 expectedRate = 999_380_551_276_162_675;
         vm.expectRevert(
             abi.encodeWithSelector(
                 RedstoneStablecoinRateProvider.BoundsViolated.selector, expectedRate, rateProvider.lowerBound()
@@ -74,9 +73,11 @@ contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
         );
         rateProvider.getRate();
     }
+
 }
 
 contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProviderUSDT;
     RedstoneStablecoinRateProvider rateProviderUSDe;
     // Jun 3, 2025, all are above 1
@@ -119,4 +120,5 @@ contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
         uint256 rate = rateProviderUSDe.getRate();
         assertEq(rate, 10 ** 18);
     }
+
 }

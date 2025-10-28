@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 contract MainnetAddresses {
+
     // Liquid Ecosystem
     address public deployerAddress = 0x5F2F11ad8656439d5C14d9B351f8b09cDaC2A02d;
     address public dev0Address = 0x0463E60C7cE10e57911AB7bD1667eaa21de3e79b;
@@ -497,4 +498,5 @@ contract MainnetAddresses {
 
     // Mantle
     address public mantleLspStaking = 0xe3cBd06D7dadB3F4e6557bAb7EdD924CD1489E8f;
+
 }

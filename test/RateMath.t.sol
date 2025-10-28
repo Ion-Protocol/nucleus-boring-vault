@@ -6,6 +6,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract RateMath is Test {
+
     using FixedPointMathLib for uint256;
 
     uint256 constant ACCEPTED_DELTA_PERCENT_OUT_OF_FAVOR = 0.000015e18;
@@ -281,7 +282,15 @@ contract RateMath is Test {
         rateInQuote = oneQuote.mulDivDown((exchangeRateInQuoteDecimals), quoteRate);
     }
 
-    function changeDecimals(uint256 amount, uint256 fromDecimals, uint256 toDecimals) internal pure returns (uint256) {
+    function changeDecimals(
+        uint256 amount,
+        uint256 fromDecimals,
+        uint256 toDecimals
+    )
+        internal
+        pure
+        returns (uint256)
+    {
         if (fromDecimals == toDecimals) {
             return amount;
         } else if (fromDecimals < toDecimals) {
@@ -295,4 +304,5 @@ contract RateMath is Test {
     function e(uint256 decimals) internal pure returns (uint256) {
         return (10 ** decimals);
     }
+
 }
