@@ -11,6 +11,7 @@ import { console2 } from "forge-std/console2.sol";
 
 /// NOTE This script must change based on the supported assets of each vault deployment.
 contract DeployRateProviders is BaseScript {
+
     using StdJson for string;
     using Strings for address;
 
@@ -171,4 +172,5 @@ contract DeployRateProviders is BaseScript {
 
         return address(rateProvider);
     }
+
 }

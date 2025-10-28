@@ -9,6 +9,7 @@ import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployTellerWithMultiAssetSupport is BaseScript, MainnetAddresses {
+
     using StdJson for string;
 
     function run() public returns (address) {
@@ -42,4 +43,5 @@ contract DeployTellerWithMultiAssetSupport is BaseScript, MainnetAddresses {
 
         return address(teller);
     }
+
 }

@@ -9,6 +9,7 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 import { RedstoneStablecoinRateProvider, IPriceFeed } from "src/oracles/RedstoneStablecoinRateProvider.sol";
 
 contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProvider;
     // 4/29/2025, 7:51:00 PM | there's no date since contract creation to test the lower bound
     uint256 internal constant BLOCK_NUMBER = 3_161_820;
@@ -36,9 +37,11 @@ contract RedstoneStablecoinOracleTestUSDT is Test, MainnetAddresses {
         uint256 rate = rateProvider.getRate();
         assertGt(rate, rateProvider.lowerBound());
     }
+
 }
 
 contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProvider;
     // 4/28/2025, 12:00:00 AM | A date when USDe is depegged and rate tests lower bound
     uint256 internal constant BLOCK_NUMBER = 3_080_259;
@@ -70,9 +73,11 @@ contract RedstoneStablecoinOracleTestUSDe is Test, MainnetAddresses {
         );
         rateProvider.getRate();
     }
+
 }
 
 contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
+
     RedstoneStablecoinRateProvider rateProviderUSDT;
     RedstoneStablecoinRateProvider rateProviderUSDe;
     // Jun 3, 2025, all are above 1
@@ -115,4 +120,5 @@ contract RedstoneStablecoinOracleTestSetToOne is Test, MainnetAddresses {
         uint256 rate = rateProviderUSDe.getRate();
         assertEq(rate, 10 ** 18);
     }
+
 }

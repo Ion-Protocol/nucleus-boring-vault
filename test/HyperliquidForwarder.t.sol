@@ -16,6 +16,7 @@ import { HyperliquidForwarder } from "src/helper/HyperliquidForwarder.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract HyperliquidForwarderTest is Test, MainnetAddresses {
+
     HyperliquidForwarder forwarder;
     address WHYPE = 0x5555555555555555555555555555555555555555;
     address PURR = 0x9b498C3c8A0b8CD8BA1D9851d40D186F1872b44E;
@@ -134,4 +135,5 @@ contract HyperliquidForwarderTest is Test, MainnetAddresses {
         assertEq(ERC20(PURR).balanceOf(PURRBridge) - purrBalBefore, 0.55e18);
         vm.stopPrank();
     }
+
 }

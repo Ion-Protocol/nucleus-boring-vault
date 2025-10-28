@@ -20,6 +20,7 @@ import { Transfer } from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/Trans
 import { TestHelperOz5 } from "./TestHelperOz5.sol";
 
 contract SimpleMessageLibMock is Ownable, ERC165 {
+
     // offchain packets schedule
     TestHelperOz5 public testHelper;
 
@@ -168,4 +169,5 @@ contract SimpleMessageLibMock is Ownable, ERC165 {
     }
 
     receive() external payable { }
+
 }

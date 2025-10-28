@@ -5,6 +5,7 @@ pragma solidity 0.8.21;
 // So to properly test, a testnet run through of the tests should be done to assert that the controller
 // never custodies funds.
 contract MockCoreWriter {
+
     event RawAction(address indexed user, bytes data);
     event MockCoreWriter__LimitOrder(
         uint32 asset, bool isBuy, uint64 limitPx, uint64 sz, bool reduceOnly, uint8 encodedTif, uint128 cloid
@@ -71,4 +72,5 @@ contract MockCoreWriter {
             emit MockCoreWriter__AddApiWallet(apiWalletAddress, apiWalletName);
         }
     }
+
 }

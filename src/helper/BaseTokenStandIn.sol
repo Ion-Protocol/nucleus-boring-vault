@@ -2,6 +2,7 @@
 pragma solidity 0.8.21;
 
 contract BaseTokenStandIn {
+
     uint8 public immutable decimals;
     string public name;
 
@@ -9,4 +10,5 @@ contract BaseTokenStandIn {
         name = _name;
         decimals = _decimals;
     }
+
 }

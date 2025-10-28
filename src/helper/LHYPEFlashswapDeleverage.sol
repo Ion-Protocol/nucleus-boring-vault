@@ -12,21 +12,28 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 library TickMath {
+
     /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
     uint160 internal constant MIN_SQRT_RATIO = 4_295_128_739;
     /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
     uint160 internal constant MAX_SQRT_RATIO = 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342;
+
 }
 
 interface IHyperswapV3SwapCallback {
+
     function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
+
 }
 
 interface IGetRate {
+
     function balancePerShare() external view returns (uint256);
+
 }
 
 contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
+
     using SafeCast for uint256;
 
     IPool public immutable aaveV3Pool;
@@ -94,7 +101,14 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     }
 
     /// @inheritdoc IHyperswapV3SwapCallback
-    function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external override {
+    function hyperswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes calldata data
+    )
+        external
+        override
+    {
         if (msg.sender != address(uniswapV3Pool)) {
             revert LHYPEFlashswapDeleverage__InvalidSender();
         }
@@ -161,4 +175,5 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
         // so as no price limit has been specified, require this possibility away
         require(amountOutReceived == amountOut);
     }
+
 }

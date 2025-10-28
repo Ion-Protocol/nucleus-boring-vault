@@ -2,6 +2,7 @@
 pragma solidity 0.8.21;
 
 abstract contract SpectraDecoderAndSanitizer {
+
     // @desc deposit base asset in Spectra PT without minShares specified
     // @tag ptReceiver:address:address of the ptReceiver
     // @tag ytReceiver:address:address of the ytReceiver
@@ -67,11 +68,7 @@ abstract contract SpectraDecoderAndSanitizer {
     // @desc redeem some PT AND YT for IBT tokens on Spectra
     // @tag receiver:address:receiver of the IBT tokens
     // @tag owner:address:shares are burned from the owner address
-    function redeem(
-        uint256,
-        address receiver,
-        address owner
-    )
+    function redeem(uint256, address receiver, address owner)
         external
         pure
         virtual
@@ -201,4 +198,5 @@ abstract contract SpectraDecoderAndSanitizer {
     function claimYieldInIBT(address _receiver, uint256) external pure returns (bytes memory addressesFound) {
         return abi.encodePacked(_receiver);
     }
+
 }

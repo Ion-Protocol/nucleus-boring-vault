@@ -14,6 +14,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 contract TellerSetup is BaseScript {
+
     using Strings for address;
     using StdJson for string;
 
@@ -52,4 +53,5 @@ contract TellerSetup is BaseScript {
             }
         }
     }
+
 }

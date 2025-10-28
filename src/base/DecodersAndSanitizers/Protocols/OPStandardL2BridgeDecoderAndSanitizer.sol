@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "../BaseDecoderAndSanitizer.sol";
 
 abstract contract OPStandardL2BridgeDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     /**
      * @dev use bridgeTo instead of bridge despite us usually wanting to bridge to the same address
      * because OP requires EOAs to call the regular bridge functions.
@@ -52,4 +53,5 @@ abstract contract OPStandardL2BridgeDecoderAndSanitizer is BaseDecoderAndSanitiz
     {
         addressesFound = abi.encodePacked(_to, _extraData);
     }
+
 }

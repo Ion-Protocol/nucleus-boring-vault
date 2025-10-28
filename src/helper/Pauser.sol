@@ -5,6 +5,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Pauser is Ownable {
+
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -192,4 +193,5 @@ contract Pauser is Ownable {
             emit Pauser__FailedPause(contractAddress, err);
         }
     }
+
 }

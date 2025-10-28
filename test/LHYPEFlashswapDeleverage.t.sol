@@ -14,6 +14,7 @@ import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 contract LHYPEFlashswapDeleverageTest is Test {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -134,10 +135,8 @@ contract LHYPEFlashswapDeleverageTest is Test {
 
         (
             uint256 totalCollateralBaseBefore,
-            uint256 totalDebtBaseBefore,
-            ,
-            uint256 liquidationThresholdBefore,
-            ,
+            uint256 totalDebtBaseBefore,,
+            uint256 liquidationThresholdBefore,,
             uint256 healthFactorBefore
         ) = pool_hfi.getUserAccountData(address(boringVault));
 
@@ -153,7 +152,8 @@ contract LHYPEFlashswapDeleverageTest is Test {
         console.log("liquidationThresholdBefore", liquidationThresholdBefore);
 
         uint256 expectedHealthFactor = ((collateralBefore - amountWstHypePaid) * wstHypeRate / 1e18)
-            * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because liquidation
+            * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because
+            // liquidation
             // threshold has 4 decimals
 
         (uint256 totalCollateralBaseAfter, uint256 totalDebtBaseAfter,,,, uint256 healthFactorAfter) =
@@ -222,10 +222,8 @@ contract LHYPEFlashswapDeleverageTest is Test {
 
         (
             uint256 totalCollateralBaseBefore,
-            uint256 totalDebtBaseBefore,
-            ,
-            uint256 liquidationThresholdBefore,
-            ,
+            uint256 totalDebtBaseBefore,,
+            uint256 liquidationThresholdBefore,,
             uint256 healthFactorBefore
         ) = hyperlendPool_hlend.getUserAccountData(address(boringVault));
 
@@ -241,7 +239,8 @@ contract LHYPEFlashswapDeleverageTest is Test {
         console.log("liquidationThresholdBefore", liquidationThresholdBefore);
 
         uint256 expectedHealthFactor = ((collateralBefore - amountWstHypePaid) * wstHypeRate / 1e18)
-            * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because liquidation
+            * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because
+            // liquidation
             // threshold has 4 decimals
 
         (uint256 totalCollateralBaseAfter, uint256 totalDebtBaseAfter,,,, uint256 healthFactorAfter) =
@@ -306,8 +305,9 @@ contract LHYPEFlashswapDeleverageTest is Test {
         leafs[0] = new bytes32[](leafsLength);
         for (uint256 i; i < leafsLength; ++i) {
             bytes4 selector = bytes4(keccak256(abi.encodePacked(manageLeafs[i].signature)));
-            bytes memory rawDigest =
-                abi.encodePacked(lhypeDecoderAndSanitizer, manageLeafs[i].target, manageLeafs[i].canSendValue, selector);
+            bytes memory rawDigest = abi.encodePacked(
+                lhypeDecoderAndSanitizer, manageLeafs[i].target, manageLeafs[i].canSendValue, selector
+            );
             uint256 argumentAddressesLength = manageLeafs[i].argumentAddresses.length;
             for (uint256 j; j < argumentAddressesLength; ++j) {
                 rawDigest = abi.encodePacked(rawDigest, manageLeafs[i].argumentAddresses[j]);
@@ -418,4 +418,5 @@ contract LHYPEFlashswapDeleverageTest is Test {
             value := keccak256(0x00, 0x40)
         }
     }
+
 }

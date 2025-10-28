@@ -16,6 +16,7 @@ import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
+
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
     using SafeTransferLib for WETH;
@@ -375,4 +376,5 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         depositNonce++;
         emit Deposit(nonce, user, address(depositAsset), depositAmount, shares, block.timestamp, currentShareLockPeriod);
     }
+
 }

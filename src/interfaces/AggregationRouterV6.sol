@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 interface AggregationRouterV6 {
+
     struct SwapDescription {
         ERC20 srcToken;
         ERC20 dstToken;
@@ -22,4 +23,5 @@ interface AggregationRouterV6 {
         external
         payable
         returns (uint256 returnAmount, uint256 spentAmount);
+
 }

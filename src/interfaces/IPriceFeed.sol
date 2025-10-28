@@ -1,6 +1,7 @@
 pragma solidity ^0.8.0;
 
 interface IPriceFeed {
+
     /**
      * @notice The precision of the value being returned from the price feed.
      */
@@ -17,4 +18,5 @@ interface IPriceFeed {
     function description() external view returns (string memory);
 
     function getDataFeedId() external view returns (bytes32);
+
 }

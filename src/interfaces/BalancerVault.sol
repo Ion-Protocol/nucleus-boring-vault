@@ -4,7 +4,14 @@ pragma solidity 0.8.21;
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 interface BalancerVault {
-    function flashLoan(address, address[] memory tokens, uint256[] memory amounts, bytes calldata userData) external;
+
+    function flashLoan(
+        address,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bytes calldata userData
+    )
+        external;
     function swap(
         DecoderCustomTypes.SingleSwap memory singleSwap,
         DecoderCustomTypes.FundManagement memory funds,
@@ -13,4 +20,5 @@ interface BalancerVault {
     )
         external
         returns (uint256 amountCalculated);
+
 }

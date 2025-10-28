@@ -5,6 +5,7 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 abstract contract SuperBridgeDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     // @desc prove a withdrawal transaction to begin a L2->L1 withdrawal
     // @tag sender:address:address of the sender of the transaction
     // @tag target:address:address of the recipient of the transaction
@@ -48,4 +49,5 @@ abstract contract SuperBridgeDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encode(_tx.sender, _tx.target, _tx.data);
     }
+
 }

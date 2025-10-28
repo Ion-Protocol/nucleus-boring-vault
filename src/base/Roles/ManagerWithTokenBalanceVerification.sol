@@ -15,6 +15,7 @@ import { ManagerSimulator } from "src/base/Roles/ManagerSimulator.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract ManagerWithTokenBalanceVerification is ManagerSimulator, Auth {
+
     // ERRORS
     error ManagerWithTokenBalanceVerification__InvalidArrayLength();
     error ManagerWithTokenBalanceVerification__TokenDeltaViolation(
@@ -135,4 +136,5 @@ contract ManagerWithTokenBalanceVerification is ManagerSimulator, Auth {
             }
         }
     }
+
 }

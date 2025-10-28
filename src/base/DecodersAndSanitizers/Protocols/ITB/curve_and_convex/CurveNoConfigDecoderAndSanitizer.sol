@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 abstract contract CurveNoConfigDecoderAndSanitizer {
+
     function addLiquidityAllCoinsAndStake(
         address _pool,
         uint256[] memory,
@@ -27,4 +28,5 @@ abstract contract CurveNoConfigDecoderAndSanitizer {
     {
         addressesFound = abi.encodePacked(_pool, _gauge);
     }
+
 }

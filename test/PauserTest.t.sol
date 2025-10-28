@@ -11,6 +11,7 @@ import { MainnetAddresses } from "test/resources/MainnetAddresses.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
 contract PauserTest is Test, MainnetAddresses {
+
     event Pauser__FailedPause(address toPause, bytes response);
     event Pauser__EmptySymbol(string symbol);
 
@@ -271,4 +272,5 @@ contract PauserTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }

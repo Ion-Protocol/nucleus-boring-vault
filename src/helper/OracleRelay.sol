@@ -8,6 +8,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  * @custom:security-contact security@molecularlabs.io
  */
 contract OracleRelay is Auth {
+
     address public implementation;
     bytes dataToCallWith = abi.encodeWithSignature("getRate()");
 
@@ -52,4 +53,5 @@ contract OracleRelay is Auth {
         dataToCallWith = data;
         emit OracleRelay__DataToCallWithSet(data);
     }
+
 }

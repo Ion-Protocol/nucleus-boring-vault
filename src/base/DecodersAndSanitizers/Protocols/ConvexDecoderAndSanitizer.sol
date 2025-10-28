@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract ConvexDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== CONVEX ===============================
 
     // @desc Deposit into the Convex protocol
@@ -23,4 +24,5 @@ abstract contract ConvexDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function getReward(address _addr, bool) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_addr);
     }
+
 }

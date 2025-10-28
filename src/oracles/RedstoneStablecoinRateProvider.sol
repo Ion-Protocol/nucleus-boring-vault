@@ -24,6 +24,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
+
     using SafeCast for int256;
 
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
@@ -88,7 +89,9 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     )
         Auth(_owner, Authority(address(0)))
     {
-        if (!_isEqual(_descriptionBaseFeed, _baseFeed.description())) revert InvalidDescription();
+        if (!_isEqual(_descriptionBaseFeed, _baseFeed.description())) {
+            revert InvalidDescription();
+        }
         if (!_isEqual(_descriptionQuoteFeed, _quoteFeed.description())) revert InvalidDescription();
 
         uint8 _priceFeedDecimals = _baseFeed.decimals();
@@ -175,4 +178,5 @@ contract RedstoneStablecoinRateProvider is Auth, IRateProvider {
     function _isEqual(string memory a, bytes32 b) internal pure returns (bool) {
         return bytes32(bytes(a)) == b;
     }
+
 }

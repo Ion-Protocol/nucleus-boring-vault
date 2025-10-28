@@ -9,6 +9,7 @@ import { console2 } from "forge-std/console2.sol";
 using StdJson for string;
 
 contract DeployStablecoinRateProvider is BaseScript {
+
     // Deployer protected:  0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f
     bytes32 constant SALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00555555555555555555cafe;
     address multisig;
@@ -39,4 +40,5 @@ contract DeployStablecoinRateProvider is BaseScript {
 
         console2.log("rate provider: ", rateProvider);
     }
+
 }
