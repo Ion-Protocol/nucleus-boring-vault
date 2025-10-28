@@ -56,7 +56,7 @@ jobs:
         with:
           check_filenames: true
           ignore_words_list: we,amountIn
-          skip: ./.git,./lib,./certora,./audit,.package-lock.json
+          skip: ./.git,./lib,./certora,./audit,./package-lock.json
 
   validate-links:
     runs-on: ${{ matrix.os }}
