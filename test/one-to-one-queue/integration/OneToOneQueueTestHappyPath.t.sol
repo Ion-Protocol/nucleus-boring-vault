@@ -15,7 +15,7 @@ contract tERC20 is ERC20 {
 
 /// TODO: test the gas of processing, how many can be processed? Should we remove fee module calls on process for
 /// simplicity
-contract OneToOneQueueTest is Test {
+contract OneToOneQueueTestHappyPath is Test {
 
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
@@ -91,7 +91,7 @@ contract OneToOneQueueTest is Test {
         // User1 submits an order
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
-        queue.submitOrder(depositAmount1, USDC, USDG0, user1, user1, params);
+        queue.submitOrder(depositAmount1, USDC, USDG0, user1, user1, user1, params);
         vm.stopPrank();
 
         assertEq(queue.ownerOf(1), user1, "user1 should own NFT ID 1");
@@ -100,13 +100,13 @@ contract OneToOneQueueTest is Test {
         // User2 sumbits an order
         vm.startPrank(user2);
         USDC.approve(address(queue), depositAmount2);
-        queue.submitOrder(depositAmount2, USDC, USDG0, user2, user2, params);
+        queue.submitOrder(depositAmount2, USDC, USDG0, user2, user2, user2, params);
         vm.stopPrank();
 
         // User3 sumbits an order
         vm.startPrank(user3);
         USDC.approve(address(queue), depositAmount3);
-        queue.submitOrder(depositAmount3, USDC, USDG0, user3, user3, params);
+        queue.submitOrder(depositAmount3, USDC, USDG0, user3, user3, user3, params);
         vm.stopPrank();
 
         assertEq(queue.ownerOf(2), user2, "user2 should own NFT ID 2");
@@ -144,7 +144,7 @@ contract OneToOneQueueTest is Test {
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
         console.log("Failing before this right: ");
-        queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, params);
+        queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, user1, params);
         vm.stopPrank();
 
         totalFees += user1Fees;
@@ -178,7 +178,7 @@ contract OneToOneQueueTest is Test {
 
         vm.startPrank(user1);
         DAI.approve(address(queue), 1e18);
-        queue.submitOrderAndProcess(depositAmount1, DAI, USDG0, user1, user1, params);
+        queue.submitOrderAndProcess(depositAmount1, DAI, USDG0, user1, user1, user1, params);
         vm.stopPrank();
 
         assertEq(USDG0.balanceOf(user1), 1e6 - user1FeesWant, "User should have received USDG0 in 6 decimals");
@@ -204,12 +204,12 @@ contract OneToOneQueueTest is Test {
         deal(address(USDC), user1, 11e6);
         USDC.approve(address(queue), 11e6);
         vm.expectRevert("UNAUTHORIZED");
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, params);
+        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, params);
 
         vm.stopPrank();
 
         vm.startPrank(owner);
-        queue.submitOrder(1e6, USDC, USDG0, owner, owner, params);
+        queue.submitOrder(1e6, USDC, USDG0, owner, owner, owner, params);
         assertEq(queue.ownerOf(1), owner, "owner could mint because deprecation doesn't apply to the owner");
         vm.stopPrank();
 
@@ -238,9 +238,9 @@ contract OneToOneQueueTest is Test {
         deal(address(USDG0), address(queue), 11e6);
 
         // user submits 3 orders
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, params);
-        queue.submitOrder(2e6, USDC, USDG0, user1, user1, params);
-        queue.submitOrder(3e6, USDC, USDG0, user1, user1, params);
+        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, params);
+        queue.submitOrder(2e6, USDC, USDG0, user1, user1, user1, params);
+        queue.submitOrder(3e6, USDC, USDG0, user1, user1, user1, params);
         vm.stopPrank();
 
         // owner refunds 1

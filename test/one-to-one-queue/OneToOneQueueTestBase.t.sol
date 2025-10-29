@@ -102,9 +102,11 @@ abstract contract OneToOneQueueTestBase is Test {
     address user3 = makeAddr("user3");
     address solver = makeAddr("solver");
     address feeRecipient = makeAddr("fee recipient");
+    address alice;
+    uint256 alicePk;
 
     // A simple params struct used in most tests
-    OneToOneQueue.SubmissionParams params = OneToOneQueue.SubmissionParams({
+    OneToOneQueue.SubmissionParams defaultParams = OneToOneQueue.SubmissionParams({
         approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
         approvalV: 0,
         approvalR: bytes32(0),
@@ -121,6 +123,8 @@ abstract contract OneToOneQueueTestBase is Test {
         queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, address(feeModule), owner);
         rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
 
+        (alice, alicePk) = makeAddrAndKey("alice");
+
         queue.setAuthority(rolesAuthority);
 
         USDC = new tERC20(6);
@@ -130,6 +134,46 @@ abstract contract OneToOneQueueTestBase is Test {
         queue.addOfferAsset(address(USDC), 0);
         queue.addWantAsset(address(USDG0));
         vm.stopPrank();
+    }
+
+    function _submitAnOrder() internal {
+        deal(address(USDC), user1, 1e6);
+        vm.startPrank(user1);
+        USDC.approve(address(queue), 1e6);
+        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        vm.stopPrank();
+
+        assertTrue(queue.ownerOf(1) == user1, "_sumbitAnOrder: user1 should be the owner of the order");
+    }
+
+    function _getPermitSignature(
+        ERC20 token,
+        address owner,
+        uint256 ownerPk,
+        address spender,
+        uint256 value,
+        uint256 deadline
+    )
+        internal
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        owner,
+                        spender,
+                        value,
+                        token.nonces(owner),
+                        deadline
+                    )
+                )
+            )
+        );
+        (v, r, s) = vm.sign(ownerPk, permitHash);
     }
 
 }

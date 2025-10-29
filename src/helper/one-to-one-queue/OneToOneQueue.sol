@@ -35,12 +35,20 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     error AssetNotSupported(address asset);
     error OrderAlreadyProcessed(uint256 orderIndex);
     error InvalidOrderStatus(uint256 orderIndex, Status currentStatus);
+    error InvalidOrderIndex(uint256 orderIndex);
     error AmountBelowMinimum(uint256 amount, uint256 minimum);
     error SignatureExpired(uint256 deadline, uint256 currentTimestamp);
     error SignatureHashAlreadyUsed(bytes32 hash);
     error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
-    error InsufficientBalance(uint256 orderIndex, address asset, uint256 required, uint256 available);
+    error InsufficientBalance(
+        uint256 orderIndex, address depositor, address asset, uint256 required, uint256 available
+    );
+    error InsufficientAllowance(
+        uint256 orderIndex, address depositor, address asset, uint256 required, uint256 available
+    );
     error InvalidOrdersCount(uint256 ordersToProcess);
+    error InvalidEip2612Signature(address intendedDepositor, address depositor);
+    error InvalidDepositor(address intendedDepositor, address depositor);
 
     // Represents a withdrawal order in the queue
     struct Order {
@@ -260,6 +268,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
         emit MinimumOrderSizeUpdated(_asset, oldMinimum, _newMinimum);
     }
+
     /**
      * @notice Remove a supported offer asset
      * @param _asset Address of the offer asset to remove
@@ -317,35 +326,30 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      */
     function forceRefund(uint256 orderIndex) external requiresAuth {
         if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
+        if (orderIndex > latestOrder) revert InvalidOrderIndex(orderIndex);
 
-        Order storage order = queue[orderIndex];
+        Order memory order = queue[orderIndex];
         if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
 
-        order.status = Status.REFUND;
+        queue[orderIndex].status = Status.REFUND;
 
-        emit OrderMarkedForRefund(orderIndex, order);
+        IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
+        _burn(orderIndex);
 
-        forceProcess(orderIndex);
+        emit OrderMarkedForRefund(orderIndex, queue[orderIndex]);
     }
 
     /**
      * @notice Force process an order out of sequence
      * @param orderIndex Index of the order to force process
      */
-    function forceProcess(uint256 orderIndex) public requiresAuth {
+    function forceProcess(uint256 orderIndex) external requiresAuth {
         if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
+        if (orderIndex > latestOrder) revert InvalidOrderIndex(orderIndex);
 
         Order memory order = queue[orderIndex];
 
-        // If order was previously marked for refund, fill it as a refund and change to PRE_FILLED
-        if (order.status == Status.REFUND) {
-            queue[orderIndex].status = Status.PRE_FILLED;
-            IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
-            // TODO: EVENT here
-            return;
-        }
-
-        // otherwise require order is set to DEFAULT status
+        // require order is set to DEFAULT status
         if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
 
         // Mark as pre-filled
@@ -360,6 +364,29 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     }
 
     /*//////////////////////////////////////////////////////////////
+                         VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function getOrderStatus(uint256 orderIndex) external view returns (string memory orderStatusDetails) {
+        Order memory order = queue[orderIndex];
+        if (order.status == Status.DEFAULT) {
+            orderStatusDetails = "default";
+        } else if (order.status == Status.PRE_FILLED) {
+            orderStatusDetails = "pre-filled";
+            return orderStatusDetails;
+        } else if (order.status == Status.REFUND) {
+            orderStatusDetails = "refunded";
+            return orderStatusDetails;
+        }
+
+        if (orderIndex > lastProcessedOrder) {
+            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, " - order awaiting processing"));
+        } else {
+            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, " - order processed"));
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          ORDER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -367,6 +394,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         uint256 amountOffer,
         ERC20 offerAsset,
         ERC20 wantAsset,
+        address intendedDepositor,
         address receiver,
         address refundReceiver,
         SubmissionParams calldata params
@@ -375,16 +403,18 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         requiresAuth
         returns (uint256 orderIndex)
     {
-        if (!supportedOfferAssets[address(offerAsset)]) revert AssetNotSupported(address(offerAsset));
-        if (!supportedWantAssets[address(wantAsset)]) revert AssetNotSupported(address(wantAsset));
-        uint256 minimumOrderSize = minimumOrderSizePerAsset[address(offerAsset)];
-        if (amountOffer < minimumOrderSize) revert AmountBelowMinimum(amountOffer, minimumOrderSize);
-        if (receiver == address(0)) revert ZeroAddress();
-        if (refundReceiver == address(0)) revert ZeroAddress();
-        if (block.timestamp > params.deadline) revert SignatureExpired(params.deadline, block.timestamp);
+        {
+            if (!supportedOfferAssets[address(offerAsset)]) revert AssetNotSupported(address(offerAsset));
+            if (!supportedWantAssets[address(wantAsset)]) revert AssetNotSupported(address(wantAsset));
+            uint256 minimumOrderSize = minimumOrderSizePerAsset[address(offerAsset)];
+            if (amountOffer < minimumOrderSize) revert AmountBelowMinimum(amountOffer, minimumOrderSize);
+            if (receiver == address(0)) revert ZeroAddress();
+            if (refundReceiver == address(0)) revert ZeroAddress();
+        }
 
         address depositor;
         if (params.submitWithSignature) {
+            if (block.timestamp > params.deadline) revert SignatureExpired(params.deadline, block.timestamp);
             bytes32 hash = keccak256(
                 abi.encode(amountOffer, offerAsset, wantAsset, receiver, refundReceiver, params.deadline, params.nonce)
             );
@@ -392,8 +422,10 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
             usedSignatureHashes[hash] = true;
 
             depositor = ECDSA.recover(hash, params.eip2612Signature);
+            if (depositor != intendedDepositor) revert InvalidEip2612Signature(intendedDepositor, depositor);
         } else {
             depositor = msg.sender;
+            if (depositor != intendedDepositor) revert InvalidDepositor(intendedDepositor, depositor);
         }
 
         // Do nothing if using standard ERC20 approve
@@ -417,8 +449,11 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
             IFeeModule(feeModule).calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
 
-        IERC20(address(offerAsset)).safeTransferFrom(msg.sender, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(msg.sender, feeRecipient, feeAmount);
+        _checkBalance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
+        _checkAllowance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
+
+        IERC20(address(offerAsset)).safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
@@ -469,21 +504,14 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
             }
 
             if (order.status == Status.REFUND) {
-                // handle refund now since no need to adjust decimals or apply fees and ignore
-                uint256 balance = IERC20(address(order.offerAsset)).balanceOf(address(this));
-                if (balance < order.amountOffer) {
-                    revert InsufficientBalance(orderIndex, address(order.offerAsset), order.amountOffer, balance);
-                }
+                _checkBalance(address(this), order.offerAsset, order.amountOffer, orderIndex);
                 IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
                 _burn(orderIndex);
                 continue;
             }
 
             address receiver = ownerOf(orderIndex);
-            uint256 balance = IERC20(address(order.wantAsset)).balanceOf(address(this));
-            if (balance < order.amountWant) {
-                revert InsufficientBalance(orderIndex, address(order.wantAsset), order.amountWant, balance);
-            }
+            _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
 
             IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
             _burn(orderIndex);
@@ -510,6 +538,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         uint256 amountOffer,
         ERC20 offerAsset,
         ERC20 wantAsset,
+        address intendedDepositor,
         address receiver,
         address refundReceiver,
         SubmissionParams calldata params
@@ -518,7 +547,9 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         requiresAuth
         returns (uint256 orderIndex)
     {
-        orderIndex = submitOrder(uint128(amountOffer), offerAsset, wantAsset, receiver, refundReceiver, params);
+        orderIndex = submitOrder(
+            uint128(amountOffer), offerAsset, wantAsset, intendedDepositor, receiver, refundReceiver, params
+        );
         processOrders(orderIndex - lastProcessedOrder);
     }
 
@@ -549,6 +580,20 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
         uint8 difference = wantDecimals - offerDecimals;
         return amountOfferAfterFees * uint128(10 ** difference);
+    }
+
+    function _checkBalance(address depositor, ERC20 asset, uint256 amount, uint256 orderIndex) internal view {
+        uint256 depositorBalance = asset.balanceOf(depositor);
+        if (depositorBalance < amount) {
+            revert InsufficientBalance(orderIndex, depositor, address(asset), amount, depositorBalance);
+        }
+    }
+
+    function _checkAllowance(address depositor, ERC20 asset, uint256 amount, uint256 orderIndex) internal view {
+        uint256 depositorAllowance = asset.allowance(depositor, address(this));
+        if (depositorAllowance < amount) {
+            revert InsufficientAllowance(orderIndex, depositor, address(asset), amount, depositorAllowance);
+        }
     }
 
 }
