@@ -10,26 +10,6 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
  */
 abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
 
-    REASON public pauseReason;
-
-    function pause() external requiresAuth {
-        pauseReason = REASON.PAUSED_BY_PROTOCOL;
-        _pause();
-    }
-
-    /// @dev if paused, no functions are now public
-    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
-        // if paused, only owner can call
-        if (paused()) {
-            if (msg.sender == owner) {
-                return true;
-            }
-
-            revert DeprecatableRolesAuthority__paused(pauseReason, deprecationStep);
-        }
-        return super.canCall(user, target, functionSig);
-    }
-
     enum REASON {
         NOT_PAUSED,
         PAUSED_BY_PROTOCOL,
@@ -37,13 +17,11 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
         DEPRECATED
     }
 
-    error DeprecatableRolesAuthority__paused(REASON reason, uint8 deprecationStepIfInDeprecation);
-    error DeprecationAlreadyBegun(uint8 currentStep);
-    error DeprecationNotBegun();
-
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
+    REASON public pauseReason;
 
     /// @notice Emitted when deprecation process begins
     /// @param step The deprecation step number
@@ -67,9 +45,14 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
     /// @notice Bool flag if deprecation is complete
     bool public isFullyDeprecated;
 
-    /*//////////////////////////////////////////////////////////////
-                         DEPRECATION FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
+    error DeprecatableRolesAuthority__paused(REASON reason, uint8 deprecationStepIfInDeprecation);
+    error DeprecationAlreadyBegun(uint8 currentStep);
+    error DeprecationNotBegun();
+
+    function pause() external requiresAuth {
+        pauseReason = REASON.PAUSED_BY_PROTOCOL;
+        _pause();
+    }
 
     /**
      * @notice Begin the deprecation process
@@ -98,6 +81,19 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
         if (isFullyDeprecated) {
             emit DeprecationFinished(deprecationStep);
         }
+    }
+
+    /// @dev if paused, no functions are now public
+    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
+        // if paused, only owner can call
+        if (paused()) {
+            if (msg.sender == owner) {
+                return true;
+            }
+
+            revert DeprecatableRolesAuthority__paused(pauseReason, deprecationStep);
+        }
+        return super.canCall(user, target, functionSig);
     }
 
     /*//////////////////////////////////////////////////////////////
