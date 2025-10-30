@@ -18,18 +18,88 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
     using SafeERC20 for IERC20;
 
-    /*//////////////////////////////////////////////////////////////
-                                 TYPES
-    //////////////////////////////////////////////////////////////*/
-
-    // Status of an order in the queue
+    /// @notice Status of an order in the queue
     enum Status {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on solve
         REFUND // Order marked for refund, return offer asset
     }
 
-    // Custom errors for better gas efficiency
+    /// @notice Approval method for submitting an order
+    enum ApprovalMethod {
+        EIP20_APROVE,
+        EIP2612_PERMIT
+    }
+
+    /// @notice Parameters for submitting and approving an order with signatures
+    struct SubmissionParams {
+        ApprovalMethod approvalMethod;
+        uint8 approvalV;
+        bytes32 approvalR;
+        bytes32 approvalS;
+        bool submitWithSignature;
+        uint256 deadline;
+        bytes eip2612Signature;
+        uint256 nonce;
+    }
+
+    /// @notice Represents a withdrawal order in the queue
+    struct Order {
+        uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
+            // minus fees.
+        uint128 amountWant; // Amount of want asset to give the user in want decimals. This is not inclusive of fees.
+        ERC20 offerAsset; // Asset being offered
+        ERC20 wantAsset; // Asset being requested
+        address refundReceiver; // Address to receive refunds
+        Status status; // Current status of the order
+    }
+
+    /// @notice Mapping of order index to Order struct
+    mapping(uint256 => Order) public queue;
+
+    /// @notice Mapping of hashes that have been used for signatures to prevent replays
+    mapping(bytes32 => bool) usedSignatureHashes;
+
+    /// @notice Mapping of supported offer assets
+    mapping(address => bool) public supportedOfferAssets;
+
+    /// @notice Mapping of supported want assets
+    mapping(address => bool) public supportedWantAssets;
+
+    /// @notice Minimum order size per offer asset
+    mapping(address => uint256) public minimumOrderSizePerAsset;
+
+    /// @notice The index of the last order that was processed
+    /// @dev Initialized to 0, meaining the queue starts at 1.
+    uint256 public lastProcessedOrder;
+
+    /// @notice represents the back of the queue, incremented on sumbiting orders
+    uint256 public latestOrder;
+
+    /// @notice Address of the fee module for calculating fees
+    IFeeModule public feeModule;
+
+    /// @notice Address of the boring vault
+    address public offerAssetRecipient;
+
+    /// @notice recipient of queue fees
+    address public feeRecipient;
+
+    event FeeModuleUpdated(IFeeModule indexed oldFeeModule, IFeeModule indexed newFeeModule);
+    event OfferAssetAdded(address indexed asset, uint256 minimumOrderSize);
+    event OfferAssetRemoved(address indexed asset);
+    event WantAssetAdded(address indexed asset);
+    event WantAssetRemoved(address indexed asset);
+    event MinimumOrderSizeUpdated(address asset, uint256 oldMinimum, uint256 newMinimum);
+    event OfferAssetRecipientUpdated(address indexed oldVault, address indexed newVault);
+    event OrderSubmitted(
+        uint256 indexed orderIndex, Order order, address indexed receiver, bool isSubmittedViaSignature
+    );
+    event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
+    event OrderMarkedForRefund(uint256 indexed orderIndex, Order order);
+    event OrderForceProcessed(uint256 indexed orderIndex, Order order, address indexed receiver);
+    event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
+
     error ZeroAddress();
     error AssetAlreadySupported(address asset);
     error AssetNotSupported(address asset);
@@ -50,141 +120,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
 
-    // Represents a withdrawal order in the queue
-    struct Order {
-        uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
-            // minus fees.
-        uint128 amountWant; // Amount of want asset to give the user in want decimals. This is not inclusive of fees.
-        ERC20 offerAsset; // Asset being offered
-        ERC20 wantAsset; // Asset being requested
-        address refundReceiver; // Address to receive refunds
-        Status status; // Current status of the order
-    }
-
-    enum ApprovalMethod {
-        EIP20_APROVE,
-        EIP2612_PERMIT
-    }
-
-    struct SubmissionParams {
-        ApprovalMethod approvalMethod;
-        uint8 approvalV;
-        bytes32 approvalR;
-        bytes32 approvalS;
-        bool submitWithSignature;
-        uint256 deadline;
-        bytes eip2612Signature;
-        uint256 nonce;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    // Configuration Events
-    /// @notice Emitted when a new fee module is set
-    /// @param oldFeeModule Previous fee module address
-    /// @param newFeeModule New fee module address
-    event FeeModuleUpdated(address indexed oldFeeModule, address indexed newFeeModule);
-
-    /// @notice Emitted when a new offer asset is added
-    /// @param asset Address of the offer asset
-    /// @param minimumOrderSize Minimum order size for this asset
-    event OfferAssetAdded(address indexed asset, uint256 minimumOrderSize);
-
-    /// @notice Emitted when an offer asset is removed
-    /// @param asset Address of the offer asset
-    event OfferAssetRemoved(address indexed asset);
-
-    /// @notice Emitted when a new want asset is added
-    /// @param asset Address of the want asset
-    event WantAssetAdded(address indexed asset);
-
-    /// @notice Emitted when a want asset is removed
-    /// @param asset Address of the want asset
-    event WantAssetRemoved(address indexed asset);
-
-    /// @notice Emitted when minimum order size is updated
-    /// @param asset who's order size was updated
-    /// @param oldMinimum Previous minimum order size
-    /// @param newMinimum New minimum order size
-    event MinimumOrderSizeUpdated(address asset, uint256 oldMinimum, uint256 newMinimum);
-
-    /// @notice Emitted when boring vault address is updated
-    /// @param oldVault Previous boring vault address
-    /// @param newVault New boring vault address
-    event OfferAssetRecipientUpdated(address indexed oldVault, address indexed newVault);
-
-    // Order Events
-    /// @notice Emitted when a new order is submitted
-    /// @param orderIndex Index of the order in the queue (also the NFT token ID)
-    /// @param order The order details
-    /// @param receiver Address receiving the NFT receipt
-    /// @param isSubmittedViaSignature True if order was submitted via signature
-    event OrderSubmitted(
-        uint256 indexed orderIndex, Order order, address indexed receiver, bool isSubmittedViaSignature
-    );
-
-    /// @notice Emitted when orders are processed
-    /// @param startIndex Starting order index (inclusive)
-    /// @param endIndex Ending order index (inclusive)
-    event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
-
-    /// @notice Emitted when an order is marked for refund
-    /// @param orderIndex Index of the order
-    /// @param order The order details
-    event OrderMarkedForRefund(uint256 indexed orderIndex, Order order);
-
-    /// @notice Emitted when an order is force processed
-    /// @param orderIndex Index of the order
-    /// @param order The order details
-    /// @param receiver Address receiving the assets
-    event OrderForceProcessed(uint256 indexed orderIndex, Order order, address indexed receiver);
-
-    /// @notice Emitted when the fee recipient is updated
-    /// @param oldFeeRecipient address
-    /// @param newFeeRecipient address
-    event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
-
-    /*//////////////////////////////////////////////////////////////
-                            STATE VARIABLES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Mapping of order index to Order struct
-    mapping(uint256 => Order) public queue;
-
-    /// @notice Mapping of hashes that have been used for signatures to prevent replays
-    mapping(bytes32 => bool) usedSignatureHashes;
-
-    /// @notice Mapping of supported offer assets
-    mapping(address => bool) public supportedOfferAssets;
-
-    /// @notice Mapping of supported want assets
-    mapping(address => bool) public supportedWantAssets;
-
-    /// @notice Minimum order size per offer asset
-    mapping(address => uint256) public minimumOrderSizePerAsset;
-
-    /// @notice The index of the last order that was processed
-    /// @dev Initialized to 0, meaining the queue starts at 1. This makes the math less confusing with totalSupply() of
-    uint256 public lastProcessedOrder;
-
-    /// @notice represents the back of the queue, incremented on sumbiting orders
-    uint256 public latestOrder;
-
-    /// @notice Address of the fee module for calculating fees
-    address public feeModule;
-
-    /// @notice Address of the boring vault
-    address public offerAssetRecipient;
-
-    /// @notice recipient of queue fees
-    address public feeRecipient;
-
-    /*//////////////////////////////////////////////////////////////
-                             CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
     /**
      * @notice Initialize the contract
      * @param _name Name for the ERC721 receipt tokens
@@ -196,34 +131,31 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         string memory _symbol,
         address _offerAssetRecipient,
         address _feeRecipient,
-        address _feeModule,
+        IFeeModule _feeModule,
         address _owner
     )
         ERC721(_name, _symbol)
         Auth(_owner, Authority(address(0)))
     {
+        // no zero check on owner in Auth Contract
+        if (_owner == address(0)) revert ZeroAddress();
         if (_offerAssetRecipient == address(0)) revert ZeroAddress();
         if (_feeRecipient == address(0)) revert ZeroAddress();
-        if (_feeModule == address(0)) revert ZeroAddress();
-        if (_owner == address(0)) revert ZeroAddress();
+        if (address(_feeModule) == address(0)) revert ZeroAddress();
 
         offerAssetRecipient = _offerAssetRecipient;
         feeRecipient = _feeRecipient;
         feeModule = _feeModule;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
     /**
      * @notice Set the fee module address
      * @param _feeModule Address of the new fee module
      */
-    function setFeeModule(address _feeModule) external requiresAuth {
-        if (_feeModule == address(0)) revert ZeroAddress();
+    function setFeeModule(IFeeModule _feeModule) external requiresAuth {
+        if (address(_feeModule) == address(0)) revert ZeroAddress();
 
-        address oldFeeModule = feeModule;
+        IFeeModule oldFeeModule = feeModule;
         feeModule = _feeModule;
         emit FeeModuleUpdated(oldFeeModule, _feeModule);
     }
@@ -273,7 +205,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @notice Remove a supported offer asset
      * @param _asset Address of the offer asset to remove
      */
-
     function removeOfferAsset(address _asset) external requiresAuth {
         if (!supportedOfferAssets[_asset]) revert AssetNotSupported(_asset);
 
@@ -325,16 +256,16 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param orderIndex Index of the order to refund
      */
     function forceRefund(uint256 orderIndex) external requiresAuth {
+        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
         if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
-        if (orderIndex > latestOrder) revert InvalidOrderIndex(orderIndex);
 
         Order memory order = queue[orderIndex];
         if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
 
         queue[orderIndex].status = Status.REFUND;
 
-        IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
         _burn(orderIndex);
+        IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
 
         emit OrderMarkedForRefund(orderIndex, queue[orderIndex]);
     }
@@ -344,8 +275,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @param orderIndex Index of the order to force process
      */
     function forceProcess(uint256 orderIndex) external requiresAuth {
+        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
         if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
-        if (orderIndex > latestOrder) revert InvalidOrderIndex(orderIndex);
 
         Order memory order = queue[orderIndex];
 
@@ -356,39 +287,38 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         queue[orderIndex].status = Status.PRE_FILLED;
 
         address receiver = ownerOf(orderIndex);
-        IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
-
         _burn(orderIndex);
+        IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
 
         emit OrderForceProcessed(orderIndex, order, receiver);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                         VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
+    /**
+     * @notice A user facing function to return an order's status in plain english.
+     * Possible returns:
+     * "complete: pre-filled" order has been pre-filled and is complete
+     * "complete: refunded" order has been refunded including the fee and is complete
+     * "awaiting processing" order is awaiting processing
+     * "complete" order has been processed and is complete
+     *
+     */
     function getOrderStatus(uint256 orderIndex) external view returns (string memory orderStatusDetails) {
         Order memory order = queue[orderIndex];
-        if (order.status == Status.DEFAULT) {
-            orderStatusDetails = "default";
-        } else if (order.status == Status.PRE_FILLED) {
-            orderStatusDetails = "pre-filled";
+
+        if (order.status == Status.PRE_FILLED) {
+            orderStatusDetails = "complete: pre-filled";
             return orderStatusDetails;
         } else if (order.status == Status.REFUND) {
-            orderStatusDetails = "refunded";
+            orderStatusDetails = "complete: refunded";
             return orderStatusDetails;
         }
 
         if (orderIndex > lastProcessedOrder) {
-            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, " - order awaiting processing"));
+            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "awaiting processing"));
         } else {
-            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, " - order processed"));
+            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "complete"));
         }
     }
-
-    /*//////////////////////////////////////////////////////////////
-                         ORDER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
 
     function submitOrder(
         uint256 amountOffer,
@@ -447,7 +377,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
 
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
-            IFeeModule(feeModule).calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
+            feeModule.calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
 
         _checkBalance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
         _checkAllowance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
@@ -552,10 +482,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         );
         processOrders(orderIndex - lastProcessedOrder);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                         INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
 
     function _getWantAmountInWantDecimals(
         uint128 amountOfferAfterFees,

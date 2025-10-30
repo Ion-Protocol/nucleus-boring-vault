@@ -12,21 +12,21 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract OneToOneQueueTest is OneToOneQueueTestBase {
 
     function test_SetFeeModule() external {
-        address oldFeeModule = queue.feeModule();
+        address oldFeeModule = address(queue.feeModule());
         assertEq(oldFeeModule, address(feeModule));
 
         SimpleFeeModule newFeeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
         vm.expectRevert("UNAUTHORIZED");
-        queue.setFeeModule(address(newFeeModule));
+        queue.setFeeModule(newFeeModule);
 
         vm.startPrank(owner);
         vm.expectRevert(OneToOneQueue.ZeroAddress.selector);
-        queue.setFeeModule(address(0));
+        queue.setFeeModule(SimpleFeeModule(address(0)));
 
         vm.expectEmit();
-        emit OneToOneQueue.FeeModuleUpdated(oldFeeModule, address(newFeeModule));
-        queue.setFeeModule(address(newFeeModule));
-        assertEq(queue.feeModule(), address(newFeeModule));
+        emit OneToOneQueue.FeeModuleUpdated(SimpleFeeModule(oldFeeModule), newFeeModule);
+        queue.setFeeModule(newFeeModule);
+        assertEq(address(queue.feeModule()), address(newFeeModule));
         vm.stopPrank();
     }
 
@@ -166,11 +166,11 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.forceRefund(0);
 
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.OrderAlreadyProcessed.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 0));
         queue.forceRefund(0);
 
         _submitAnOrder();
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "default - order awaiting processing");
+        assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
 
         vm.startPrank(owner);
 
@@ -206,7 +206,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
         (,,,,, status) = queue.queue(1);
         assertEq(uint8(status), uint8(OneToOneQueue.Status.REFUND), "order should be marked for refund");
-        assertEq(queue.getOrderStatus(1), "refunded");
+        assertEq(queue.getOrderStatus(1), "complete: refunded");
         assertEq(USDC.balanceOf(user1), 1e6, "user1 should have their USDC balance back");
         vm.stopPrank();
     }
@@ -216,13 +216,13 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.forceProcess(0);
 
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.OrderAlreadyProcessed.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 0));
         queue.forceProcess(0);
 
         _submitAnOrder();
         deal(address(USDG0), address(queue), 1e6);
 
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "default - order awaiting processing");
+        assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
 
         vm.startPrank(owner);
 
@@ -230,7 +230,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.forceProcess(2);
 
         queue.forceProcess(1);
-        assertEq(queue.getOrderStatus(1), "pre-filled");
+        assertEq(queue.getOrderStatus(1), "complete: pre-filled");
         assertEq(
             USDG0.balanceOf(user1),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
@@ -488,7 +488,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         emit OneToOneQueue.OrdersProcessed(1, 1);
         queue.processOrders(1);
 
-        assertEq(queue.getOrderStatus(1), "default - order processed");
+        assertEq(queue.getOrderStatus(1), "complete");
         assertEq(
             USDG0.balanceOf(user1),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
@@ -506,7 +506,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.expectEmit(true, true, true, true);
         emit OneToOneQueue.OrdersProcessed(1, 1);
         queue.submitOrderAndProcess(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "default - order processed");
+        assertEq(queue.getOrderStatus(queue.latestOrder()), "complete");
         assertEq(
             USDG0.balanceOf(user1),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),

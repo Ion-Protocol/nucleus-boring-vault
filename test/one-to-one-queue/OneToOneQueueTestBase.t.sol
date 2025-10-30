@@ -120,7 +120,7 @@ abstract contract OneToOneQueueTestBase is Test {
     function setUp() external {
         vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
-        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, address(feeModule), owner);
+        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, owner);
         rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
 
         (alice, alicePk) = makeAddrAndKey("alice");
