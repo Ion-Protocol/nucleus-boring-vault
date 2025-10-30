@@ -115,8 +115,16 @@ contract OneToOneQueueTestHappyPath is Test {
 
         // Solver fails to fill
         vm.startPrank(solver);
-        // TODO: use correct revert message after switching to custom reverts
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OneToOneQueue.InsufficientBalance.selector,
+                1,
+                address(queue),
+                address(USDG0),
+                1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+                0
+            )
+        );
         queue.processOrders(3);
         vm.stopPrank();
 

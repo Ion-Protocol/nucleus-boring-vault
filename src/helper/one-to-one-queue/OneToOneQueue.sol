@@ -110,9 +110,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     error SignatureExpired(uint256 deadline, uint256 currentTimestamp);
     error SignatureHashAlreadyUsed(bytes32 hash);
     error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
-    error InsufficientBalance(
-        uint256 orderIndex, address depositor, address asset, uint256 required, uint256 available
-    );
+    error InsufficientBalance(uint256 orderIndex, address account, address asset, uint256 required, uint256 available);
     error InsufficientAllowance(
         uint256 orderIndex, address depositor, address asset, uint256 required, uint256 available
     );
@@ -320,6 +318,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
     }
 
+    // TODO: support submitting a batch of ordes. Do same for refund and force process
     /**
      * @notice Submit an order at the back of the queue
      * @param amountOffer uint amount of offer asset to deposit
@@ -493,6 +492,9 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         processOrders(orderIndex - lastProcessedOrder);
     }
 
+    /**
+     * @notice helper to get want amount in want decimals from an amount of offer asset
+     */
     function _getWantAmountInWantDecimals(
         uint128 amountOfferAfterFees,
         ERC20 offerAsset,
@@ -518,10 +520,10 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         return amountOfferAfterFees * uint128(10 ** difference);
     }
 
-    function _checkBalance(address depositor, ERC20 asset, uint256 amount, uint256 orderIndex) internal view {
-        uint256 depositorBalance = asset.balanceOf(depositor);
-        if (depositorBalance < amount) {
-            revert InsufficientBalance(orderIndex, depositor, address(asset), amount, depositorBalance);
+    function _checkBalance(address account, ERC20 asset, uint256 amount, uint256 orderIndex) internal view {
+        uint256 balance = asset.balanceOf(account);
+        if (balance < amount) {
+            revert InsufficientBalance(orderIndex, account, address(asset), amount, balance);
         }
     }
 
