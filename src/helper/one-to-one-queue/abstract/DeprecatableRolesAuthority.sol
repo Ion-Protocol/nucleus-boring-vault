@@ -87,10 +87,6 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
     function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
         // if paused, only owner can call
         if (paused()) {
-            if (msg.sender == owner) {
-                return true;
-            }
-
             revert DeprecatableRolesAuthority__paused(pauseReason, deprecationStep);
         }
         return super.canCall(user, target, functionSig);
