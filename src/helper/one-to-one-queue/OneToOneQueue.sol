@@ -320,6 +320,17 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
     }
 
+    /**
+     * @notice Submit an order at the back of the queue
+     * @param amountOffer uint amount of offer asset to deposit
+     * @param offerAsset address of the offer asset
+     * @param wantAsset address of the want asset
+     * @param intendedDepositor address of who you intend to deposit. Must either match the signer of the signature or
+     * the msg.sender. This exists to provide a more verbose error message for invalid signatures
+     * @param receiver address to receive the want assets
+     * @param refundReceiver address to receive offer assets in the event of a refund
+     * @param params SubmissionParams struct of params for signature approvals/submissions
+     */
     function submitOrder(
         uint256 amountOffer,
         ERC20 offerAsset,
@@ -352,6 +363,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
             usedSignatureHashes[hash] = true;
 
             depositor = ECDSA.recover(hash, params.eip2612Signature);
+            // Here we check the intended depositor. If we didn't do this, it would error on the attempt to transfer
+            // assets. This error is more descriptive
             if (depositor != intendedDepositor) revert InvalidEip2612Signature(intendedDepositor, depositor);
         } else {
             depositor = msg.sender;
@@ -372,6 +385,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
                 );
         }
 
+        // Increment the latestOrder as this one is being minted
         unchecked {
             orderIndex = ++latestOrder;
         }
@@ -379,9 +393,11 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
             feeModule.calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
 
+        // Check the depositor has the required balance and allowance to deposit
         _checkBalance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
         _checkAllowance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
 
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
         IERC20(address(offerAsset)).safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
         feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
@@ -407,7 +423,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
      * @notice Process orders sequentially from the queue
      * @param ordersToProcess Number of orders to attempt processing
      * @dev Processes orders starting from lastProcessedOrder + 1
-     *      Skips PRE_FILLED orders, processes REFUND orders differently
+     *      Skips PRE_FILLED orders and REFUND orders
      *      Requires sufficient want asset balance in contract
      */
     function processOrders(uint256 ordersToProcess) public requiresAuth {
@@ -415,6 +431,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
         uint256 startIndex;
         uint256 endIndex;
+
         unchecked {
             startIndex = lastProcessedOrder + 1;
             endIndex = lastProcessedOrder + ordersToProcess;
@@ -428,15 +445,8 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
 
             Order memory order = queue[orderIndex];
 
-            if (order.status == Status.PRE_FILLED) {
+            if (order.status == Status.PRE_FILLED || order.status == Status.REFUND) {
                 // ignore
-                continue;
-            }
-
-            if (order.status == Status.REFUND) {
-                _checkBalance(address(this), order.offerAsset, order.amountOffer, orderIndex);
-                IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
-                _burn(orderIndex);
                 continue;
             }
 
