@@ -125,7 +125,6 @@ contract OneToOneQueueTestHappyPath is Test {
 
         // Solve the first order only
         vm.prank(solver);
-        console.log("Failing before this single: ");
         queue.processOrders(1);
 
         uint256 user1Fees = 1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000;
@@ -143,7 +142,6 @@ contract OneToOneQueueTestHappyPath is Test {
         deal(address(USDC), user1, depositAmount1);
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
-        console.log("Failing before this right: ");
         queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, user1, params);
         vm.stopPrank();
 
@@ -238,9 +236,10 @@ contract OneToOneQueueTestHappyPath is Test {
         deal(address(USDG0), address(queue), 11e6);
 
         // user submits 3 orders
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, params);
+        // Make user2 the receiver of 1 and 3 so easier to measure the result of the processing
+        queue.submitOrder(1e6, USDC, USDG0, user1, user2, user2, params);
         queue.submitOrder(2e6, USDC, USDG0, user1, user1, user1, params);
-        queue.submitOrder(3e6, USDC, USDG0, user1, user1, user1, params);
+        queue.submitOrder(3e6, USDC, USDG0, user1, user2, user2, params);
         vm.stopPrank();
 
         // owner refunds 1
@@ -250,9 +249,6 @@ contract OneToOneQueueTestHappyPath is Test {
         vm.startPrank(owner);
         queue.forceRefund(2);
 
-        // assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 0, "User shouldn't get their refund until processed");
-        // assertEq(USDG0.balanceOf(user1), 0, "USDG0 balance of user should be 0");
-
         vm.stopPrank();
         assertEq(
             USDC.balanceOf(user1) - balanceUSDCBefore,
@@ -260,6 +256,11 @@ contract OneToOneQueueTestHappyPath is Test {
             "User should just have their 2 USDC balance back including fees paid: note this is excess in the queue in this test as the fee receiver receives this amount"
         );
         assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0");
+
+        // Process the orders
+        queue.processOrders(3);
+        assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 2e6, "User should have no more USDC");
+        assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0 because they were refunded");
     }
 
     function testPreFill() external { }
