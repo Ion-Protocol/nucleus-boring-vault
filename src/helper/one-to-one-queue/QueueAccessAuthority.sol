@@ -34,21 +34,6 @@ contract QueueAccessAuthority is AccessAuthority {
         transferOwnership(_owner);
     }
 
-    /// @dev canCall override to include a blacklist check
-    /// TODO: consider how the parent contract reverts with a message. Should this do the same or return false as now?
-    function canCallReason(address user, address target, bytes4 functionSig)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        if (isBlacklisted[user]) {
-            return false;
-        }
-        return super.canCallReason(user, target, functionSig);
-    }
-
     function setUsersBlacklistStatus(
         address[] memory users,
         bool[] memory isBlacklistedStatus

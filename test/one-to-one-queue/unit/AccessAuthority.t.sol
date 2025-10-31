@@ -22,7 +22,15 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     event DeprecationFinished(uint8 newStep);
 
     function test_pause() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AccessAuthority.Unauthorized.selector,
+                address(this),
+                address(rolesAuthority),
+                bytes4(keccak256("pause()"))
+            ),
+            address(rolesAuthority)
+        );
         rolesAuthority.pause();
 
         // Just test owner instead of a particular role
@@ -32,18 +40,21 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
 
         assertEq(uint8(rolesAuthority.pauseReason()), uint8(AccessAuthority.REASON.PAUSED_BY_PROTOCOL));
 
-        // TODO: Expect a specific error. For now I'm usnure if I want a verbose error or not from canCall()
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                AccessAuthority.AccessAuthority__paused.selector, AccessAuthority.REASON.PAUSED_BY_PROTOCOL, 0
-            )
-        );
+        vm.expectRevert(AccessAuthority.PausedByProtocol.selector, address(queue));
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
     }
 
     function test_beginDeprecation() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AccessAuthority.Unauthorized.selector,
+                address(this),
+                address(rolesAuthority),
+                bytes4(keccak256("beginDeprecation()"))
+            ),
+            address(rolesAuthority)
+        );
         rolesAuthority.beginDeprecation();
 
         vm.startPrank(owner);
@@ -55,17 +66,25 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.stopPrank();
 
         vm.startPrank(user1);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(abi.encodeWithSelector(QueueAccessAuthority.QueueNotEmpty.selector), address(queue));
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
     }
 
     function test_continueDeprecation() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AccessAuthority.Unauthorized.selector,
+                address(this),
+                address(rolesAuthority),
+                bytes4(keccak256("continueDeprecation()"))
+            ),
+            address(rolesAuthority)
+        );
         rolesAuthority.continueDeprecation();
 
         vm.startPrank(owner);
-        vm.expectRevert(AccessAuthority.DeprecationNotBegun.selector);
+        vm.expectRevert(AccessAuthority.DeprecationNotBegun.selector, address(queue));
         rolesAuthority.continueDeprecation();
 
         rolesAuthority.beginDeprecation();
@@ -83,16 +102,14 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
 
         vm.startPrank(user1);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                AccessAuthority.AccessAuthority__paused.selector, AccessAuthority.REASON.DEPRECATED, 2
-            )
+            abi.encodeWithSelector(AccessAuthority.FunctionDeprecated.selector, OneToOneQueue.submitOrder.selector),
+            address(queue)
         );
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                AccessAuthority.AccessAuthority__paused.selector, AccessAuthority.REASON.DEPRECATED, 2
-            )
+            abi.encodeWithSelector(AccessAuthority.FunctionDeprecated.selector, OneToOneQueue.processOrders.selector),
+            address(queue)
         );
         queue.processOrders(1);
 

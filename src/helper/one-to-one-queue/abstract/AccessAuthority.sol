@@ -14,6 +14,12 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
  */
 abstract contract AccessAuthority is Pausable, RolesAuthority {
 
+    error Unauthorized(address user, address target, bytes4 functionSig);
+    error PausedByProtocol();
+    error DeprecationNotBegun();
+    error DeprecationAlreadyBegun(uint8 currentStep);
+    error FunctionDeprecated(bytes4 functionSig);
+
     enum REASON {
         NOT_PAUSED,
         PAUSED_BY_PROTOCOL,
@@ -49,9 +55,14 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     /// @notice Bool flag if deprecation is complete
     bool public isFullyDeprecated;
 
-    error AccessAuthority__paused(REASON reason, uint8 deprecationStepIfInDeprecation);
-    error DeprecationAlreadyBegun(uint8 currentStep);
-    error DeprecationNotBegun();
+    // TODO: order functions here according to style guide
+    modifier requiresAuth() virtual override {
+        if (isAuthorized(msg.sender, msg.sig)) {
+            _;
+        } else {
+            revert Unauthorized(msg.sender, address(this), msg.sig);
+        }
+    }
 
     function pause() external requiresAuth {
         pauseReason = REASON.PAUSED_BY_PROTOCOL;
@@ -85,15 +96,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         if (isFullyDeprecated) {
             emit DeprecationFinished(deprecationStep);
         }
-    }
-
-    /// @dev if paused, no functions are now public
-    function canCallReason(address user, address target, bytes4 functionSig) public view virtual returns (bool) {
-        // if paused, only owner can call
-        if (paused()) {
-            revert AccessAuthority__paused(pauseReason, deprecationStep);
-        }
-        return super.canCall(user, target, functionSig);
     }
 
     /*//////////////////////////////////////////////////////////////
