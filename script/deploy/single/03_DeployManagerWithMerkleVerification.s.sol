@@ -7,6 +7,7 @@ import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../../ConfigReader.s.sol";
 
 contract DeployManagerWithMerkleVerification is BaseScript {
+
     using StdJson for string;
 
     function run() public returns (address manager) {
@@ -50,4 +51,5 @@ contract DeployManagerWithMerkleVerification is BaseScript {
 
         return address(manager);
     }
+
 }

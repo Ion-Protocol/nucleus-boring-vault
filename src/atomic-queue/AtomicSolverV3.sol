@@ -13,6 +13,7 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
  * @custom:security-contact security@molecularlabs.io
  */
 contract AtomicSolverV3 is IAtomicSolver, Auth {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     // ========================================= CONSTANTS =========================================
@@ -194,4 +195,5 @@ contract AtomicSolverV3 is IAtomicSolver, Auth {
         // Approve queue to spend wantApprovalAmount.
         want.safeApprove(queue, wantApprovalAmount);
     }
+
 }

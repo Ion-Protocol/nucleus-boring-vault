@@ -7,6 +7,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 abstract contract UManager is Auth {
+
     using FixedPointMathLib for uint256;
 
     // ========================================= STATE =========================================
@@ -114,4 +115,5 @@ abstract contract UManager is Auth {
         // Make the manage call.
         manager.manageVaultWithMerkleVerification(manageProofs, decodersAndSanitizers, targets, targetData, values);
     }
+
 }

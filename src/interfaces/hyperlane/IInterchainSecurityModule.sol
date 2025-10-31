@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 interface IInterchainSecurityModule {
+
     enum Types {
         UNUSED,
         ROUTING,
@@ -33,8 +34,11 @@ interface IInterchainSecurityModule {
      * @return True if the message was verified
      */
     function verify(bytes calldata _metadata, bytes calldata _message) external returns (bool);
+
 }
 
 interface ISpecifiesInterchainSecurityModule {
+
     function interchainSecurityModule() external view returns (IInterchainSecurityModule);
+
 }

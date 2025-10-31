@@ -10,6 +10,7 @@ import { ConfigReader, IAuthority } from "../../ConfigReader.s.sol";
  * protocol.
  */
 contract SetAuthorityAndTransferOwnerships is BaseScript {
+
     using StdJson for string;
 
     function run() public {
@@ -46,4 +47,5 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         require(IAuthority(config.accountant).owner() == config.protocolAdmin, "accountant");
         require(IAuthority(config.teller).owner() == config.protocolAdmin, "teller");
     }
+
 }

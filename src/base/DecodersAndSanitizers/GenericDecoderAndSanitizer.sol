@@ -56,6 +56,7 @@ contract GenericDecoderAndSanitizer is
     LayerZeroOFTDecoderAndSanitizer,
     NucleusDecoderAndSanitizer
 {
+
     constructor(
         address _boringVault,
         address _uniswapV3NonFungiblePositionManager
@@ -96,4 +97,5 @@ contract GenericDecoderAndSanitizer is
         // Nothing to sanitize or return
         return addressesFound;
     }
+
 }

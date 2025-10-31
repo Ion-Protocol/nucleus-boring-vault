@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 abstract contract ConvexDecoderAndSanitizer {
+
     function addLiquidityAllCoinsAndStakeConvex(
         address _pool,
         uint256[] memory,
@@ -27,4 +28,5 @@ abstract contract ConvexDecoderAndSanitizer {
     {
         addressesFound = abi.encodePacked(_pool, address(uint160(_convex_pool_id)));
     }
+
 }

@@ -12,6 +12,7 @@ import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthor
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract AccountantChainlinkRedstoneAdapterTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
 
     BoringVault public boringVault;
@@ -93,4 +94,5 @@ contract AccountantChainlinkRedstoneAdapterTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }

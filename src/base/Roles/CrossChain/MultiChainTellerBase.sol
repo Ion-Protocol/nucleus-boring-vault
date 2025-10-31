@@ -30,6 +30,7 @@ error MultiChainTellerBase_GasTooLow();
  * chain messengers like OP
  */
 abstract contract MultiChainTellerBase is CrossChainTellerBase {
+
     event ChainAdded(
         uint256 chainSelector,
         bool allowMessagesFrom,
@@ -196,4 +197,5 @@ abstract contract MultiChainTellerBase is CrossChainTellerBase {
             revert MultiChainTellerBase_GasTooLow();
         }
     }
+
 }

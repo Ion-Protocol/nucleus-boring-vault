@@ -4,12 +4,15 @@ pragma solidity 0.8.21;
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 interface IAuthority {
+
     function setAuthority(address newAuthority) external;
     function transferOwnership(address newOwner) external;
     function owner() external returns (address);
+
 }
 
 library ConfigReader {
+
     using StdJson for string;
 
     struct Config {
@@ -48,6 +51,7 @@ library ConfigReader {
         address strategist;
         address exchangeRateBot;
         address pauser;
+        address solver;
         address rolesAuthority;
         bytes32 decoderSalt;
         address decoder;
@@ -58,7 +62,14 @@ library ConfigReader {
         address[] priceFeeds;
     }
 
-    function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
+    function toConfig(
+        string memory _config,
+        string memory _chainConfig
+    )
+        internal
+        pure
+        returns (Config memory config)
+    {
         // Reading the 'protocolAdmin'
         config.protocolAdmin = _config.readAddress(".protocolAdmin");
         config.base = _config.readAddress(".base");
@@ -111,6 +122,7 @@ library ConfigReader {
         config.rolesAuthoritySalt = _config.readBytes32(".rolesAuthority.rolesAuthoritySalt");
         config.strategist = _config.readAddress(".rolesAuthority.strategist");
         config.exchangeRateBot = _config.readAddress(".rolesAuthority.exchangeRateBot");
+        config.solver = _config.readAddress(".rolesAuthority.solver");
         config.pauser = _config.readAddress(".rolesAuthority.pauser");
 
         // Reading from the 'decoder' section
@@ -126,4 +138,5 @@ library ConfigReader {
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
+
 }

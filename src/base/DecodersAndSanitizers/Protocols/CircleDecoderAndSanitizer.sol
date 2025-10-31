@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract CircleDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     // @desc Deposit assets into Circle TokenMessengerV1 to burn, in order to bridge to another chain
     // @tag destinationDomain:uint32:the id of the destination chain
     // @tag mintRecipient:bytes32:the address of the recipient on the destination chain in a bytes32 format
@@ -59,4 +60,5 @@ abstract contract CircleDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // nothing to sanitize
         return addressesFound;
     }
+
 }

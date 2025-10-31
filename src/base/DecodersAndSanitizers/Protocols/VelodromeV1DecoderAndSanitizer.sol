@@ -6,6 +6,7 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 abstract contract VelodromeV1DecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error VelodromeV1DecoderAndSanitizer__BadToAddress();
 
     // @desc velodrome v1 add liquidity for pair of ERC20s
@@ -126,4 +127,5 @@ abstract contract VelodromeV1DecoderAndSanitizer is BaseDecoderAndSanitizer {
             addressesFound = abi.encodePacked(addressesFound, routes[i].from, routes[i].to);
         }
     }
+
 }

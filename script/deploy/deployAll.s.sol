@@ -11,10 +11,9 @@ import { DeployIonBoringVaultScript } from "./single/02_DeployBoringVault.s.sol"
 import { DeployManagerWithMerkleVerification } from "./single/03_DeployManagerWithMerkleVerification.s.sol";
 import { DeployAccountantWithRateProviders } from "./single/04_DeployAccountantWithRateProviders.s.sol";
 import { DeployTellerWithMultiAssetSupport } from "./single/05_DeployTellerWithMultiAssetSupport.s.sol";
-import { DeployCrossChainOPTellerWithMultiAssetSupport } from
-    "./single/05a_DeployCrossChainOPTellerWithMultiAssetSupport.s.sol";
-import { DeployMultiChainLayerZeroTellerWithMultiAssetSupport } from
-    "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
+import {
+    DeployMultiChainLayerZeroTellerWithMultiAssetSupport
+} from "./single/05b_DeployMultiChainLayerZeroTellerWithMultiAssetSupport.s.sol";
 import { DeployMultiChainHyperlaneTeller } from "./single/05c_DeployMultiChainHyperlaneTeller.s.sol";
 import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
 import { TellerSetup } from "./single/07_TellerSetup.s.sol";
@@ -47,6 +46,7 @@ error INVALID_TELLER_CONTRACT_NAME();
  *
  */
 contract DeployAll is BaseScript {
+
     using StdJson for string;
     using Strings for address;
 
@@ -99,9 +99,7 @@ contract DeployAll is BaseScript {
     }
 
     function _deployTeller(ConfigReader.Config memory config) public returns (address teller) {
-        if (compareStrings(config.tellerContractName, "CrossChainOPTellerWithMultiAssetSupport")) {
-            teller = new DeployCrossChainOPTellerWithMultiAssetSupport().deploy(config);
-        } else if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
+        if (compareStrings(config.tellerContractName, "MultiChainLayerZeroTellerWithMultiAssetSupport")) {
             teller = new DeployMultiChainLayerZeroTellerWithMultiAssetSupport().deploy(config);
         } else if (compareStrings(config.tellerContractName, "MultiChainHyperlaneTellerWithMultiAssetSupport")) {
             teller = new DeployMultiChainHyperlaneTeller().deploy(config);
@@ -111,4 +109,5 @@ contract DeployAll is BaseScript {
             revert INVALID_TELLER_CONTRACT_NAME();
         }
     }
+
 }

@@ -64,6 +64,7 @@ contract LHYPEDecoderAndSanitizer is
     LayerZeroOFTDecoderAndSanitizer,
     CircleDecoderAndSanitizer
 {
+
     constructor(
         address _boringVault,
         address _uniswapV3NonFungiblePositionManager
@@ -119,4 +120,5 @@ contract LHYPEDecoderAndSanitizer is
     {
         addressesFound = abi.encodePacked(receiver, owner);
     }
+
 }

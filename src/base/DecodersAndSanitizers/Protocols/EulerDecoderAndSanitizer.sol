@@ -11,6 +11,7 @@ struct BatchItem {
 }
 
 abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error EulerDecoderAndSanitizer__BoringVaultOnly();
     error EulerDecoderAndSanitizer__InvalidBatchLength();
     error EulerDecoderAndSanitizer__InvalidSelector();
@@ -57,10 +58,7 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc enable a collateral on Euler
     // @tag vault:address:the address of the vault
-    function enableCollateral(
-        address account,
-        address vault
-    )
+    function enableCollateral(address account, address vault)
         external
         view
         virtual
@@ -72,10 +70,7 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc enable a controller on Euler
     // @tag vault:address:the address of the vault
-    function enableController(
-        address account,
-        address vault
-    )
+    function enableController(address account, address vault)
         external
         view
         virtual
@@ -84,4 +79,5 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (account != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
         addressesFound = abi.encodePacked(vault);
     }
+
 }

@@ -10,6 +10,21 @@
 
 > This repository began as a fork of [Se7enSeas](https://github.com/Se7en-Seas)' open source [boring-vault](https://github.com/Se7en-Seas/boring-vault) repo. We want to credit the Se7enSeas for creating the BoringVault architecture and allowing its free distribution.
 
+## Development
+
+In order to run the tests make sure the following is done.
+
+1. Foundry is [installed](https://book.getfoundry.sh/getting-started/installation)
+2. Run `forge install`
+3. Run `bun install`
+4. Copy `.env.example` to `.env`.
+
+- Populate the env variable required for tests.
+
+3. Run `forge test`
+
+- Ignore failing test on `LiveDeploy` as it is only used in the production deployment pipeline.
+
 # Boring Vault Architectures
 
 Boring Vaults are flexible vault contracts that allow for intricate strategies, secured by both onchain and offchain mechanisms.
@@ -69,16 +84,3 @@ This Accountant provides the exchange rate information needed by the Teller to a
 ## Audits
 
 All audits are stored in the [audit](./audit/) folder.
-
-## Documentation
-
-For more detailed information, please refer to the [documentation](https://docs.veda.tech).
-
-## Development
-
-In order to run the tests make sure the following is done.
-
-1. Foundry is [installed](https://book.getfoundry.sh/getting-started/installation)
-2. Copy `sample.env`, rename the copy to `.env`, and add your infura key.
-3. Run `forge install`
-4. Run `forge test`

@@ -12,6 +12,7 @@ import { PriceRouter } from "src/interfaces/PriceRouter.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorUManager is UManager {
+
     using FixedPointMathLib for uint256;
 
     // ========================================= CONSTANTS =========================================
@@ -136,4 +137,5 @@ contract DexAggregatorUManager is UManager {
             );
         }
     }
+
 }

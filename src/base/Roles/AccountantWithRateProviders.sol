@@ -13,6 +13,7 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract AccountantWithRateProviders is Auth, IRateProvider {
+
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
@@ -384,4 +385,5 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             return amount / 10 ** (fromDecimals - toDecimals);
         }
     }
+
 }

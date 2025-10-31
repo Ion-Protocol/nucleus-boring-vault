@@ -5,10 +5,13 @@ import { BaseDecoderAndSanitizer } from "../BaseDecoderAndSanitizer.sol";
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 interface IPositionManager {
+
     function ownerOf(address position) external view returns (address);
+
 }
 
 abstract contract SentimentDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     IPositionManager internal immutable positionManager;
 
     error SentimentDecoderAndSanitizer__PositionNotOwned();
@@ -55,4 +58,5 @@ abstract contract SentimentDecoderAndSanitizer is BaseDecoderAndSanitizer {
             addressesFound = abi.encodePacked(recipient, asset, amt);
         }
     }
+
 }

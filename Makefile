@@ -1,8 +1,24 @@
 include .env
 
+verify-hl:
+	@if [ -z "$(address)" ]; then echo "Error: address parameter is required. Usage: make verify-purrsec address=0x... path=src/Contract.sol:Contract"; exit 1; fi
+	@if [ -z "$(path)" ]; then echo "Error: path parameter is required. Usage: make verify-purrsec address=0x... path=src/Contract.sol:Contract"; exit 1; fi
+	@echo "Attempting verification with ETHERSCAN for $(address) with path $(path)"
+	@forge verify-contract $(address) $(path) -r $(HL_RPC_URL) || echo "ETHERSCAN verification failed, trying Sourcify..."
+	@echo "Verifying contract at $(address) with path $(path) on chain 999 using Sourcify"
+	@ETHERSCAN_API_URL="" ETHERSCAN_API_KEY="" forge verify-contract $(address) $(path) \
+		--chain-id 999 \
+		--verifier sourcify \
+		--verifier-url https://sourcify.parsec.finance/verify
+
 check-configs: 
 	@echo "l1_file: ${l1_file} l2_file ${l2_file}"
 	bun lzConfigCheck.cjs ${l1_file} ${l2_file}
+
+update-salts:
+	@if [ -z "$(file)" ]; then echo "Error: file parameter is required. Usage: make update-salts file=earnUSDC-L1.json"; exit 1; fi
+	@echo "Updating salts for file: $(file)"
+	@node incrementSalt.cjs $(file) 
 
 checkL1:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"

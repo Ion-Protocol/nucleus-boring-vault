@@ -2,8 +2,9 @@
 pragma solidity 0.8.21;
 
 import { MultiChainBaseTest, MultiChainTellerBase, ERC20, BridgeData } from "./MultiChainBase.t.sol";
-import { MultiChainLayerZeroTellerWithMultiAssetSupport } from
-    "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
+import {
+    MultiChainLayerZeroTellerWithMultiAssetSupport
+} from "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { TestHelperOz5 } from "./@layerzerolabs-custom/test-evm-foundry-custom/TestHelperOz5.sol";
 
@@ -14,6 +15,7 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { console } from "forge-std/Test.sol";
 
 contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTest, TestHelperOz5 {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -164,14 +166,14 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         // if the token is not NATIVE, should revert
         address NOT_NATIVE = 0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3;
-        BridgeData memory data =
-            BridgeData(DESTINATION_SELECTOR, address(this), ERC20(NOT_NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR));
+        BridgeData memory data = BridgeData(
+            DESTINATION_SELECTOR, address(this), ERC20(NOT_NATIVE), 80_000, abi.encode(DESTINATION_SELECTOR)
+        );
         sourceTeller.addChain(DESTINATION_SELECTOR, true, true, destinationTellerAddr, CHAIN_MESSAGE_GAS_LIMIT, 0);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                MultiChainLayerZeroTellerWithMultiAssetSupport
-                    .MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken
+                MultiChainLayerZeroTellerWithMultiAssetSupport.MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken
                     .selector
             )
         );
@@ -213,4 +215,5 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupportTest is MultiChainBaseTes
         bytes32 peer1 = OAppAuthCore(sourceTellerAddr).peers(uint32(DESTINATION_SELECTOR));
         bytes32 peer2 = OAppAuthCore(destinationTellerAddr).peers(uint32(SOURCE_SELECTOR));
     }
+
 }

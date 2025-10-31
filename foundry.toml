@@ -7,6 +7,7 @@ optimizer = true
 optimizer_runs = 200
 fs_permissions = [{ access = "read-write", path = "./" }]
 cbor_metadata = true
+gas_limit = "18446744073709551615"        
 
 libs = [
     'lib',
@@ -39,11 +40,16 @@ op_sepolia = "${OP_SEPOLIA_RPC_URL}"
 tenderly = { key = "${TENDERLY_ACCESS_KEY}", chain = 99099127, url = "${TENDERLY_ADMIN_RPC_URL}/verify/etherscan" }
 
 [fmt]
+single_line_statement_blocks = "preserve"
+multiline_func_header = "all"
+sort_imports = false
+contract_new_lines = true
+override_spacing = false
+line_length = 120
+tab_width = 4
 bracket_spacing = true
 int_types = "long"
-line_length = 120
-multiline_func_header = "all"
-number_underscore = "thousands"
 quote_style = "double"
-tab_width = 4
+number_underscore = "thousands"
+hex_underscore = "remove"
 wrap_comments = true

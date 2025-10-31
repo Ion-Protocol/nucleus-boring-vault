@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 // Swell
 interface INonFungiblePositionManager {
+
     struct Position {
         // the nonce for permits
         uint96 nonce;
@@ -41,4 +42,5 @@ interface INonFungiblePositionManager {
             uint128 tokensOwed0,
             uint128 tokensOwed1
         );
+
 }

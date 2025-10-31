@@ -8,6 +8,7 @@ import { BaseDecoderAndSanitizer } from "./BaseDecoderAndSanitizer.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract IonPoolDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
     function supply(
@@ -25,4 +26,5 @@ contract IonPoolDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function withdraw(address receiverOfUnderlying, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(receiverOfUnderlying);
     }
+
 }

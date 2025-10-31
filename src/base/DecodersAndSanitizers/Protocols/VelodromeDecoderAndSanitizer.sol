@@ -2,9 +2,13 @@
 pragma solidity 0.8.21;
 
 import { IVelodromeNonFungiblePositionManager } from "src/interfaces/IVelodromeNonFungiblePositionManager.sol";
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error VelodromeDecoderAndSanitizer__ReceiverNotBoringVault();
@@ -97,11 +101,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc Velodrome function to safeTransferFrom ERC721s
     // @tag to:address
-    function safeTransferFrom(
-        address,
-        address to,
-        uint256
-    )
+    function safeTransferFrom(address, address to, uint256)
         external
         pure
         virtual
@@ -169,4 +169,5 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (to != address(boringVault)) revert VelodromeDecoderAndSanitizer__ReceiverNotBoringVault();
         addressesFound = abi.encodePacked(routes[0].from, routes[routes.length - 1].to);
     }
+
 }

@@ -8,8 +8,9 @@ import {
 } from "src/base/Roles/CrossChain/MultiChainTellerBase.sol";
 
 import { MultiChainBaseTest, MultiChainTellerBase, ERC20, BridgeData } from "./MultiChainBase.t.sol";
-import { MultiChainHyperlaneTellerWithMultiAssetSupport } from
-    "src/base/Roles/CrossChain/MultiChainHyperlaneTellerWithMultiAssetSupport.sol";
+import {
+    MultiChainHyperlaneTellerWithMultiAssetSupport
+} from "src/base/Roles/CrossChain/MultiChainHyperlaneTellerWithMultiAssetSupport.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { IMailbox } from "src/interfaces/hyperlane/IMailbox.sol";
 
@@ -20,6 +21,7 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 // Is only testing the function calls created from a single source chain. These
 // tests do not guarantee correct behavior on the destination chain.
 contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTest {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -165,8 +167,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                MultiChainHyperlaneTellerWithMultiAssetSupport
-                    .MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBridgeFeeToken
+                MultiChainHyperlaneTellerWithMultiAssetSupport.MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBridgeFeeToken
                     .selector
             )
         );
@@ -185,8 +186,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
         // If the caller on `handle` is not mailbox, should revert.
         vm.expectRevert(
             abi.encodeWithSelector(
-                MultiChainHyperlaneTellerWithMultiAssetSupport
-                    .MultiChainHyperlaneTellerWithMultiAssetSupport_CallerMustBeMailbox
+                MultiChainHyperlaneTellerWithMultiAssetSupport.MultiChainHyperlaneTellerWithMultiAssetSupport_CallerMustBeMailbox
                     .selector,
                 address(this)
             )
@@ -233,8 +233,7 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
         vm.startPrank(address(ETHEREUM_MAILBOX));
         vm.expectRevert(
             abi.encodeWithSelector(
-                MultiChainHyperlaneTellerWithMultiAssetSupport
-                    .MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBytes32Address
+                MultiChainHyperlaneTellerWithMultiAssetSupport.MultiChainHyperlaneTellerWithMultiAssetSupport_InvalidBytes32Address
                     .selector,
                 invalidSender
             )
@@ -281,4 +280,5 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupportTest is MultiChainBaseTes
     function _addressToBytes32(address _address) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(_address)));
     }
+
 }

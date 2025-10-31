@@ -4,10 +4,13 @@ pragma solidity 0.8.21;
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 interface LevelReserveLens {
+
     function getRedeemPrice(address asset) external view returns (uint256);
+
 }
 
 contract LvlUSDRateProvider {
+
     LevelReserveLens constant LVL_LENS = LevelReserveLens(0xd7f68a32E4bdd4908bDD1daa03bDd04581De80Ff);
     ERC20 constant USDC = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
@@ -27,4 +30,5 @@ contract LvlUSDRateProvider {
 
         return USDCPerLvlUSD * 10 ** 12; // convert 6 decimals to 18 decimals
     }
+
 }

@@ -3,11 +3,14 @@ pragma solidity 0.8.21;
 
 // Swell
 interface ISWETH {
+
     function deposit() external payable;
+
 }
 
 // EtherFi
 interface ILiquidityPool {
+
     function deposit() external payable returns (uint256);
 
     function requestWithdraw(address recipient, uint256 amount) external returns (uint256);
@@ -17,9 +20,11 @@ interface ILiquidityPool {
     function etherFiAdminContract() external view returns (address);
 
     function addEthAmountLockedForWithdrawal(uint128 _amount) external;
+
 }
 
 interface IWithdrawRequestNft {
+
     struct WithdrawRequest {
         uint96 amountOfEEth;
         uint96 shareOfEEth;
@@ -36,18 +41,22 @@ interface IWithdrawRequestNft {
     function owner() external view returns (address);
 
     function updateAdmin(address admin, bool isAdmin) external;
+
 }
 
 interface IWEETH {
+
     function wrap(uint256 amount) external returns (uint256);
 
     function unwrap(uint256 amount) external returns (uint256);
 
     function getRate() external view returns (uint256);
+
 }
 
 // Kelp DAO
 interface ILRTDepositPool {
+
     function depositAsset(
         address asset,
         uint256 depositAmount,
@@ -55,20 +64,26 @@ interface ILRTDepositPool {
         string calldata referralId
     )
         external;
+
 }
 
 // Lido
 interface ISTETH {
+
     function submit(address referral) external payable returns (uint256);
+
 }
 
 interface IWSTETH {
+
     function wrap(uint256 amount) external returns (uint256);
 
     function unwrap(uint256 amount) external returns (uint256);
+
 }
 
 interface IUNSTETH {
+
     struct WithdrawalRequestStatus {
         /// @notice stETH token amount that was locked on withdrawal queue for this request
         uint256 amountOfStETH;
@@ -126,25 +141,33 @@ interface IUNSTETH {
         external
         view
         returns (uint256[] memory);
+
 }
 
 // Renzo
 interface IRestakeManager {
+
     function depositETH() external payable;
+
 }
 
 // Stader
 interface IStakePoolManager {
+
     function deposit(address _receiver) external payable returns (uint256);
 
     function getExchangeRate() external view returns (uint256);
+
 }
 
 interface IStaderConfig {
+
     function getDecimals() external view returns (uint256);
+
 }
 
 interface IUserWithdrawManager {
+
     struct WithdrawRequest {
         address owner;
         uint256 ethXAmount;
@@ -160,4 +183,5 @@ interface IUserWithdrawManager {
     function userWithdrawRequests(uint256) external view returns (WithdrawRequest memory);
 
     function finalizeUserWithdrawalRequest() external;
+
 }

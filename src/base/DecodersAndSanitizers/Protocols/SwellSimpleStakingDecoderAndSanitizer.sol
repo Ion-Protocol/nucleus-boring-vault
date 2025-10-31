@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract SwellSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== SWELL SIMPLE STAKING ===============================
 
     // @desc function to deposit into Swell Simple Staking
@@ -37,4 +38,5 @@ abstract contract SwellSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanitiz
     {
         addressesFound = abi.encodePacked(_token, _receiver);
     }
+
 }

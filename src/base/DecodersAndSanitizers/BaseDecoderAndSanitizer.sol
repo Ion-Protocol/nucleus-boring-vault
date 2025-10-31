@@ -5,6 +5,7 @@ pragma solidity 0.8.21;
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 contract BaseDecoderAndSanitizer {
+
     //============================== IMMUTABLES ===============================
 
     /**
@@ -43,4 +44,5 @@ contract BaseDecoderAndSanitizer {
     fallback() external {
         revert BaseDecoderAndSanitizer__FunctionNotImplemented(msg.data);
     }
+
 }

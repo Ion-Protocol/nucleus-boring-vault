@@ -8,6 +8,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 contract DeployIonBoringVaultScript is BaseScript {
+
     using StdJson for string;
 
     function run() public returns (address boringVault) {
@@ -23,8 +24,7 @@ contract DeployIonBoringVaultScript is BaseScript {
         // Create Contract
         bytes memory creationCode = type(BoringVault).creationCode;
         BoringVault boringVault = BoringVault(
-            payable(
-                CREATEX.deployCreate3(
+            payable(CREATEX.deployCreate3(
                     config.boringVaultSalt,
                     abi.encodePacked(
                         creationCode,
@@ -35,8 +35,7 @@ contract DeployIonBoringVaultScript is BaseScript {
                             config.boringVaultAndBaseDecimals // decimals
                         )
                     )
-                )
-            )
+                ))
         );
 
         // Post Deploy Checks
@@ -47,4 +46,5 @@ contract DeployIonBoringVaultScript is BaseScript {
         );
         return address(boringVault);
     }
+
 }
