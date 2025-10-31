@@ -66,7 +66,10 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.stopPrank();
 
         vm.startPrank(user1);
-        vm.expectRevert(abi.encodeWithSelector(QueueAccessAuthority.QueueNotEmpty.selector), address(queue));
+        vm.expectRevert(
+            abi.encodeWithSelector(AccessAuthority.FunctionDeprecated.selector, OneToOneQueue.submitOrder.selector),
+            address(queue)
+        );
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
     }
@@ -87,7 +90,15 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.expectRevert(AccessAuthority.DeprecationNotBegun.selector, address(queue));
         rolesAuthority.continueDeprecation();
 
+        _submitAnOrder();
+
         rolesAuthority.beginDeprecation();
+
+        vm.expectRevert(abi.encodeWithSelector(QueueAccessAuthority.QueueNotEmpty.selector), address(queue));
+        rolesAuthority.continueDeprecation();
+
+        deal(address(USDG0), address(queue), 1e6);
+        queue.processOrders(1);
 
         vm.expectEmit(true, true, true, true);
         emit AccessAuthority.DeprecationContinued(2);
