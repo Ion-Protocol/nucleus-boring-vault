@@ -161,23 +161,21 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
-    function test_ForceRefund() external {
+    function test_ForceRefundOrders() external {
         vm.expectRevert("UNAUTHORIZED");
-        queue.forceRefund(0);
+        queue.forceRefundOrders(new uint256[](0));
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 0));
-        queue.forceRefund(0);
+        queue.forceRefundOrders(new uint256[](1));
 
         _submitAnOrder();
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
-
+        _submitAnOrder();
         vm.startPrank(owner);
 
-        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 2));
-        queue.forceProcess(2);
-
-        deal(address(USDC), address(queue), 1e6); // give the queue extra USDC to make up fees
+        uint256[] memory orderIndices = new uint256[](2);
+        orderIndices[0] = 1;
+        orderIndices[1] = 2;
 
         (
             uint128 amountOffer,
@@ -198,7 +196,104 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrderMarkedForRefund(1, order);
+        emit OneToOneQueue.OrderRefunded(1, order);
+        emit OneToOneQueue.OrderRefunded(2, order);
+        deal(address(USDC), address(queue), 2e6);
+        queue.forceRefundOrders(orderIndices);
+        assertEq(queue.getOrderStatus(1), "complete: refunded");
+        assertEq(queue.getOrderStatus(2), "complete: refunded");
+        vm.stopPrank();
+    }
+
+    function test_ForceProcessOrders() external {
+        vm.expectRevert("UNAUTHORIZED");
+        queue.forceProcessOrders(new uint256[](0));
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 0));
+        queue.forceRefundOrders(new uint256[](1));
+
+        _submitAnOrder();
+        _submitAnOrder();
+        vm.startPrank(owner);
+
+        (
+            uint128 amountOffer,
+            uint128 amountWant,
+            ERC20 offerAsset,
+            ERC20 wantAsset,
+            address refundReceiver,
+            OneToOneQueue.Status status
+        ) = queue.queue(1);
+
+        OneToOneQueue.Order memory order = OneToOneQueue.Order({
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            amountOffer: amountOffer,
+            amountWant: amountWant,
+            refundReceiver: refundReceiver,
+            status: OneToOneQueue.Status.PRE_FILLED // order event should emit with refund not with old status
+        });
+
+        uint256[] memory orderIndices = new uint256[](2);
+        orderIndices[0] = 1;
+        orderIndices[1] = 2;
+
+        deal(address(USDG0), address(queue), 2e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrderForceProcessed(2, order, user1);
+        emit OneToOneQueue.OrderForceProcessed(1, order, user1);
+        queue.forceProcessOrders(orderIndices);
+
+        assertEq(queue.getOrderStatus(1), "complete: pre-filled");
+        assertEq(queue.getOrderStatus(2), "complete: pre-filled");
+        vm.stopPrank();
+    }
+
+    function test_ForceRefund() external {
+        vm.expectRevert("UNAUTHORIZED");
+        queue.forceRefund(0);
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 0));
+        queue.forceRefund(0);
+
+        _submitAnOrder();
+        assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
+
+        vm.startPrank(owner);
+
+        vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 2));
+        queue.forceProcess(2);
+
+        (
+            uint128 amountOffer,
+            uint128 amountWant,
+            ERC20 offerAsset,
+            ERC20 wantAsset,
+            address refundReceiver,
+            OneToOneQueue.Status status
+        ) = queue.queue(1);
+
+        OneToOneQueue.Order memory order = OneToOneQueue.Order({
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            amountOffer: amountOffer,
+            amountWant: amountWant,
+            refundReceiver: refundReceiver,
+            status: OneToOneQueue.Status.REFUND // order event should emit with refund not with old status
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OneToOneQueue.InsufficientBalance.selector, 1, address(queue), address(USDC), 1e6, 0)
+        );
+        queue.forceRefund(1);
+
+        deal(address(USDC), address(queue), 1e6); // give the queue extra USDC to make up fees
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrderRefunded(1, order);
         queue.forceRefund(1);
 
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 1));
@@ -220,11 +315,24 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.forceProcess(0);
 
         _submitAnOrder();
-        deal(address(USDG0), address(queue), 1e6);
 
         assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
 
         vm.startPrank(owner);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OneToOneQueue.InsufficientBalance.selector,
+                1,
+                address(queue),
+                address(USDG0),
+                1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+                0
+            )
+        );
+        queue.forceProcess(1);
+
+        deal(address(USDG0), address(queue), 1e6);
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 2));
         queue.forceProcess(2);

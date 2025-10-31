@@ -23,13 +23,15 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
     address public queue;
     mapping(address => bool) public isBlacklisted;
 
-    constructor(address _owner, address _queue) RolesAuthority(_owner, Authority(address(0))) {
+    /// @dev owner starts as the msg.sender so that permissioned functions may be called in the constructor, however,
+    /// ownership must be transferred to the intended owner afterwards
+    constructor(address _owner, address _queue) RolesAuthority(msg.sender, Authority(address(0))) {
         queue = _queue;
-        // TODO: Right now only owner can call these functions, so only owner may deploy... see if there's an internal
-        // function
         setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
         setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);
         setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
+
+        transferOwnership(_owner);
     }
 
     /// @dev canCall override to include a blacklist check
@@ -62,7 +64,6 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
 
     /// @dev Step 2
     function _onDeprecationContinue(uint8 newStep) internal override {
-        // TODO: Validate that even when pre-filling the totoalSupply is still a valid count of outstanding orders
         if (OneToOneQueue(queue).totalSupply() != 0) {
             revert QueueDeprecateableRolesAuthority__QueueNotEmpty();
         }

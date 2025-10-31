@@ -69,10 +69,10 @@ abstract contract OneToOneQueueTestBase is Test {
     /// @param endIndex Ending order index (inclusive)
     event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
 
-    /// @notice Emitted when an order is marked for refund
+    /// @notice Emitted when an order is refunded
     /// @param orderIndex Index of the order
     /// @param order The order details
-    event OrderMarkedForRefund(uint256 indexed orderIndex, OneToOneQueue.Order order);
+    event OrderRefunded(uint256 indexed orderIndex, OneToOneQueue.Order order);
 
     /// @notice Emitted when an order is force processed
     /// @param orderIndex Index of the order

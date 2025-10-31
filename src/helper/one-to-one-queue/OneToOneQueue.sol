@@ -96,7 +96,7 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         uint256 indexed orderIndex, Order order, address indexed receiver, bool isSubmittedViaSignature
     );
     event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
-    event OrderMarkedForRefund(uint256 indexed orderIndex, Order order);
+    event OrderRefunded(uint256 indexed orderIndex, Order order);
     event OrderForceProcessed(uint256 indexed orderIndex, Order order, address indexed receiver);
     event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
 
@@ -250,48 +250,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     }
 
     /**
-     * @notice refund an order and force process it
-     * @param orderIndex Index of the order to refund
-     */
-    function forceRefund(uint256 orderIndex) external requiresAuth {
-        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
-        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
-
-        Order memory order = queue[orderIndex];
-        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
-
-        queue[orderIndex].status = Status.REFUND;
-
-        _burn(orderIndex);
-        IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
-
-        emit OrderMarkedForRefund(orderIndex, queue[orderIndex]);
-    }
-
-    /**
-     * @notice Force process an order out of sequence
-     * @param orderIndex Index of the order to force process
-     */
-    function forceProcess(uint256 orderIndex) external requiresAuth {
-        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
-        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
-
-        Order memory order = queue[orderIndex];
-
-        // require order is set to DEFAULT status
-        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
-
-        // Mark as pre-filled
-        queue[orderIndex].status = Status.PRE_FILLED;
-
-        address receiver = ownerOf(orderIndex);
-        _burn(orderIndex);
-        IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
-
-        emit OrderForceProcessed(orderIndex, order, receiver);
-    }
-
-    /**
      * @notice A user facing function to return an order's status in plain english.
      * Possible returns:
      * "complete: pre-filled" order has been pre-filled and is complete
@@ -318,7 +276,73 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         }
     }
 
-    // TODO: support submitting a batch of ordes. Do same for refund and force process
+    /**
+     * @notice Force refund multiple orders
+     * @param orderIndices Array of order indices to refund
+     */
+    function forceRefundOrders(uint256[] calldata orderIndices) external requiresAuth {
+        uint256 length = orderIndices.length;
+        for (uint256 i; i < length; ++i) {
+            _forceRefund(orderIndices[i]);
+        }
+    }
+
+    /**
+     * @notice Force process multiple orders
+     * @param orderIndices Array of order indices to process
+     */
+    function forceProcessOrders(uint256[] calldata orderIndices) external requiresAuth {
+        uint256 length = orderIndices.length;
+        for (uint256 i; i < length; ++i) {
+            _forceProcess(orderIndices[i]);
+        }
+    }
+
+    /**
+     * @notice refund an order and force process it
+     * @param orderIndex Index of the order to refund
+     */
+    function forceRefund(uint256 orderIndex) external requiresAuth {
+        _forceRefund(orderIndex);
+    }
+
+    /**
+     * @notice Force process an order out of sequence
+     * @param orderIndex Index of the order to force process
+     */
+    function forceProcess(uint256 orderIndex) external requiresAuth {
+        _forceProcess(orderIndex);
+    }
+
+    /**
+     * @notice Submit and immediately process an order if liquidity is available
+     * @param amountOffer Amount of offer asset
+     * @param offerAsset Asset being offered
+     * @param wantAsset Asset being requested
+     * @param receiver Address to receive the NFT receipt and want asset
+     * @param refundReceiver Address to receive refunds if needed
+     * @param params for submission signature use
+     * @return orderIndex The index of the created order
+     */
+    function submitOrderAndProcess(
+        uint256 amountOffer,
+        ERC20 offerAsset,
+        ERC20 wantAsset,
+        address intendedDepositor,
+        address receiver,
+        address refundReceiver,
+        SubmissionParams calldata params
+    )
+        external
+        requiresAuth
+        returns (uint256 orderIndex)
+    {
+        orderIndex = submitOrder(
+            uint128(amountOffer), offerAsset, wantAsset, intendedDepositor, receiver, refundReceiver, params
+        );
+        processOrders(orderIndex - lastProcessedOrder);
+    }
+
     /**
      * @notice Submit an order at the back of the queue
      * @param amountOffer uint amount of offer asset to deposit
@@ -464,35 +488,6 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
     }
 
     /**
-     * @notice Submit and immediately process an order if liquidity is available
-     * @param amountOffer Amount of offer asset
-     * @param offerAsset Asset being offered
-     * @param wantAsset Asset being requested
-     * @param receiver Address to receive the NFT receipt and want asset
-     * @param refundReceiver Address to receive refunds if needed
-     * @param params for submission signature use
-     * @return orderIndex The index of the created order
-     */
-    function submitOrderAndProcess(
-        uint256 amountOffer,
-        ERC20 offerAsset,
-        ERC20 wantAsset,
-        address intendedDepositor,
-        address receiver,
-        address refundReceiver,
-        SubmissionParams calldata params
-    )
-        external
-        requiresAuth
-        returns (uint256 orderIndex)
-    {
-        orderIndex = submitOrder(
-            uint128(amountOffer), offerAsset, wantAsset, intendedDepositor, receiver, refundReceiver, params
-        );
-        processOrders(orderIndex - lastProcessedOrder);
-    }
-
-    /**
      * @notice helper to get want amount in want decimals from an amount of offer asset
      */
     function _getWantAmountInWantDecimals(
@@ -532,6 +527,42 @@ contract OneToOneQueue is ERC721Enumerable, Auth {
         if (depositorAllowance < amount) {
             revert InsufficientAllowance(orderIndex, depositor, address(asset), amount, depositorAllowance);
         }
+    }
+
+    function _forceRefund(uint256 orderIndex) internal {
+        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
+        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
+
+        Order memory order = queue[orderIndex];
+        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
+
+        queue[orderIndex].status = Status.REFUND;
+
+        _checkBalance(address(this), order.offerAsset, order.amountOffer, orderIndex);
+        _burn(orderIndex);
+        IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
+
+        emit OrderRefunded(orderIndex, queue[orderIndex]);
+    }
+
+    function _forceProcess(uint256 orderIndex) internal {
+        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
+        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
+
+        Order memory order = queue[orderIndex];
+
+        // require order is set to DEFAULT status
+        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
+
+        // Mark as pre-filled
+        queue[orderIndex].status = Status.PRE_FILLED;
+
+        address receiver = ownerOf(orderIndex);
+        _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
+        _burn(orderIndex);
+        IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
+
+        emit OrderForceProcessed(orderIndex, queue[orderIndex], receiver);
     }
 
 }
