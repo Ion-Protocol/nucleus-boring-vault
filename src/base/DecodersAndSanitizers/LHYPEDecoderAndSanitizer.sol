@@ -37,6 +37,10 @@ import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Proto
 import {
     MorphoBlueDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/Protocols/MorphoBlueDecoderAndSanitizer.sol";
+import {
+    LayerZeroOFTDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/LayerZeroOFTDecoderAndSanitizer.sol";
+import { CircleDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/CircleDecoderAndSanitizer.sol";
 
 contract LHYPEDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -56,7 +60,9 @@ contract LHYPEDecoderAndSanitizer is
     SpectraDecoderAndSanitizer,
     ValantisDecoderAndSanitizer,
     NucleusDecoderAndSanitizer,
-    MorphoBlueDecoderAndSanitizer
+    MorphoBlueDecoderAndSanitizer,
+    LayerZeroOFTDecoderAndSanitizer,
+    CircleDecoderAndSanitizer
 {
 
     constructor(
