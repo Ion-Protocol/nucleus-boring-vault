@@ -3,65 +3,12 @@ pragma solidity 0.8.21;
 
 import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
-import { QueueDeprecateableRolesAuthority } from "src/helper/one-to-one-queue/QueueDeprecateableRolesAuthority.sol";
-import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-
-contract tERC20 is ERC20 {
-
-    constructor(uint8 decimals) ERC20("test name", "test", decimals) { }
-
-}
 
 /// TODO: test the gas of processing, how many can be processed? Should we remove fee module calls on process for
 /// simplicity
-contract OneToOneQueueTestHappyPath is Test {
-
-    OneToOneQueue queue;
-    SimpleFeeModule feeModule;
-    QueueDeprecateableRolesAuthority rolesAuthority;
-
-    ERC20 public USDC;
-    ERC20 public USDG0;
-    ERC20 public DAI;
-
-    uint256 TEST_OFFER_FEE_PERCENTAGE = 10; // 0.1% fee
-
-    address mockBoringVaultAddress = makeAddr("boring vault");
-    address owner = makeAddr("owner");
-    address user1 = makeAddr("user1");
-    address user2 = makeAddr("user2");
-    address user3 = makeAddr("user3");
-    address solver = makeAddr("solver");
-    address feeRecipient = makeAddr("fee recipient");
-
-    // A simple params struct used in most tests
-    OneToOneQueue.SubmissionParams params = OneToOneQueue.SubmissionParams({
-        approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-        approvalV: 0,
-        approvalR: bytes32(0),
-        approvalS: bytes32(0),
-        submitWithSignature: false,
-        deadline: block.timestamp + 1000,
-        eip2612Signature: "",
-        nonce: 0
-    });
-
-    function setUp() external {
-        vm.startPrank(owner);
-        feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
-        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, owner);
-        rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
-
-        queue.setAuthority(rolesAuthority);
-
-        USDC = new tERC20(6);
-        USDG0 = new tERC20(6);
-        DAI = new tERC20(18);
-
-        queue.addOfferAsset(address(USDC), 0);
-        queue.addWantAsset(address(USDG0));
-    }
+contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
     /**
      * Queue Happy Path:
@@ -91,7 +38,7 @@ contract OneToOneQueueTestHappyPath is Test {
         // User1 submits an order
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
-        queue.submitOrder(depositAmount1, USDC, USDG0, user1, user1, user1, params);
+        queue.submitOrder(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
 
         assertEq(queue.ownerOf(1), user1, "user1 should own NFT ID 1");
@@ -100,13 +47,13 @@ contract OneToOneQueueTestHappyPath is Test {
         // User2 sumbits an order
         vm.startPrank(user2);
         USDC.approve(address(queue), depositAmount2);
-        queue.submitOrder(depositAmount2, USDC, USDG0, user2, user2, user2, params);
+        queue.submitOrder(depositAmount2, USDC, USDG0, user2, user2, user2, defaultParams);
         vm.stopPrank();
 
         // User3 sumbits an order
         vm.startPrank(user3);
         USDC.approve(address(queue), depositAmount3);
-        queue.submitOrder(depositAmount3, USDC, USDG0, user3, user3, user3, params);
+        queue.submitOrder(depositAmount3, USDC, USDG0, user3, user3, user3, defaultParams);
         vm.stopPrank();
 
         assertEq(queue.ownerOf(2), user2, "user2 should own NFT ID 2");
@@ -150,7 +97,7 @@ contract OneToOneQueueTestHappyPath is Test {
         deal(address(USDC), user1, depositAmount1);
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
-        queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, user1, params);
+        queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
 
         totalFees += user1Fees;
@@ -184,7 +131,7 @@ contract OneToOneQueueTestHappyPath is Test {
 
         vm.startPrank(user1);
         DAI.approve(address(queue), 1e18);
-        queue.submitOrderAndProcess(depositAmount1, DAI, USDG0, user1, user1, user1, params);
+        queue.submitOrderAndProcess(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
 
         assertEq(USDG0.balanceOf(user1), 1e6 - user1FeesWant, "User should have received USDG0 in 6 decimals");
@@ -210,12 +157,12 @@ contract OneToOneQueueTestHappyPath is Test {
         deal(address(USDC), user1, 11e6);
         USDC.approve(address(queue), 11e6);
         vm.expectRevert("UNAUTHORIZED");
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, params);
+        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
 
         vm.stopPrank();
 
         vm.startPrank(owner);
-        queue.submitOrder(1e6, USDC, USDG0, owner, owner, owner, params);
+        queue.submitOrder(1e6, USDC, USDG0, owner, owner, owner, defaultParams);
         assertEq(queue.ownerOf(1), owner, "owner could mint because deprecation doesn't apply to the owner");
         vm.stopPrank();
 
@@ -245,9 +192,9 @@ contract OneToOneQueueTestHappyPath is Test {
 
         // user submits 3 orders
         // Make user2 the receiver of 1 and 3 so easier to measure the result of the processing
-        queue.submitOrder(1e6, USDC, USDG0, user1, user2, user2, params);
-        queue.submitOrder(2e6, USDC, USDG0, user1, user1, user1, params);
-        queue.submitOrder(3e6, USDC, USDG0, user1, user2, user2, params);
+        queue.submitOrder(1e6, USDC, USDG0, user1, user2, user2, defaultParams);
+        queue.submitOrder(2e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrder(3e6, USDC, USDG0, user1, user2, user2, defaultParams);
         vm.stopPrank();
 
         // owner refunds 1

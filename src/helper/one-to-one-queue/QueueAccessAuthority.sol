@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { DeprecatableRolesAuthority, RolesAuthority } from "./abstract/DeprecatableRolesAuthority.sol";
+import { AccessAuthority, RolesAuthority } from "./abstract/AccessAuthority.sol";
 import { OneToOneQueue } from "./OneToOneQueue.sol";
 import { Authority } from "@solmate/auth/Auth.sol";
 
-contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
+contract QueueAccessAuthority is AccessAuthority {
 
     /// @dev 2 deprecation steps
     /// 1: Dissable new orders but allow solving existing ones
@@ -16,9 +16,9 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
         CLOSED
     }
 
-    error QueueDeprecateableRolesAuthority__QueueNotEmpty();
+    error QueueNotEmpty();
 
-    event QueueDeprecateableRolesAuthority__BlacklistUpdated(address indexed user, bool indexed isBlacklisted);
+    event BlacklistUpdated(address indexed user, bool indexed isBlacklisted);
 
     address public queue;
     mapping(address => bool) public isBlacklisted;
@@ -36,11 +36,17 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
 
     /// @dev canCall override to include a blacklist check
     /// TODO: consider how the parent contract reverts with a message. Should this do the same or return false as now?
-    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
+    function canCallReason(address user, address target, bytes4 functionSig)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {
         if (isBlacklisted[user]) {
             return false;
         }
-        return super.canCall(user, target, functionSig);
+        return super.canCallReason(user, target, functionSig);
     }
 
     function setUsersBlacklistStatus(
@@ -52,7 +58,7 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
     {
         for (uint256 i; i < users.length; i++) {
             isBlacklisted[users[i]] = isBlacklistedStatus[i];
-            emit QueueDeprecateableRolesAuthority__BlacklistUpdated(users[i], isBlacklistedStatus[i]);
+            emit BlacklistUpdated(users[i], isBlacklistedStatus[i]);
         }
     }
 
@@ -65,7 +71,7 @@ contract QueueDeprecateableRolesAuthority is DeprecatableRolesAuthority {
     /// @dev Step 2
     function _onDeprecationContinue(uint8 newStep) internal override {
         if (OneToOneQueue(queue).totalSupply() != 0) {
-            revert QueueDeprecateableRolesAuthority__QueueNotEmpty();
+            revert QueueNotEmpty();
         }
         isFullyDeprecated = true;
         _pauseForDeprecation();

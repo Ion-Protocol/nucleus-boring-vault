@@ -5,10 +5,14 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 
 /**
- * @title DeprecatableRolesAuthority
- * @notice Abstract contract for managing roles, deprecation at the system level
+ * @title AccessAuthority
+ * @notice Abstract contract for managing access to all of a system's external functions. Examples include:
+ * pausing
+ * roles/ownership
+ * deprecation
+ * whitelist/blacklist
  */
-abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
+abstract contract AccessAuthority is Pausable, RolesAuthority {
 
     enum REASON {
         NOT_PAUSED,
@@ -45,7 +49,7 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
     /// @notice Bool flag if deprecation is complete
     bool public isFullyDeprecated;
 
-    error DeprecatableRolesAuthority__paused(REASON reason, uint8 deprecationStepIfInDeprecation);
+    error AccessAuthority__paused(REASON reason, uint8 deprecationStepIfInDeprecation);
     error DeprecationAlreadyBegun(uint8 currentStep);
     error DeprecationNotBegun();
 
@@ -84,10 +88,10 @@ abstract contract DeprecatableRolesAuthority is Pausable, RolesAuthority {
     }
 
     /// @dev if paused, no functions are now public
-    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
+    function canCallReason(address user, address target, bytes4 functionSig) public view virtual returns (bool) {
         // if paused, only owner can call
         if (paused()) {
-            revert DeprecatableRolesAuthority__paused(pauseReason, deprecationStep);
+            revert AccessAuthority__paused(pauseReason, deprecationStep);
         }
         return super.canCall(user, target, functionSig);
     }

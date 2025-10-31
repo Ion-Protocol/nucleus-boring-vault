@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
-import { QueueDeprecateableRolesAuthority } from "src/helper/one-to-one-queue/QueueDeprecateableRolesAuthority.sol";
+import { QueueAccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
@@ -87,7 +87,7 @@ abstract contract OneToOneQueueTestBase is Test {
 
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
-    QueueDeprecateableRolesAuthority rolesAuthority;
+    QueueAccessAuthority rolesAuthority;
 
     ERC20 public USDC;
     ERC20 public USDG0;
@@ -121,7 +121,7 @@ abstract contract OneToOneQueueTestBase is Test {
         vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
         queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, owner);
-        rolesAuthority = new QueueDeprecateableRolesAuthority(owner, address(queue));
+        rolesAuthority = new QueueAccessAuthority(owner, address(queue));
 
         (alice, alicePk) = makeAddrAndKey("alice");
 

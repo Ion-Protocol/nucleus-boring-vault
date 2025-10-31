@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
-import { QueueDeprecateableRolesAuthority } from "src/helper/one-to-one-queue/QueueDeprecateableRolesAuthority.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
