@@ -5,6 +5,8 @@ import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
+import { AccessAuthority } from "src/helper/one-to-one-queue/abstract/AccessAuthority.sol";
+import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
 
 /// TODO: test the gas of processing, how many can be processed? Should we remove fee module calls on process for
 /// simplicity
@@ -140,7 +142,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
     function testDeprecation() external {
         vm.startPrank(user1);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(AccessAuthority.Unauthorized.selector);
         rolesAuthority.beginDeprecation();
         vm.stopPrank();
 
@@ -156,7 +158,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
         deal(address(USDC), user1, 11e6);
         USDC.approve(address(queue), 11e6);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
 
         vm.stopPrank();
@@ -176,8 +178,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         vm.stopPrank();
 
         vm.prank(user1);
-        // TODO: upgrade to custom errors and confirm it's that
-        vm.expectRevert();
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.processOrders(1);
         vm.stopPrank();
     }

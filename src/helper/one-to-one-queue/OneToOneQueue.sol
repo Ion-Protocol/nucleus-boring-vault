@@ -6,7 +6,8 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IFeeModule } from "./interfaces/IFeeModule.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
+import { VerboseAuth } from "./abstract/VerboseAuth.sol";
+import { Authority, Auth } from "@solmate/auth/Auth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -14,7 +15,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice A FIFO queue system for processing withdrawal requests with tokenized receipts
  * @dev Implements ERC721Enumerable for tokenized order receipts
  */
-contract OneToOneQueue is ERC721Enumerable, Auth {
+contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     using SafeERC20 for IERC20;
 

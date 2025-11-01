@@ -34,6 +34,22 @@ contract QueueAccessAuthority is AccessAuthority {
         transferOwnership(_owner);
     }
 
+    function getUnauthorizedReasons(
+        address user,
+        bytes4 functionSig
+    )
+        public
+        view
+        virtual
+        override
+        returns (string memory reason)
+    {
+        reason = super.getUnauthorizedReasons(user, functionSig);
+        if (isBlacklisted[user]) {
+            reason = string(abi.encodePacked(reason, "- Blacklisted "));
+        }
+    }
+
     function setUsersBlacklistStatus(
         address[] memory users,
         bool[] memory isBlacklistedStatus
@@ -59,7 +75,7 @@ contract QueueAccessAuthority is AccessAuthority {
             revert QueueNotEmpty();
         }
         isFullyDeprecated = true;
-        _pauseForDeprecation();
+        _pause();
     }
 
 }

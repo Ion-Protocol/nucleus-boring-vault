@@ -7,6 +7,7 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
 
 contract OneToOneQueueTest is OneToOneQueueTestBase {
 
@@ -15,7 +16,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         assertEq(oldFeeModule, address(feeModule));
 
         SimpleFeeModule newFeeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.setFeeModule(newFeeModule);
 
         vm.startPrank(owner);
@@ -34,7 +35,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address newFeeRecipient = makeAddr("new fee recipient");
         assertEq(oldFeeRecipient, feeRecipient);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.setFeeRecipient(address(newFeeRecipient));
 
         vm.startPrank(owner);
@@ -53,7 +54,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address newOfferAsset = address(new tERC20(6));
         assertEq(queue.supportedOfferAssets(address(USDC)), true);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.addOfferAsset(newOfferAsset, 12);
 
         vm.startPrank(owner);
@@ -75,7 +76,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         uint256 oldMinimum = queue.minimumOrderSizePerAsset(address(USDC));
         uint256 newMinimum = 12;
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.updateAssetMinimumOrderSize(address(USDC), newMinimum);
 
         vm.startPrank(owner);
@@ -93,7 +94,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address oldOfferAsset = address(USDC);
         assertEq(queue.supportedOfferAssets(address(USDC)), true);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.removeOfferAsset(address(USDC));
 
         vm.startPrank(owner);
@@ -109,7 +110,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address newWantAsset = address(new tERC20(6));
         assertEq(queue.supportedWantAssets(address(USDG0)), true);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.addWantAsset(newWantAsset);
 
         vm.startPrank(owner);
@@ -130,7 +131,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address oldWantAsset = address(USDG0);
         assertEq(queue.supportedWantAssets(address(USDG0)), true);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.removeWantAsset(address(USDG0));
 
         vm.startPrank(owner);
@@ -146,7 +147,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address newOfferAssetRecipient = makeAddr("new offer asset recipient");
         assertEq(oldOfferAssetRecipient, mockBoringVaultAddress);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.updateOfferAssetRecipient(address(newOfferAssetRecipient));
 
         vm.startPrank(owner);
@@ -161,7 +162,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
     }
 
     function test_ForceRefundOrders() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.forceRefundOrders(new uint256[](0));
 
         vm.prank(owner);
@@ -205,7 +206,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
     }
 
     function test_ForceProcessOrders() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.forceProcessOrders(new uint256[](0));
 
         vm.prank(owner);
@@ -251,7 +252,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
     }
 
     function test_ForceRefund() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.forceRefund(0);
 
         vm.prank(owner);
@@ -306,7 +307,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
     }
 
     function test_ForceProcess() external {
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         queue.forceProcess(0);
 
         vm.prank(owner);

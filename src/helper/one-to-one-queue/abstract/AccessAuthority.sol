@@ -14,24 +14,13 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
  */
 abstract contract AccessAuthority is Pausable, RolesAuthority {
 
-    error Unauthorized(address user, address target, bytes4 functionSig);
-    error PausedByProtocol();
+    error Unauthorized(address caller, address target, bytes4 functionSig);
     error DeprecationNotBegun();
     error DeprecationAlreadyBegun(uint8 currentStep);
-    error FunctionDeprecated(bytes4 functionSig);
-
-    enum REASON {
-        NOT_PAUSED,
-        PAUSED_BY_PROTOCOL,
-        DEPRECATION_IN_PROGRESS,
-        DEPRECATED
-    }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-
-    REASON public pauseReason;
 
     /// @notice Emitted when deprecation process begins
     /// @param step The deprecation step number
@@ -64,8 +53,33 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         }
     }
 
+    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
+        // If the contract is paused cannot call anything, otherwise follow rules set by the RolesAuthority
+        if (paused()) {
+            return false;
+        }
+        return super.canCall(user, target, functionSig);
+    }
+
+    function getUnauthorizedReasons(address user, bytes4 functionSig)
+        public
+        view
+        virtual
+        returns (string memory reason)
+    {
+        if (paused()) {
+            reason = "- Paused ";
+        }
+        if (isFullyDeprecated) {
+            reason = string(abi.encodePacked(reason, "- Fully Deprecated "));
+        } else if (deprecationStep > 0) {
+            reason = string(abi.encodePacked(reason, "- Deprecation in progress "));
+        }
+
+        return reason;
+    }
+
     function pause() external requiresAuth {
-        pauseReason = REASON.PAUSED_BY_PROTOCOL;
         _pause();
     }
 
@@ -101,15 +115,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     /*//////////////////////////////////////////////////////////////
                        INTERNAL HOOK FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice helper to pause with the deprecated reason
-     */
-    function _pauseForDeprecation() internal {
-        _pause();
-        pauseReason = REASON.DEPRECATED;
-    }
-
     /**
      * @notice Hook called when deprecation begins
      * @dev Override to implement step 1 specific logic

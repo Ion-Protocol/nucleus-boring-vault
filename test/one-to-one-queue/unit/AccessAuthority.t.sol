@@ -6,6 +6,7 @@ import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol
 import { QueueAccessAuthority, AccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
+import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
 
 contract AccessAuthorityTest is OneToOneQueueTestBase {
 
@@ -37,10 +38,20 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.startPrank(owner);
         rolesAuthority.pause();
         assertTrue(rolesAuthority.paused());
+        vm.stopPrank();
 
-        assertEq(uint8(rolesAuthority.pauseReason()), uint8(AccessAuthority.REASON.PAUSED_BY_PROTOCOL));
-
-        vm.expectRevert(AccessAuthority.PausedByProtocol.selector, address(queue));
+        // TODO: Right now the owner can bypass all of the checks.... Think about this
+        // Since canCall() is used not a full override
+        vm.startPrank(user1);
+        bytes memory data = abi.encodeWithSelector(
+            OneToOneQueue.submitOrder.selector, 1e6, USDC, USDG0, user1, user1, user1, defaultParams
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector, user1, OneToOneQueue.submitOrder.selector, data, "- Paused "
+            ),
+            address(queue)
+        );
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         vm.stopPrank();
     }
@@ -66,8 +77,17 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.stopPrank();
 
         vm.startPrank(user1);
+        bytes memory data = abi.encodeWithSelector(
+            OneToOneQueue.submitOrder.selector, 1e6, USDC, USDG0, user1, user1, user1, defaultParams
+        );
         vm.expectRevert(
-            abi.encodeWithSelector(AccessAuthority.FunctionDeprecated.selector, OneToOneQueue.submitOrder.selector),
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector,
+                user1,
+                OneToOneQueue.submitOrder.selector,
+                data,
+                "- Deprecation in progress "
+            ),
             address(queue)
         );
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
@@ -86,15 +106,16 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         );
         rolesAuthority.continueDeprecation();
 
-        vm.startPrank(owner);
-        vm.expectRevert(AccessAuthority.DeprecationNotBegun.selector, address(queue));
+        vm.prank(owner);
+        vm.expectRevert(AccessAuthority.DeprecationNotBegun.selector, address(rolesAuthority));
         rolesAuthority.continueDeprecation();
 
         _submitAnOrder();
 
+        vm.startPrank(owner);
         rolesAuthority.beginDeprecation();
 
-        vm.expectRevert(abi.encodeWithSelector(QueueAccessAuthority.QueueNotEmpty.selector), address(queue));
+        vm.expectRevert(abi.encodeWithSelector(QueueAccessAuthority.QueueNotEmpty.selector), address(rolesAuthority));
         rolesAuthority.continueDeprecation();
 
         deal(address(USDG0), address(queue), 1e6);
@@ -106,20 +127,35 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         rolesAuthority.continueDeprecation();
 
         assertEq(rolesAuthority.deprecationStep(), 2);
-        assertEq(uint8(rolesAuthority.pauseReason()), uint8(AccessAuthority.REASON.DEPRECATED));
         assertTrue(rolesAuthority.isFullyDeprecated());
         assertTrue(rolesAuthority.paused());
         vm.stopPrank();
 
         vm.startPrank(user1);
+        bytes memory data = abi.encodeWithSelector(
+            OneToOneQueue.submitOrder.selector, 1e6, USDC, USDG0, user1, user1, user1, defaultParams
+        );
         vm.expectRevert(
-            abi.encodeWithSelector(AccessAuthority.FunctionDeprecated.selector, OneToOneQueue.submitOrder.selector),
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector,
+                user1,
+                OneToOneQueue.submitOrder.selector,
+                data,
+                "- Paused - Fully Deprecated "
+            ),
             address(queue)
         );
         queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
 
+        data = abi.encodeWithSelector(OneToOneQueue.processOrders.selector, 1);
         vm.expectRevert(
-            abi.encodeWithSelector(AccessAuthority.FunctionDeprecated.selector, OneToOneQueue.processOrders.selector),
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector,
+                user1,
+                OneToOneQueue.processOrders.selector,
+                data,
+                "- Paused - Fully Deprecated "
+            ),
             address(queue)
         );
         queue.processOrders(1);
