@@ -8,8 +8,6 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 import { AccessAuthority } from "src/helper/one-to-one-queue/abstract/AccessAuthority.sol";
 import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
 
-/// TODO: test the gas of processing, how many can be processed? Should we remove fee module calls on process for
-/// simplicity
 contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
     /**

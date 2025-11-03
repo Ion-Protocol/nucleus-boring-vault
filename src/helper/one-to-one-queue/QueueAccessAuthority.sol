@@ -16,12 +16,12 @@ contract QueueAccessAuthority is AccessAuthority {
         CLOSED
     }
 
-    error QueueNotEmpty();
+    address public queue;
+    mapping(address => bool) public isBlacklisted;
 
     event BlacklistUpdated(address indexed user, bool indexed isBlacklisted);
 
-    address public queue;
-    mapping(address => bool) public isBlacklisted;
+    error QueueNotEmpty();
 
     /// @dev owner starts as the msg.sender so that permissioned functions may be called in the constructor, however,
     /// ownership must be transferred to the intended owner afterwards
