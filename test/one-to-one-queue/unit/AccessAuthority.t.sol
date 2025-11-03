@@ -191,4 +191,43 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_setUsersBlacklistStatus() external {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AccessAuthority.Unauthorized.selector,
+                address(this),
+                address(rolesAuthority),
+                bytes4(keccak256("setUsersBlacklistStatus(address[],bool[])"))
+            ),
+            address(rolesAuthority)
+        );
+        rolesAuthority.setUsersBlacklistStatus(new address[](0), new bool[](0));
+
+        address[] memory blacklist = new address[](1);
+        blacklist[0] = user2;
+        bool[] memory isBlacklisted = new bool[](1);
+        isBlacklisted[0] = true;
+
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit QueueAccessAuthority.BlacklistUpdated(user2, true);
+        rolesAuthority.setUsersBlacklistStatus(blacklist, isBlacklisted);
+        vm.stopPrank();
+
+        assertTrue(rolesAuthority.isBlacklisted(user2));
+
+        vm.startPrank(user2);
+        bytes memory data = abi.encodeWithSelector(
+            OneToOneQueue.submitOrder.selector, 1e6, USDC, USDG0, user2, user2, user2, defaultParams
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector, user2, OneToOneQueue.submitOrder.selector, data, "- Blacklisted "
+            ),
+            address(queue)
+        );
+        queue.submitOrder(1e6, USDC, USDG0, user2, user2, user2, defaultParams);
+        vm.stopPrank();
+    }
+
 }

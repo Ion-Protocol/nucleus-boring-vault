@@ -40,6 +40,29 @@ contract QueueAccessAuthority is AccessAuthority {
         transferOwnership(_owner);
     }
 
+    /// @dev override canCall but add on the blacklist check
+    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
+        if (isBlacklisted[user]) {
+            return false;
+        }
+        return super.canCall(user, target, functionSig);
+    }
+
+    /// @notice set the blacklist status for users
+    function setUsersBlacklistStatus(
+        address[] memory users,
+        bool[] memory isBlacklistedStatus
+    )
+        external
+        requiresAuth
+    {
+        for (uint256 i; i < users.length; i++) {
+            isBlacklisted[users[i]] = isBlacklistedStatus[i];
+            emit BlacklistUpdated(users[i], isBlacklistedStatus[i]);
+        }
+    }
+
+    /// @dev override getUnauthorizedReasons but add on the blacklist check
     function getUnauthorizedReasons(
         address user,
         bytes4 functionSig
@@ -53,19 +76,6 @@ contract QueueAccessAuthority is AccessAuthority {
         reason = super.getUnauthorizedReasons(user, functionSig);
         if (isBlacklisted[user]) {
             reason = string(abi.encodePacked(reason, "- Blacklisted "));
-        }
-    }
-
-    function setUsersBlacklistStatus(
-        address[] memory users,
-        bool[] memory isBlacklistedStatus
-    )
-        external
-        requiresAuth
-    {
-        for (uint256 i; i < users.length; i++) {
-            isBlacklisted[users[i]] = isBlacklistedStatus[i];
-            emit BlacklistUpdated(users[i], isBlacklistedStatus[i]);
         }
     }
 

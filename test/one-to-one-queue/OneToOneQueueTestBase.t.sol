@@ -95,6 +95,8 @@ abstract contract OneToOneQueueTestBase is Test {
      */
     event Unpaused(address account);
 
+    event BlacklistUpdated(address indexed user, bool indexed isBlacklisted);
+
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
     QueueAccessAuthority rolesAuthority;
