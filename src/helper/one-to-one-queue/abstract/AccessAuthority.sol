@@ -55,7 +55,7 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         emit PauserStatusSet(pauser, canPause);
     }
 
-    /// @notice only pausers can pause
+    /// @notice only pausers and OWNER can pause
     function pause() external {
         if (!pausers[msg.sender] && msg.sender != owner) revert Unauthorized(msg.sender, address(this), msg.sig);
         _pause();

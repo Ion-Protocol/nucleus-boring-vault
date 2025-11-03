@@ -11,16 +11,19 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  */
 contract SimpleFeeModule is IFeeModule {
 
-    error FeePercentageTooHigh(uint256 feePercentage, uint256 maxAllowed);
-
+    uint256 constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 public immutable offerFeePercentage;
+
+    error FeePercentageTooHigh(uint256 feePercentage, uint256 maxAllowed);
 
     /**
      * @notice Initialize the SimpleFeeModule
      * @param _offerFeePercentage Fee percentage on offer assets in basis points
      */
     constructor(uint256 _offerFeePercentage) {
-        if (_offerFeePercentage > 10_000) revert FeePercentageTooHigh(_offerFeePercentage, 10_000);
+        if (_offerFeePercentage > ONE_HUNDRED_PERCENT) {
+            revert FeePercentageTooHigh(_offerFeePercentage, ONE_HUNDRED_PERCENT);
+        }
 
         offerFeePercentage = _offerFeePercentage;
     }
@@ -35,7 +38,7 @@ contract SimpleFeeModule is IFeeModule {
         view
         returns (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount)
     {
-        feeAmount = (amount * offerFeePercentage) / 10_000;
+        feeAmount = (amount * offerFeePercentage) / ONE_HUNDRED_PERCENT;
         newAmountForReceiver = amount - feeAmount;
         feeAsset = IERC20(offerAsset);
     }

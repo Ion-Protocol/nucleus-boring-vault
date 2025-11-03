@@ -258,7 +258,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * "complete: refunded" order has been refunded including the fee and is complete
      * "awaiting processing" order is awaiting processing
      * "complete" order has been processed and is complete
-     *
      */
     function getOrderStatus(uint256 orderIndex) external view returns (string memory orderStatusDetails) {
         Order memory order = queue[orderIndex];
