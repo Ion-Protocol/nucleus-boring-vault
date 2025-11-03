@@ -70,6 +70,20 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_unpause() external {
+        vm.startPrank(pauser1);
+        rolesAuthority.pause();
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit Pausable.Unpaused(owner);
+        rolesAuthority.unpause();
+        vm.stopPrank();
+
+        assertFalse(rolesAuthority.paused());
+    }
+
     function test_beginDeprecation() external {
         vm.expectRevert(
             abi.encodeWithSelector(

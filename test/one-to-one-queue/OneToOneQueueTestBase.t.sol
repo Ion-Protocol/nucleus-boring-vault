@@ -90,6 +90,11 @@ abstract contract OneToOneQueueTestBase is Test {
      */
     event Paused(address account);
 
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
     QueueAccessAuthority rolesAuthority;
