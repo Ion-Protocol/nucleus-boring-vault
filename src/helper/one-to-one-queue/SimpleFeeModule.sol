@@ -11,21 +11,9 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  */
 contract SimpleFeeModule is IFeeModule {
 
-    /*//////////////////////////////////////////////////////////////
-                                 TYPES
-    //////////////////////////////////////////////////////////////*/
-
     error FeePercentageTooHigh(uint256 feePercentage, uint256 maxAllowed);
 
-    /*//////////////////////////////////////////////////////////////
-                         STATE VARIABLES
-    //////////////////////////////////////////////////////////////*/
-
     uint256 public immutable offerFeePercentage;
-
-    /*//////////////////////////////////////////////////////////////
-                             CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Initialize the SimpleFeeModule
@@ -37,9 +25,6 @@ contract SimpleFeeModule is IFeeModule {
         offerFeePercentage = _offerFeePercentage;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                          FEE CALCULATION
-    //////////////////////////////////////////////////////////////*/
     function calculateOfferFees(
         uint256 amount,
         IERC20 offerAsset,

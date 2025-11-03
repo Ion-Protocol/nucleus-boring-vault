@@ -18,10 +18,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     error DeprecationNotBegun();
     error DeprecationAlreadyBegun(uint8 currentStep);
 
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
     /// @notice Emitted when deprecation process begins
     /// @param step The deprecation step number
     event DeprecationBegun(uint8 step);
@@ -33,10 +29,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     /// @notice Emitted when deprecation is finalized
     /// @param newStep The new deprecation step
     event DeprecationFinished(uint8 newStep);
-
-    /*//////////////////////////////////////////////////////////////
-                            STATE VARIABLES
-    //////////////////////////////////////////////////////////////*/
 
     /// @notice Current deprecation step (0 = not deprecated)
     uint8 public deprecationStep;
@@ -112,9 +104,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                       INTERNAL HOOK FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
     /**
      * @notice Hook called when deprecation begins
      * @dev Override to implement step 1 specific logic
