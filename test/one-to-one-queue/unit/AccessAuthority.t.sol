@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { QueueAccessAuthority, AccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
@@ -34,9 +35,22 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         );
         rolesAuthority.pause();
 
-        // Just test owner instead of a particular role
-        vm.startPrank(owner);
+        // Pauser1 can pause
+        vm.startPrank(pauser1);
+        vm.expectEmit(true, true, true, true);
+        emit Pausable.Paused(pauser1);
         rolesAuthority.pause();
+        vm.stopPrank();
+
+        // Owner can also pause but must unpause first
+        vm.startPrank(owner);
+        rolesAuthority.unpause(); /// TODO: This isn't ideal. We like to be able to have pauses go through even if
+            /// already paused, but this is a feature of OZs Pausable and perhaps we like the standard usage more
+        vm.expectEmit(true, true, true, true);
+        emit Pausable.Paused(owner);
+        rolesAuthority.pause();
+        vm.stopPrank();
+
         assertTrue(rolesAuthority.paused());
         vm.stopPrank();
 

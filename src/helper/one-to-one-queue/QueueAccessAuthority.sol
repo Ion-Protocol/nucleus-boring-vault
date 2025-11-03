@@ -25,7 +25,13 @@ contract QueueAccessAuthority is AccessAuthority {
 
     /// @dev owner starts as the msg.sender so that permissioned functions may be called in the constructor, however,
     /// ownership must be transferred to the intended owner afterwards
-    constructor(address _owner, address _queue) RolesAuthority(msg.sender, Authority(address(0))) {
+    constructor(
+        address _owner,
+        address _queue,
+        address[] memory defaultPausers
+    )
+        AccessAuthority(msg.sender, defaultPausers)
+    {
         queue = _queue;
         setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
         setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);

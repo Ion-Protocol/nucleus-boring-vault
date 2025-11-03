@@ -85,6 +85,11 @@ abstract contract OneToOneQueueTestBase is Test {
     /// @param newFeeRecipient address
     event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
 
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
     QueueAccessAuthority rolesAuthority;
@@ -101,6 +106,8 @@ abstract contract OneToOneQueueTestBase is Test {
     address user2 = makeAddr("user2");
     address user3 = makeAddr("user3");
     address solver = makeAddr("solver");
+    address pauser1 = makeAddr("pauser1");
+    address pauser2 = makeAddr("pauser2");
     address feeRecipient = makeAddr("fee recipient");
     address alice;
     uint256 alicePk;
@@ -121,7 +128,11 @@ abstract contract OneToOneQueueTestBase is Test {
         vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
         queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, owner);
-        rolesAuthority = new QueueAccessAuthority(owner, address(queue));
+
+        address[] memory pausers = new address[](2);
+        pausers[0] = pauser1;
+        pausers[1] = pauser2;
+        rolesAuthority = new QueueAccessAuthority(owner, address(queue), pausers);
 
         (alice, alicePk) = makeAddrAndKey("alice");
 

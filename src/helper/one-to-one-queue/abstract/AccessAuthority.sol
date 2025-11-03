@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
 
 /**
  * @title AccessAuthority
@@ -14,29 +14,33 @@ import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
  */
 abstract contract AccessAuthority is Pausable, RolesAuthority {
 
-    error Unauthorized(address caller, address target, bytes4 functionSig);
-    error DeprecationNotBegun();
-    error DeprecationAlreadyBegun(uint8 currentStep);
-
-    /// @notice Emitted when deprecation process begins
-    /// @param step The deprecation step number
-    event DeprecationBegun(uint8 step);
-
-    /// @notice Emitted when deprecation continues to next step
-    /// @param newStep The new deprecation step
-    event DeprecationContinued(uint8 newStep);
-
-    /// @notice Emitted when deprecation is finalized
-    /// @param newStep The new deprecation step
-    event DeprecationFinished(uint8 newStep);
-
     /// @notice Current deprecation step (0 = not deprecated)
     uint8 public deprecationStep;
 
     /// @notice Bool flag if deprecation is complete
     bool public isFullyDeprecated;
 
-    // TODO: order functions here according to style guide
+    /// @notice mapping of accepted pausers
+    mapping(address => bool) public pausers;
+
+    event DeprecationBegun(uint8 step);
+    event DeprecationContinued(uint8 newStep);
+    event DeprecationFinished(uint8 newStep);
+    event PauserStatusSet(address pauser, bool canPause);
+
+    error Unauthorized(address caller, address target, bytes4 functionSig);
+    error DeprecationNotBegun();
+    error DeprecationAlreadyBegun(uint8 currentStep);
+
+    constructor(address owner, address[] memory defaultPausers) RolesAuthority(owner, Authority(address(0))) {
+        uint256 length = defaultPausers.length;
+        for (uint256 i; i < length; ++i) {
+            pausers[defaultPausers[i]] = true;
+            emit PauserStatusSet(defaultPausers[i], true);
+        }
+    }
+
+    /// @dev requiresAuth is used in this contract and is overriden to match the VerboseAuth signature
     modifier requiresAuth() virtual override {
         if (isAuthorized(msg.sender, msg.sig)) {
             _;
@@ -45,34 +49,21 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         }
     }
 
-    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
-        // If the contract is paused cannot call anything, otherwise follow rules set by the RolesAuthority
-        if (paused()) {
-            return false;
-        }
-        return super.canCall(user, target, functionSig);
+    /// @notice only OWNER can set new pauser status
+    function setPauserStatus(address pauser, bool canPause) external requiresAuth {
+        pausers[pauser] = canPause;
+        emit PauserStatusSet(pauser, canPause);
     }
 
-    function getUnauthorizedReasons(address user, bytes4 functionSig)
-        public
-        view
-        virtual
-        returns (string memory reason)
-    {
-        if (paused()) {
-            reason = "- Paused ";
-        }
-        if (isFullyDeprecated) {
-            reason = string(abi.encodePacked(reason, "- Fully Deprecated "));
-        } else if (deprecationStep > 0) {
-            reason = string(abi.encodePacked(reason, "- Deprecation in progress "));
-        }
-
-        return reason;
-    }
-
-    function pause() external requiresAuth {
+    /// @notice only pausers can pause
+    function pause() external {
+        if (!pausers[msg.sender] && msg.sender != owner) revert Unauthorized(msg.sender, address(this), msg.sig);
         _pause();
+    }
+
+    /// @notice only OWNER can unpause
+    function unpause() external requiresAuth {
+        _unpause();
     }
 
     /**
@@ -102,6 +93,37 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         if (isFullyDeprecated) {
             emit DeprecationFinished(deprecationStep);
         }
+    }
+
+    /// @dev canCall is overriden to add more logic to the requiresAuth modifier
+    /// The default extension is that pausing deactivates all functions.
+    /// You may also override to check more complex logic for example a whitelist.
+    /// It's worth noting that OWNER bypasses this canCall check.
+    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
+        // If the contract is paused cannot call anything, otherwise follow rules set by the RolesAuthority
+        if (paused()) {
+            return false;
+        }
+        return super.canCall(user, target, functionSig);
+    }
+
+    /// @dev a new function to get the reason for a failed "canCall" check as a string.
+    function getUnauthorizedReasons(address user, bytes4 functionSig)
+        public
+        view
+        virtual
+        returns (string memory reason)
+    {
+        if (paused()) {
+            reason = "- Paused ";
+        }
+        if (isFullyDeprecated) {
+            reason = string(abi.encodePacked(reason, "- Fully Deprecated "));
+        } else if (deprecationStep > 0) {
+            reason = string(abi.encodePacked(reason, "- Deprecation in progress "));
+        }
+
+        return reason;
     }
 
     /**
