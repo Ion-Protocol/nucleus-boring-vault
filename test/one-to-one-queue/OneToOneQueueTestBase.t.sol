@@ -4,21 +4,21 @@ pragma solidity 0.8.21;
 import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
 import { QueueAccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
-import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
+
+/// NOTE: We need to deploy the Solmate ERC20 since the OZ ERC20Permit has a dependency with solidity version 0.8.24 and
+/// cannot be used with our contracts
+import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 contract tERC20 is ERC20 {
 
-    constructor(uint8 decimals) ERC20("test name", "test", decimals) { }
+    constructor(uint8 _decimalsInput) ERC20("test name", "test", _decimalsInput) { }
 
 }
 
 abstract contract OneToOneQueueTestBase is Test {
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-    // Must be included in the test for event testing
 
     // Configuration Events
     /// @notice Emitted when a new fee module is set
@@ -89,9 +89,9 @@ abstract contract OneToOneQueueTestBase is Test {
     SimpleFeeModule feeModule;
     QueueAccessAuthority rolesAuthority;
 
-    ERC20 public USDC;
-    ERC20 public USDG0;
-    ERC20 public DAI;
+    IERC20 public USDC;
+    IERC20 public USDG0;
+    IERC20 public DAI;
 
     uint256 TEST_OFFER_FEE_PERCENTAGE = 10; // 0.1% fee
 
@@ -127,9 +127,9 @@ abstract contract OneToOneQueueTestBase is Test {
 
         queue.setAuthority(rolesAuthority);
 
-        USDC = new tERC20(6);
-        USDG0 = new tERC20(6);
-        DAI = new tERC20(18);
+        USDC = IERC20(address(new tERC20(6)));
+        USDG0 = IERC20(address(new tERC20(6)));
+        DAI = IERC20(address(new tERC20(18)));
 
         queue.addOfferAsset(address(USDC), 0);
         queue.addWantAsset(address(USDG0));
@@ -147,7 +147,7 @@ abstract contract OneToOneQueueTestBase is Test {
     }
 
     function _getPermitSignature(
-        ERC20 token,
+        IERC20 token,
         address owner,
         uint256 ownerPk,
         address spender,
@@ -160,14 +160,14 @@ abstract contract OneToOneQueueTestBase is Test {
         bytes32 permitHash = keccak256(
             abi.encodePacked(
                 "\x19\x01",
-                token.DOMAIN_SEPARATOR(),
+                IERC20Permit(address(token)).DOMAIN_SEPARATOR(),
                 keccak256(
                     abi.encode(
                         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
                         owner,
                         spender,
                         value,
-                        token.nonces(owner),
+                        IERC20Permit(address(token)).nonces(owner),
                         deadline
                     )
                 )

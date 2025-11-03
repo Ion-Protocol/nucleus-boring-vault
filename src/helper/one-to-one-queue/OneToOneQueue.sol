@@ -2,13 +2,14 @@
 pragma solidity 0.8.21;
 
 import { ERC721Enumerable, ERC721 } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IFeeModule } from "./interfaces/IFeeModule.sol";
 import { VerboseAuth } from "./abstract/VerboseAuth.sol";
 import { Authority, Auth } from "@solmate/auth/Auth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title OneToOneQueue
@@ -49,8 +50,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
             // minus fees.
         uint128 amountWant; // Amount of want asset to give the user in want decimals. This is not inclusive of fees.
-        ERC20 offerAsset; // Asset being offered
-        ERC20 wantAsset; // Asset being requested
+        IERC20 offerAsset; // Asset being offered
+        IERC20 wantAsset; // Asset being requested
         address refundReceiver; // Address to receive refunds
         Status status; // Current status of the order
     }
@@ -327,8 +328,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      */
     function submitOrderAndProcess(
         uint256 amountOffer,
-        ERC20 offerAsset,
-        ERC20 wantAsset,
+        IERC20 offerAsset,
+        IERC20 wantAsset,
         address intendedDepositor,
         address receiver,
         address refundReceiver,
@@ -357,8 +358,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      */
     function submitOrder(
         uint256 amountOffer,
-        ERC20 offerAsset,
-        ERC20 wantAsset,
+        IERC20 offerAsset,
+        IERC20 wantAsset,
         address intendedDepositor,
         address receiver,
         address refundReceiver,
@@ -397,7 +398,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         // Do nothing if using standard ERC20 approve
         if (params.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            ERC20(address(offerAsset))
+            IERC20Permit(address(offerAsset))
                 .permit(
                     depositor,
                     address(this),
@@ -422,7 +423,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         _checkAllowance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
 
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        IERC20(address(offerAsset)).safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
         feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Create order
@@ -477,7 +478,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             address receiver = ownerOf(orderIndex);
             _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
 
-            IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
+            order.wantAsset.safeTransfer(receiver, order.amountWant);
             _burn(orderIndex);
 
             unchecked {
@@ -493,15 +494,15 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      */
     function _getWantAmountInWantDecimals(
         uint128 amountOfferAfterFees,
-        ERC20 offerAsset,
-        ERC20 wantAsset
+        IERC20 offerAsset,
+        IERC20 wantAsset
     )
         internal
         view
         returns (uint128 amountWant)
     {
-        uint8 offerDecimals = offerAsset.decimals();
-        uint8 wantDecimals = wantAsset.decimals();
+        uint8 offerDecimals = IERC20Metadata(address(offerAsset)).decimals();
+        uint8 wantDecimals = IERC20Metadata(address(wantAsset)).decimals();
 
         if (offerDecimals == wantDecimals) {
             return amountOfferAfterFees;
@@ -516,14 +517,22 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         return amountOfferAfterFees * uint128(10 ** difference);
     }
 
-    function _checkBalance(address account, ERC20 asset, uint256 amount, uint256 orderIndex) internal view {
+    function _checkBalance(address account, IERC20 asset, uint256 amount, uint256 orderIndex) internal view {
         uint256 balance = asset.balanceOf(account);
         if (balance < amount) {
             revert InsufficientBalance(orderIndex, account, address(asset), amount, balance);
         }
     }
 
-    function _checkAllowance(address depositor, ERC20 asset, uint256 amount, uint256 orderIndex) internal view {
+    function _checkAllowance(
+        address depositor,
+        IERC20 asset,
+        uint256 amount,
+        uint256 orderIndex
+    )
+        internal
+        view
+    {
         uint256 depositorAllowance = asset.allowance(depositor, address(this));
         if (depositorAllowance < amount) {
             revert InsufficientAllowance(orderIndex, depositor, address(asset), amount, depositorAllowance);
@@ -541,7 +550,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         _checkBalance(address(this), order.offerAsset, order.amountOffer, orderIndex);
         _burn(orderIndex);
-        IERC20(address(order.offerAsset)).safeTransfer(order.refundReceiver, order.amountOffer);
+        order.offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
 
         emit OrderRefunded(orderIndex, queue[orderIndex]);
     }
@@ -561,7 +570,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address receiver = ownerOf(orderIndex);
         _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
         _burn(orderIndex);
-        IERC20(address(order.wantAsset)).safeTransfer(receiver, order.amountWant);
+        order.wantAsset.safeTransfer(receiver, order.amountWant);
 
         emit OrderForceProcessed(orderIndex, queue[orderIndex], receiver);
     }

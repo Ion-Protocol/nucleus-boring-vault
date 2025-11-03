@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
+import { OneToOneQueueTestBase, tERC20, IERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
@@ -180,8 +180,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         (
             uint128 amountOffer,
             uint128 amountWant,
-            ERC20 offerAsset,
-            ERC20 wantAsset,
+            IERC20 offerAsset,
+            IERC20 wantAsset,
             address refundReceiver,
             OneToOneQueue.Status status
         ) = queue.queue(1);
@@ -220,8 +220,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         (
             uint128 amountOffer,
             uint128 amountWant,
-            ERC20 offerAsset,
-            ERC20 wantAsset,
+            IERC20 offerAsset,
+            IERC20 wantAsset,
             address refundReceiver,
             OneToOneQueue.Status status
         ) = queue.queue(1);
@@ -270,8 +270,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         (
             uint128 amountOffer,
             uint128 amountWant,
-            ERC20 offerAsset,
-            ERC20 wantAsset,
+            IERC20 offerAsset,
+            IERC20 wantAsset,
             address refundReceiver,
             OneToOneQueue.Status status
         ) = queue.queue(1);
@@ -412,8 +412,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.startPrank(alice);
 
         uint256 amountOffer = 1e6;
-        ERC20 offerAsset = USDC;
-        ERC20 wantAsset = USDG0;
+        IERC20 offerAsset = USDC;
+        IERC20 wantAsset = USDG0;
         address receiver = alice;
         address refundReceiver = alice;
         uint256 deadline = block.timestamp + 1000;
@@ -472,8 +472,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             vm.startPrank(alice);
         }
 
-        ERC20 offerAsset = USDC;
-        ERC20 wantAsset = USDG0;
+        IERC20 offerAsset = USDC;
+        IERC20 wantAsset = USDG0;
         uint256 deadline = block.timestamp + 1000;
 
         (uint8 approvalV, bytes32 approvalR, bytes32 approvalS) =

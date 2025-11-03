@@ -2,7 +2,6 @@
 pragma solidity 0.8.21;
 
 import { IFeeModule, IERC20 } from "./interfaces/IFeeModule.sol";
-import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
@@ -43,8 +42,8 @@ contract SimpleFeeModule is IFeeModule {
     //////////////////////////////////////////////////////////////*/
     function calculateOfferFees(
         uint256 amount,
-        ERC20 offerAsset,
-        ERC20 wantAsset,
+        IERC20 offerAsset,
+        IERC20 wantAsset,
         address receiver
     )
         external
@@ -53,7 +52,7 @@ contract SimpleFeeModule is IFeeModule {
     {
         feeAmount = (amount * offerFeePercentage) / 10_000;
         newAmountForReceiver = amount - feeAmount;
-        feeAsset = IERC20(address(offerAsset));
+        feeAsset = IERC20(offerAsset);
     }
 
 }
