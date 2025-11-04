@@ -252,6 +252,17 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
+     * @dev Allows owner to manage ERC20 tokens in the contract to prevent stuck funds
+     */
+    function manageERC20(IERC20 token, uint256 amount, address receiver) external requiresAuth {
+        if (address(token) == address(0)) revert ZeroAddress();
+        if (receiver == address(0)) revert ZeroAddress();
+
+        _checkBalance(address(this), token, amount, 0);
+        token.safeTransfer(receiver, amount);
+    }
+
+    /**
      * @notice Force refund multiple orders
      * @param orderIndices Array of order indices to refund
      */
