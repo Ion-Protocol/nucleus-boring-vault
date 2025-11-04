@@ -252,32 +252,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
-     * @notice A user facing function to return an order's status in plain english.
-     * Possible returns:
-     * "complete: pre-filled" order has been pre-filled and is complete
-     * "complete: refunded" order has been refunded including the fee and is complete
-     * "awaiting processing" order is awaiting processing
-     * "complete" order has been processed and is complete
-     */
-    function getOrderStatus(uint256 orderIndex) external view returns (string memory orderStatusDetails) {
-        Order memory order = queue[orderIndex];
-
-        if (order.status == Status.PRE_FILLED) {
-            orderStatusDetails = "complete: pre-filled";
-            return orderStatusDetails;
-        } else if (order.status == Status.REFUND) {
-            orderStatusDetails = "complete: refunded";
-            return orderStatusDetails;
-        }
-
-        if (orderIndex > lastProcessedOrder) {
-            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "awaiting processing"));
-        } else {
-            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "complete"));
-        }
-    }
-
-    /**
      * @notice Force refund multiple orders
      * @param orderIndices Array of order indices to refund
      */
@@ -342,6 +316,32 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             uint128(amountOffer), offerAsset, wantAsset, intendedDepositor, receiver, refundReceiver, params
         );
         processOrders(orderIndex - lastProcessedOrder);
+    }
+
+    /**
+     * @notice A user facing function to return an order's status in plain english.
+     * Possible returns:
+     * "complete: pre-filled" order has been pre-filled and is complete
+     * "complete: refunded" order has been refunded including the fee and is complete
+     * "awaiting processing" order is awaiting processing
+     * "complete" order has been processed and is complete
+     */
+    function getOrderStatus(uint256 orderIndex) external view returns (string memory orderStatusDetails) {
+        Order memory order = queue[orderIndex];
+
+        if (order.status == Status.PRE_FILLED) {
+            orderStatusDetails = "complete: pre-filled";
+            return orderStatusDetails;
+        } else if (order.status == Status.REFUND) {
+            orderStatusDetails = "complete: refunded";
+            return orderStatusDetails;
+        }
+
+        if (orderIndex > lastProcessedOrder) {
+            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "awaiting processing"));
+        } else {
+            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "complete"));
+        }
     }
 
     /**
