@@ -26,7 +26,11 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     function test_pause() external {
         vm.expectRevert(
             abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, address(this), address(rolesAuthority), bytes4(keccak256("pause()"))
+                VerboseAuth.Unauthorized.selector,
+                address(this),
+                AccessAuthority.pause.selector,
+                abi.encodeWithSelector(AccessAuthority.pause.selector),
+                "- Not a pauser or owner "
             ),
             address(rolesAuthority)
         );
@@ -86,8 +90,9 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
             abi.encodeWithSelector(
                 VerboseAuth.Unauthorized.selector,
                 address(this),
-                address(rolesAuthority),
-                bytes4(keccak256("beginDeprecation()"))
+                AccessAuthority.beginDeprecation.selector,
+                abi.encodeWithSelector(AccessAuthority.beginDeprecation.selector),
+                ""
             ),
             address(rolesAuthority)
         );
@@ -124,8 +129,9 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
             abi.encodeWithSelector(
                 VerboseAuth.Unauthorized.selector,
                 address(this),
-                address(rolesAuthority),
-                bytes4(keccak256("continueDeprecation()"))
+                AccessAuthority.continueDeprecation.selector,
+                abi.encodeWithSelector(AccessAuthority.continueDeprecation.selector),
+                ""
             ),
             address(rolesAuthority)
         );
@@ -193,8 +199,11 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
             abi.encodeWithSelector(
                 VerboseAuth.Unauthorized.selector,
                 address(this),
-                address(rolesAuthority),
-                bytes4(keccak256("setUsersBlacklistStatus(address[],bool[])"))
+                QueueAccessAuthority.setUsersBlacklistStatus.selector,
+                abi.encodeWithSelector(
+                    QueueAccessAuthority.setUsersBlacklistStatus.selector, new address[](0), new bool[](0)
+                ),
+                ""
             ),
             address(rolesAuthority)
         );
