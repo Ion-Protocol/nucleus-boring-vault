@@ -26,10 +26,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     function test_pause() external {
         vm.expectRevert(
             abi.encodeWithSelector(
-                AccessAuthority.Unauthorized.selector,
-                address(this),
-                address(rolesAuthority),
-                bytes4(keccak256("pause()"))
+                VerboseAuth.Unauthorized.selector, address(this), address(rolesAuthority), bytes4(keccak256("pause()"))
             ),
             address(rolesAuthority)
         );
@@ -87,7 +84,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     function test_beginDeprecation() external {
         vm.expectRevert(
             abi.encodeWithSelector(
-                AccessAuthority.Unauthorized.selector,
+                VerboseAuth.Unauthorized.selector,
                 address(this),
                 address(rolesAuthority),
                 bytes4(keccak256("beginDeprecation()"))
@@ -125,7 +122,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     function test_continueDeprecation() external {
         vm.expectRevert(
             abi.encodeWithSelector(
-                AccessAuthority.Unauthorized.selector,
+                VerboseAuth.Unauthorized.selector,
                 address(this),
                 address(rolesAuthority),
                 bytes4(keccak256("continueDeprecation()"))
@@ -194,7 +191,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     function test_setUsersBlacklistStatus() external {
         vm.expectRevert(
             abi.encodeWithSelector(
-                AccessAuthority.Unauthorized.selector,
+                VerboseAuth.Unauthorized.selector,
                 address(this),
                 address(rolesAuthority),
                 bytes4(keccak256("setUsersBlacklistStatus(address[],bool[])"))

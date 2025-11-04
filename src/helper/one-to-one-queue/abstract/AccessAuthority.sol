@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { VerboseAuth } from "./VerboseAuth.sol";
 
 /**
  * @title AccessAuthority
@@ -28,7 +29,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     event DeprecationFinished(uint8 newStep);
     event PauserStatusSet(address pauser, bool canPause);
 
-    error Unauthorized(address caller, address target, bytes4 functionSig);
     error DeprecationNotBegun();
     error DeprecationAlreadyBegun(uint8 currentStep);
 
@@ -45,7 +45,7 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
         if (isAuthorized(msg.sender, msg.sig)) {
             _;
         } else {
-            revert Unauthorized(msg.sender, address(this), msg.sig);
+            revert VerboseAuth.Unauthorized(msg.sender, msg.sig, msg.data, "");
         }
     }
 
@@ -57,7 +57,9 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
 
     /// @notice only pausers and OWNER can pause
     function pause() external {
-        if (!pausers[msg.sender] && msg.sender != owner) revert Unauthorized(msg.sender, address(this), msg.sig);
+        if (!pausers[msg.sender] && msg.sender != owner) {
+            revert VerboseAuth.Unauthorized(msg.sender, msg.sig, msg.data, "- Not a pauser or owner ");
+        }
         _pause();
     }
 

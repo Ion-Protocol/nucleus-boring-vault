@@ -140,7 +140,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
     function testDeprecation() external {
         vm.startPrank(user1);
-        vm.expectPartialRevert(AccessAuthority.Unauthorized.selector);
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
         rolesAuthority.beginDeprecation();
         vm.stopPrank();
 
