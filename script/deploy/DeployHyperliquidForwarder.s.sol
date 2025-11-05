@@ -5,6 +5,7 @@ import { BaseScript } from "../Base.s.sol";
 import { console } from "forge-std/console.sol";
 
 contract DeployHyperliquidForwarder is BaseScript {
+
     address multisigHyperliquid = 0x413f2e80070a069eB1051772Fdc4f0af8e8303d7;
 
     function run() public broadcast {
@@ -40,4 +41,5 @@ contract DeployHyperliquidForwarder is BaseScript {
 
         console.log("Forwarder address: ", address(forwarder));
     }
+
 }

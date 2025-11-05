@@ -19,6 +19,7 @@ import { IPostDispatchHook } from "../../../interfaces/hyperlane/IPostDispatchHo
  * @custom:security-contact security@molecularlabs.io
  */
 contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase {
+
     // ========================================= STATE =========================================
 
     /**
@@ -193,4 +194,5 @@ contract MultiChainHyperlaneTellerWithMultiAssetSupport is MultiChainTellerBase 
 
         return address(uint160(uint256(_address)));
     }
+
 }

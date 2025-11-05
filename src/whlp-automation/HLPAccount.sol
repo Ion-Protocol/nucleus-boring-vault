@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 contract HLPAccount is Auth {
+
     address public constant HLP_VAULT = 0xdfc24b077bc1425AD1DEA75bCB6f8158E10Df303;
     uint64 public constant USDC_INDEX = 0;
 
@@ -79,4 +80,5 @@ contract HLPAccount is Auth {
             revert HLPAccount__FailedCall(data);
         }
     }
+
 }

@@ -5,6 +5,7 @@ import { IInterchainSecurityModule } from "./IInterchainSecurityModule.sol";
 import { IPostDispatchHook } from "./IPostDispatchHook.sol";
 
 interface IMailbox {
+
     // ============ Events ============
     /**
      * @notice Emitted when a new message is dispatched via Hyperlane
@@ -110,4 +111,5 @@ interface IMailbox {
     function process(bytes calldata metadata, bytes calldata message) external payable;
 
     function recipientIsm(address recipient) external view returns (IInterchainSecurityModule module);
+
 }

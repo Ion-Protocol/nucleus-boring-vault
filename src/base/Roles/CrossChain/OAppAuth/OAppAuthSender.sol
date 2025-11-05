@@ -17,6 +17,7 @@ import { OAppAuthCore } from "./OAppAuthCore.sol";
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthSender is OAppAuthCore {
+
     using SafeERC20 for IERC20;
 
     // Custom error messages
@@ -134,4 +135,5 @@ abstract contract OAppAuthSender is OAppAuthCore {
         // Pay LZ token fee by sending tokens to the endpoint.
         IERC20(lzToken).safeTransferFrom(msg.sender, address(endpoint), _lzTokenFee);
     }
+
 }

@@ -5,6 +5,7 @@ pragma solidity 0.8.21;
 /// @notice Wraps CL positions in a non-fungible token interface which allows for them to be transferred
 /// and authorized.
 interface IVelodromeNonFungiblePositionManager {
+
     function ownerOf(uint256 tokenId) external view returns (address);
 
     /// @notice Emitted when liquidity is increased for a position NFT
@@ -185,4 +186,5 @@ interface IVelodromeNonFungiblePositionManager {
     /// @notice Sets a new Owner address
     /// @param _owner Address of the new Owner to be chosen
     function setOwner(address _owner) external;
+
 }

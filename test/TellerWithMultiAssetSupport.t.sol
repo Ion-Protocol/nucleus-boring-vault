@@ -16,6 +16,7 @@ import { AtomicSolverV3, AtomicQueue } from "src/atomic-queue/AtomicSolverV3.sol
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -357,10 +358,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         // Share lock period is not set, so user can submit withdraw request immediately.
         AtomicQueue.AtomicRequest memory req = AtomicQueue.AtomicRequest({
-            deadline: uint64(block.timestamp + 1 days),
-            atomicPrice: 1e18,
-            offerAmount: uint96(shares),
-            inSolve: false
+            deadline: uint64(block.timestamp + 1 days), atomicPrice: 1e18, offerAmount: uint96(shares), inSolve: false
         });
         boringVault.approve(address(atomicQueue), shares);
         atomicQueue.updateAtomicRequest(boringVault, WETH, req);
@@ -498,4 +496,5 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }

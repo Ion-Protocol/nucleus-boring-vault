@@ -8,6 +8,7 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
  * @notice Interface for OKX DEX Router contract
  */
 interface IOKXRouter {
+
     struct BaseRequest {
         uint256 fromToken;
         address toToken;
@@ -104,4 +105,5 @@ interface IOKXRouter {
     )
         external
         returns (uint256 returnAmount);
+
 }

@@ -15,6 +15,7 @@ import {
 import { Test } from "@forge-std/Test.sol";
 
 abstract contract EthPerTokenRateProviderTest is Test {
+
     enum PriceFeedType {
         CHAINLINK,
         REDSTONE
@@ -59,9 +60,11 @@ abstract contract EthPerTokenRateProviderTest is Test {
         expectedMinPrice = _expectedMinPrice;
         expectedMaxPrice = _expectedMaxPrice;
     }
+
 }
 
 contract WeEthRateProviderTest is EthPerTokenRateProviderTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -86,9 +89,11 @@ contract WeEthRateProviderTest is EthPerTokenRateProviderTest {
             EthPerTokenRateProvider.PriceFeedType.CHAINLINK
         );
     }
+
 }
 
 contract EzEthRateProviderTest is EthPerTokenRateProviderTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -113,9 +118,11 @@ contract EzEthRateProviderTest is EthPerTokenRateProviderTest {
             EthPerTokenRateProvider.PriceFeedType.CHAINLINK
         );
     }
+
 }
 
 contract RsEthRateProviderTest is EthPerTokenRateProviderTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -140,9 +147,11 @@ contract RsEthRateProviderTest is EthPerTokenRateProviderTest {
             EthPerTokenRateProvider.PriceFeedType.CHAINLINK
         );
     }
+
 }
 
 contract RswEthRateProviderTest is EthPerTokenRateProviderTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -167,9 +176,11 @@ contract RswEthRateProviderTest is EthPerTokenRateProviderTest {
             EthPerTokenRateProvider.PriceFeedType.CHAINLINK
         );
     }
+
 }
 
 contract PufEthRateProviderTest is EthPerTokenRateProviderTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -194,9 +205,11 @@ contract PufEthRateProviderTest is EthPerTokenRateProviderTest {
             EthPerTokenRateProvider.PriceFeedType.REDSTONE
         );
     }
+
 }
 
 contract ApxEthRateProviderTest is EthPerTokenRateProviderTest {
+
     function setUp() public override {
         super.setUp();
 
@@ -221,4 +234,5 @@ contract ApxEthRateProviderTest is EthPerTokenRateProviderTest {
             EthPerTokenRateProvider.PriceFeedType.REDSTONE
         );
     }
+
 }

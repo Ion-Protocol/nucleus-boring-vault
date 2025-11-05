@@ -28,6 +28,7 @@ import {
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -329,10 +330,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[1] = abi.encodeWithSelector(BalancerV2DecoderAndSanitizer.swap.selector, singleSwap, funds, 0);
         targetData[2] = abi.encodeWithSignature("approve(address,uint256)", vault, type(uint256).max);
         DecoderCustomTypes.JoinPoolRequest memory joinRequest = DecoderCustomTypes.JoinPoolRequest({
-            assets: new address[](2),
-            maxAmountsIn: new uint256[](2),
-            userData: hex"",
-            fromInternalBalance: false
+            assets: new address[](2), maxAmountsIn: new uint256[](2), userData: hex"", fromInternalBalance: false
         });
         joinRequest.assets[0] = address(RETH);
         joinRequest.assets[1] = address(WETH);
@@ -358,10 +356,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             "withdraw(uint256,address,address)", 203_690_537_881_715_311_640, address(boringVault), address(boringVault)
         );
         DecoderCustomTypes.ExitPoolRequest memory exitRequest = DecoderCustomTypes.ExitPoolRequest({
-            assets: new address[](2),
-            minAmountsOut: new uint256[](2),
-            userData: hex"",
-            toInternalBalance: false
+            assets: new address[](2), minAmountsOut: new uint256[](2), userData: hex"", toInternalBalance: false
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
@@ -1711,8 +1706,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ManagerWithMerkleVerification
-                    .ManagerWithMerkleVerification__TotalSupplyMustRemainConstantDuringManagement
+                ManagerWithMerkleVerification.ManagerWithMerkleVerification__TotalSupplyMustRemainConstantDuringManagement
                     .selector
             )
         );
@@ -1910,10 +1904,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         targetData[1] = abi.encodeWithSelector(BalancerV2DecoderAndSanitizer.swap.selector, singleSwap, funds, 0);
         targetData[2] = abi.encodeWithSignature("approve(address,uint256)", vault, type(uint256).max);
         DecoderCustomTypes.JoinPoolRequest memory joinRequest = DecoderCustomTypes.JoinPoolRequest({
-            assets: new address[](2),
-            maxAmountsIn: new uint256[](2),
-            userData: hex"",
-            fromInternalBalance: false
+            assets: new address[](2), maxAmountsIn: new uint256[](2), userData: hex"", fromInternalBalance: false
         });
         joinRequest.assets[0] = address(RETH);
         joinRequest.assets[1] = address(WETH);
@@ -1939,10 +1930,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
             "withdraw(uint256,address,address)", 203_690_537_881_715_311_640, address(boringVault), address(boringVault)
         );
         DecoderCustomTypes.ExitPoolRequest memory exitRequest = DecoderCustomTypes.ExitPoolRequest({
-            assets: new address[](2),
-            minAmountsOut: new uint256[](2),
-            userData: hex"",
-            toInternalBalance: false
+            assets: new address[](2), minAmountsOut: new uint256[](2), userData: hex"", toInternalBalance: false
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
@@ -2048,10 +2036,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         // Set joinPool fromInternalBalance to true.
         joinRequest = DecoderCustomTypes.JoinPoolRequest({
-            assets: new address[](2),
-            maxAmountsIn: new uint256[](2),
-            userData: hex"",
-            fromInternalBalance: true
+            assets: new address[](2), maxAmountsIn: new uint256[](2), userData: hex"", fromInternalBalance: true
         });
         joinRequest.assets[0] = address(RETH);
         joinRequest.assets[1] = address(WETH);
@@ -2078,10 +2063,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         // Fix joinPool.
         joinRequest = DecoderCustomTypes.JoinPoolRequest({
-            assets: new address[](2),
-            maxAmountsIn: new uint256[](2),
-            userData: hex"",
-            fromInternalBalance: false
+            assets: new address[](2), maxAmountsIn: new uint256[](2), userData: hex"", fromInternalBalance: false
         });
         joinRequest.assets[0] = address(RETH);
         joinRequest.assets[1] = address(WETH);
@@ -2099,10 +2081,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         // Set exitPool toInternalBalance to true.
         exitRequest = DecoderCustomTypes.ExitPoolRequest({
-            assets: new address[](2),
-            minAmountsOut: new uint256[](2),
-            userData: hex"",
-            toInternalBalance: true
+            assets: new address[](2), minAmountsOut: new uint256[](2), userData: hex"", toInternalBalance: true
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
@@ -2127,10 +2106,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
 
         // Fix exitPool
         exitRequest = DecoderCustomTypes.ExitPoolRequest({
-            assets: new address[](2),
-            minAmountsOut: new uint256[](2),
-            userData: hex"",
-            toInternalBalance: false
+            assets: new address[](2), minAmountsOut: new uint256[](2), userData: hex"", toInternalBalance: false
         });
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
@@ -2996,8 +2972,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         vm.expectRevert(
             bytes(
                 abi.encodeWithSelector(
-                    EigenLayerLSTStakingDecoderAndSanitizer
-                        .EigenLayerLSTStakingDecoderAndSanitizer__CanOnlyReceiveAsTokens
+                    EigenLayerLSTStakingDecoderAndSanitizer.EigenLayerLSTStakingDecoderAndSanitizer__CanOnlyReceiveAsTokens
                         .selector
                 )
             )
@@ -3179,9 +3154,11 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     function withdraw(uint256 amount) external {
         boringVault.enter(address(0), ERC20(address(0)), 0, address(this), amount);
     }
+
 }
 
 interface IWithdrawRequestNft {
+
     struct WithdrawRequest {
         uint96 amountOfEEth;
         uint96 shareOfEEth;
@@ -3198,9 +3175,11 @@ interface IWithdrawRequestNft {
     function owner() external view returns (address);
 
     function updateAdmin(address admin, bool isAdmin) external;
+
 }
 
 interface ILiquidityPool {
+
     function deposit() external payable returns (uint256);
 
     function requestWithdraw(address recipient, uint256 amount) external returns (uint256);
@@ -3210,9 +3189,11 @@ interface ILiquidityPool {
     function etherFiAdminContract() external view returns (address);
 
     function addEthAmountLockedForWithdrawal(uint128 _amount) external;
+
 }
 
 interface IUNSTETH {
+
     function finalize(uint256 _lastRequestIdToBeFinalized, uint256 _maxShareRate) external payable;
 
     function getRoleMember(bytes32 role, uint256 index) external view returns (address);
@@ -3229,4 +3210,5 @@ interface IUNSTETH {
         returns (uint256[] memory);
 
     function getLastCheckpointIndex() external view returns (uint256);
+
 }

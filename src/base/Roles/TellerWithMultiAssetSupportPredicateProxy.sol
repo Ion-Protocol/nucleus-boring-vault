@@ -18,6 +18,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  * @custom:security-contact security@molecularlabs.io
  */
 contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, PredicateClient, Pausable {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -219,4 +220,5 @@ contract TellerWithMultiAssetSupportPredicateProxy is Ownable, ReentrancyGuard, 
             if (!success) revert TellerWithMultiAssetSupportPredicateProxy__ETHTransferFailed();
         }
     }
+
 }

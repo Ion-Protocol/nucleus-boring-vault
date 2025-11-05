@@ -10,6 +10,7 @@ struct lzTxObj {
 }
 
 contract StargateV1DecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error StargateV1DecoderAndSanitizer_LzTxParamsNotSupported();
     error StargateV1DecoderAndSanitizer_PayloadNotSupported();
 
@@ -52,4 +53,5 @@ contract StargateV1DecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
         return abi.encodePacked(_dstChainId, _srcPoolId, _dstPoolId, _to);
     }
+
 }

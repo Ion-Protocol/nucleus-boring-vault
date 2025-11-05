@@ -12,6 +12,7 @@ import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/lib
  * @notice LayerZero implementation of MultiChainTeller
  */
 contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase, OAppAuth {
+
     using OptionsBuilder for bytes;
 
     error MultiChainLayerZeroTellerWithMultiAssetSupport_InvalidToken();
@@ -100,4 +101,5 @@ contract MultiChainLayerZeroTellerWithMultiAssetSupport is MultiChainTellerBase,
 
         return receipt.guid;
     }
+
 }

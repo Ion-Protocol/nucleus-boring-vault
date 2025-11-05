@@ -14,6 +14,7 @@ pragma solidity >=0.8.0;
 @@@@@@@@@       @@@@@@@@*/
 
 interface IPostDispatchHook {
+
     enum Types {
         UNUSED,
         ROUTING,
@@ -56,4 +57,5 @@ interface IPostDispatchHook {
      * @return Quoted payment for the postDispatch call
      */
     function quoteDispatch(bytes calldata metadata, bytes calldata message) external view returns (uint256);
+
 }

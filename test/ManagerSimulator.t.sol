@@ -28,6 +28,7 @@ import {
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 
 contract ManagerSimulatorTest is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -206,4 +207,5 @@ contract ManagerSimulatorTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }

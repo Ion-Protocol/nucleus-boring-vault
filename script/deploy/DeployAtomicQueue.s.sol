@@ -10,9 +10,11 @@ using StdJson for string;
 bytes32 constant SALT = 0x5bac910c72debe007de61c000000000000000000000000000000000000000000;
 
 contract DeployAtomicQueue is BaseScript {
+
     function run() public broadcast returns (AtomicQueue atomicQueue) {
         bytes memory creationCode = type(AtomicQueue).creationCode;
 
         atomicQueue = AtomicQueue(CREATEX.deployCreate3(SALT, creationCode));
     }
+
 }

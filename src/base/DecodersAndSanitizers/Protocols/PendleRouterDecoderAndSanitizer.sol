@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
@@ -211,7 +215,9 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (
             input.swapData.swapType != DecoderCustomTypes.SwapType.NONE || input.swapData.extRouter != address(0)
                 || input.pendleSwap != address(0) || input.tokenIn != input.tokenMintSy
-        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        ) {
+            revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        }
 
         if (limit.limitRouter != address(0)) {
             revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
@@ -267,7 +273,9 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (
             input.swapData.swapType != DecoderCustomTypes.SwapType.NONE || input.swapData.extRouter != address(0)
                 || input.pendleSwap != address(0) || input.tokenIn != input.tokenMintSy
-        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        ) {
+            revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        }
 
         addressesFound = abi.encodePacked(receiver, market, input.tokenIn);
     }
@@ -292,7 +300,9 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (
             input.swapData.swapType != DecoderCustomTypes.SwapType.NONE || input.swapData.extRouter != address(0)
                 || input.pendleSwap != address(0) || input.tokenIn != input.tokenMintSy
-        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        ) {
+            revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        }
 
         if (limit.limitRouter != address(0)) {
             revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
@@ -320,7 +330,9 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (
             output.swapData.swapType != DecoderCustomTypes.SwapType.NONE || output.swapData.extRouter != address(0)
                 || output.pendleSwap != address(0) || output.tokenOut != output.tokenRedeemSy
-        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        ) {
+            revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        }
 
         if (limit.limitRouter != address(0)) {
             revert PendleRouterDecoderAndSanitizer__LimitOrderSwapsNotPermitted();
@@ -343,8 +355,11 @@ abstract contract PendleRouterDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (
             output.swapData.swapType != DecoderCustomTypes.SwapType.NONE || output.swapData.extRouter != address(0)
                 || output.pendleSwap != address(0)
-        ) revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        ) {
+            revert PendleRouterDecoderAndSanitizer__AggregatorSwapsNotPermitted();
+        }
 
         addressFound = abi.encodePacked(receiver, market, output.tokenOut, output.tokenRedeemSy);
     }
+
 }

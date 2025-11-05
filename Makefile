@@ -15,6 +15,11 @@ check-configs:
 	@echo "l1_file: ${l1_file} l2_file ${l2_file}"
 	bun lzConfigCheck.cjs ${l1_file} ${l2_file}
 
+update-salts:
+	@if [ -z "$(file)" ]; then echo "Error: file parameter is required. Usage: make update-salts file=earnUSDC-L1.json"; exit 1; fi
+	@echo "Updating salts for file: $(file)"
+	@node incrementSalt.cjs $(file) 
+
 checkL1:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
 	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge test --mp test/LiveDeploy.t.sol --fork-url=${L1_RPC_URL}

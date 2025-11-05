@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract GearboxDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== GEARBOX ===============================
 
     // @desc deposit into Gearbox
@@ -23,4 +24,5 @@ abstract contract GearboxDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Nothing to sanitize or return
         return addressesFound;
     }
+
 }

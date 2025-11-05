@@ -13,6 +13,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract VelodromeBuyback is Ownable {
+
     /**
      * @notice The VelodromeV1 router contract used for swapping assets
      */
@@ -62,4 +63,5 @@ contract VelodromeBuyback is Ownable {
     function sweepDustToVault(ERC20 token) external onlyOwner {
         token.transfer(address(accountant.vault()), token.balanceOf(address(this)));
     }
+
 }

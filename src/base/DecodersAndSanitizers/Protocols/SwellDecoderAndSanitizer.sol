@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract SwellDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error SwellDecoderAndSanitizer__MustWithdrawToBoringVault();
 
     // @desc function to claim rewards from Swell
@@ -64,4 +65,5 @@ abstract contract SwellDecoderAndSanitizer is BaseDecoderAndSanitizer {
         }
         // nothing to sanitize
     }
+
 }

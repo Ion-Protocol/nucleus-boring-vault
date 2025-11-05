@@ -6,6 +6,7 @@ import { ETH_PER_STETH_CHAINLINK, WSTETH_ADDRESS } from "@ion-protocol/Constants
 import { Test } from "@forge-std/Test.sol";
 
 contract EthPerWstEthRateProviderTest is Test {
+
     uint256 MAX_TIME_FROM_LAST_UPDATE = 1 days;
     EthPerWstEthRateProvider ethPerWstEthRateProvider;
 
@@ -38,4 +39,5 @@ contract EthPerWstEthRateProviderTest is Test {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+
 }

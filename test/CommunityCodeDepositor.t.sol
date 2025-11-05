@@ -15,14 +15,17 @@ import { stdStorage, StdStorage, stdError } from "@forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
 
 interface IERC2612 {
+
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
     function PERMIT_TYPEHASH() external pure returns (bytes32);
 
     function nonces(address owner) external view returns (uint256);
+
 }
 
 contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -248,4 +251,5 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerSk, digest);
         return (v, r, s);
     }
+
 }

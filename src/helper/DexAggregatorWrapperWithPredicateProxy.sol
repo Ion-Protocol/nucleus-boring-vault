@@ -15,7 +15,9 @@ import { IOKXRouter } from "src/interfaces/IOKXRouter.sol";
 import { CrossChainTellerBase, BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
-import { TellerWithMultiAssetSupportPredicateProxy } from "src/base/Roles/TellerWithMultiAssetSupportPredicateProxy.sol";
+import {
+    TellerWithMultiAssetSupportPredicateProxy
+} from "src/base/Roles/TellerWithMultiAssetSupportPredicateProxy.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 
@@ -23,6 +25,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
  * @custom:security-contact security@molecularlabs.io
  */
 contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
+
     // Apply SafeTransferLib only to ERC20 (WETH inherits from ERC20)
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -247,7 +250,7 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
             // Use safeTransferFrom
             depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
-            // Approve agregator to take tokens from this contract
+            // Approve aggregator to take tokens from this contract
             depositAsset.safeApprove(address(aggregator), depositAmount);
         }
 
@@ -399,4 +402,5 @@ contract DexAggregatorWrapperWithPredicateProxy is ReentrancyGuard {
     }
 
     receive() external payable { }
+
 }

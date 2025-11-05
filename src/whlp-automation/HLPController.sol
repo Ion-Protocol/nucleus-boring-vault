@@ -8,6 +8,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { console } from "@forge-std/Test.sol";
 
 contract HLPController is Auth {
+
     using EnumerableSet for EnumerableSet.AddressSet;
 
     EnumerableSet.AddressSet private accountsSet;
@@ -138,4 +139,5 @@ contract HLPController is Auth {
         accountsSet.add(address(account));
         emit HLPController__NewAccount(HLPAccount(account));
     }
+
 }

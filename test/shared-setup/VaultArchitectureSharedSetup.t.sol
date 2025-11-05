@@ -16,6 +16,7 @@ import { Test, stdStorage, StdStorage, stdError } from "@forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
 
 abstract contract VaultArchitectureSharedSetup is Test, MainnetAddresses {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -116,4 +117,5 @@ abstract contract VaultArchitectureSharedSetup is Test, MainnetAddresses {
             }
         }
     }
+
 }

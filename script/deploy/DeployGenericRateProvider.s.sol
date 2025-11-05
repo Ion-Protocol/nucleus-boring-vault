@@ -10,6 +10,7 @@ using StdJson for string;
 
 // NOTE Currently assumes that function signature arguments are empty.
 contract DeployGenericRateProvider is BaseScript {
+
     string configPath = "./deployment-config/rates/DeployGenericRateProvider.json";
     string config = vm.readFile(configPath);
 
@@ -39,4 +40,5 @@ contract DeployGenericRateProvider is BaseScript {
         require(rate >= expectedMin, "rate must be greater than or equal to min");
         require(rate <= expectedMax, "rate must be less than or equal to max");
     }
+
 }

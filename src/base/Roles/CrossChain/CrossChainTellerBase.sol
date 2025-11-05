@@ -17,6 +17,7 @@ struct BridgeData {
  * @notice Base contract for the CrossChainTeller, includes functions to overload with specific bridge method
  */
 abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
+
     event MessageSent(bytes32 messageId, uint256 shareAmount, address to);
     event MessageReceived(bytes32 messageId, uint256 shareAmount, address to);
 
@@ -137,4 +138,5 @@ abstract contract CrossChainTellerBase is TellerWithMultiAssetSupport {
     function _afterReceive(uint256 shareAmount, address destinationChainReceiver, bytes32 messageId) internal virtual {
         emit MessageReceived(messageId, shareAmount, destinationChainReceiver);
     }
+
 }

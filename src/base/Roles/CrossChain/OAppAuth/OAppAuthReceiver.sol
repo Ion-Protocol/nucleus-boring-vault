@@ -12,6 +12,7 @@ import { OAppAuthCore } from "./OAppAuthCore.sol";
  * @dev This Auth version of OAppCore uses solmate's Auth instead of OZ's Ownable for compatibility purposes
  */
 abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
+
     // Custom error message for when the caller is not the registered endpoint/
     error OnlyEndpoint(address addr);
 
@@ -83,7 +84,16 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
      * @dev This is also enforced by the OApp.
      * @dev By default this is NOT enabled. ie. nextNonce is hardcoded to return 0.
      */
-    function nextNonce(uint32, /*_srcEid*/ bytes32 /*_sender*/ ) public view virtual returns (uint64 nonce) {
+    function nextNonce(
+        uint32,
+        /*_srcEid*/
+        bytes32 /*_sender*/
+    )
+        public
+        view
+        virtual
+        returns (uint64 nonce)
+    {
         return 0;
     }
 
@@ -133,4 +143,5 @@ abstract contract OAppAuthReceiver is IOAppReceiver, OAppAuthCore {
     )
         internal
         virtual;
+
 }

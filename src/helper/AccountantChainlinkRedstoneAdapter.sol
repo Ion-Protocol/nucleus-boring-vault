@@ -10,6 +10,7 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract AccountantChainlinkRedstoneAdapter is Auth {
+
     AccountantWithRateProviders public accountant;
 
     error AccountantChainlinkRedstoneAdapter__AnswerTooLargeForInt256(uint256 uint256Answer);
@@ -21,7 +22,12 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
 
     uint8 public decimals;
 
-    constructor(address _owner, AccountantWithRateProviders _startingAccountant) Auth(_owner, Authority(address(0))) {
+    constructor(
+        address _owner,
+        AccountantWithRateProviders _startingAccountant
+    )
+        Auth(_owner, Authority(address(0)))
+    {
         accountant = _startingAccountant;
         decimals = _startingAccountant.decimals();
         emit AccountantChainlinkRedstoneAdapter__NewAccountant(_startingAccountant);
@@ -77,4 +83,5 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
         }
         answer = int256(uint256Answer);
     }
+
 }

@@ -5,8 +5,10 @@ import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDeco
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { BridgeData } from "src/base/Roles/CrossChain/CrossChainTellerBase.sol";
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
+import { PredicateMessage } from "@predicate/src/interfaces/IPredicateClient.sol";
 
 abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error NucleusDecoderAndSanitizer__ExitFunctionForInternalBurnUseOnly();
 
     // @desc deposit into nucleus via the teller
@@ -21,6 +23,25 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         returns (bytes memory addressesFound)
     {
         addressesFound = abi.encodePacked(depositAsset);
+    }
+
+    // @desc deposit into nucleus via the predicate proxy
+    // @tag depositAsset:address:ERC20 to deposit, must be supported and approved
+    // @tag recipient:address:receiver of shares
+    // @tag teller:address:teller contract to deposit with
+    function deposit(
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint,
+        address recipient,
+        address teller,
+        PredicateMessage calldata predicateMessage
+    )
+        external
+        pure
+        returns (bytes memory addressesFound)
+    {
+        addressesFound = abi.encodePacked(depositAsset, recipient, teller);
     }
 
     // add the deposit with receiver for forward compatibility with audited teller
@@ -147,4 +168,5 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         // Nothing to decode
     }
+
 }

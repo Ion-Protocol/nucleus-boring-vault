@@ -7,6 +7,7 @@ import { Auth, Authority } from "solmate/auth/Auth.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 
 interface INativeWrapper {
+
     function balanceOf(address account) external view returns (uint256);
 
     function totalSupply() external view returns (uint256);
@@ -16,9 +17,11 @@ interface INativeWrapper {
     function withdraw(uint256 wad) external;
 
     function decimals() external view returns (uint8);
+
 }
 
 contract CommunityCodeDepositor is Auth {
+
     using SafeTransferLib for ERC20;
 
     error ZeroAddress();
@@ -165,4 +168,5 @@ contract CommunityCodeDepositor is Auth {
             msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, communityCode
         );
     }
+
 }
