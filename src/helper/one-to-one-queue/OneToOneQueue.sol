@@ -24,7 +24,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     enum Status {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on solve
-        REFUND // Order marked for refund, return offer asset
+        REFUND // Order refunded, skip on solve
     }
 
     /// @notice Approval method for submitting an order
@@ -125,6 +125,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @param _name Name for the ERC721 receipt tokens
      * @param _symbol Symbol for the ERC721 receipt tokens
      * @param _offerAssetRecipient Address of the boring vault
+     * @param _feeRecipient Address of the fee recipient
+     * @param _feeModule Address of fee module contract
+     * @param _owner Address of the initial owner
      */
     constructor(
         string memory _name,
