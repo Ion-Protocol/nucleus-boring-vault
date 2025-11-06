@@ -27,12 +27,14 @@ contract CommunityCodeDepositor is Auth {
     error ZeroAddress();
     error IncorrectNativeDepositAmount();
     error NativeWrapperAccountantDecimalsMismatch();
+    error NativeDepositNotSupported();
 
     INativeWrapper public immutable nativeWrapper;
 
     TellerWithMultiAssetSupport public immutable teller;
     address public immutable boringVault;
     uint256 public depositNonce;
+    bool public isNativeDepositSupported;
 
     // more details on the deposit also exists on the Teller event
     event DepositWithCommunityCode(
@@ -48,25 +50,32 @@ contract CommunityCodeDepositor is Auth {
     constructor(
         TellerWithMultiAssetSupport _teller,
         INativeWrapper _nativeWrapper,
+        bool _isNativeDepositSupported,
         address _owner
     )
         Auth(_owner, Authority(address(0)))
     {
         if (address(_teller) == address(0)) revert ZeroAddress();
-        // if (address(_nativeWrapper) == address(0)) revert ZeroAddress();
-
         if (_owner == address(0)) revert ZeroAddress();
 
         // check that if we're depositing native asset, the accountant decimals is equal to base decimals
-        if (address(_nativeWrapper) != address(0)) {
+        if (_isNativeDepositSupported) {
+            if (address(_nativeWrapper) == address(0)) revert ZeroAddress();
             if (_teller.accountant().decimals() != _nativeWrapper.decimals()) {
                 revert NativeWrapperAccountantDecimalsMismatch();
+            }
+        } else {
+            if (address(_nativeWrapper) != address(0)) {
+                if (_teller.accountant().decimals() != _nativeWrapper.decimals()) {
+                    revert NativeWrapperAccountantDecimalsMismatch();
+                }
             }
         }
 
         teller = _teller;
         boringVault = address(_teller.vault());
         nativeWrapper = _nativeWrapper;
+        isNativeDepositSupported = _isNativeDepositSupported;
 
         if (boringVault == address(0)) revert ZeroAddress();
     }
@@ -89,6 +98,7 @@ contract CommunityCodeDepositor is Auth {
         requiresAuth
         returns (uint256 shares)
     {
+        if (!isNativeDepositSupported) revert NativeDepositNotSupported();
         if (msg.value != depositAmount) revert IncorrectNativeDepositAmount();
         nativeWrapper.deposit{ value: msg.value }();
         return _deposit(ERC20(address(nativeWrapper)), depositAmount, minimumMint, to, communityCode);
@@ -156,13 +166,20 @@ contract CommunityCodeDepositor is Auth {
         internal
         returns (uint256 shares)
     {
-        bytes32 depositHash = keccak256(abi.encodePacked(address(this), depositNonce++));
+        if (to == address(0)) revert ZeroAddress();
+        bytes32 depositHash;
+        unchecked {
+            depositHash = keccak256(abi.encodePacked(address(this), ++depositNonce));
+        }
 
+        // Clear leftover allowance for non-standard ERC20
+        depositAsset.safeApprove(boringVault, 0);
         depositAsset.safeApprove(boringVault, depositAmount);
 
-        // TODO: THIS MUST BE TRANSFERRED OUT
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
         ERC20(boringVault).safeTransfer(to, shares);
+        // Clear leftover allowance
+        depositAsset.safeApprove(boringVault, 0);
 
         emit DepositWithCommunityCode(
             msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, communityCode

@@ -57,7 +57,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         INativeWrapper nativeWrapper = INativeWrapper(WETH);
 
         // deploy community code depositor
-        communityCodeDepositor = new CommunityCodeDepositor(teller, INativeWrapper(address(0)), owner);
+        communityCodeDepositor = new CommunityCodeDepositor(teller, INativeWrapper(address(0)), false, owner);
 
         vm.prank(owner);
         communityCodeDepositor.setAuthority(rolesAuthority);
