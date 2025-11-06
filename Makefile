@@ -11,6 +11,13 @@ verify-hl:
 		--verifier sourcify \
 		--verifier-url https://sourcify.parsec.finance/verify
 
+enforce-master-branch:
+	@if [ "$$(git rev-parse --abbrev-ref HEAD)" != "master" ]; then \
+		echo "\nError: you must be on the master branch to run this target."; \
+		exit 1; \
+	fi
+	@export MASTER_BRANCH_OVERRIDE=true	
+
 check-configs: 
 	@echo "l1_file: ${l1_file} l2_file ${l2_file}"
 	bun lzConfigCheck.cjs ${l1_file} ${l2_file}
@@ -39,12 +46,14 @@ deployL2:
 	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L2_RPC_URL}
 
 live-deployL1:
+	make enforce-master-branch
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
 	cp ./deployment-config/out-template.json ./deployment-config/out.json
 	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L1_RPC_URL} --private-key=$(PRIVATE_KEY) --broadcast --slow --verify
 	mv ./deployment-config/out.json ./deployment-config/outL1.json
 
 live-deployL2:
+	make enforce-master-branch
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
 	cp ./deployment-config/out-template.json ./deployment-config/out.json
 	@export LIVE_DEPLOY_READ_FILE_NAME=$(file) && forge script script/deploy/deployAll.s.sol --sig "run(string)" $(file) --fork-url=${L2_RPC_URL} --private-key=$(PRIVATE_KEY) --broadcast --slow --verify
