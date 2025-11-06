@@ -412,6 +412,7 @@ contract LHYPEFlashswapDeleverageTest is Test {
     }
 
     function _efficientHash(bytes32 a, bytes32 b) private pure returns (bytes32 value) {
+        /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, a)
             mstore(0x20, b)

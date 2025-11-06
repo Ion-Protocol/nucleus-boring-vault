@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { GenericRateProvider } from "./../../../src/helper/GenericRateProvider.sol";
+import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
 import { BaseScript } from "./../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../ConfigReader.s.sol";
