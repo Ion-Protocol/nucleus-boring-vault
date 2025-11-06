@@ -56,10 +56,7 @@ contract OptionsHelper {
         return this.decodeLzComposeOption(option);
     }
 
-    function _executorOptionExists(
-        bytes memory _options,
-        uint8 _executorOptionType
-    )
+    function _executorOptionExists(bytes memory _options, uint8 _executorOptionType)
         internal
         view
         returns (bool exist)

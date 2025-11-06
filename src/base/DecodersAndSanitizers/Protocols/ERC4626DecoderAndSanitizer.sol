@@ -38,7 +38,11 @@ abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
     // @desc redeem tokens from the ERC4626 vault
     // @tag receiver:address:the address of the receiver of the vault tokens
     // @tag owner:address:the address of the owner of the vault tokens
-    function redeem(uint256, address receiver, address owner)
+    function redeem(
+        uint256,
+        address receiver,
+        address owner
+    )
         external
         view
         virtual

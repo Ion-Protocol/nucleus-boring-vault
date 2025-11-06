@@ -337,7 +337,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
         joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
-            // [100e18,100e18], 0
+        // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -361,7 +361,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
         exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
-            // 203690537881715311640
+        // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -1911,7 +1911,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
         joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
-            // [100e18,100e18], 0
+        // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -1935,7 +1935,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
         exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
-            // 203690537881715311640
+        // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -2043,7 +2043,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
         joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
-            // [100e18,100e18], 0
+        // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -2070,7 +2070,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         joinRequest.maxAmountsIn[0] = 100e18;
         joinRequest.maxAmountsIn[1] = 100e18;
         joinRequest.userData = abi.encode(1, joinRequest.maxAmountsIn, 0); // EXACT_TOKENS_IN_FOR_BPT_OUT,
-            // [100e18,100e18], 0
+        // [100e18,100e18], 0
         targetData[3] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.joinPool.selector,
             poolId,
@@ -2086,7 +2086,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
         exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
-            // 203690537881715311640
+        // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -2111,7 +2111,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         exitRequest.assets[0] = address(RETH);
         exitRequest.assets[1] = address(WETH);
         exitRequest.userData = abi.encode(1, 203_690_537_881_715_311_640); // EXACT_BPT_IN_FOR_TOKENS_OUT,
-            // 203690537881715311640
+        // 203690537881715311640
         targetData[10] = abi.encodeWithSelector(
             BalancerV2DecoderAndSanitizer.exitPool.selector,
             poolId,
@@ -2983,14 +2983,7 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     // ========================================= HELPER FUNCTIONS =========================================
     bool doNothing = true;
 
-    function flashLoan(
-        address,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        bytes memory userData
-    )
-        external
-    {
+    function flashLoan(address, address[] calldata tokens, uint256[] calldata amounts, bytes memory userData) external {
         if (doNothing) {
             return;
         } else {

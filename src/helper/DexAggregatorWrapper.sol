@@ -247,7 +247,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         // Cast teller address to TellerWithMultiAssetSupport to call vault()
         // payable cast might be needed depending on Teller interface
         address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault()); // Example cast, adjust if
-            // needed
+        // needed
         if (vaultAddress == address(0)) {
             revert("DexAggregatorWrapper: Invalid vault address for approval");
         }
@@ -311,7 +311,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             // Cast teller address to TellerWithMultiAssetSupport to call vault()
             // payable cast might be needed depending on Teller interface
             address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault()); // Example cast,
-                // adjust if needed
+            // adjust if needed
             if (vaultAddress == address(0)) {
                 revert("DexAggregatorWrapper: Invalid vault address for approval");
             }

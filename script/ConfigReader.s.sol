@@ -62,14 +62,7 @@ library ConfigReader {
         address[] priceFeeds;
     }
 
-    function toConfig(
-        string memory _config,
-        string memory _chainConfig
-    )
-        internal
-        pure
-        returns (Config memory config)
-    {
+    function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
         // Reading the 'protocolAdmin'
         config.protocolAdmin = _config.readAddress(".protocolAdmin");
         config.base = _config.readAddress(".base");
