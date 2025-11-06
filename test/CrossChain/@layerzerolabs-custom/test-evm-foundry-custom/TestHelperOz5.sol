@@ -288,14 +288,9 @@ contract TestHelperOz5 is Test, OptionsHelper {
      * @param _constructorArgs The encoded constructor arguments for the OApp contract.
      * @return addr The address of the newly deployed OApp contract.
      */
-    function _deployOApp(
-        bytes memory _oappBytecode,
-        bytes memory _constructorArgs
-    )
-        internal
-        returns (address addr)
-    {
+    function _deployOApp(bytes memory _oappBytecode, bytes memory _constructorArgs) internal returns (address addr) {
         bytes memory bytecode = bytes.concat(abi.encodePacked(_oappBytecode), _constructorArgs);
+        /// @solidity memory-safe-assembly
         assembly {
             addr := create(0, add(bytecode, 0x20), mload(bytecode))
             if iszero(extcodesize(addr)) { revert(0, 0) }
@@ -343,14 +338,7 @@ contract TestHelperOz5 is Test, OptionsHelper {
      * @dev will NOT work calling this directly with composer IF the composed payload is different from the lzReceive
      * msg payload
      */
-    function verifyPackets(
-        uint32 _dstEid,
-        bytes32 _dstAddress,
-        uint256 _packetAmount,
-        address _composer
-    )
-        public
-    {
+    function verifyPackets(uint32 _dstEid, bytes32 _dstAddress, uint256 _packetAmount, address _composer) public {
         require(endpoints[_dstEid] != address(0), "endpoint not yet registered");
 
         DoubleEndedQueue.Bytes32Deque storage queue = packetsQueue[_dstEid][_dstAddress];
@@ -486,14 +474,7 @@ contract TestHelperOz5 is Test, OptionsHelper {
         return queue.length() > 0;
     }
 
-    function getNextInflightPacket(
-        uint16 _dstEid,
-        bytes32 _dstAddress
-    )
-        public
-        view
-        returns (bytes memory packetBytes)
-    {
+    function getNextInflightPacket(uint16 _dstEid, bytes32 _dstAddress) public view returns (bytes memory packetBytes) {
         DoubleEndedQueue.Bytes32Deque storage queue = packetsQueue[_dstEid][_dstAddress];
         if (queue.length() > 0) {
             bytes32 guid = queue.back();

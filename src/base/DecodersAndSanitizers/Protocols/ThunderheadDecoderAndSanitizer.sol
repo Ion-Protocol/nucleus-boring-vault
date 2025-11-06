@@ -41,14 +41,7 @@ abstract contract ThunderheadDecoderAndSanitizer is BaseDecoderAndSanitizer {
     }
 
     // @desc Thunderhead function to burn, and redeem if possible, will revert if to is not the boring vault
-    function burnAndRedeemIfPossible(
-        address to,
-        uint256 amount
-    )
-        external
-        view
-        returns (bytes memory addressesFound)
-    {
+    function burnAndRedeemIfPossible(address to, uint256 amount) external view returns (bytes memory addressesFound) {
         if (to != boringVault) {
             revert ThunderheadDecoderAndSanitizer__InvalidReceiver();
         }

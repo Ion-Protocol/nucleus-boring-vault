@@ -101,14 +101,7 @@ contract LHYPEFlashswapDeleverage is Auth, IHyperswapV3SwapCallback {
     }
 
     /// @inheritdoc IHyperswapV3SwapCallback
-    function hyperswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata data
-    )
-        external
-        override
-    {
+    function hyperswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external override {
         if (msg.sender != address(uniswapV3Pool)) {
             revert LHYPEFlashswapDeleverage__InvalidSender();
         }

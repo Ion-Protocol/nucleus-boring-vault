@@ -43,7 +43,7 @@ contract EthPerWstEthRateProvider is IRateProvider {
     function getRate() public view returns (uint256 ethPerWstEth) {
         // get price from the protocol feed
         (, int256 _ethPerStEth,, uint256 lastUpdatedAt,) = ST_ETH_TO_ETH_CHAINLINK.latestRoundData(); // price of stETH
-            // denominated in ETH
+        // denominated in ETH
 
         if (block.timestamp - lastUpdatedAt > MAX_TIME_FROM_LAST_UPDATE) {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAt);

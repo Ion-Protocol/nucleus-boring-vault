@@ -11,11 +11,7 @@ contract IonPoolDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) { }
 
-    function supply(
-        address recipient,
-        uint256,
-        bytes32[] calldata
-    )
+    function supply(address recipient, uint256, bytes32[] calldata)
         external
         pure
         returns (bytes memory addressesFound)

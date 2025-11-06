@@ -247,7 +247,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         // Cast teller address to TellerWithMultiAssetSupport to call vault()
         // payable cast might be needed depending on Teller interface
         address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault()); // Example cast, adjust if
-            // needed
+        // needed
         if (vaultAddress == address(0)) {
             revert("DexAggregatorWrapper: Invalid vault address for approval");
         }
@@ -269,6 +269,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         returns (uint256 supportedAssetAmount)
     {
         bytes4 selector;
+        /// @solidity memory-safe-assembly
         assembly {
             selector := calldataload(okxCallData.offset)
         }
@@ -299,6 +300,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             // Execute the swap with the provided calldata
             (bool success, bytes memory result) = address(okxRouter).call(okxCallData);
             if (!success) {
+                /// @solidity memory-safe-assembly
                 assembly {
                     revert(add(result, 32), mload(result))
                 }
@@ -311,7 +313,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             // Cast teller address to TellerWithMultiAssetSupport to call vault()
             // payable cast might be needed depending on Teller interface
             address vaultAddress = address(TellerWithMultiAssetSupport(payable(teller)).vault()); // Example cast,
-                // adjust if needed
+            // adjust if needed
             if (vaultAddress == address(0)) {
                 revert("DexAggregatorWrapper: Invalid vault address for approval");
             }
