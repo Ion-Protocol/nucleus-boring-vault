@@ -5,16 +5,11 @@ import { AccessAuthority, RolesAuthority } from "./abstract/AccessAuthority.sol"
 import { OneToOneQueue } from "./OneToOneQueue.sol";
 import { Authority } from "@solmate/auth/Auth.sol";
 
+/// NOTE: Format Better
+/// @dev 2 deprecation steps
+/// 1: Dissable new orders but allow solving existing ones
+/// 2: Dissable everything via a pause. But ensure the queue is empty
 contract QueueAccessAuthority is AccessAuthority {
-
-    /// @dev 2 deprecation steps
-    /// 1: Dissable new orders but allow solving existing ones
-    /// 2: Dissable everything via a pause. But ensure the queue is empty
-    enum DEPRECATION_STEP {
-        NOT_DEPRECATED,
-        NO_NEW_ORDERS,
-        CLOSED
-    }
 
     address public queue;
     mapping(address => bool) public isBlacklisted;
@@ -30,6 +25,8 @@ contract QueueAccessAuthority is AccessAuthority {
         address _queue,
         address[] memory defaultPausers
     )
+        /// NOTE: Pass in owner here, but don't set it in parent constructor, have a hook for initRoles, then transfer
+        /// here.
         AccessAuthority(msg.sender, defaultPausers)
     {
         queue = _queue;
@@ -41,6 +38,7 @@ contract QueueAccessAuthority is AccessAuthority {
     }
 
     /// @dev override canCall but add on the blacklist check
+    /// NOTE: Remove blacklist
     function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
         if (isBlacklisted[user]) {
             return false;
@@ -49,13 +47,7 @@ contract QueueAccessAuthority is AccessAuthority {
     }
 
     /// @notice set the blacklist status for users
-    function setUsersBlacklistStatus(
-        address[] memory users,
-        bool[] memory isBlacklistedStatus
-    )
-        external
-        requiresAuth
-    {
+    function setUsersBlacklistStatus(address[] memory users, bool[] memory isBlacklistedStatus) external requiresAuth {
         for (uint256 i; i < users.length; i++) {
             isBlacklisted[users[i]] = isBlacklistedStatus[i];
             emit BlacklistUpdated(users[i], isBlacklistedStatus[i]);
@@ -80,6 +72,7 @@ contract QueueAccessAuthority is AccessAuthority {
     }
 
     /// @dev Step 1
+    /// NOTE: Remove the "begin" notion
     function _onDeprecationBegin() internal override {
         setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);
         setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, false);
@@ -90,6 +83,8 @@ contract QueueAccessAuthority is AccessAuthority {
         if (OneToOneQueue(queue).totalSupply() != 0) {
             revert QueueNotEmpty();
         }
+        /// NOTE: Instead of having to remember to set this true, have it automatically done once we reach the "size"
+        /// which we can set in constructor or something
         isFullyDeprecated = true;
         _pause();
     }

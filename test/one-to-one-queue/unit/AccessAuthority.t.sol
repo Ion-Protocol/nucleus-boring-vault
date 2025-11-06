@@ -46,7 +46,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         // Owner can also pause but must unpause first
         vm.startPrank(owner);
         rolesAuthority.unpause(); /// TODO: This isn't ideal. We like to be able to have pauses go through even if
-            /// already paused, but this is a feature of OZs Pausable and perhaps we like the standard usage more
+        /// already paused, but this is a feature of OZs Pausable and perhaps we like the standard usage more
         vm.expectEmit(true, true, true, true);
         emit Pausable.Paused(owner);
         rolesAuthority.pause();

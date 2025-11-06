@@ -11,6 +11,7 @@ import { AccessAuthority } from "src/helper/one-to-one-queue/abstract/AccessAuth
  */
 abstract contract VerboseAuth is Auth {
 
+    /// NOTE: Remove redundant functionSig
     error Unauthorized(address caller, bytes4 functionSig, bytes data, string reasons);
 
     modifier requiresAuth() virtual override {
@@ -21,6 +22,7 @@ abstract contract VerboseAuth is Auth {
                 msg.sender,
                 msg.sig,
                 msg.data,
+                /// NOTE: Instead of msg.sig can pass in msg.data and parse out signature, allows more flexibility
                 AccessAuthority(address(authority)).getUnauthorizedReasons(msg.sender, msg.sig)
             );
         }

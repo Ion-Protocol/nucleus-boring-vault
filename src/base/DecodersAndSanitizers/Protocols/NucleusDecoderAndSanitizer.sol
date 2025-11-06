@@ -46,14 +46,7 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
     // @tag destinationChainReceiver:address:receiver
     // @tag bridgeFeeToken:address:fee token
     // @tag messageGas:uint64:gas for message
-    function bridge(
-        uint256 shareAmount,
-        BridgeData calldata data
-    )
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
+    function bridge(uint256 shareAmount, BridgeData calldata data) external pure returns (bytes memory addressesFound) {
         addressesFound =
             abi.encodePacked(data.chainSelector, data.destinationChainReceiver, data.bridgeFeeToken, data.messageGas);
     }

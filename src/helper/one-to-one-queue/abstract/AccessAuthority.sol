@@ -13,6 +13,9 @@ import { VerboseAuth } from "./VerboseAuth.sol";
  * deprecation
  * whitelist/blacklist
  */
+/// NOTE: Do the override and brick strategy of rewriting requiresAuth and canCall to include the reasons. Also replace
+/// requiresAuth with requiresAuthVerbose
+// NOTE: Also use hooks instead of overridings of canCall, so you HAVE to provide logic and cannot forget to use super.canCall
 abstract contract AccessAuthority is Pausable, RolesAuthority {
 
     /// @notice Current deprecation step (0 = not deprecated)
@@ -56,6 +59,8 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     }
 
     /// @notice only pausers and OWNER can pause
+    /// NOTE: pause will fail if already paused... There's no way to NOT do that right now...
+    /// ask what Jun/Jamie think. Explore other libraries? Fork? or deal with it? Our pause contract does handle errors
     function pause() external {
         if (!pausers[msg.sender] && msg.sender != owner) {
             revert VerboseAuth.Unauthorized(msg.sender, msg.sig, msg.data, "- Not a pauser or owner ");
@@ -90,7 +95,6 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
 
         ++deprecationStep;
         _onDeprecationContinue(deprecationStep);
-
         emit DeprecationContinued(deprecationStep);
         if (isFullyDeprecated) {
             emit DeprecationFinished(deprecationStep);
@@ -110,7 +114,10 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     }
 
     /// @dev a new function to get the reason for a failed "canCall" check as a string.
-    function getUnauthorizedReasons(address user, bytes4 functionSig)
+    function getUnauthorizedReasons(
+        address user,
+        bytes4 functionSig
+    )
         public
         view
         virtual
@@ -132,13 +139,14 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
      * @notice Hook called when deprecation begins
      * @dev Override to implement step 1 specific logic
      */
-    function _onDeprecationBegin() internal virtual { }
+    /// NOTE: Note the virtual (no brackets)
+    function _onDeprecationBegin() internal virtual;
 
     /**
      * @notice Hook called when deprecation continues to next step
      * @param newStep The new deprecation step
      * @dev Override to implement step-specific logic
      */
-    function _onDeprecationContinue(uint8 newStep) internal virtual { }
+    function _onDeprecationContinue(uint8 newStep) internal virtual;
 
 }

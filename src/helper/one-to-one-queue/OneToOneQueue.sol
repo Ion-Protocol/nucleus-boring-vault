@@ -48,7 +48,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /// @notice Represents a withdrawal order in the queue
     struct Order {
         uint128 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
-            // minus fees.
+        // minus fees.
         uint128 amountWant; // Amount of want asset to give the user in want decimals. This is not inclusive of fees.
         IERC20 offerAsset; // Asset being offered
         IERC20 wantAsset; // Asset being requested
@@ -537,15 +537,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
     }
 
-    function _checkAllowance(
-        address depositor,
-        IERC20 asset,
-        uint256 amount,
-        uint256 orderIndex
-    )
-        internal
-        view
-    {
+    function _checkAllowance(address depositor, IERC20 asset, uint256 amount, uint256 orderIndex) internal view {
         uint256 depositorAllowance = asset.allowance(depositor, address(this));
         if (depositorAllowance < amount) {
             revert InsufficientAllowance(orderIndex, depositor, address(asset), amount, depositorAllowance);

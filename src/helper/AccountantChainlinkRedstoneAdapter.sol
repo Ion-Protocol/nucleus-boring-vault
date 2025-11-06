@@ -22,12 +22,7 @@ contract AccountantChainlinkRedstoneAdapter is Auth {
 
     uint8 public decimals;
 
-    constructor(
-        address _owner,
-        AccountantWithRateProviders _startingAccountant
-    )
-        Auth(_owner, Authority(address(0)))
-    {
+    constructor(address _owner, AccountantWithRateProviders _startingAccountant) Auth(_owner, Authority(address(0))) {
         accountant = _startingAccountant;
         decimals = _startingAccountant.decimals();
         emit AccountantChainlinkRedstoneAdapter__NewAccountant(_startingAccountant);

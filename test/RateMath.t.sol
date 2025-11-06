@@ -282,15 +282,7 @@ contract RateMath is Test {
         rateInQuote = oneQuote.mulDivDown((exchangeRateInQuoteDecimals), quoteRate);
     }
 
-    function changeDecimals(
-        uint256 amount,
-        uint256 fromDecimals,
-        uint256 toDecimals
-    )
-        internal
-        pure
-        returns (uint256)
-    {
+    function changeDecimals(uint256 amount, uint256 fromDecimals, uint256 toDecimals) internal pure returns (uint256) {
         if (fromDecimals == toDecimals) {
             return amount;
         } else if (fromDecimals < toDecimals) {
