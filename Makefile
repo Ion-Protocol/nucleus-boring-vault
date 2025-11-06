@@ -16,6 +16,15 @@ enforce-master-branch:
 		echo "\nError: you must be on the master branch to run this target."; \
 		exit 1; \
 	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "\nError: your working directory is not clean. Please commit or stash your changes before deploying."; \
+		exit 1; \
+	fi
+	@git fetch origin master >/dev/null 2>&1
+	@if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/master)" ]; then \
+		echo "\nError: your local master commit does not match origin/master. Please pull or push to synchronize before deploying."; \
+		exit 1; \
+	fi
 	@export MASTER_BRANCH_OVERRIDE=true	
 
 check-configs: 
