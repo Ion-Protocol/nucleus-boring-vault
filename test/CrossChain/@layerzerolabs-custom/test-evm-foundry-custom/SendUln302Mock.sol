@@ -58,16 +58,7 @@ contract SendUln302Mock is SendUlnBase, SendLibBaseE2 {
 
     // ============================ View ===================================
 
-    function getConfig(
-        uint32 _eid,
-        address _oapp,
-        uint32 _configType
-    )
-        external
-        view
-        override
-        returns (bytes memory)
-    {
+    function getConfig(uint32 _eid, address _oapp, uint32 _configType) external view override returns (bytes memory) {
         if (_configType == CONFIG_TYPE_EXECUTOR) {
             return abi.encode(getExecutorConfig(_oapp, _eid));
         } else if (_configType == CONFIG_TYPE_ULN) {

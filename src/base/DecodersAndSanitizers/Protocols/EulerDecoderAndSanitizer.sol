@@ -61,7 +61,10 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc enable a collateral on Euler
     // @tag vault:address:the address of the vault
-    function enableCollateral(address account, address vault)
+    function enableCollateral(
+        address account,
+        address vault
+    )
         external
         view
         virtual
@@ -73,7 +76,10 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc enable a controller on Euler
     // @tag vault:address:the address of the vault
-    function enableController(address account, address vault)
+    function enableController(
+        address account,
+        address vault
+    )
         external
         view
         virtual

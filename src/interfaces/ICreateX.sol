@@ -60,21 +60,9 @@ interface ICreateX {
         payable
         returns (address newContract);
 
-    function deployCreateClone(
-        address implementation,
-        bytes memory data
-    )
-        external
-        payable
-        returns (address proxy);
+    function deployCreateClone(address implementation, bytes memory data) external payable returns (address proxy);
 
-    function computeCreateAddress(
-        address deployer,
-        uint256 nonce
-    )
-        external
-        view
-        returns (address computedAddress);
+    function computeCreateAddress(address deployer, uint256 nonce) external view returns (address computedAddress);
 
     function computeCreateAddress(uint256 nonce) external view returns (address computedAddress);
 
@@ -135,13 +123,7 @@ interface ICreateX {
         payable
         returns (address proxy);
 
-    function deployCreate2Clone(
-        address implementation,
-        bytes memory data
-    )
-        external
-        payable
-        returns (address proxy);
+    function deployCreate2Clone(address implementation, bytes memory data) external payable returns (address proxy);
 
     function computeCreate2Address(
         bytes32 salt,
@@ -152,13 +134,7 @@ interface ICreateX {
         pure
         returns (address computedAddress);
 
-    function computeCreate2Address(
-        bytes32 salt,
-        bytes32 initCodeHash
-    )
-        external
-        view
-        returns (address computedAddress);
+    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash) external view returns (address computedAddress);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           CREATE3                          */
@@ -208,13 +184,7 @@ interface ICreateX {
         payable
         returns (address newContract);
 
-    function computeCreate3Address(
-        bytes32 salt,
-        address deployer
-    )
-        external
-        pure
-        returns (address computedAddress);
+    function computeCreate3Address(bytes32 salt, address deployer) external pure returns (address computedAddress);
 
     function computeCreate3Address(bytes32 salt) external view returns (address computedAddress);
 

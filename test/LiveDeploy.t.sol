@@ -240,8 +240,9 @@ contract LiveDeploy is ForkTest, DeployAll {
 
             uint256 expectedAssetsBack = ((depositAmount) * rateChange / 10_000);
 
-            uint256 assetsOut = expectedSharesByAsset[i]
-            .mulDivDown(accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE);
+            uint256 assetsOut = expectedSharesByAsset[i].mulDivDown(
+                accountant.getRateInQuoteSafe(ERC20(mainConfig.assets[i])), ONE_SHARE
+            );
 
             // Delta must be set very high to pass
             assertApproxEqAbs(assetsOut, expectedAssetsBack, DELTA, "assets out not equal to expected assets back");

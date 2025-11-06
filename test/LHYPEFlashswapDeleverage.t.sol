@@ -153,8 +153,8 @@ contract LHYPEFlashswapDeleverageTest is Test {
 
         uint256 expectedHealthFactor = ((collateralBefore - amountWstHypePaid) * wstHypeRate / 1e18)
             * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because
-            // liquidation
-            // threshold has 4 decimals
+        // liquidation
+        // threshold has 4 decimals
 
         (uint256 totalCollateralBaseAfter, uint256 totalDebtBaseAfter,,,, uint256 healthFactorAfter) =
             pool_hfi.getUserAccountData(address(boringVault));
@@ -240,8 +240,8 @@ contract LHYPEFlashswapDeleverageTest is Test {
 
         uint256 expectedHealthFactor = ((collateralBefore - amountWstHypePaid) * wstHypeRate / 1e18)
             * liquidationThresholdBefore * 1e18 / (debtBefore - hypeToDeleverage) / 1e4; // divide 1e4 because
-            // liquidation
-            // threshold has 4 decimals
+        // liquidation
+        // threshold has 4 decimals
 
         (uint256 totalCollateralBaseAfter, uint256 totalDebtBaseAfter,,,, uint256 healthFactorAfter) =
             hyperlendPool_hlend.getUserAccountData(address(boringVault));
