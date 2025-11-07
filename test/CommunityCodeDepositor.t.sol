@@ -24,6 +24,118 @@ interface IERC2612 {
 
 }
 
+contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
+
+    using SafeTransferLib for ERC20;
+    using FixedPointMathLib for uint256;
+    using stdStorage for StdStorage;
+
+    CommunityCodeDepositor public communityCodeDepositor;
+    address public owner = vm.addr(uint256(bytes32("owner")));
+
+    function setUp() external {
+        // Setup forked environment
+        string memory rpcKey = "MAINNET_RPC_URL";
+        // block at 10/21/2025
+        uint256 blockNumber = 23_628_127;
+        _startFork(rpcKey, blockNumber);
+
+        address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        INativeWrapper nativeWrapper = INativeWrapper(WETH);
+
+        // Set up default depositable assets
+        address[] memory assets = new address[](1);
+        assets[0] = address(WETH);
+
+        uint256 startingExchangeRate = 1e6;
+
+        // Deploy vault architecture using the helper function
+        (boringVault, teller, accountant) =
+            _deployVaultArchitecture("Ethereum Earn", "earnETH", 18, address(WETH), assets, startingExchangeRate);
+        // deploy community code depositor
+        communityCodeDepositor = new CommunityCodeDepositor(teller, nativeWrapper, true, owner);
+
+        vm.prank(owner);
+        communityCodeDepositor.setAuthority(rolesAuthority);
+
+        vm.startPrank(rolesAuthority.owner());
+        rolesAuthority.setPublicCapability(
+            address(communityCodeDepositor), communityCodeDepositor.deposit.selector, true
+        );
+        rolesAuthority.setPublicCapability(
+            address(communityCodeDepositor), communityCodeDepositor.depositWithPermit.selector, true
+        );
+        rolesAuthority.setPublicCapability(
+            address(communityCodeDepositor), communityCodeDepositor.depositNative.selector, true
+        );
+        vm.stopPrank();
+    }
+
+    function test_depositNativeWithCustomRecipient(address recipient) external {
+        uint256 depositAmount = 100e18;
+        uint256 minimumMint = 100e18;
+
+        // expected shares calculation
+        console.log(accountant.getRate());
+        uint256 quoteRate = accountant.getRateInQuoteSafe(ERC20(address(WETH))); // quote / share
+        console.log("%d", quoteRate);
+
+        // 100e18 * 1e18 / 1e18
+        uint256 expectedShares = depositAmount.mulDivDown(ONE_SHARE, quoteRate);
+
+        vm.deal(address(this), depositAmount);
+        uint256 sharesMinted = communityCodeDepositor.depositNative{ value: depositAmount }(
+            depositAmount, minimumMint, recipient, "test code"
+        );
+        assertEq(sharesMinted, expectedShares, "shares minted must equal expected shares");
+        assertEq(
+            ERC20(address(boringVault)).balanceOf(recipient), expectedShares, "recipient must have expected shares"
+        );
+        assertEq(
+            WETH.balanceOf(address(boringVault)), depositAmount, "boring vault must have deposit asset custody in WETH"
+        );
+    }
+
+    function test_depositNativeWithSenderAsRecipient() external {
+        uint256 depositAmount = 100e18;
+        uint256 minimumMint = 100e18;
+        address recipient = address(this);
+
+        // expected shares calculation
+        console.log(accountant.getRate());
+        uint256 quoteRate = accountant.getRateInQuoteSafe(ERC20(address(WETH))); // quote / share
+        console.log("%d", quoteRate);
+
+        // 100e18 * 1e18 / 1e18
+        uint256 expectedShares = depositAmount.mulDivDown(ONE_SHARE, quoteRate);
+
+        vm.deal(address(this), depositAmount);
+        uint256 sharesMinted = communityCodeDepositor.depositNative{ value: depositAmount }(
+            depositAmount, minimumMint, recipient, "test code"
+        );
+        assertEq(sharesMinted, expectedShares, "shares minted must equal expected shares");
+        assertEq(
+            ERC20(address(boringVault)).balanceOf(recipient), expectedShares, "recipient must have expected shares"
+        );
+        assertEq(
+            WETH.balanceOf(address(boringVault)), depositAmount, "boring vault must have deposit asset custody in WETH"
+        );
+    }
+
+    function test_depositNativeFailsWithIncorrectAmount() external {
+        uint256 depositAmount = 100e18;
+        uint256 minimumMint = 100e18;
+        address recipient = address(this);
+
+        vm.deal(address(this), depositAmount);
+        vm.expectRevert(CommunityCodeDepositor.IncorrectNativeDepositAmount.selector);
+        uint256 sharesMinted = communityCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
+    }
+
+    function test_depositNativeWithCustomRecipient() external { }
+
+}
+
 contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup {
 
     using SafeTransferLib for ERC20;
@@ -69,13 +181,21 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         rolesAuthority.setPublicCapability(
             address(communityCodeDepositor), communityCodeDepositor.depositWithPermit.selector, true
         );
+        rolesAuthority.setPublicCapability(
+            address(communityCodeDepositor), communityCodeDepositor.depositNative.selector, true
+        );
         vm.stopPrank();
     }
 
-    // function test_depositNativeWithSenderAsRecipient() external {
-    // }
+    function test_depositNativeFails() external {
+        uint256 depositAmount = 100e18;
+        uint256 minimumMint = 100e18;
+        address recipient = address(this);
 
-    // function test_depositNativeWithCustomRecipient() external {}
+        vm.deal(address(this), depositAmount);
+        vm.expectRevert(CommunityCodeDepositor.NativeDepositNotSupported.selector);
+        uint256 sharesMinted = communityCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
+    }
 
     function test_depositWithSenderAsRecipient() external {
         uint256 depositAmount = 100e6;
