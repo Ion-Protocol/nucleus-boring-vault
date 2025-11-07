@@ -431,10 +431,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
             feeModule.calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
 
-        // Check the depositor has the required balance and allowance to deposit
-        _checkBalance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
-        _checkAllowance(depositor, offerAsset, newAmountForReceiver + feeAmount, orderIndex);
-
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
         offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
         feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
@@ -534,13 +530,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         uint256 balance = asset.balanceOf(account);
         if (balance < amount) {
             revert InsufficientBalance(orderIndex, account, address(asset), amount, balance);
-        }
-    }
-
-    function _checkAllowance(address depositor, IERC20 asset, uint256 amount, uint256 orderIndex) internal view {
-        uint256 depositorAllowance = asset.allowance(depositor, address(this));
-        if (depositorAllowance < amount) {
-            revert InsufficientAllowance(orderIndex, depositor, address(asset), amount, depositorAllowance);
         }
     }
 

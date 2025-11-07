@@ -552,10 +552,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             nonce: 0
         });
 
-        vm.expectRevert(
-            abi.encodeWithSelector(OneToOneQueue.InsufficientAllowance.selector, 1, alice, address(USDC), 1e6, 0)
-        );
+        vm.expectRevert(address(USDC));
         queue.submitOrder(1e6, USDC, USDG0, alice, receiver, refundReceiver, params);
+        vm.stopPrank();
     }
 
     function test_submitOrderDifferentReceiver() external {
