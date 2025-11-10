@@ -16,9 +16,8 @@ check-configs:
 	bun lzConfigCheck.cjs ${l1_file} ${l2_file}
 
 update-salts:
-	@if [ -z "$(file)" ]; then echo "Error: file parameter is required. Usage: make update-salts file=earnUSDC-L1.json"; exit 1; fi
-	@echo "Updating salts for file: $(file)"
-	@node incrementSalt.cjs $(file) 
+	@if [ -z "$(files)" ]; then echo "Error: at least one file is required. Usage: make update-salts files=\"beatUSD-L1.json beatUSD-L2.json\""; exit 1; fi
+	@node incrementSalt.cjs $(files) 
 
 checkL1:
 	@echo "Setting environment variable LIVE_DEPLOY_READ_FILE_NAME to $(file)"
