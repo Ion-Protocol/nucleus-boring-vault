@@ -21,6 +21,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     using SafeERC20 for IERC20;
 
     /// @notice Status of an order in the queue
+    /// NOTE: Rename this to OrderType. And create a new status enum. Use that in the getStatus function
     enum Status {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on solve
@@ -34,6 +35,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /// @notice Parameters for submitting and approving an order with signatures
+    /// NOTE: Rename to signatureParams
     struct SubmissionParams {
         ApprovalMethod approvalMethod;
         uint8 approvalV;
@@ -56,11 +58,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         Status status; // Current status of the order
     }
 
-    /// @notice Mapping of order index to Order struct
-    mapping(uint256 => Order) public queue;
-
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
-    mapping(bytes32 => bool) usedSignatureHashes;
+    mapping(bytes32 => bool) public usedSignatureHashes;
 
     /// @notice Mapping of supported offer assets
     mapping(address => bool) public supportedOfferAssets;
@@ -71,6 +70,18 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /// @notice Minimum order size per offer asset
     mapping(address => uint256) public minimumOrderSizePerAsset;
 
+    /// @notice Address of the fee module for calculating fees
+    IFeeModule public feeModule;
+
+    /// @notice Address of the offerAssetRecipient
+    address public offerAssetRecipient;
+
+    /// @notice recipient of queue fees
+    address public feeRecipient;
+
+    /// @notice Mapping of order index to Order struct
+    mapping(uint256 => Order) public queue;
+
     /// @notice The index of the last order that was processed
     /// @dev Initialized to 0, meaining the queue starts at 1.
     uint256 public lastProcessedOrder;
@@ -78,29 +89,23 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /// @notice represents the back of the queue, incremented on sumbiting orders
     uint256 public latestOrder;
 
-    /// @notice Address of the fee module for calculating fees
-    IFeeModule public feeModule;
-
-    /// @notice Address of the boring vault
-    address public offerAssetRecipient;
-
-    /// @notice recipient of queue fees
-    address public feeRecipient;
-
     event FeeModuleUpdated(IFeeModule indexed oldFeeModule, IFeeModule indexed newFeeModule);
     event OfferAssetAdded(address indexed asset, uint256 minimumOrderSize);
     event OfferAssetRemoved(address indexed asset);
     event WantAssetAdded(address indexed asset);
     event WantAssetRemoved(address indexed asset);
-    event MinimumOrderSizeUpdated(address asset, uint256 oldMinimum, uint256 newMinimum);
-    event OfferAssetRecipientUpdated(address indexed oldVault, address indexed newVault);
+    event MinimumOrderSizeUpdated(address indexed asset, uint256 oldMinimum, uint256 newMinimum);
+    event OfferAssetRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
+    event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
+    /// NOTE: Include the intendedDepositor
     event OrderSubmitted(
         uint256 indexed orderIndex, Order order, address indexed receiver, bool isSubmittedViaSignature
     );
+    /// NOTE: Return all the order data + the receivers Also use same event for force process (use a boolean for
+    /// isForceProcess in event)
     event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
     event OrderRefunded(uint256 indexed orderIndex, Order order);
     event OrderForceProcessed(uint256 indexed orderIndex, Order order, address indexed receiver);
-    event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
 
     error ZeroAddress();
     error AssetAlreadySupported(address asset);
@@ -113,9 +118,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     error SignatureHashAlreadyUsed(bytes32 hash);
     error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
     error InsufficientBalance(uint256 orderIndex, address account, address asset, uint256 required, uint256 available);
-    error InsufficientAllowance(
-        uint256 orderIndex, address depositor, address asset, uint256 required, uint256 available
-    );
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
@@ -242,8 +244,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
-     * @notice Update boring vault address
-     * @param _newAddress Address of the new boring vault
+     * @notice Update offer asset recipient address
+     * @param _newAddress Address of the new recipient
      */
     function updateOfferAssetRecipient(address _newAddress) external requiresAuth {
         if (_newAddress == address(0)) revert ZeroAddress();
@@ -261,7 +263,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (address(token) == address(0)) revert ZeroAddress();
         if (receiver == address(0)) revert ZeroAddress();
 
-        _checkBalance(address(this), token, amount, 0);
         token.safeTransfer(receiver, amount);
     }
 
@@ -364,7 +365,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @param offerAsset address of the offer asset
      * @param wantAsset address of the want asset
      * @param intendedDepositor address of who you intend to deposit. Must either match the signer of the signature or
-     * the msg.sender. This exists to provide a more verbose error message for invalid signatures
+     * the msg.sender depending on if signature is used. This exists to provide a more verbose error message for invalid
+     * signatures
      * @param receiver address to receive the want assets
      * @param refundReceiver address to receive offer assets in the event of a refund
      * @param params SubmissionParams struct of params for signature approvals/submissions
@@ -394,6 +396,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address depositor;
         if (params.submitWithSignature) {
             if (block.timestamp > params.deadline) revert SignatureExpired(params.deadline, block.timestamp);
+            /// NOTE: Include the intention for approve
             bytes32 hash = keccak256(
                 abi.encode(amountOffer, offerAsset, wantAsset, receiver, refundReceiver, params.deadline, params.nonce)
             );
@@ -430,6 +433,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
             feeModule.calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
+
+        if (feeAsset == offerAsset) {
+            assert(newAmountForReceiver + feeAmount = amountOffer);
+        } else {
+            assert(newAmountForReceiver = amountOffer);
+        }
 
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
         offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
@@ -485,10 +494,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             }
 
             address receiver = ownerOf(orderIndex);
+            /// NOTE: CheckBalanceQueue, only for queue and change error signature
             _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
 
-            order.wantAsset.safeTransfer(receiver, order.amountWant);
             _burn(orderIndex);
+            order.wantAsset.safeTransfer(receiver, order.amountWant);
 
             unchecked {
                 orderIndex = ++lastProcessedOrder;
