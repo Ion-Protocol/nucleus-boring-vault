@@ -30,6 +30,7 @@
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.25",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.25",
     "@prisma/client": "^5.20.0",
+    "dotenv": "^17.2.3",
     "forge-std": "^1.1.2",
     "keccak256": "^1.0.6",
     "prettier": "^3.3.2",

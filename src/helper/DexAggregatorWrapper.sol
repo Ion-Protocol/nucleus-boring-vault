@@ -269,6 +269,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
         returns (uint256 supportedAssetAmount)
     {
         bytes4 selector;
+        /// @solidity memory-safe-assembly
         assembly {
             selector := calldataload(okxCallData.offset)
         }
@@ -299,6 +300,7 @@ contract DexAggregatorWrapper is ReentrancyGuard {
             // Execute the swap with the provided calldata
             (bool success, bytes memory result) = address(okxRouter).call(okxCallData);
             if (!success) {
+                /// @solidity memory-safe-assembly
                 assembly {
                     revert(add(result, 32), mload(result))
                 }

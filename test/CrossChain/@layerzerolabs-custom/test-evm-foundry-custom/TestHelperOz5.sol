@@ -290,6 +290,7 @@ contract TestHelperOz5 is Test, OptionsHelper {
      */
     function _deployOApp(bytes memory _oappBytecode, bytes memory _constructorArgs) internal returns (address addr) {
         bytes memory bytecode = bytes.concat(abi.encodePacked(_oappBytecode), _constructorArgs);
+        /// @solidity memory-safe-assembly
         assembly {
             addr := create(0, add(bytecode, 0x20), mload(bytecode))
             if iszero(extcodesize(addr)) { revert(0, 0) }

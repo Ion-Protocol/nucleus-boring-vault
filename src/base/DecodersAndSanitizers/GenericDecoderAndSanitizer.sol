@@ -32,6 +32,10 @@ import {
     MorphoBlueDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/Protocols/MorphoBlueDecoderAndSanitizer.sol";
 import { EtherFiDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/EtherFiDecoderAndSanitizer.sol";
+import {
+    LayerZeroOFTDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/LayerZeroOFTDecoderAndSanitizer.sol";
+import { NucleusDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract GenericDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -48,7 +52,9 @@ contract GenericDecoderAndSanitizer is
     CircleDecoderAndSanitizer,
     BalancerV2DecoderAndSanitizer,
     MorphoBlueDecoderAndSanitizer,
-    EtherFiDecoderAndSanitizer
+    EtherFiDecoderAndSanitizer,
+    LayerZeroOFTDecoderAndSanitizer,
+    NucleusDecoderAndSanitizer
 {
 
     constructor(
