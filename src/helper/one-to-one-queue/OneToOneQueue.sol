@@ -20,12 +20,21 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     using SafeERC20 for IERC20;
 
-    /// @notice Status of an order in the queue
-    /// NOTE: Rename this to OrderType. And create a new status enum. Use that in the getStatus function
-    enum Status {
+    /// @notice Type for internal order handling
+    /// @dev all but default orders are skipped on solve, as refunds and pre-fills are handled at the time they are
+    /// marked
+    enum OrderType {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on solve
         REFUND // Order refunded, skip on solve
+    }
+
+    /// @notice Return type of a user's order status in the queue
+    enum OrderStatus {
+        PENDING,
+        COMPLETE,
+        COMPLETE_PRE_FILLED,
+        COMPLETE_REFUNDED
     }
 
     /// @notice Approval method for submitting an order
@@ -35,8 +44,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /// @notice Parameters for submitting and approving an order with signatures
-    /// NOTE: Rename to signatureParams
-    struct SubmissionParams {
+    struct SignatureParams {
         ApprovalMethod approvalMethod;
         uint8 approvalV;
         bytes32 approvalR;
@@ -55,7 +63,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         IERC20 offerAsset; // Asset being offered
         IERC20 wantAsset; // Asset being requested
         address refundReceiver; // Address to receive refunds
-        Status status; // Current status of the order
+        OrderType orderType; // Current status of the order
     }
 
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
@@ -97,27 +105,28 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     event MinimumOrderSizeUpdated(address indexed asset, uint256 oldMinimum, uint256 newMinimum);
     event OfferAssetRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
     event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
-    /// NOTE: Include the intendedDepositor
     event OrderSubmitted(
-        uint256 indexed orderIndex, Order order, address indexed receiver, bool isSubmittedViaSignature
+        uint256 indexed orderIndex,
+        Order order,
+        address indexed receiver,
+        address indexed depositor,
+        bool isSubmittedViaSignature
     );
-    /// NOTE: Return all the order data + the receivers Also use same event for force process (use a boolean for
-    /// isForceProcess in event)
-    event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
+    event OrdersProcessedInRange(uint256 indexed startIndex, uint256 indexed endIndex);
+    event OrderProcessed(uint256 indexed orderIndex, Order order, address indexed receiver, bool isForceProcessed);
     event OrderRefunded(uint256 indexed orderIndex, Order order);
-    event OrderForceProcessed(uint256 indexed orderIndex, Order order, address indexed receiver);
 
     error ZeroAddress();
     error AssetAlreadySupported(address asset);
     error AssetNotSupported(address asset);
     error OrderAlreadyProcessed(uint256 orderIndex);
-    error InvalidOrderStatus(uint256 orderIndex, Status currentStatus);
+    error InvalidOrderStatus(uint256 orderIndex, OrderType currentStatus);
     error InvalidOrderIndex(uint256 orderIndex);
     error AmountBelowMinimum(uint256 amount, uint256 minimum);
     error SignatureExpired(uint256 deadline, uint256 currentTimestamp);
     error SignatureHashAlreadyUsed(bytes32 hash);
     error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
-    error InsufficientBalance(uint256 orderIndex, address account, address asset, uint256 required, uint256 available);
+    error InsufficientBalanceInQueue(uint256 orderIndex, address asset, uint256 required, uint256 available);
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
@@ -321,7 +330,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address intendedDepositor,
         address receiver,
         address refundReceiver,
-        SubmissionParams calldata params
+        SignatureParams calldata params
     )
         external
         requiresAuth
@@ -334,28 +343,23 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
-     * @notice A user facing function to return an order's status in plain english.
-     * Possible returns:
-     * "complete: pre-filled" order has been pre-filled and is complete
-     * "complete: refunded" order has been refunded including the fee and is complete
-     * "awaiting processing" order is awaiting processing
-     * "complete" order has been processed and is complete
+     * @notice A user facing function to return an order's status
      */
-    function getOrderStatus(uint256 orderIndex) external view returns (string memory orderStatusDetails) {
+    function getOrderStatus(uint256 orderIndex) external view returns (OrderStatus) {
         Order memory order = queue[orderIndex];
 
-        if (order.status == Status.PRE_FILLED) {
-            orderStatusDetails = "complete: pre-filled";
-            return orderStatusDetails;
-        } else if (order.status == Status.REFUND) {
-            orderStatusDetails = "complete: refunded";
-            return orderStatusDetails;
+        if (order.orderType == OrderType.PRE_FILLED) {
+            return OrderStatus.COMPLETE_PRE_FILLED;
+        }
+
+        if (order.orderType == OrderType.REFUND) {
+            return OrderStatus.COMPLETE_REFUNDED;
         }
 
         if (orderIndex > lastProcessedOrder) {
-            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "awaiting processing"));
+            return OrderStatus.PENDING;
         } else {
-            orderStatusDetails = string(abi.encodePacked(orderStatusDetails, "complete"));
+            return OrderStatus.COMPLETE;
         }
     }
 
@@ -369,7 +373,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * signatures
      * @param receiver address to receive the want assets
      * @param refundReceiver address to receive offer assets in the event of a refund
-     * @param params SubmissionParams struct of params for signature approvals/submissions
+     * @param params SignatureParams struct of params for signature approvals/submissions
      */
     function submitOrder(
         uint256 amountOffer,
@@ -378,7 +382,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address intendedDepositor,
         address receiver,
         address refundReceiver,
-        SubmissionParams calldata params
+        SignatureParams calldata params
     )
         public
         requiresAuth
@@ -396,9 +400,17 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address depositor;
         if (params.submitWithSignature) {
             if (block.timestamp > params.deadline) revert SignatureExpired(params.deadline, block.timestamp);
-            /// NOTE: Include the intention for approve
             bytes32 hash = keccak256(
-                abi.encode(amountOffer, offerAsset, wantAsset, receiver, refundReceiver, params.deadline, params.nonce)
+                abi.encode(
+                    amountOffer,
+                    offerAsset,
+                    wantAsset,
+                    receiver,
+                    refundReceiver,
+                    params.deadline,
+                    params.approvalMethod,
+                    params.nonce
+                )
             );
             if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
             usedSignatureHashes[hash] = true;
@@ -435,9 +447,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             feeModule.calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
 
         if (feeAsset == offerAsset) {
-            assert(newAmountForReceiver + feeAmount = amountOffer);
+            assert(newAmountForReceiver + feeAmount == amountOffer);
         } else {
-            assert(newAmountForReceiver = amountOffer);
+            assert(newAmountForReceiver == amountOffer);
         }
 
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
@@ -452,14 +464,14 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             offerAsset: offerAsset,
             wantAsset: wantAsset,
             refundReceiver: refundReceiver,
-            status: Status.DEFAULT
+            orderType: OrderType.DEFAULT
         });
         queue[orderIndex] = order;
 
         // Mint NFT receipt to receiver
         _safeMint(receiver, orderIndex);
 
-        emit OrderSubmitted(orderIndex, queue[orderIndex], receiver, false);
+        emit OrderSubmitted(orderIndex, queue[orderIndex], receiver, depositor, params.submitWithSignature);
     }
 
     /**
@@ -488,14 +500,13 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
             Order memory order = queue[orderIndex];
 
-            if (order.status == Status.PRE_FILLED || order.status == Status.REFUND) {
+            if (order.orderType == OrderType.PRE_FILLED || order.orderType == OrderType.REFUND) {
                 // ignore
                 continue;
             }
 
             address receiver = ownerOf(orderIndex);
-            /// NOTE: CheckBalanceQueue, only for queue and change error signature
-            _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
+            _checkBalanceQueue(order.wantAsset, order.amountWant, orderIndex);
 
             _burn(orderIndex);
             order.wantAsset.safeTransfer(receiver, order.amountWant);
@@ -503,9 +514,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             unchecked {
                 orderIndex = ++lastProcessedOrder;
             }
+
+            emit OrderProcessed(orderIndex, order, receiver, false);
         }
 
-        emit OrdersProcessed(startIndex, endIndex);
+        emit OrdersProcessedInRange(startIndex, endIndex);
     }
 
     /**
@@ -536,10 +549,10 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         return amountOfferAfterFees * uint128(10 ** difference);
     }
 
-    function _checkBalance(address account, IERC20 asset, uint256 amount, uint256 orderIndex) internal view {
-        uint256 balance = asset.balanceOf(account);
+    function _checkBalanceQueue(IERC20 asset, uint256 amount, uint256 orderIndex) internal view {
+        uint256 balance = asset.balanceOf(address(this));
         if (balance < amount) {
-            revert InsufficientBalance(orderIndex, account, address(asset), amount, balance);
+            revert InsufficientBalanceInQueue(orderIndex, address(asset), amount, balance);
         }
     }
 
@@ -548,11 +561,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
 
         Order memory order = queue[orderIndex];
-        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
+        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderStatus(orderIndex, order.orderType);
 
-        queue[orderIndex].status = Status.REFUND;
+        queue[orderIndex].orderType = OrderType.REFUND;
 
-        _checkBalance(address(this), order.offerAsset, order.amountOffer, orderIndex);
+        _checkBalanceQueue(order.offerAsset, order.amountOffer, orderIndex);
         _burn(orderIndex);
         order.offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
 
@@ -566,17 +579,17 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         Order memory order = queue[orderIndex];
 
         // require order is set to DEFAULT status
-        if (order.status != Status.DEFAULT) revert InvalidOrderStatus(orderIndex, order.status);
+        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderStatus(orderIndex, order.orderType);
 
         // Mark as pre-filled
-        queue[orderIndex].status = Status.PRE_FILLED;
+        queue[orderIndex].orderType = OrderType.PRE_FILLED;
 
         address receiver = ownerOf(orderIndex);
-        _checkBalance(address(this), order.wantAsset, order.amountWant, orderIndex);
+        _checkBalanceQueue(order.wantAsset, order.amountWant, orderIndex);
         _burn(orderIndex);
         order.wantAsset.safeTransfer(receiver, order.amountWant);
 
-        emit OrderForceProcessed(orderIndex, queue[orderIndex], receiver);
+        emit OrderProcessed(orderIndex, queue[orderIndex], receiver, true);
     }
 
 }
