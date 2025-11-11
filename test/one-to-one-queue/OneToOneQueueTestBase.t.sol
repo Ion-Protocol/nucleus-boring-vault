@@ -7,6 +7,7 @@ import { QueueAccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAut
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /// NOTE: We need to deploy the Solmate ERC20 since the OZ ERC20Permit has a dependency with solidity version 0.8.24 and
 /// cannot be used with our contracts
@@ -61,13 +62,17 @@ abstract contract OneToOneQueueTestBase is Test {
     /// @param receiver Address receiving the NFT receipt
     /// @param isSubmittedViaSignature True if order was submitted via signature
     event OrderSubmitted(
-        uint256 indexed orderIndex, OneToOneQueue.Order order, address indexed receiver, bool isSubmittedViaSignature
+        uint256 indexed orderIndex,
+        OneToOneQueue.Order order,
+        address indexed receiver,
+        address indexed depositor,
+        bool isSubmittedViaSignature
     );
 
     /// @notice Emitted when orders are processed
     /// @param startIndex Starting order index (inclusive)
     /// @param endIndex Ending order index (inclusive)
-    event OrdersProcessed(uint256 indexed startIndex, uint256 indexed endIndex);
+    event OrdersProcessedInRange(uint256 indexed startIndex, uint256 indexed endIndex);
 
     /// @notice Emitted when an order is refunded
     /// @param orderIndex Index of the order
@@ -78,7 +83,9 @@ abstract contract OneToOneQueueTestBase is Test {
     /// @param orderIndex Index of the order
     /// @param order The order details
     /// @param receiver Address receiving the assets
-    event OrderForceProcessed(uint256 indexed orderIndex, OneToOneQueue.Order order, address indexed receiver);
+    event OrderProcessed(
+        uint256 indexed orderIndex, OneToOneQueue.Order order, address indexed receiver, bool isForceProcessed
+    );
 
     /// @notice Emitted when the fee recipient is updated
     /// @param oldFeeRecipient address
@@ -94,8 +101,6 @@ abstract contract OneToOneQueueTestBase is Test {
      * @dev Emitted when the pause is lifted by `account`.
      */
     event Unpaused(address account);
-
-    event BlacklistUpdated(address indexed user, bool indexed isBlacklisted);
 
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
@@ -120,7 +125,7 @@ abstract contract OneToOneQueueTestBase is Test {
     uint256 alicePk;
 
     // A simple params struct used in most tests
-    OneToOneQueue.SubmissionParams defaultParams = OneToOneQueue.SubmissionParams({
+    OneToOneQueue.SignatureParams defaultParams = OneToOneQueue.SignatureParams({
         approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
         approvalV: 0,
         approvalR: bytes32(0),
@@ -154,14 +159,97 @@ abstract contract OneToOneQueueTestBase is Test {
         vm.stopPrank();
     }
 
+    // Helper function to create SubmitOrderParams struct
+    function _createSubmitOrderParams(
+        uint256 amountOffer,
+        IERC20 offerAsset,
+        IERC20 wantAsset,
+        address intendedDepositor,
+        address receiver,
+        address refundReceiver,
+        OneToOneQueue.SignatureParams memory signatureParams
+    )
+        internal
+        pure
+        returns (OneToOneQueue.SubmitOrderParams memory)
+    {
+        return OneToOneQueue.SubmitOrderParams({
+            amountOffer: amountOffer,
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            intendedDepositor: intendedDepositor,
+            receiver: receiver,
+            refundReceiver: refundReceiver,
+            signatureParams: signatureParams
+        });
+    }
+
     function _submitAnOrder() internal {
         deal(address(USDC), user1, 1e6);
         vm.startPrank(user1);
         USDC.approve(address(queue), 1e6);
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        _expectOrderSubmittedEvent(1e6, USDC, USDG0, user1, user1, user1, defaultParams, user1, false);
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrder(params);
         vm.stopPrank();
 
         assertTrue(queue.ownerOf(1) == user1, "_sumbitAnOrder: user1 should be the owner of the order");
+    }
+
+    function _expectOrderSubmittedEvent(
+        uint256 amountOffer,
+        IERC20 offerAsset,
+        IERC20 wantAsset,
+        address intendedDepositor,
+        address receiver,
+        address refundReceiver,
+        OneToOneQueue.SignatureParams memory params,
+        address depositor,
+        bool isSubmittedViaSignature
+    )
+        internal
+    {
+        OneToOneQueue.Order memory expectedOrder = OneToOneQueue.Order({
+            amountOffer: uint128(amountOffer),
+            amountWant: uint128(
+                _getWantAmountInWantDecimals(uint128(amountOffer), offerAsset, wantAsset)
+                    * (10_000 - TEST_OFFER_FEE_PERCENTAGE) / 10_000
+            ),
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            refundReceiver: refundReceiver,
+            orderType: OneToOneQueue.OrderType.DEFAULT
+        });
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrderSubmitted(
+            queue.latestOrder() + 1, expectedOrder, receiver, depositor, isSubmittedViaSignature
+        );
+    }
+
+    function _getWantAmountInWantDecimals(
+        uint128 amountOfferAfterFees,
+        IERC20 offerAsset,
+        IERC20 wantAsset
+    )
+        internal
+        view
+        returns (uint128 amountWant)
+    {
+        uint8 offerDecimals = IERC20Metadata(address(offerAsset)).decimals();
+        uint8 wantDecimals = IERC20Metadata(address(wantAsset)).decimals();
+
+        if (offerDecimals == wantDecimals) {
+            return amountOfferAfterFees;
+        }
+
+        if (offerDecimals > wantDecimals) {
+            uint8 difference = offerDecimals - wantDecimals;
+            return amountOfferAfterFees / uint128(10 ** difference);
+        }
+
+        uint8 difference = wantDecimals - offerDecimals;
+        return amountOfferAfterFees * uint128(10 ** difference);
     }
 
     function _getPermitSignature(

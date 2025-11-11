@@ -21,20 +21,13 @@ contract PauseQueueIntegrationTest is OneToOneQueueTestBase {
     function test_submitOrderAndProcessRevertsWhenContractIsPausedForAllButOwner() external givenContractIsPaused {
         vm.startPrank(user1);
 
-        bytes memory data = abi.encodeWithSelector(
-            OneToOneQueue.submitOrderAndProcess.selector, 1e6, USDC, USDG0, user1, user1, user1, defaultParams
-        );
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrderAndProcess.selector, params);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector,
-                user1,
-                OneToOneQueue.submitOrderAndProcess.selector,
-                data,
-                "- Paused "
-            ),
-            address(queue)
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Paused "), address(queue)
         );
-        queue.submitOrderAndProcess(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrderAndProcess(params);
         vm.stopPrank();
 
         vm.startPrank(owner);
@@ -42,31 +35,28 @@ contract PauseQueueIntegrationTest is OneToOneQueueTestBase {
         deal(address(USDG0), address(queue), 1e6);
         USDC.approve(address(queue), 1e6);
         vm.expectEmit(true, true, true, true);
-        emit OrdersProcessed(1, 1);
-        queue.submitOrderAndProcess(1e6, USDC, USDG0, owner, owner, owner, defaultParams);
+        emit OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcess(_createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams));
         vm.stopPrank();
     }
 
     function test_submitOrderRevertsWhenContractIsPausedForAllButOwner() external givenContractIsPaused {
         vm.startPrank(user1);
 
-        bytes memory data = abi.encodeWithSelector(
-            OneToOneQueue.submitOrder.selector, 1e6, USDC, USDG0, user1, user1, user1, defaultParams
-        );
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrder.selector, params);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, OneToOneQueue.submitOrder.selector, data, "- Paused "
-            ),
-            address(queue)
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Paused "), address(queue)
         );
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrder(params);
         vm.stopPrank();
 
         vm.startPrank(owner);
         deal(address(USDC), owner, 1e6);
         USDC.approve(address(queue), 1e6);
-        queue.submitOrder(1e6, USDC, USDG0, owner, owner, owner, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams));
         assertEq(queue.ownerOf(1), owner);
         vm.stopPrank();
     }
@@ -80,10 +70,7 @@ contract PauseQueueIntegrationTest is OneToOneQueueTestBase {
         vm.startPrank(user1);
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.processOrders.selector, 1);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, OneToOneQueue.processOrders.selector, data, "- Paused "
-            ),
-            address(queue)
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Paused "), address(queue)
         );
         queue.processOrders(1);
         vm.stopPrank();
@@ -91,7 +78,7 @@ contract PauseQueueIntegrationTest is OneToOneQueueTestBase {
         vm.startPrank(owner);
         deal(address(USDG0), address(queue), 1e6);
         vm.expectEmit(true, true, true, true);
-        emit OrdersProcessed(1, 1);
+        emit OrdersProcessedInRange(1, 1);
         queue.processOrders(1);
         vm.stopPrank();
     }

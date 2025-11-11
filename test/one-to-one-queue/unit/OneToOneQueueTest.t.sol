@@ -183,7 +183,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.Status status
+            OneToOneQueue.OrderType orderType
         ) = queue.queue(1);
 
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
@@ -192,7 +192,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            status: OneToOneQueue.Status.REFUND // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.REFUND // order event should emit with refund not with old status
         });
 
         vm.expectEmit(true, true, true, true);
@@ -200,8 +200,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         emit OneToOneQueue.OrderRefunded(2, order);
         deal(address(USDC), address(queue), 2e6);
         queue.forceRefundOrders(orderIndices);
-        assertEq(queue.getOrderStatus(1), "complete: refunded");
-        assertEq(queue.getOrderStatus(2), "complete: refunded");
+        assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_REFUNDED));
+        assertEq(uint8(queue.getOrderStatus(2)), uint8(OneToOneQueue.OrderStatus.COMPLETE_REFUNDED));
         vm.stopPrank();
     }
 
@@ -223,7 +223,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.Status status
+            OneToOneQueue.OrderType orderType
         ) = queue.queue(1);
 
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
@@ -232,7 +232,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            status: OneToOneQueue.Status.PRE_FILLED // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.PRE_FILLED // order event should emit with refund not with old status
         });
 
         uint256[] memory orderIndices = new uint256[](2);
@@ -242,12 +242,12 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         deal(address(USDG0), address(queue), 2e6);
 
         vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrderForceProcessed(2, order, user1);
-        emit OneToOneQueue.OrderForceProcessed(1, order, user1);
+        emit OneToOneQueue.OrderProcessed(2, order, user1, true);
+        emit OneToOneQueue.OrderProcessed(1, order, user1, true);
         queue.forceProcessOrders(orderIndices);
 
-        assertEq(queue.getOrderStatus(1), "complete: pre-filled");
-        assertEq(queue.getOrderStatus(2), "complete: pre-filled");
+        assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
+        assertEq(uint8(queue.getOrderStatus(2)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
         vm.stopPrank();
     }
 
@@ -260,7 +260,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.forceRefund(0);
 
         _submitAnOrder();
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
+        assertEq(uint8(queue.getOrderStatus(queue.latestOrder())), uint8(OneToOneQueue.OrderStatus.PENDING));
 
         vm.startPrank(owner);
 
@@ -273,20 +273,19 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.Status status
+            OneToOneQueue.OrderType orderType
         ) = queue.queue(1);
-
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
             offerAsset: offerAsset,
             wantAsset: wantAsset,
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            status: OneToOneQueue.Status.REFUND // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.REFUND // order event should emit with refund not with old status
         });
 
         vm.expectRevert(
-            abi.encodeWithSelector(OneToOneQueue.InsufficientBalance.selector, 1, address(queue), address(USDC), 1e6, 0)
+            abi.encodeWithSelector(OneToOneQueue.InsufficientBalanceInQueue.selector, 1, address(USDC), 1e6, 0)
         );
         queue.forceRefund(1);
 
@@ -299,9 +298,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 1));
         queue.ownerOf(1);
 
-        (,,,,, status) = queue.queue(1);
-        assertEq(uint8(status), uint8(OneToOneQueue.Status.REFUND), "order should be marked for refund");
-        assertEq(queue.getOrderStatus(1), "complete: refunded");
+        (,,,,, orderType) = queue.queue(1);
+        assertEq(uint8(orderType), uint8(OneToOneQueue.OrderType.REFUND), "order should be marked for refund");
+        assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_REFUNDED));
         assertEq(USDC.balanceOf(user1), 1e6, "user1 should have their USDC balance back");
         vm.stopPrank();
     }
@@ -316,15 +315,14 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
         _submitAnOrder();
 
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "awaiting processing");
+        assertEq(uint8(queue.getOrderStatus(queue.latestOrder())), uint8(OneToOneQueue.OrderStatus.PENDING));
 
         vm.startPrank(owner);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OneToOneQueue.InsufficientBalance.selector,
+                OneToOneQueue.InsufficientBalanceInQueue.selector,
                 1,
-                address(queue),
                 address(USDG0),
                 1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
                 0
@@ -338,7 +336,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.forceProcess(2);
 
         queue.forceProcess(1);
-        assertEq(queue.getOrderStatus(1), "complete: pre-filled");
+        assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
         assertEq(
             USDG0.balanceOf(user1),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
@@ -356,30 +354,30 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.ZeroAddress.selector));
-        queue.submitOrder(1e6, USDC, USDG0, address(0), address(0), address(0), defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, address(0), address(0), address(0), defaultParams));
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.ZeroAddress.selector));
-        queue.submitOrder(1e6, USDC, USDG0, user1, address(0), address(0), defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, user1, address(0), address(0), defaultParams));
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.ZeroAddress.selector));
-        queue.submitOrder(1e6, USDC, USDG0, address(0), alice, address(0), defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, address(0), alice, address(0), defaultParams));
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.AssetNotSupported.selector, address(DAI)));
-        queue.submitOrder(1e6, DAI, USDG0, alice, alice, alice, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, DAI, USDG0, alice, alice, alice, defaultParams));
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.AssetNotSupported.selector, address(DAI)));
-        queue.submitOrder(1e6, USDC, DAI, alice, alice, alice, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, DAI, alice, alice, alice, defaultParams));
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.AssetNotSupported.selector, address(DAI)));
-        queue.submitOrder(1e6, DAI, DAI, alice, alice, alice, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, DAI, DAI, alice, alice, alice, defaultParams));
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.AmountBelowMinimum.selector, 1e6 - 1, 1e6));
-        queue.submitOrder(1e6 - 1, USDC, USDG0, alice, alice, alice, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6 - 1, USDC, USDG0, alice, alice, alice, defaultParams));
 
         vm.stopPrank();
         vm.startPrank(user1);
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidDepositor.selector, alice, user1));
-        queue.submitOrder(1e6, USDC, USDG0, alice, alice, alice, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, alice, alice, alice, defaultParams));
 
         vm.stopPrank();
     }
@@ -392,7 +390,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         (uint8 approvalV, bytes32 approvalR, bytes32 approvalS) =
             _getPermitSignature(USDC, alice, alicePk, address(queue), 1e6, block.timestamp + 1000);
 
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
+        OneToOneQueue.SignatureParams memory params = OneToOneQueue.SignatureParams({
             approvalMethod: OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
             approvalV: approvalV,
             approvalR: approvalR,
@@ -403,7 +401,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             nonce: 0
         });
 
-        queue.submitOrder(1e6, USDC, USDG0, alice, alice, alice, params);
+        _expectOrderSubmittedEvent(1e6, USDC, USDG0, alice, alice, alice, params, alice, false);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, alice, alice, alice, params));
         assertTrue(queue.ownerOf(queue.latestOrder()) == alice, "alice should be the owner of the order");
     }
 
@@ -411,57 +410,85 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         deal(address(USDC), alice, 2e6);
         vm.startPrank(alice);
 
-        uint256 amountOffer = 1e6;
-        IERC20 offerAsset = USDC;
-        IERC20 wantAsset = USDG0;
-        address receiver = alice;
-        address refundReceiver = alice;
-        uint256 deadline = block.timestamp + 1000;
-        uint256 nonce = 0;
+        // Create the base submit order params that will be used throughout the test
+        OneToOneQueue.SubmitOrderParams memory submitParams = _createSubmitOrderParams(
+            1e6,
+            USDC,
+            USDG0,
+            alice,
+            alice,
+            alice,
+            OneToOneQueue.SignatureParams({
+                approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
+                approvalV: 0,
+                approvalR: bytes32(0),
+                approvalS: bytes32(0),
+                submitWithSignature: true,
+                deadline: block.timestamp + 1000,
+                eip2612Signature: "",
+                nonce: 0
+            })
+        );
 
-        bytes32 hash =
-            keccak256(abi.encode(amountOffer, offerAsset, wantAsset, receiver, refundReceiver, deadline, nonce));
+        bytes32 hash = keccak256(
+            abi.encode(
+                submitParams.amountOffer,
+                submitParams.offerAsset,
+                submitParams.wantAsset,
+                submitParams.receiver,
+                submitParams.refundReceiver,
+                submitParams.signatureParams.deadline,
+                OneToOneQueue.ApprovalMethod.EIP20_APROVE,
+                submitParams.signatureParams.nonce
+            )
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, hash);
-
-        bytes memory sig = abi.encodePacked(r, s, v);
-
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
-            approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-            approvalV: 0,
-            approvalR: bytes32(0),
-            approvalS: bytes32(0),
-            submitWithSignature: true,
-            deadline: deadline,
-            eip2612Signature: sig,
-            nonce: 0
-        });
+        submitParams.signatureParams.eip2612Signature = abi.encodePacked(r, s, v);
 
         {
-            offerAsset.approve(address(queue), amountOffer * 2);
-            queue.submitOrder(amountOffer, offerAsset, wantAsset, receiver, receiver, refundReceiver, params);
+            submitParams.offerAsset.approve(address(queue), submitParams.amountOffer * 2);
+            _expectOrderSubmittedEvent(1e6, USDC, USDG0, alice, alice, alice, submitParams.signatureParams, alice, true);
+            queue.submitOrder(submitParams);
             assertTrue(queue.ownerOf(queue.latestOrder()) == alice, "alice should be the owner of the order");
 
             vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.SignatureHashAlreadyUsed.selector, hash));
-            queue.submitOrder(amountOffer, offerAsset, wantAsset, alice, alice, alice, params);
+            queue.submitOrder(submitParams);
 
             vm.stopPrank();
             vm.startPrank(user1);
 
             vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.SignatureHashAlreadyUsed.selector, hash));
-            queue.submitOrder(amountOffer, offerAsset, wantAsset, alice, alice, alice, params);
+            queue.submitOrder(submitParams);
         }
         {
-
-            hash = keccak256(abi.encode(amountOffer, offerAsset, wantAsset, alice, refundReceiver, deadline, 1));
+            // Update for second test with different nonce
+            // Calculate hash with new nonce
+            hash = keccak256(
+                abi.encode(
+                    submitParams.amountOffer,
+                    submitParams.offerAsset,
+                    submitParams.wantAsset,
+                    alice,
+                    submitParams.refundReceiver,
+                    submitParams.signatureParams.deadline,
+                    OneToOneQueue.ApprovalMethod.EIP20_APROVE,
+                    1
+                )
+            );
             (v, r, s) = vm.sign(alicePk, hash);
-            sig = abi.encodePacked(r, s, v);
-            params.nonce = 1;
+            bytes memory newSig = abi.encodePacked(r, s, v);
 
+            // Update nonce but keep old signature - should fail
+            submitParams.signatureParams.nonce = 1;
             vm.expectPartialRevert(OneToOneQueue.InvalidEip2612Signature.selector);
-            queue.submitOrder(amountOffer, offerAsset, wantAsset, alice, receiver, refundReceiver, params);
+            queue.submitOrder(submitParams);
 
-            params.eip2612Signature = sig;
-            queue.submitOrder(amountOffer, offerAsset, wantAsset, alice, receiver, refundReceiver, params);
+            // Now update signature and it should succeed
+            submitParams.signatureParams.eip2612Signature = newSig;
+            _expectOrderSubmittedEvent(
+                1e6, USDC, USDG0, alice, alice, submitParams.refundReceiver, submitParams.signatureParams, alice, true
+            );
+            queue.submitOrder(submitParams);
             assertTrue(queue.ownerOf(queue.latestOrder()) == alice, "alice should be the owner of the new order");
         }
     }
@@ -480,14 +507,18 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             _getPermitSignature(USDC, alice, alicePk, address(queue), 1e6, deadline);
 
         bytes32 sigHash;
-        OneToOneQueue.SubmissionParams memory params;
+        OneToOneQueue.SignatureParams memory params;
         {
-            sigHash = keccak256(abi.encode(1e6, offerAsset, wantAsset, alice, alice, deadline, 0));
+            sigHash = keccak256(
+                abi.encode(
+                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 0
+                )
+            );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
 
             bytes memory sig = abi.encodePacked(r, s, v);
 
-            params = OneToOneQueue.SubmissionParams({
+            params = OneToOneQueue.SignatureParams({
                 approvalMethod: OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
                 approvalV: approvalV,
                 approvalR: approvalR,
@@ -499,21 +530,26 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             });
         }
 
-        queue.submitOrder(1e6, offerAsset, wantAsset, alice, alice, alice, params);
+        _expectOrderSubmittedEvent(1e6, USDC, USDG0, alice, alice, alice, params, alice, true);
+        queue.submitOrder(_createSubmitOrderParams(1e6, offerAsset, wantAsset, alice, alice, alice, params));
         assertTrue(queue.ownerOf(queue.latestOrder()) == alice, "alice should be the owner of the order");
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.SignatureHashAlreadyUsed.selector, sigHash));
-        queue.submitOrder(1e6, offerAsset, wantAsset, alice, alice, alice, params);
+        queue.submitOrder(_createSubmitOrderParams(1e6, offerAsset, wantAsset, alice, alice, alice, params));
 
         vm.stopPrank();
         vm.startPrank(user1);
 
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.SignatureHashAlreadyUsed.selector, sigHash));
-        queue.submitOrder(1e6, offerAsset, wantAsset, alice, alice, alice, params);
+        queue.submitOrder(_createSubmitOrderParams(1e6, offerAsset, wantAsset, alice, alice, alice, params));
 
         {
 
-            sigHash = keccak256(abi.encode(1e6, offerAsset, wantAsset, alice, alice, deadline, 1));
+            sigHash = keccak256(
+                abi.encode(
+                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 1
+                )
+            );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
 
             bytes memory sig = abi.encodePacked(r, s, v);
@@ -526,10 +562,11 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             params.nonce = 1;
 
             vm.expectPartialRevert(OneToOneQueue.InvalidEip2612Signature.selector);
-            queue.submitOrder(1e6, offerAsset, wantAsset, alice, alice, alice, params);
+            queue.submitOrder(_createSubmitOrderParams(1e6, offerAsset, wantAsset, alice, alice, alice, params));
 
             params.eip2612Signature = sig;
-            queue.submitOrder(1e6, offerAsset, wantAsset, alice, alice, alice, params);
+            _expectOrderSubmittedEvent(1e6, USDC, USDG0, alice, alice, alice, params, alice, true);
+            queue.submitOrder(_createSubmitOrderParams(1e6, offerAsset, wantAsset, alice, alice, alice, params));
             assertTrue(queue.ownerOf(queue.latestOrder()) == alice, "alice should be the owner of the new order");
         }
     }
@@ -541,7 +578,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address receiver = user1;
         address refundReceiver = alice;
 
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
+        OneToOneQueue.SignatureParams memory params = OneToOneQueue.SignatureParams({
             approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
             approvalV: 0,
             approvalR: bytes32(0),
@@ -553,7 +590,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         });
 
         vm.expectRevert(address(USDC));
-        queue.submitOrder(1e6, USDC, USDG0, alice, receiver, refundReceiver, params);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, alice, receiver, refundReceiver, params));
         vm.stopPrank();
     }
 
@@ -564,7 +601,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         address receiver = user1;
         address refundReceiver = alice;
 
-        OneToOneQueue.SubmissionParams memory params = OneToOneQueue.SubmissionParams({
+        OneToOneQueue.SignatureParams memory params = OneToOneQueue.SignatureParams({
             approvalMethod: OneToOneQueue.ApprovalMethod.EIP20_APROVE,
             approvalV: 0,
             approvalR: bytes32(0),
@@ -576,7 +613,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         });
 
         USDC.approve(address(queue), 1e6);
-        queue.submitOrder(1e6, USDC, USDG0, alice, receiver, refundReceiver, params);
+        _expectOrderSubmittedEvent(1e6, USDC, USDG0, alice, receiver, refundReceiver, params, alice, false);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, alice, receiver, refundReceiver, params));
         assertTrue(queue.ownerOf(queue.latestOrder()) == receiver, "receiver should be the owner of the order");
         vm.stopPrank();
     }
@@ -592,10 +630,10 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         queue.processOrders(2);
 
         vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrdersProcessed(1, 1);
+        emit OneToOneQueue.OrdersProcessedInRange(1, 1);
         queue.processOrders(1);
 
-        assertEq(queue.getOrderStatus(1), "complete");
+        assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE));
         assertEq(
             USDG0.balanceOf(user1),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
@@ -611,9 +649,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         USDC.approve(address(queue), 1e6);
 
         vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrdersProcessed(1, 1);
-        queue.submitOrderAndProcess(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
-        assertEq(queue.getOrderStatus(queue.latestOrder()), "complete");
+        emit OneToOneQueue.OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcess(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams));
+        assertEq(uint8(queue.getOrderStatus(queue.latestOrder())), uint8(OneToOneQueue.OrderStatus.COMPLETE));
         assertEq(
             USDG0.balanceOf(user1),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),

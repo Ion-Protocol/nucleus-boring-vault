@@ -38,7 +38,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         // User1 submits an order
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
-        queue.submitOrder(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams));
         vm.stopPrank();
 
         assertEq(queue.ownerOf(1), user1, "user1 should own NFT ID 1");
@@ -47,13 +47,13 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         // User2 sumbits an order
         vm.startPrank(user2);
         USDC.approve(address(queue), depositAmount2);
-        queue.submitOrder(depositAmount2, USDC, USDG0, user2, user2, user2, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(depositAmount2, USDC, USDG0, user2, user2, user2, defaultParams));
         vm.stopPrank();
 
         // User3 sumbits an order
         vm.startPrank(user3);
         USDC.approve(address(queue), depositAmount3);
-        queue.submitOrder(depositAmount3, USDC, USDG0, user3, user3, user3, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(depositAmount3, USDC, USDG0, user3, user3, user3, defaultParams));
         vm.stopPrank();
 
         assertEq(queue.ownerOf(2), user2, "user2 should own NFT ID 2");
@@ -64,9 +64,8 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         vm.startPrank(solver);
         vm.expectRevert(
             abi.encodeWithSelector(
-                OneToOneQueue.InsufficientBalance.selector,
+                OneToOneQueue.InsufficientBalanceInQueue.selector,
                 1,
-                address(queue),
                 address(USDG0),
                 1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
                 0
@@ -97,7 +96,9 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         deal(address(USDC), user1, depositAmount1);
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
-        queue.submitOrderAndProcess(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrderAndProcess(
+            _createSubmitOrderParams(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams)
+        );
         vm.stopPrank();
 
         totalFees += user1Fees;
@@ -131,7 +132,9 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
         vm.startPrank(user1);
         DAI.approve(address(queue), 1e18);
-        queue.submitOrderAndProcess(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrderAndProcess(
+            _createSubmitOrderParams(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams)
+        );
         vm.stopPrank();
 
         assertEq(USDG0.balanceOf(user1), 1e6 - user1FeesWant, "User should have received USDG0 in 6 decimals");
@@ -141,11 +144,11 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
     function testDeprecation() external {
         vm.startPrank(user1);
         vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
-        rolesAuthority.beginDeprecation();
+        rolesAuthority.continueDeprecation();
         vm.stopPrank();
 
         vm.startPrank(owner);
-        rolesAuthority.beginDeprecation();
+        rolesAuthority.continueDeprecation();
 
         deal(address(USDC), owner, 11e6);
         deal(address(USDG0), address(queue), 11e6);
@@ -157,12 +160,12 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         deal(address(USDC), user1, 11e6);
         USDC.approve(address(queue), 11e6);
         vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
-        queue.submitOrder(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams));
 
         vm.stopPrank();
 
         vm.startPrank(owner);
-        queue.submitOrder(1e6, USDC, USDG0, owner, owner, owner, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams));
         assertEq(queue.ownerOf(1), owner, "owner could mint because deprecation doesn't apply to the owner");
         vm.stopPrank();
 
@@ -191,9 +194,9 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
         // user submits 3 orders
         // Make user2 the receiver of 1 and 3 so easier to measure the result of the processing
-        queue.submitOrder(1e6, USDC, USDG0, user1, user2, user2, defaultParams);
-        queue.submitOrder(2e6, USDC, USDG0, user1, user1, user1, defaultParams);
-        queue.submitOrder(3e6, USDC, USDG0, user1, user2, user2, defaultParams);
+        queue.submitOrder(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user2, user2, defaultParams));
+        queue.submitOrder(_createSubmitOrderParams(2e6, USDC, USDG0, user1, user1, user1, defaultParams));
+        queue.submitOrder(_createSubmitOrderParams(3e6, USDC, USDG0, user1, user2, user2, defaultParams));
         vm.stopPrank();
 
         // owner refunds 1
@@ -216,9 +219,5 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 2e6, "User should have no more USDC");
         assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0 because they were refunded");
     }
-
-    function testPreFill() external { }
-
-    function testFuzzOrders() external { }
 
 }

@@ -1,92 +1,84 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { AccessAuthority, RolesAuthority } from "./abstract/AccessAuthority.sol";
+import { AccessAuthority, Authority } from "./abstract/AccessAuthority.sol";
 import { OneToOneQueue } from "./OneToOneQueue.sol";
-import { Authority } from "@solmate/auth/Auth.sol";
 
-/// NOTE: Format Better
-/// @dev 2 deprecation steps
-/// 1: Dissable new orders but allow solving existing ones
-/// 2: Dissable everything via a pause. But ensure the queue is empty
+/**
+ * @title QueueAccessAuthority
+ * @notice An access authority for the OneToOneQueue contract
+ * @dev The Following are the deprecation steps of the OneToOneQueue system:
+ * Contracts:
+ * - OneToOneQueue
+ *
+ * Steps:
+ * 1: Disable public capability on submitOrder and submitOrderAndProcess to prevent placing new orders. Allow processing
+ * of orders.
+ * 2: Ensure the queue is empty. Disable all calls to requiresAuthVerbose modified functions via a pause.
+ */
 contract QueueAccessAuthority is AccessAuthority {
 
     address public queue;
-    mapping(address => bool) public isBlacklisted;
-
-    event BlacklistUpdated(address indexed user, bool indexed isBlacklisted);
 
     error QueueNotEmpty();
 
-    /// @dev owner starts as the msg.sender so that permissioned functions may be called in the constructor, however,
-    /// ownership must be transferred to the intended owner afterwards
+    /// @dev Authority is set to 0 to keep this as owner only authority
     constructor(
         address _owner,
         address _queue,
         address[] memory defaultPausers
     )
-        /// NOTE: Pass in owner here, but don't set it in parent constructor, have a hook for initRoles, then transfer
-        /// here.
-        AccessAuthority(msg.sender, defaultPausers)
+        AccessAuthority(_owner, Authority(address(0)), defaultPausers)
     {
+        totalDeprecationSteps = 2;
         queue = _queue;
-        setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
-        setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);
-        setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
 
-        transferOwnership(_owner);
+        _setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
+        _setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);
+        _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
     }
 
-    /// @dev override canCall but add on the blacklist check
-    /// NOTE: Remove blacklist
-    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
-        if (isBlacklisted[user]) {
-            return false;
-        }
-        return super.canCall(user, target, functionSig);
-    }
-
-    /// @notice set the blacklist status for users
-    function setUsersBlacklistStatus(address[] memory users, bool[] memory isBlacklistedStatus) external requiresAuth {
-        for (uint256 i; i < users.length; i++) {
-            isBlacklisted[users[i]] = isBlacklistedStatus[i];
-            emit BlacklistUpdated(users[i], isBlacklistedStatus[i]);
-        }
-    }
-
-    /// @dev override getUnauthorizedReasons but add on the blacklist check
-    function getUnauthorizedReasons(
+    /**
+     * @notice override of the canCallVerbose hook to add verbosity for deprecation
+     * @dev The following are how each deprecation step's verbose errors are handled:
+     * STEP 1:
+     *  - Functions are deprecated using setPublicCapability(false) as seen in _onDeprecationContinue.
+     *    So return true if function has public capability, and false with deprecation reason if false
+     * STEP 2:
+     *  - The contract is fully deprecated and should not be callable at all. Include a fully deprecated message
+     */
+    function _canCallVerboseExtentionHook(
         address user,
-        bytes4 functionSig
+        address target,
+        bytes calldata data
     )
-        public
+        internal
         view
-        virtual
         override
-        returns (string memory reason)
+        returns (bool, string memory)
     {
-        reason = super.getUnauthorizedReasons(user, functionSig);
-        if (isBlacklisted[user]) {
-            reason = string(abi.encodePacked(reason, "- Blacklisted "));
+        if (deprecationStep == 1) {
+            bool publicCapability = isCapabilityPublic[target][bytes4(data[:4])];
+            return (publicCapability, "- Deprecation in progress ");
         }
-    }
-
-    /// @dev Step 1
-    /// NOTE: Remove the "begin" notion
-    function _onDeprecationBegin() internal override {
-        setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);
-        setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, false);
+        // Using the step instead of isFullyDeprecated to save a cold storage read.
+        if (deprecationStep == 2) {
+            return (false, "- Fully Deprecated ");
+        }
+        return (true, "");
     }
 
     /// @dev Step 2
     function _onDeprecationContinue(uint8 newStep) internal override {
-        if (OneToOneQueue(queue).totalSupply() != 0) {
-            revert QueueNotEmpty();
+        if (newStep == 1) {
+            setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);
+            setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, false);
+        } else if (newStep == 2) {
+            if (OneToOneQueue(queue).totalSupply() != 0) {
+                revert QueueNotEmpty();
+            }
+            _pause();
         }
-        /// NOTE: Instead of having to remember to set this true, have it automatically done once we reach the "size"
-        /// which we can set in constructor or something
-        isFullyDeprecated = true;
-        _pause();
     }
 
 }

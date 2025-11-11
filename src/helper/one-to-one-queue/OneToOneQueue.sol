@@ -5,8 +5,7 @@ import { ERC721Enumerable, ERC721 } from "@openzeppelin/contracts/token/ERC721/e
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IFeeModule } from "./interfaces/IFeeModule.sol";
-import { VerboseAuth } from "./abstract/VerboseAuth.sol";
-import { Authority, Auth } from "@solmate/auth/Auth.sol";
+import { VerboseAuth, Authority } from "./abstract/VerboseAuth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -53,6 +52,17 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         uint256 deadline;
         bytes eip2612Signature;
         uint256 nonce;
+    }
+
+    /// @notice Parameters for submitting an order
+    struct SubmitOrderParams {
+        uint256 amountOffer;
+        IERC20 offerAsset;
+        IERC20 wantAsset;
+        address intendedDepositor;
+        address receiver;
+        address refundReceiver;
+        SignatureParams signatureParams;
     }
 
     /// @notice Represents a withdrawal order in the queue
@@ -149,7 +159,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address _owner
     )
         ERC721(_name, _symbol)
-        Auth(_owner, Authority(address(0)))
+        VerboseAuth(_owner, Authority(address(0)))
     {
         // no zero check on owner in Auth Contract
         if (_owner == address(0)) revert ZeroAddress();
@@ -166,7 +176,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Set the fee module address
      * @param _feeModule Address of the new fee module
      */
-    function setFeeModule(IFeeModule _feeModule) external requiresAuth {
+    function setFeeModule(IFeeModule _feeModule) external requiresAuthVerbose {
         if (address(_feeModule) == address(0)) revert ZeroAddress();
 
         IFeeModule oldFeeModule = feeModule;
@@ -178,7 +188,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Set the fee recipient address
      * @param _feeRecipient Address of the new fee module
      */
-    function setFeeRecipient(address _feeRecipient) external requiresAuth {
+    function setFeeRecipient(address _feeRecipient) external requiresAuthVerbose {
         if (_feeRecipient == address(0)) revert ZeroAddress();
 
         address oldFeeRecipient = feeRecipient;
@@ -191,7 +201,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @param _asset Address of the offer asset to add
      * @param _minimumOrderSize Minimum order size for this asset
      */
-    function addOfferAsset(address _asset, uint256 _minimumOrderSize) external requiresAuth {
+    function addOfferAsset(address _asset, uint256 _minimumOrderSize) external requiresAuthVerbose {
         if (_asset == address(0)) revert ZeroAddress();
         if (supportedOfferAssets[_asset]) revert AssetAlreadySupported(_asset);
 
@@ -206,7 +216,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @param _asset Address of asset
      * @param _newMinimum for this asset to update to
      */
-    function updateAssetMinimumOrderSize(address _asset, uint256 _newMinimum) external requiresAuth {
+    function updateAssetMinimumOrderSize(address _asset, uint256 _newMinimum) external requiresAuthVerbose {
         if (!supportedOfferAssets[_asset]) revert AssetNotSupported(_asset);
 
         uint256 oldMinimum = minimumOrderSizePerAsset[_asset];
@@ -219,7 +229,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Remove a supported offer asset
      * @param _asset Address of the offer asset to remove
      */
-    function removeOfferAsset(address _asset) external requiresAuth {
+    function removeOfferAsset(address _asset) external requiresAuthVerbose {
         if (!supportedOfferAssets[_asset]) revert AssetNotSupported(_asset);
 
         supportedOfferAssets[_asset] = false;
@@ -231,7 +241,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Add a supported want asset
      * @param _asset Address of the want asset to add
      */
-    function addWantAsset(address _asset) external requiresAuth {
+    function addWantAsset(address _asset) external requiresAuthVerbose {
         if (_asset == address(0)) revert ZeroAddress();
         if (supportedWantAssets[_asset]) revert AssetAlreadySupported(_asset);
 
@@ -244,7 +254,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Remove a supported want asset
      * @param _asset Address of the want asset to remove
      */
-    function removeWantAsset(address _asset) external requiresAuth {
+    function removeWantAsset(address _asset) external requiresAuthVerbose {
         if (!supportedWantAssets[_asset]) revert AssetNotSupported(_asset);
 
         supportedWantAssets[_asset] = false;
@@ -256,7 +266,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Update offer asset recipient address
      * @param _newAddress Address of the new recipient
      */
-    function updateOfferAssetRecipient(address _newAddress) external requiresAuth {
+    function updateOfferAssetRecipient(address _newAddress) external requiresAuthVerbose {
         if (_newAddress == address(0)) revert ZeroAddress();
 
         address oldVal = offerAssetRecipient;
@@ -268,7 +278,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /**
      * @dev Allows owner to manage ERC20 tokens in the contract to prevent stuck funds
      */
-    function manageERC20(IERC20 token, uint256 amount, address receiver) external requiresAuth {
+    function manageERC20(IERC20 token, uint256 amount, address receiver) external requiresAuthVerbose {
         if (address(token) == address(0)) revert ZeroAddress();
         if (receiver == address(0)) revert ZeroAddress();
 
@@ -279,7 +289,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Force refund multiple orders
      * @param orderIndices Array of order indices to refund
      */
-    function forceRefundOrders(uint256[] calldata orderIndices) external requiresAuth {
+    function forceRefundOrders(uint256[] calldata orderIndices) external requiresAuthVerbose {
         uint256 length = orderIndices.length;
         for (uint256 i; i < length; ++i) {
             _forceRefund(orderIndices[i]);
@@ -290,7 +300,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Force process multiple orders
      * @param orderIndices Array of order indices to process
      */
-    function forceProcessOrders(uint256[] calldata orderIndices) external requiresAuth {
+    function forceProcessOrders(uint256[] calldata orderIndices) external requiresAuthVerbose {
         uint256 length = orderIndices.length;
         for (uint256 i; i < length; ++i) {
             _forceProcess(orderIndices[i]);
@@ -301,7 +311,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice refund an order and force process it
      * @param orderIndex Index of the order to refund
      */
-    function forceRefund(uint256 orderIndex) external requiresAuth {
+    function forceRefund(uint256 orderIndex) external requiresAuthVerbose {
         _forceRefund(orderIndex);
     }
 
@@ -309,36 +319,21 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice Force process an order out of sequence
      * @param orderIndex Index of the order to force process
      */
-    function forceProcess(uint256 orderIndex) external requiresAuth {
+    function forceProcess(uint256 orderIndex) external requiresAuthVerbose {
         _forceProcess(orderIndex);
     }
 
     /**
      * @notice Submit and immediately process an order if liquidity is available
-     * @param amountOffer Amount of offer asset
-     * @param offerAsset Asset being offered
-     * @param wantAsset Asset being requested
-     * @param receiver Address to receive the NFT receipt and want asset
-     * @param refundReceiver Address to receive refunds if needed
-     * @param params for submission signature use
+     * @param params SubmitOrderParams struct containing all order parameters
      * @return orderIndex The index of the created order
      */
-    function submitOrderAndProcess(
-        uint256 amountOffer,
-        IERC20 offerAsset,
-        IERC20 wantAsset,
-        address intendedDepositor,
-        address receiver,
-        address refundReceiver,
-        SignatureParams calldata params
-    )
+    function submitOrderAndProcess(SubmitOrderParams calldata params)
         external
-        requiresAuth
+        requiresAuthVerbose
         returns (uint256 orderIndex)
     {
-        orderIndex = submitOrder(
-            uint128(amountOffer), offerAsset, wantAsset, intendedDepositor, receiver, refundReceiver, params
-        );
+        orderIndex = submitOrder(params);
         processOrders(orderIndex - lastProcessedOrder);
     }
 
@@ -365,113 +360,60 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     /**
      * @notice Submit an order at the back of the queue
-     * @param amountOffer uint amount of offer asset to deposit
-     * @param offerAsset address of the offer asset
-     * @param wantAsset address of the want asset
-     * @param intendedDepositor address of who you intend to deposit. Must either match the signer of the signature or
-     * the msg.sender depending on if signature is used. This exists to provide a more verbose error message for invalid
-     * signatures
-     * @param receiver address to receive the want assets
-     * @param refundReceiver address to receive offer assets in the event of a refund
-     * @param params SignatureParams struct of params for signature approvals/submissions
+     * @param params SubmitOrderParams struct containing all order parameters
      */
-    function submitOrder(
-        uint256 amountOffer,
-        IERC20 offerAsset,
-        IERC20 wantAsset,
-        address intendedDepositor,
-        address receiver,
-        address refundReceiver,
-        SignatureParams calldata params
-    )
-        public
-        requiresAuth
-        returns (uint256 orderIndex)
-    {
+    function submitOrder(SubmitOrderParams calldata params) public requiresAuthVerbose returns (uint256 orderIndex) {
         {
-            if (!supportedOfferAssets[address(offerAsset)]) revert AssetNotSupported(address(offerAsset));
-            if (!supportedWantAssets[address(wantAsset)]) revert AssetNotSupported(address(wantAsset));
-            uint256 minimumOrderSize = minimumOrderSizePerAsset[address(offerAsset)];
-            if (amountOffer < minimumOrderSize) revert AmountBelowMinimum(amountOffer, minimumOrderSize);
-            if (receiver == address(0)) revert ZeroAddress();
-            if (refundReceiver == address(0)) revert ZeroAddress();
+            if (!supportedOfferAssets[address(params.offerAsset)]) {
+                revert AssetNotSupported(address(params.offerAsset));
+            }
+            if (!supportedWantAssets[address(params.wantAsset)]) revert AssetNotSupported(address(params.wantAsset));
+            uint256 minimumOrderSize = minimumOrderSizePerAsset[address(params.offerAsset)];
+            if (params.amountOffer < minimumOrderSize) revert AmountBelowMinimum(params.amountOffer, minimumOrderSize);
+            if (params.receiver == address(0)) revert ZeroAddress();
+            if (params.refundReceiver == address(0)) revert ZeroAddress();
         }
 
-        address depositor;
-        if (params.submitWithSignature) {
-            if (block.timestamp > params.deadline) revert SignatureExpired(params.deadline, block.timestamp);
-            bytes32 hash = keccak256(
-                abi.encode(
-                    amountOffer,
-                    offerAsset,
-                    wantAsset,
-                    receiver,
-                    refundReceiver,
-                    params.deadline,
-                    params.approvalMethod,
-                    params.nonce
-                )
-            );
-            if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
-            usedSignatureHashes[hash] = true;
+        address depositor = _verifyDepositor(params);
 
-            depositor = ECDSA.recover(hash, params.eip2612Signature);
-            // Here we check the intended depositor. If we didn't do this, it would error on the attempt to transfer
-            // assets. This error is more descriptive
-            if (depositor != intendedDepositor) revert InvalidEip2612Signature(intendedDepositor, depositor);
+        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
+            feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
+
+        if (feeAsset == params.offerAsset) {
+            assert(newAmountForReceiver + feeAmount == params.amountOffer);
         } else {
-            depositor = msg.sender;
-            if (depositor != intendedDepositor) revert InvalidDepositor(intendedDepositor, depositor);
+            assert(newAmountForReceiver == params.amountOffer);
         }
 
-        // Do nothing if using standard ERC20 approve
-        if (params.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            IERC20Permit(address(offerAsset))
-                .permit(
-                    depositor,
-                    address(this),
-                    amountOffer,
-                    params.deadline,
-                    params.approvalV,
-                    params.approvalR,
-                    params.approvalS
-                );
-        }
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
+        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Increment the latestOrder as this one is being minted
         unchecked {
             orderIndex = ++latestOrder;
         }
 
-        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
-            feeModule.calculateOfferFees(amountOffer, offerAsset, wantAsset, receiver);
-
-        if (feeAsset == offerAsset) {
-            assert(newAmountForReceiver + feeAmount == amountOffer);
-        } else {
-            assert(newAmountForReceiver == amountOffer);
-        }
-
-        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
-
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
         Order memory order = Order({
-            amountOffer: uint128(amountOffer),
-            amountWant: _getWantAmountInWantDecimals(uint128(newAmountForReceiver), offerAsset, wantAsset),
-            offerAsset: offerAsset,
-            wantAsset: wantAsset,
-            refundReceiver: refundReceiver,
+            amountOffer: uint128(params.amountOffer),
+            amountWant: _getWantAmountInWantDecimals(
+                uint128(newAmountForReceiver), params.offerAsset, params.wantAsset
+            ),
+            offerAsset: params.offerAsset,
+            wantAsset: params.wantAsset,
+            refundReceiver: params.refundReceiver,
             orderType: OrderType.DEFAULT
         });
         queue[orderIndex] = order;
 
         // Mint NFT receipt to receiver
-        _safeMint(receiver, orderIndex);
+        _safeMint(params.receiver, orderIndex);
 
-        emit OrderSubmitted(orderIndex, queue[orderIndex], receiver, depositor, params.submitWithSignature);
+        emit OrderSubmitted(
+            orderIndex, queue[orderIndex], params.receiver, depositor, params.signatureParams.submitWithSignature
+        );
     }
 
     /**
@@ -481,7 +423,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      *      Skips PRE_FILLED orders and REFUND orders
      *      Requires sufficient want asset balance in contract
      */
-    function processOrders(uint256 ordersToProcess) public requiresAuth {
+    function processOrders(uint256 ordersToProcess) public requiresAuthVerbose {
         if (ordersToProcess == 0) revert InvalidOrdersCount(ordersToProcess);
 
         uint256 startIndex;
@@ -519,6 +461,55 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
 
         emit OrdersProcessedInRange(startIndex, endIndex);
+    }
+
+    /**
+     * @dev helper function to handle the signature verification and permit for submitting an order
+     */
+    function _verifyDepositor(SubmitOrderParams calldata params) internal returns (address depositor) {
+        if (params.signatureParams.submitWithSignature) {
+            if (block.timestamp > params.signatureParams.deadline) {
+                revert SignatureExpired(params.signatureParams.deadline, block.timestamp);
+            }
+            bytes32 hash = keccak256(
+                abi.encode(
+                    params.amountOffer,
+                    params.offerAsset,
+                    params.wantAsset,
+                    params.receiver,
+                    params.refundReceiver,
+                    params.signatureParams.deadline,
+                    params.signatureParams.approvalMethod,
+                    params.signatureParams.nonce
+                )
+            );
+            if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
+            usedSignatureHashes[hash] = true;
+
+            depositor = ECDSA.recover(hash, params.signatureParams.eip2612Signature);
+            // Here we check the intended depositor. If we didn't do this, it would error on the attempt to transfer
+            // assets. This error is more descriptive
+            if (depositor != params.intendedDepositor) {
+                revert InvalidEip2612Signature(params.intendedDepositor, depositor);
+            }
+        } else {
+            depositor = msg.sender;
+            if (depositor != params.intendedDepositor) revert InvalidDepositor(params.intendedDepositor, depositor);
+        }
+
+        // Do nothing if using standard ERC20 approve
+        if (params.signatureParams.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
+            IERC20Permit(address(params.offerAsset))
+                .permit(
+                    depositor,
+                    address(this),
+                    params.amountOffer,
+                    params.signatureParams.deadline,
+                    params.signatureParams.approvalV,
+                    params.signatureParams.approvalR,
+                    params.signatureParams.approvalS
+                );
+        }
     }
 
     /**

@@ -2,30 +2,90 @@
 pragma solidity 0.8.21;
 
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { Auth } from "@solmate/auth/Auth.sol";
-import { AccessAuthority } from "src/helper/one-to-one-queue/abstract/AccessAuthority.sol";
 
 /**
  * @title VerboseAuth
  * @notice A verbose version of the solmate Auth contract
+ * @author Based on Solmate (https://github.com/transmissions11/solmate/blob/main/src/auth/Auth.sol)
  */
-abstract contract VerboseAuth is Auth {
+abstract contract VerboseAuth {
 
-    /// NOTE: Remove redundant functionSig
-    error Unauthorized(address caller, bytes4 functionSig, bytes data, string reasons);
+    address public owner;
 
-    modifier requiresAuth() virtual override {
-        if (isAuthorized(msg.sender, msg.sig)) {
+    Authority public authority;
+
+    event OwnershipTransferred(address indexed user, address indexed newOwner);
+
+    event AuthorityUpdated(address indexed user, Authority indexed newAuthority);
+
+    error Unauthorized(address caller, bytes data, string reasons);
+
+    constructor(address _owner, Authority _authority) {
+        owner = _owner;
+        authority = _authority;
+
+        emit OwnershipTransferred(msg.sender, _owner);
+        emit AuthorityUpdated(msg.sender, _authority);
+    }
+
+    modifier requiresAuthVerbose() virtual {
+        (bool canCall, string memory reasons) = isAuthorizedVerbose(msg.sender, msg.data);
+        if (canCall) {
             _;
         } else {
-            revert Unauthorized(
-                msg.sender,
-                msg.sig,
-                msg.data,
-                /// NOTE: Instead of msg.sig can pass in msg.data and parse out signature, allows more flexibility
-                AccessAuthority(address(authority)).getUnauthorizedReasons(msg.sender, msg.sig)
-            );
+            revert Unauthorized(msg.sender, msg.data, reasons);
         }
     }
 
+    function setAuthority(Authority newAuthority) public virtual {
+        // We check if the caller is the owner first because we want to ensure they can
+        // always swap out the authority even if it's reverting or using up a lot of gas.
+        (bool canCall,) = newAuthority.canCallVerbose(msg.sender, address(this), msg.data);
+        require(msg.sender == owner || canCall);
+
+        authority = newAuthority;
+
+        emit AuthorityUpdated(msg.sender, newAuthority);
+    }
+
+    function transferOwnership(address newOwner) public virtual requiresAuthVerbose {
+        owner = newOwner;
+
+        emit OwnershipTransferred(msg.sender, newOwner);
+    }
+
+    function isAuthorizedVerbose(
+        address user,
+        bytes calldata data
+    )
+        public
+        view
+        virtual
+        returns (bool canCall, string memory reasons)
+    {
+        if (user == owner) return (true, "");
+
+        Authority auth = Authority(address(authority));
+
+        if (address(auth) == address(0)) return (false, "- No Authority Set: Owner Only ");
+
+        return auth.canCallVerbose(user, address(this), data);
+    }
+
 }
+
+/// @notice A generic interface for a contract which provides authorization data to an Auth instance with more
+/// verbosity. @author Modified from Solmate (https://github.com/transmissions11/solmate/blob/main/src/auth/Auth.sol)
+interface Authority {
+
+    function canCallVerbose(
+        address user,
+        address target,
+        bytes calldata data
+    )
+        external
+        view
+        returns (bool, string memory);
+
+}
+

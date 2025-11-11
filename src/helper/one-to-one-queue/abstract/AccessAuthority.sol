@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { VerboseAuth } from "./VerboseAuth.sol";
+import { Pausable } from "./Pausable.sol";
+import { VerboseAuth, Authority } from "./VerboseAuth.sol";
 
 /**
  * @title AccessAuthority
@@ -12,11 +11,15 @@ import { VerboseAuth } from "./VerboseAuth.sol";
  * roles/ownership
  * deprecation
  * whitelist/blacklist
+ * @author Based on Solmate
+ * (https://github.com/transmissions11/solmate/blob/main/src/auth/authorities/RolesAuthority.sol)
+ * @dev This contract is almost identical to RolesAuhtority but features more verbose error messages and some helpers
+ * for capability setting without role checks internally.
  */
-/// NOTE: Do the override and brick strategy of rewriting requiresAuth and canCall to include the reasons. Also replace
-/// requiresAuth with requiresAuthVerbose
-// NOTE: Also use hooks instead of overridings of canCall, so you HAVE to provide logic and cannot forget to use super.canCall
-abstract contract AccessAuthority is Pausable, RolesAuthority {
+abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
+
+    /// @notice Total number of deprecation steps
+    uint8 public immutable totalDeprecationSteps;
 
     /// @notice Current deprecation step (0 = not deprecated)
     uint8 public deprecationStep;
@@ -24,123 +27,191 @@ abstract contract AccessAuthority is Pausable, RolesAuthority {
     /// @notice Bool flag if deprecation is complete
     bool public isFullyDeprecated;
 
-    /// @notice mapping of accepted pausers
+    /// @notice Mapping of accepted pausers
+    /// @dev We implement this instead of using Roles to eleminate the need for an AccessAuthority for your
+    /// AccessAuthority
     mapping(address => bool) public pausers;
+
+    mapping(address => bytes32) public getUserRoles;
+
+    mapping(address => mapping(bytes4 => bool)) public isCapabilityPublic;
+
+    mapping(address => mapping(bytes4 => bytes32)) public getRolesWithCapability;
 
     event DeprecationBegun(uint8 step);
     event DeprecationContinued(uint8 newStep);
     event DeprecationFinished(uint8 newStep);
     event PauserStatusSet(address pauser, bool canPause);
+    event UserRoleUpdated(address indexed user, uint8 indexed role, bool enabled);
+    event PublicCapabilityUpdated(address indexed target, bytes4 indexed functionSig, bool enabled);
+    event RoleCapabilityUpdated(uint8 indexed role, address indexed target, bytes4 indexed functionSig, bool enabled);
 
-    error DeprecationNotBegun();
-    error DeprecationAlreadyBegun(uint8 currentStep);
+    error DeprecationComplete();
 
-    constructor(address owner, address[] memory defaultPausers) RolesAuthority(owner, Authority(address(0))) {
-        uint256 length = defaultPausers.length;
+    constructor(
+        address _owner,
+        Authority _authority,
+        address[] memory _defaultPausers
+    )
+        VerboseAuth(_owner, _authority)
+    {
+        uint256 length = _defaultPausers.length;
         for (uint256 i; i < length; ++i) {
-            pausers[defaultPausers[i]] = true;
-            emit PauserStatusSet(defaultPausers[i], true);
-        }
-    }
-
-    /// @dev requiresAuth is used in this contract and is overriden to match the VerboseAuth signature
-    modifier requiresAuth() virtual override {
-        if (isAuthorized(msg.sender, msg.sig)) {
-            _;
-        } else {
-            revert VerboseAuth.Unauthorized(msg.sender, msg.sig, msg.data, "");
+            pausers[_defaultPausers[i]] = true;
+            emit PauserStatusSet(_defaultPausers[i], true);
         }
     }
 
     /// @notice only OWNER can set new pauser status
-    function setPauserStatus(address pauser, bool canPause) external requiresAuth {
+    function setPauserStatus(address pauser, bool canPause) external requiresAuthVerbose {
         pausers[pauser] = canPause;
         emit PauserStatusSet(pauser, canPause);
     }
 
     /// @notice only pausers and OWNER can pause
-    /// NOTE: pause will fail if already paused... There's no way to NOT do that right now...
-    /// ask what Jun/Jamie think. Explore other libraries? Fork? or deal with it? Our pause contract does handle errors
     function pause() external {
         if (!pausers[msg.sender] && msg.sender != owner) {
-            revert VerboseAuth.Unauthorized(msg.sender, msg.sig, msg.data, "- Not a pauser or owner ");
+            revert VerboseAuth.Unauthorized(msg.sender, msg.data, "- Not a pauser or owner ");
         }
         _pause();
     }
 
     /// @notice only OWNER can unpause
-    function unpause() external requiresAuth {
+    function unpause() external requiresAuthVerbose {
         _unpause();
     }
 
-    /**
-     * @notice Begin the deprecation process
-     * @dev Sets deprecation step from 0 to 1 and executes step-specific logic
-     */
-    function beginDeprecation() external virtual requiresAuth {
-        if (deprecationStep != 0) revert DeprecationAlreadyBegun(deprecationStep);
+    function setPublicCapability(address target, bytes4 functionSig, bool enabled) public virtual requiresAuthVerbose {
+        _setPublicCapability(target, functionSig, enabled);
+    }
 
-        deprecationStep = 1;
-        _onDeprecationBegin();
+    function setRoleCapability(
+        uint8 role,
+        address target,
+        bytes4 functionSig,
+        bool enabled
+    )
+        public
+        virtual
+        requiresAuthVerbose
+    {
+        _setRoleCapability(role, target, functionSig, enabled);
+    }
 
-        emit DeprecationBegun(1);
+    function setUserRole(address user, uint8 role, bool enabled) public virtual requiresAuthVerbose {
+        if (enabled) {
+            getUserRoles[user] |= bytes32(1 << role);
+        } else {
+            getUserRoles[user] &= ~bytes32(1 << role);
+        }
+
+        emit UserRoleUpdated(user, role, enabled);
     }
 
     /**
      * @notice Continue deprecation to next step
      * @dev Advances from current non-zero step to step + 1
      */
-    function continueDeprecation() external virtual requiresAuth whenNotPaused {
-        if (deprecationStep == 0) revert DeprecationNotBegun();
+    function continueDeprecation() external virtual requiresAuthVerbose whenNotPaused {
+        if (deprecationStep == totalDeprecationSteps) revert DeprecationComplete();
 
-        ++deprecationStep;
+        unchecked {
+            ++deprecationStep;
+        }
         _onDeprecationContinue(deprecationStep);
         emit DeprecationContinued(deprecationStep);
-        if (isFullyDeprecated) {
+        if (deprecationStep == totalDeprecationSteps) {
+            isFullyDeprecated = true;
             emit DeprecationFinished(deprecationStep);
         }
     }
 
-    /// @dev canCall is overriden to add more logic to the requiresAuth modifier
-    /// The default extension is that pausing deactivates all functions.
-    /// You may also override to check more complex logic for example a whitelist.
-    /// It's worth noting that OWNER bypasses this canCall check.
-    function canCall(address user, address target, bytes4 functionSig) public view virtual override returns (bool) {
-        // If the contract is paused cannot call anything, otherwise follow rules set by the RolesAuthority
-        if (paused()) {
-            return false;
-        }
-        return super.canCall(user, target, functionSig);
-    }
-
-    /// @dev a new function to get the reason for a failed "canCall" check as a string.
-    function getUnauthorizedReasons(
+    /**
+     * @dev Verbose version of canCall. Provides detailed reasons for a calls failure with strings.
+     * Overriding the hook in this function allows you to include more logic such as a whitelist.
+     */
+    function canCallVerbose(
         address user,
-        bytes4 functionSig
+        address target,
+        bytes calldata data
     )
         public
         view
         virtual
-        returns (string memory reason)
+        returns (bool canCall, string memory reasons)
     {
+        // If the contract is paused cannot call anything, otherwise follow rules set by the original RolesAuthority
         if (paused()) {
-            reason = "- Paused ";
-        }
-        if (isFullyDeprecated) {
-            reason = string(abi.encodePacked(reason, "- Fully Deprecated "));
-        } else if (deprecationStep > 0) {
-            reason = string(abi.encodePacked(reason, "- Deprecation in progress "));
+            reasons = "- Paused ";
+            // canCall is false by default
+        } else {
+            canCall = true;
         }
 
-        return reason;
+        // After the pause check, if canCall remains false, it should always remain false
+        bytes4 functionSig = bytes4(data[:4]);
+        if (!(isCapabilityPublic[target][functionSig]
+                    || bytes32(0) != getUserRoles[user] & getRolesWithCapability[target][functionSig])) {
+            canCall = false;
+            reasons = string(abi.encodePacked(reasons, "- Unauthorized "));
+        }
+
+        (bool canCallExtentions, string memory reasonsExtentions) = _canCallVerboseExtentionHook(user, target, data);
+
+        // The extention may not set canCall true if it is currently false to override the pause or role checks. The
+        // extention may only add more strict checks.
+        canCall = canCall && canCallExtentions;
+        reasons = string(abi.encodePacked(reasons, reasonsExtentions));
+    }
+
+    function doesUserHaveRole(address user, uint8 role) public view virtual returns (bool) {
+        return (uint256(getUserRoles[user]) >> role) & 1 != 0;
+    }
+
+    function doesRoleHaveCapability(uint8 role, address target, bytes4 functionSig) public view virtual returns (bool) {
+        return (uint256(getRolesWithCapability[target][functionSig]) >> role) & 1 != 0;
     }
 
     /**
-     * @notice Hook called when deprecation begins
-     * @dev Override to implement step 1 specific logic
+     * @dev Hook to allow for additional logic to be added to the canCallVerbose function.
+     * Additional logic may only add more strict checks to the canCallVerbose function and cannot override a check
+     * failing due to a pause or invalid role.
+     * Returns true now to enforce only the pause and role checks.
      */
-    /// NOTE: Note the virtual (no brackets)
-    function _onDeprecationBegin() internal virtual;
+    function _canCallVerboseExtentionHook(
+        address user,
+        address target,
+        bytes calldata data
+    )
+        internal
+        view
+        virtual
+        returns (bool canCall, string memory reasons)
+    {
+        canCall = true;
+    }
+
+    /**
+     * @dev Internal and no-auth version of setPublicCapability
+     */
+    function _setPublicCapability(address target, bytes4 functionSig, bool enabled) internal virtual {
+        isCapabilityPublic[target][functionSig] = enabled;
+
+        emit PublicCapabilityUpdated(target, functionSig, enabled);
+    }
+
+    /**
+     * @dev Internal and no-auth version of setRoleCapability
+     */
+    function _setRoleCapability(uint8 role, address target, bytes4 functionSig, bool enabled) internal virtual {
+        if (enabled) {
+            getRolesWithCapability[target][functionSig] |= bytes32(1 << role);
+        } else {
+            getRolesWithCapability[target][functionSig] &= ~bytes32(1 << role);
+        }
+
+        emit RoleCapabilityUpdated(role, target, functionSig, enabled);
+    }
 
     /**
      * @notice Hook called when deprecation continues to next step
