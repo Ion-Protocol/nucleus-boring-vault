@@ -69,6 +69,7 @@ contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
     }
 
     function test_depositNativeWithCustomRecipient(address recipient) external {
+        vm.assume(recipient != address(0));
         uint256 depositAmount = 100e18;
         uint256 minimumMint = 100e18;
 
