@@ -33,8 +33,9 @@ contract CommunityCodeDepositor is Auth {
 
     TellerWithMultiAssetSupport public immutable teller;
     address public immutable boringVault;
+    bool public immutable isNativeDepositSupported;
+
     uint256 public depositNonce;
-    bool public isNativeDepositSupported;
 
     // more details on the deposit also exists on the Teller event
     event DepositWithCommunityCode(
