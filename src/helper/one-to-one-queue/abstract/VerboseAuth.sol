@@ -74,8 +74,10 @@ abstract contract VerboseAuth {
 
 }
 
-/// @notice A generic interface for a contract which provides authorization data to an Auth instance with more
-/// verbosity. @author Modified from Solmate (https://github.com/transmissions11/solmate/blob/main/src/auth/Auth.sol)
+/**
+ * @notice A generic interface for a contract which provides authorization data to an Auth instance with more verbosity
+ * @author Modified from Solmate (https://github.com/transmissions11/solmate/blob/main/src/auth/Auth.sol)
+ */
 interface Authority {
 
     function canCallVerbose(

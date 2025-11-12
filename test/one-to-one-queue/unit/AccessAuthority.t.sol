@@ -5,6 +5,7 @@ import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { QueueAccessAuthority, AccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
+import { IAccessAuthorityHook } from "src/helper/one-to-one-queue/abstract/AccessAuthority.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
@@ -18,6 +19,8 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
     /// @notice Emitted when deprecation is finalized
     /// @param newStep The new deprecation step
     event DeprecationFinished(uint8 newStep);
+
+    event AccessAuthorityHookUpdated(address indexed oldHook, address indexed newHook);
 
     function test_pause() external {
         vm.expectRevert(
@@ -99,9 +102,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
             _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrder.selector, params);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecation in progress "
-            ),
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecated "),
             address(queue)
         );
         queue.submitOrder(params);
@@ -147,7 +148,7 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrder.selector, params);
         vm.expectRevert(
             abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Fully Deprecated "
+                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Deprecated "
             ),
             address(queue)
         );
@@ -155,11 +156,71 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
 
         data = abi.encodeWithSelector(OneToOneQueue.processOrders.selector, 1);
         vm.expectRevert(
-            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Fully Deprecated "),
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Deprecated "),
             address(queue)
         );
         queue.processOrders(1);
 
+        vm.stopPrank();
+    }
+
+    function test_setAccessAuthorityHook() external {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector,
+                address(this),
+                abi.encodeWithSelector(AccessAuthority.setAccessAuthorityHook.selector, address(0)),
+                "- No Authority Set: Owner Only "
+            ),
+            address(rolesAuthority)
+        );
+        rolesAuthority.setAccessAuthorityHook(IAccessAuthorityHook(address(0)));
+
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit AccessAuthority.AccessAuthorityHookUpdated(address(0), address(0));
+        rolesAuthority.setAccessAuthorityHook(IAccessAuthorityHook(address(0)));
+        vm.stopPrank();
+    }
+
+}
+
+contract AccessAuthorityHook is IAccessAuthorityHook {
+
+    function canCallVerbose(
+        address user,
+        address target,
+        bytes calldata data
+    )
+        external
+        view
+        returns (bool, string memory)
+    {
+        return (false, "I am a test value");
+    }
+
+}
+
+contract AccessAuthorityHookTest is OneToOneQueueTestBase {
+
+    event AccessAuthorityHookUpdated(address indexed oldHook, address indexed newHook);
+
+    function test_canCallVerbose_withAccessAuthorityHook() external {
+        AccessAuthorityHook accessAuthorityHook = new AccessAuthorityHook();
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit AccessAuthority.AccessAuthorityHookUpdated(address(0), address(accessAuthorityHook));
+        rolesAuthority.setAccessAuthorityHook(accessAuthorityHook);
+        vm.stopPrank();
+
+        assertEq(address(rolesAuthority.accessAuthorityHook()), address(accessAuthorityHook));
+
+        vm.startPrank(user1);
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrder.selector, params);
+        vm.expectRevert(abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "I am a test value"));
+        queue.submitOrder(params);
         vm.stopPrank();
     }
 

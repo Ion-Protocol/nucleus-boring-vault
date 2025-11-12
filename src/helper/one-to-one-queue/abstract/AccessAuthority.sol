@@ -18,18 +18,18 @@ import { VerboseAuth, Authority } from "./VerboseAuth.sol";
  */
 abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
 
-    /// @notice Total number of deprecation steps
-    uint8 public immutable totalDeprecationSteps;
-
     /// @notice Current deprecation step (0 = not deprecated)
     uint8 public deprecationStep;
 
     /// @notice Bool flag if deprecation is complete
     bool public isFullyDeprecated;
 
+    /// @notice Hook contract for additional logic to be added to the canCallVerbose function.
+    IAccessAuthorityHook public accessAuthorityHook;
+
     /// @notice Mapping of accepted pausers
     /// @dev We implement this instead of using Roles to eleminate the need for an AccessAuthority for your
-    /// AccessAuthority
+    /// AccessAuthority to configure a pause role
     mapping(address => bool) public pausers;
 
     mapping(address => bytes32) public getUserRoles;
@@ -45,12 +45,15 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     event UserRoleUpdated(address indexed user, uint8 indexed role, bool enabled);
     event PublicCapabilityUpdated(address indexed target, bytes4 indexed functionSig, bool enabled);
     event RoleCapabilityUpdated(uint8 indexed role, address indexed target, bytes4 indexed functionSig, bool enabled);
+    event AccessAuthorityHookUpdated(address indexed oldHook, address indexed newHook);
 
     error DeprecationComplete();
+    error NoDeprecationDefined();
 
     constructor(
         address _owner,
         Authority _authority,
+        IAccessAuthorityHook _accessAuthorityHook,
         address[] memory _defaultPausers
     )
         VerboseAuth(_owner, _authority)
@@ -60,16 +63,27 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
             pausers[_defaultPausers[i]] = true;
             emit PauserStatusSet(_defaultPausers[i], true);
         }
+
+        accessAuthorityHook = _accessAuthorityHook;
+        emit AccessAuthorityHookUpdated(address(0), address(_accessAuthorityHook));
+    }
+
+    /// @notice only OWNER can set the new access authority hook
+    /// @dev Hook address may be 0 in order to disable it
+    function setAccessAuthorityHook(IAccessAuthorityHook newHook) external virtual requiresAuthVerbose {
+        address oldHook = address(accessAuthorityHook);
+        accessAuthorityHook = newHook;
+        emit AccessAuthorityHookUpdated(oldHook, address(newHook));
     }
 
     /// @notice only OWNER can set new pauser status
-    function setPauserStatus(address pauser, bool canPause) external requiresAuthVerbose {
+    function setPauserStatus(address pauser, bool canPause) external virtual requiresAuthVerbose {
         pausers[pauser] = canPause;
         emit PauserStatusSet(pauser, canPause);
     }
 
     /// @notice only pausers and OWNER can pause
-    function pause() external {
+    function pause() external virtual {
         if (!pausers[msg.sender] && msg.sender != owner) {
             revert VerboseAuth.Unauthorized(msg.sender, msg.data, "- Not a pauser or owner ");
         }
@@ -77,7 +91,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     }
 
     /// @notice only OWNER can unpause
-    function unpause() external requiresAuthVerbose {
+    function unpause() external virtual requiresAuthVerbose {
         _unpause();
     }
 
@@ -99,13 +113,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     }
 
     function setUserRole(address user, uint8 role, bool enabled) public virtual requiresAuthVerbose {
-        if (enabled) {
-            getUserRoles[user] |= bytes32(1 << role);
-        } else {
-            getUserRoles[user] &= ~bytes32(1 << role);
-        }
-
-        emit UserRoleUpdated(user, role, enabled);
+        _setUserRole(user, role, enabled);
     }
 
     /**
@@ -113,14 +121,15 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
      * @dev Advances from current non-zero step to step + 1
      */
     function continueDeprecation() external virtual requiresAuthVerbose whenNotPaused {
-        if (deprecationStep == totalDeprecationSteps) revert DeprecationComplete();
+        if (totalDeprecationSteps() == 0) revert NoDeprecationDefined();
+        if (deprecationStep == totalDeprecationSteps()) revert DeprecationComplete();
 
         unchecked {
             ++deprecationStep;
         }
         _onDeprecationContinue(deprecationStep);
         emit DeprecationContinued(deprecationStep);
-        if (deprecationStep == totalDeprecationSteps) {
+        if (deprecationStep == totalDeprecationSteps()) {
             isFullyDeprecated = true;
             emit DeprecationFinished(deprecationStep);
         }
@@ -148,15 +157,19 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
             canCall = true;
         }
 
-        // After the pause check, if canCall remains false, it should always remain false
-        bytes4 functionSig = bytes4(data[:4]);
-        if (!(isCapabilityPublic[target][functionSig]
-                    || bytes32(0) != getUserRoles[user] & getRolesWithCapability[target][functionSig])) {
+        // After the pause check, if canCall is false, it should always remain false
+        bytes4 functionSelector = bytes4(data[:4]);
+        if (!(isCapabilityPublic[target][functionSelector]
+                    || bytes32(0) != getUserRoles[user] & getRolesWithCapability[target][functionSelector])) {
             canCall = false;
             reasons = string(abi.encodePacked(reasons, "- Unauthorized "));
         }
 
-        (bool canCallExtentions, string memory reasonsExtentions) = _canCallVerboseExtentionHook(user, target, data);
+        if (deprecationStep > 0 && !canCall) {
+            reasons = string(abi.encodePacked(reasons, "- Deprecated "));
+        }
+
+        (bool canCallExtentions, string memory reasonsExtentions) = _canCallVerboseExtensionHook(user, target, data);
 
         // The extention may not set canCall true if it is currently false to override the pause or role checks. The
         // extention may only add more strict checks.
@@ -173,12 +186,16 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     }
 
     /**
-     * @dev Hook to allow for additional logic to be added to the canCallVerbose function.
-     * Additional logic may only add more strict checks to the canCallVerbose function and cannot override a check
-     * failing due to a pause or invalid role.
-     * Returns true now to enforce only the pause and role checks.
+     * @dev required override for a number of the total deprecation steps
      */
-    function _canCallVerboseExtentionHook(
+    function totalDeprecationSteps() public virtual returns (uint8);
+
+    /**
+     * @dev Hook to allow for additional logic to be added to the canCallVerbose function.
+     * Returns true by default to enforce only the pause and role checks.
+     * May be overriden in the derived contract or logic may be provided via an AccessAuthorityHook.
+     */
+    function _canCallVerboseExtensionHook(
         address user,
         address target,
         bytes calldata data
@@ -188,7 +205,24 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         virtual
         returns (bool canCall, string memory reasons)
     {
-        canCall = true;
+        if (address(accessAuthorityHook) != address(0)) {
+            (canCall, reasons) = accessAuthorityHook.canCallVerbose(user, target, data);
+        } else {
+            canCall = true;
+        }
+    }
+
+    /**
+     * @dev Internal and no-auth version of setUserRole
+     */
+    function _setUserRole(address user, uint8 role, bool enabled) internal virtual {
+        if (enabled) {
+            getUserRoles[user] |= bytes32(1 << role);
+        } else {
+            getUserRoles[user] &= ~bytes32(1 << role);
+        }
+
+        emit UserRoleUpdated(user, role, enabled);
     }
 
     /**
@@ -219,5 +253,21 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
      * @dev Override to implement step-specific logic
      */
     function _onDeprecationContinue(uint8 newStep) internal virtual;
+
+}
+
+/**
+ * @dev Interface for an upgradeable hook contract that can provide more logic for canCallVerbose
+ */
+interface IAccessAuthorityHook {
+
+    function canCallVerbose(
+        address user,
+        address target,
+        bytes calldata data
+    )
+        external
+        view
+        returns (bool, string memory);
 
 }

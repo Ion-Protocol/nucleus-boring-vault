@@ -27,9 +27,7 @@ contract DeprecationStep1IntegrationTest is OneToOneQueueTestBase {
             _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrderAndProcess.selector, params);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecation in progress "
-            ),
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecated "),
             address(queue)
         );
         queue.submitOrderAndProcess(params);
@@ -51,9 +49,7 @@ contract DeprecationStep1IntegrationTest is OneToOneQueueTestBase {
             _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrder.selector, params);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecation in progress "
-            ),
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecated "),
             address(queue)
         );
         queue.submitOrder(params);
@@ -104,7 +100,7 @@ contract DeprecationStep2IntegrationTest is OneToOneQueueTestBase {
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrderAndProcess.selector, params);
         vm.expectRevert(
             abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Fully Deprecated "
+                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Deprecated "
             ),
             address(queue)
         );
@@ -128,7 +124,7 @@ contract DeprecationStep2IntegrationTest is OneToOneQueueTestBase {
         bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrder.selector, params);
         vm.expectRevert(
             abi.encodeWithSelector(
-                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Fully Deprecated "
+                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Deprecated "
             ),
             address(queue)
         );
@@ -160,7 +156,7 @@ contract DeprecationStep2IntegrationTest is OneToOneQueueTestBase {
                 VerboseAuth.Unauthorized.selector,
                 user1,
                 abi.encodeWithSelector(OneToOneQueue.processOrders.selector, 1),
-                "- Paused - Fully Deprecated "
+                "- Paused - Deprecated "
             ),
             address(queue)
         );

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { AccessAuthority, Authority } from "./abstract/AccessAuthority.sol";
+import { AccessAuthority, Authority, IAccessAuthorityHook } from "./abstract/AccessAuthority.sol";
 import { OneToOneQueue } from "./OneToOneQueue.sol";
 
 /**
@@ -18,7 +18,7 @@ import { OneToOneQueue } from "./OneToOneQueue.sol";
  */
 contract QueueAccessAuthority is AccessAuthority {
 
-    address public queue;
+    address public immutable queue;
 
     error QueueNotEmpty();
 
@@ -28,9 +28,8 @@ contract QueueAccessAuthority is AccessAuthority {
         address _queue,
         address[] memory defaultPausers
     )
-        AccessAuthority(_owner, Authority(address(0)), defaultPausers)
+        AccessAuthority(_owner, Authority(address(0)), IAccessAuthorityHook(address(0)), defaultPausers)
     {
-        totalDeprecationSteps = 2;
         queue = _queue;
 
         _setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
@@ -38,37 +37,10 @@ contract QueueAccessAuthority is AccessAuthority {
         _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
     }
 
-    /**
-     * @notice override of the canCallVerbose hook to add verbosity for deprecation
-     * @dev The following are how each deprecation step's verbose errors are handled:
-     * STEP 1:
-     *  - Functions are deprecated using setPublicCapability(false) as seen in _onDeprecationContinue.
-     *    So return true if function has public capability, and false with deprecation reason if false
-     * STEP 2:
-     *  - The contract is fully deprecated and should not be callable at all. Include a fully deprecated message
-     */
-    function _canCallVerboseExtentionHook(
-        address user,
-        address target,
-        bytes calldata data
-    )
-        internal
-        view
-        override
-        returns (bool, string memory)
-    {
-        if (deprecationStep == 1) {
-            bool publicCapability = isCapabilityPublic[target][bytes4(data[:4])];
-            return (publicCapability, "- Deprecation in progress ");
-        }
-        // Using the step instead of isFullyDeprecated to save a cold storage read.
-        if (deprecationStep == 2) {
-            return (false, "- Fully Deprecated ");
-        }
-        return (true, "");
+    function totalDeprecationSteps() public override returns (uint8) {
+        return 2;
     }
 
-    /// @dev Step 2
     function _onDeprecationContinue(uint8 newStep) internal override {
         if (newStep == 1) {
             setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);
