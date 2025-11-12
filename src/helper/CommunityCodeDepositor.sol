@@ -50,10 +50,11 @@ contract CommunityCodeDepositor is Auth {
     constructor(
         TellerWithMultiAssetSupport _teller,
         INativeWrapper _nativeWrapper,
+        Authority _rolesAuthority,
         bool _isNativeDepositSupported,
         address _owner
     )
-        Auth(_owner, Authority(address(0)))
+        Auth(_owner, _rolesAuthority)
     {
         if (address(_teller) == address(0)) revert ZeroAddress();
         if (_owner == address(0)) revert ZeroAddress();
