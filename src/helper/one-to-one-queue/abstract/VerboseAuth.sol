@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-
 /**
  * @title VerboseAuth
  * @notice A verbose version of the solmate Auth contract
@@ -28,6 +26,7 @@ abstract contract VerboseAuth {
         emit AuthorityUpdated(msg.sender, _authority);
     }
 
+    /// @notice similar to requiresAuth but with a more verbose custom error
     modifier requiresAuthVerbose() virtual {
         (bool canCall, string memory reasons) = isAuthorizedVerbose(msg.sender, msg.data);
         if (canCall) {
@@ -37,23 +36,31 @@ abstract contract VerboseAuth {
         }
     }
 
+    /// @notice set a new Authority for this contract
     function setAuthority(Authority newAuthority) public virtual {
         // We check if the caller is the owner first because we want to ensure they can
         // always swap out the authority even if it's reverting or using up a lot of gas.
-        (bool canCall,) = newAuthority.canCallVerbose(msg.sender, address(this), msg.data);
-        require(msg.sender == owner || canCall);
+        if (msg.sender != owner) {
+            (bool canCall,) = authority.canCallVerbose(msg.sender, address(this), msg.data);
+            require(canCall);
+        }
 
         authority = newAuthority;
 
         emit AuthorityUpdated(msg.sender, newAuthority);
     }
 
+    /// @notice identical to solmate Auth
     function transferOwnership(address newOwner) public virtual requiresAuthVerbose {
         owner = newOwner;
 
         emit OwnershipTransferred(msg.sender, newOwner);
     }
 
+    /**
+     * @notice follows same logic of solmate Auth but to return bool + reason string
+     * @dev Owner is always authorized
+     */
     function isAuthorizedVerbose(
         address user,
         bytes calldata data
