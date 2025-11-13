@@ -47,6 +47,13 @@ abstract contract BaseScript is Script {
         CREATEX = ICreateX(vm.envAddress("CREATEX"));
         deployCreate2 = vm.envOr({ name: "CREATE2", defaultValue: true });
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
+        bool isMasterBranch = vm.envOr({ name: "MASTER_BRANCH_OVERRIDE", defaultValue: false });
+        if (!isMasterBranch) {
+            revert(
+                "You must be on the master branch to run this script or override with env variable MASTER_BRANCH_OVERRIDE=true"
+            );
+        }
+
         if (from != address(0)) {
             broadcaster = from;
         } else {
