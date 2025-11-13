@@ -7,7 +7,7 @@ import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test
 import { OneToOneQueueTestBase, tERC20, IERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
+import { VerboseAuth } from "src/helper/one-to-one-queue/access/VerboseAuth.sol";
 
 contract OneToOneQueueTest is OneToOneQueueTestBase {
 

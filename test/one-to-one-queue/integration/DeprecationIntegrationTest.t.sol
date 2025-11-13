@@ -6,8 +6,8 @@ import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol
 import { QueueAccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
-import { AccessAuthority } from "src/helper/one-to-one-queue/abstract/AccessAuthority.sol";
-import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
+import { AccessAuthority } from "src/helper/one-to-one-queue/access/AccessAuthority.sol";
+import { VerboseAuth } from "src/helper/one-to-one-queue/access/VerboseAuth.sol";
 
 contract DeprecationStep1IntegrationTest is OneToOneQueueTestBase {
 

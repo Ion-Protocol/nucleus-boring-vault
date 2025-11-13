@@ -5,10 +5,10 @@ import { OneToOneQueue } from "src/helper/one-to-one-queue/OneToOneQueue.sol";
 import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { QueueAccessAuthority, AccessAuthority } from "src/helper/one-to-one-queue/QueueAccessAuthority.sol";
-import { IAccessAuthorityHook } from "src/helper/one-to-one-queue/abstract/AccessAuthority.sol";
+import { IAccessAuthorityHook } from "src/helper/one-to-one-queue/access/AccessAuthority.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
-import { VerboseAuth } from "src/helper/one-to-one-queue/abstract/VerboseAuth.sol";
+import { VerboseAuth } from "src/helper/one-to-one-queue/access/VerboseAuth.sol";
 
 contract AccessAuthorityTest is OneToOneQueueTestBase {
 

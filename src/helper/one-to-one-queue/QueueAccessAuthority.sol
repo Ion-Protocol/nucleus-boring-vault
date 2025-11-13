@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { AccessAuthority, Authority, IAccessAuthorityHook } from "./abstract/AccessAuthority.sol";
+import { AccessAuthority, Authority, IAccessAuthorityHook } from "./access/AccessAuthority.sol";
 import { OneToOneQueue } from "./OneToOneQueue.sol";
 
 /**
