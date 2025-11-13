@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { Pausable } from "./Pausable.sol";
 import { VerboseAuth, Authority } from "./VerboseAuth.sol";
+import { IAccessAuthorityHook } from "../interfaces/IAccessAuthorityHook.sol";
 
 /**
  * @title AccessAuthority
@@ -13,7 +14,8 @@ import { VerboseAuth, Authority } from "./VerboseAuth.sol";
  * whitelist/blacklist
  * @author Based on Solmate
  * (https://github.com/transmissions11/solmate/blob/main/src/auth/authorities/RolesAuthority.sol)
- * @dev This contract is almost identical to RolesAuhtority but features more verbose error messages and some helpers
+ * @dev This contract contains code almost identical to Solmate's RolesAuhtority but features more verbose error
+ * messages and some helpers
  * for capability setting without role checks internally.
  */
 abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
@@ -41,7 +43,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     event DeprecationBegun(uint8 step);
     event DeprecationContinued(uint8 newStep);
     event DeprecationFinished(uint8 newStep);
-    event PauserStatusSet(address pauser, bool canPause);
+    event PauserStatusSet(address indexed pauser, bool indexed canPause);
     event UserRoleUpdated(address indexed user, uint8 indexed role, bool enabled);
     event PublicCapabilityUpdated(address indexed target, bytes4 indexed functionSig, bool enabled);
     event RoleCapabilityUpdated(uint8 indexed role, address indexed target, bytes4 indexed functionSig, bool enabled);
@@ -82,7 +84,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         emit PauserStatusSet(pauser, canPause);
     }
 
-    /// @notice only pausers and OWNER can pause
+    /// @notice only PAUSER and OWNER can pause
     function pause() external virtual {
         if (!pausers[msg.sender] && msg.sender != owner) {
             revert VerboseAuth.Unauthorized(msg.sender, msg.data, "- Not a pauser or owner ");
@@ -95,10 +97,14 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         _unpause();
     }
 
+    /// @notice only OWNER role
+    /// @dev solmate RolesAuthority function to set public capability
     function setPublicCapability(address target, bytes4 functionSig, bool enabled) public virtual requiresAuthVerbose {
         _setPublicCapability(target, functionSig, enabled);
     }
 
+    /// @notice only OWNER role
+    /// @dev solmate RolesAuthority function to set a role's capability
     function setRoleCapability(
         uint8 role,
         address target,
@@ -112,13 +118,14 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         _setRoleCapability(role, target, functionSig, enabled);
     }
 
+    /// @notice only OWNER role
+    /// @dev solmate RolesAuthority function to set a user's role
     function setUserRole(address user, uint8 role, bool enabled) public virtual requiresAuthVerbose {
         _setUserRole(user, role, enabled);
     }
 
     /**
-     * @notice Continue deprecation to next step
-     * @dev Advances from current non-zero step to step + 1
+     * @notice Continue deprecation to next step.
      */
     function continueDeprecation() external virtual requiresAuthVerbose whenNotPaused {
         if (totalDeprecationSteps() == 0) revert NoDeprecationDefined();
@@ -136,7 +143,8 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     }
 
     /**
-     * @dev Verbose version of canCall. Provides detailed reasons for a calls failure with strings.
+     * @dev Verbose version of solmate's RolesAuthority canCall. Provides detailed reasons for a calls failure with
+     * strings.
      * Overriding the hook in this function allows you to include more logic such as a whitelist.
      */
     function canCallVerbose(
@@ -149,22 +157,29 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         virtual
         returns (bool canCall, string memory reasons)
     {
-        // If the contract is paused cannot call anything, otherwise follow rules set by the original RolesAuthority
+        // If the contract is paused, canCall is false
         if (paused()) {
             reasons = "- Paused ";
             // canCall is false by default
         } else {
+            // canCall is false by default so set true if not paused
             canCall = true;
         }
 
-        // After the pause check, if canCall is false, it should always remain false
         bytes4 functionSelector = bytes4(data[:4]);
+        // The following is identical to the RolesAuthority canCall logic, but negated for identifying if canCall is
+        // False
         if (!(isCapabilityPublic[target][functionSelector]
                     || bytes32(0) != getUserRoles[user] & getRolesWithCapability[target][functionSelector])) {
             canCall = false;
             reasons = string(abi.encodePacked(reasons, "- Unauthorized "));
         }
 
+        // If a contract is in deprecation/deprecated, the deprecation contract should enforce the logic of the
+        // deprecation uing roles. IE disabling public authority of deposit() function. However, some functions may
+        // still be callable such as withdraw() at that step of deprecation. It's for this reason we do not set canCall
+        // to false if a contract is deprecating, but we do provide the reason of "deprecated" in the event a call is
+        // failing
         if (deprecationStep > 0 && !canCall) {
             reasons = string(abi.encodePacked(reasons, "- Deprecated "));
         }
@@ -177,23 +192,25 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         reasons = string(abi.encodePacked(reasons, reasonsExtentions));
     }
 
+    /// @notice return if a user has a role
     function doesUserHaveRole(address user, uint8 role) public view virtual returns (bool) {
         return (uint256(getUserRoles[user]) >> role) & 1 != 0;
     }
 
+    /// @notice return if a role has a capability to call a function
     function doesRoleHaveCapability(uint8 role, address target, bytes4 functionSig) public view virtual returns (bool) {
         return (uint256(getRolesWithCapability[target][functionSig]) >> role) & 1 != 0;
     }
 
     /**
-     * @dev required override for a number of the total deprecation steps
+     * @dev required override to return number of the total deprecation steps
      */
     function totalDeprecationSteps() public virtual returns (uint8);
 
     /**
      * @dev Hook to allow for additional logic to be added to the canCallVerbose function.
-     * Returns true by default to enforce only the pause and role checks.
-     * May be overriden in the derived contract or logic may be provided via an AccessAuthorityHook.
+     * Returns true by default to enforce no additional checks.
+     * May be overriden in the derived contract or logic may be provided via an AccessAuthorityHook contract.
      */
     function _canCallVerboseExtensionHook(
         address user,
@@ -253,21 +270,5 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
      * @dev Override to implement step-specific logic
      */
     function _onDeprecationContinue(uint8 newStep) internal virtual;
-
-}
-
-/**
- * @dev Interface for an upgradeable hook contract that can provide more logic for canCallVerbose
- */
-interface IAccessAuthorityHook {
-
-    function canCallVerbose(
-        address user,
-        address target,
-        bytes calldata data
-    )
-        external
-        view
-        returns (bool, string memory);
 
 }

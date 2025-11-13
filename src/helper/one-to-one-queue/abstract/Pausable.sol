@@ -101,7 +101,8 @@ abstract contract Pausable is Context {
      *
      * Requirements:
      *
-     * - The contract may be paused. This is the intentional modification done to this contract
+     * - The contract may be paused. The removal of the whenNotPaused modifier here is the only change made to the
+     * original OZ contract
      */
     function _pause() internal virtual {
         _paused = true;

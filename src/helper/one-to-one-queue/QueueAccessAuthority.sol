@@ -32,15 +32,18 @@ contract QueueAccessAuthority is AccessAuthority {
     {
         queue = _queue;
 
+        // Initialize the roles for the queue
         _setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
         _setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);
         _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
     }
 
+    /// @notice required override defining deprecation steps
     function totalDeprecationSteps() public override returns (uint8) {
         return 2;
     }
 
+    /// @notice handle deprecation for queue contract
     function _onDeprecationContinue(uint8 newStep) internal override {
         if (newStep == 1) {
             setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);

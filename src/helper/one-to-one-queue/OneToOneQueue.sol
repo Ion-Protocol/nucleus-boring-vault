@@ -123,7 +123,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         bool isSubmittedViaSignature
     );
     event OrdersProcessedInRange(uint256 indexed startIndex, uint256 indexed endIndex);
-    event OrderProcessed(uint256 indexed orderIndex, Order order, address indexed receiver, bool isForceProcessed);
+    event OrderProcessed(
+        uint256 indexed orderIndex, Order order, address indexed receiver, bool indexed isForceProcessed
+    );
     event OrderRefunded(uint256 indexed orderIndex, Order order);
 
     error ZeroAddress();
@@ -334,6 +336,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(params);
+        // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
         processOrders(orderIndex - lastProcessedOrder);
     }
 
@@ -379,9 +382,13 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
 
+        // if the fee asset is the same as the offer asset
         if (feeAsset == params.offerAsset) {
+            // the fee module must have accounted for fees and newAmount correctly
             assert(newAmountForReceiver + feeAmount == params.amountOffer);
         } else {
+            // if the fee asset is something else, the amount of offer asset in must equal the amount going to the
+            // receiver
             assert(newAmountForReceiver == params.amountOffer);
         }
 
@@ -437,6 +444,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         // Ensure we don't go beyond existing orders
         if (endIndex > latestOrder) revert NotEnoughOrdersToProcess(ordersToProcess, latestOrder);
 
+        // Essentially performing WHILE(++lastProcessedOrder < endIndex)
+        // However, using local variables to avoid unecessary storage reads
         for (uint256 i; i < ordersToProcess; ++i) {
             uint256 orderIndex = startIndex + i;
 
@@ -447,6 +456,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                 continue;
             }
 
+            // receiver is the owner of the receipt token
             address receiver = ownerOf(orderIndex);
             _checkBalanceQueue(order.wantAsset, order.amountWant, orderIndex);
 
@@ -487,8 +497,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             usedSignatureHashes[hash] = true;
 
             depositor = ECDSA.recover(hash, params.signatureParams.eip2612Signature);
-            // Here we check the intended depositor. If we didn't do this, it would error on the attempt to transfer
-            // assets. This error is more descriptive
+            // Here we check the intended depositor for a better revert message. If we didn't do this, an incorrect
+            // signature would error on the attempt to transfer assets from a nonsense depositor. This error is more
+            // descriptive
             if (depositor != params.intendedDepositor) {
                 revert InvalidEip2612Signature(params.intendedDepositor, depositor);
             }
@@ -540,6 +551,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         return amountOfferAfterFees * uint128(10 ** difference);
     }
 
+    /// @notice helper to revert with a specific orderIndex when the queue runs out of balance
     function _checkBalanceQueue(IERC20 asset, uint256 amount, uint256 orderIndex) internal view {
         uint256 balance = asset.balanceOf(address(this));
         if (balance < amount) {
@@ -547,13 +559,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
     }
 
+    /// @notice force refund an order in the queue even if it's not at the front. Users will be refunded the offer
+    /// asset. Refund is inclusive of fees paid
     function _forceRefund(uint256 orderIndex) internal {
-        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
-        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
+        Order memory order = _getOrderEnsureDefault(orderIndex);
 
-        Order memory order = queue[orderIndex];
-        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderStatus(orderIndex, order.orderType);
-
+        // Mark as refunded
         queue[orderIndex].orderType = OrderType.REFUND;
 
         _checkBalanceQueue(order.offerAsset, order.amountOffer, orderIndex);
@@ -563,14 +574,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         emit OrderRefunded(orderIndex, queue[orderIndex]);
     }
 
+    /// @notice force process an order in the queue even if it's not at the front
     function _forceProcess(uint256 orderIndex) internal {
-        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
-        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
-
-        Order memory order = queue[orderIndex];
-
-        // require order is set to DEFAULT status
-        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderStatus(orderIndex, order.orderType);
+        Order memory order = _getOrderEnsureDefault(orderIndex);
 
         // Mark as pre-filled
         queue[orderIndex].orderType = OrderType.PRE_FILLED;
@@ -581,6 +587,19 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         order.wantAsset.safeTransfer(receiver, order.amountWant);
 
         emit OrderProcessed(orderIndex, queue[orderIndex], receiver, true);
+    }
+
+    /// @return order after checking index is a real order and is DEFAULT status
+    function _getOrderEnsureDefault(uint256 orderIndex) internal returns (Order memory order) {
+        // The orderIndex != 0 check is redundant and checked below but more accurate description in the error
+        // InvalidOrderIndex
+        if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
+        if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
+
+        order = queue[orderIndex];
+
+        // require order is set to DEFAULT status
+        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderStatus(orderIndex, order.orderType);
     }
 
 }
