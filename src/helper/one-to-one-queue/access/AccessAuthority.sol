@@ -184,12 +184,12 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
             reasons = string(abi.encodePacked(reasons, "- Deprecated "));
         }
 
-        (bool canCallExtentions, string memory reasonsExtentions) = _canCallVerboseExtensionHook(user, target, data);
+        (bool canCallExtensions, string memory reasonsExtensions) = _canCallVerboseExtensionHook(user, target, data);
 
-        // The extention may not set canCall true if it is currently false to override the pause or role checks. The
-        // extention may only add more strict checks.
-        canCall = canCall && canCallExtentions;
-        reasons = string(abi.encodePacked(reasons, reasonsExtentions));
+        // The extension may not set canCall true if it is currently false to override the pause or role checks. The
+        // extension may only add more strict checks.
+        canCall = canCall && canCallExtensions;
+        reasons = string(abi.encodePacked(reasons, reasonsExtensions));
     }
 
     /// @notice return if a user has a role
