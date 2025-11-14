@@ -127,7 +127,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     /**
      * @notice Continue deprecation to next step.
      */
-    function continueDeprecation() external virtual requiresAuthVerbose whenNotPaused {
+    function continueDeprecation() external virtual requiresAuthVerbose {
         if (totalDeprecationSteps() == 0) revert NoDeprecationDefined();
         if (deprecationStep == totalDeprecationSteps()) revert DeprecationComplete();
 
