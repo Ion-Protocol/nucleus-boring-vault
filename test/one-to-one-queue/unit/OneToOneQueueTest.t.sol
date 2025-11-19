@@ -681,4 +681,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_statusNotFound(uint256 aNumber) external {
+        aNumber = bound(aNumber, 1, 1000);
+        assertEq(uint8(queue.getOrderStatus(aNumber)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
+    }
+
 }
