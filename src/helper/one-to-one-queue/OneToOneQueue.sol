@@ -516,7 +516,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.refundReceiver,
                     params.signatureParams.deadline,
                     params.signatureParams.approvalMethod,
-                    params.signatureParams.nonce
+                    params.signatureParams.nonce,
+                    block.chainid,
+                    address(this)
                 )
             );
             if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
