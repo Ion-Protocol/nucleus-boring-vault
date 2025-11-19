@@ -102,6 +102,14 @@ abstract contract OneToOneQueueTestBase is Test {
      */
     event Unpaused(address account);
 
+    event OrderFailedTransfer(
+        uint256 indexed orderIndex,
+        address indexed recoveryAddress,
+        address indexed originalReceiver,
+        OneToOneQueue.Order order
+    );
+    event RecoveryAddressUpdated(address indexed oldRecoveryAddress, address indexed newRecoveryAddress);
+
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
     QueueAccessAuthority rolesAuthority;
@@ -121,6 +129,7 @@ abstract contract OneToOneQueueTestBase is Test {
     address pauser1 = makeAddr("pauser1");
     address pauser2 = makeAddr("pauser2");
     address feeRecipient = makeAddr("fee recipient");
+    address recoveryAddress = makeAddr("recovery address");
     address alice;
     uint256 alicePk;
 
@@ -136,10 +145,12 @@ abstract contract OneToOneQueueTestBase is Test {
         nonce: 0
     });
 
-    function setUp() external {
+    function setUp() public virtual {
         vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
-        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, owner);
+        queue = new OneToOneQueue(
+            "name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, recoveryAddress, owner
+        );
 
         address[] memory pausers = new address[](2);
         pausers[0] = pauser1;
