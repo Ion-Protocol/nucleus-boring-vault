@@ -419,14 +419,14 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             assert(newAmountForReceiver == params.amountOffer);
         }
 
-        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
-
         // Increment the latestOrder as this one is being minted
         unchecked {
             orderIndex = ++latestOrder;
         }
+
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
+        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
@@ -487,11 +487,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             address receiver = ownerOf(orderIndex);
             _checkBalanceQueue(order.wantAsset, order.amountWant, orderIndex);
 
-            _tryTransferWantAssetAndBurn(orderIndex);
-
             unchecked {
                 orderIndex = ++lastProcessedOrder;
             }
+
+            _tryTransferWantAssetAndBurn(orderIndex);
 
             emit OrderProcessed(orderIndex, order, receiver, false);
         }
