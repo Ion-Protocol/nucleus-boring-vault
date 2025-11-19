@@ -406,22 +406,15 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         address depositor = _verifyDepositor(params);
 
-        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
+        (uint256 newAmountForReceiver, uint256 feeAmount) =
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
 
-        // if the fee asset is the same as the offer asset
-        if (feeAsset == params.offerAsset) {
-            // the fee module must have accounted for fees and newAmount correctly
-            assert(newAmountForReceiver + feeAmount == params.amountOffer);
-        } else {
-            // if the fee asset is something else, the amount of offer asset in must equal the amount going to the
-            // receiver
-            assert(newAmountForReceiver == params.amountOffer);
-        }
+        // The fee amount and the amount for the receiver must sum to the amount offered
+        assert(newAmountForReceiver + feeAmount == params.amountOffer);
 
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
         params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
+        params.offerAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Increment the latestOrder as this one is being minted
         unchecked {
