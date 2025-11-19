@@ -151,6 +151,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
+    error PermitFailedAndAllowanceTooLow();
 
     /**
      * @notice Initialize the contract
@@ -536,7 +537,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         // Do nothing if using standard ERC20 approve
         if (params.signatureParams.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            IERC20Permit(address(params.offerAsset))
+            try IERC20Permit(address(params.offerAsset))
                 .permit(
                     depositor,
                     address(this),
@@ -545,7 +546,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.signatureParams.approvalV,
                     params.signatureParams.approvalR,
                     params.signatureParams.approvalS
-                );
+                ) { }
+            catch {
+                if (params.offerAsset.allowance(depositor, address(this)) < params.amountOffer) {
+                    revert PermitFailedAndAllowanceTooLow();
+                }
+            }
         }
     }
 
