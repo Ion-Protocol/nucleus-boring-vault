@@ -218,6 +218,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         queue.processOrders(3);
         assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 2e6, "User should have no more USDC");
         assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0 because they were refunded");
+        assertEq(queue.lastProcessedOrder(), 3, "Last processed order should be 3");
     }
 
 }

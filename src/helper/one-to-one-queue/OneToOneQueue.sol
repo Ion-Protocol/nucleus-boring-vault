@@ -479,6 +479,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             Order memory order = queue[orderIndex];
 
             if (order.orderType == OrderType.PRE_FILLED || order.orderType == OrderType.REFUND) {
+                unchecked {
+                    ++lastProcessedOrder;
+                }
                 // ignore
                 continue;
             }
