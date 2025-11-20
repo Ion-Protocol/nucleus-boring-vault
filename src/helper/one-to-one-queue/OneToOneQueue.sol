@@ -472,7 +472,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (endIndex > latestOrder) revert NotEnoughOrdersToProcess(ordersToProcess, latestOrder);
 
         // Essentially performing WHILE(++lastProcessedOrder < endIndex)
-        // However, using local variables to avoid unecessary storage reads
+        // However, using local variables to avoid unnecessary storage reads
         for (uint256 i; i < ordersToProcess; ++i) {
             uint256 orderIndex = startIndex + i;
 
@@ -490,8 +490,17 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             // Burn the order after noting the receiver, but before the transfer.
             _burn(orderIndex);
 
+            // From SafeERC20 library to perform a safeERC20 transfer and return a bool on success. Implemented here
+            // since it's private and we cannot call it directly It's worth noting that there are some tokens like
+            // Tether Gold that return false while succeeding.
+            // This situation would result success in being false even though the transfer did not revert.
             bool success = _callOptionalReturnBool(order.wantAsset, receiver, order.amountWant);
 
+            // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
+            // recoveryAddress. This is because the queue could possibly be greifed by setting blacklisted addresses as
+            // the receivers and causing the queue to clog up on process. We handle this by taking the funds to the
+            // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
+            // for distribution
             if (!success) {
                 // Set the type for the storage and memory as we will emit the memory order
                 order.orderType = OrderType.FAILED_TRANSFER;
