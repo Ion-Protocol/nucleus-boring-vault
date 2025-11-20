@@ -16,7 +16,6 @@ interface IFeeModule {
      * @param offerAsset address
      * @param wantAsset address
      * @param receiver of the receiver
-     * @return newAmountForReceiver to have logged in Queue
      * @return feeAmount to take
      */
     function calculateOfferFees(
@@ -27,6 +26,6 @@ interface IFeeModule {
     )
         external
         view
-        returns (uint256 newAmountForReceiver, uint256 feeAmount);
+        returns (uint256 feeAmount);
 
 }

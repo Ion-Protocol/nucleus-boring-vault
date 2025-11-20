@@ -406,11 +406,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         address depositor = _verifyDepositor(params);
 
-        (uint256 newAmountForReceiver, uint256 feeAmount) =
+        uint256 feeAmount =
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
-
-        // The fee amount and the amount for the receiver must sum to the amount offered
-        assert(newAmountForReceiver + feeAmount == params.amountOffer);
+        uint256 newAmountForReceiver = params.amountOffer - feeAmount;
 
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
         params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);

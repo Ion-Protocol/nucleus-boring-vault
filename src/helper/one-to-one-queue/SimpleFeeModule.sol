@@ -36,10 +36,9 @@ contract SimpleFeeModule is IFeeModule {
     )
         external
         view
-        returns (uint256 newAmountForReceiver, uint256 feeAmount)
+        returns (uint256 feeAmount)
     {
         feeAmount = (amount * offerFeePercentage) / ONE_HUNDRED_PERCENT;
-        newAmountForReceiver = amount - feeAmount;
     }
 
 }
