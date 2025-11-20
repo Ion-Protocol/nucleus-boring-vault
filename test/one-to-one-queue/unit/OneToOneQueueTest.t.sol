@@ -460,7 +460,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                 submitParams.refundReceiver,
                 submitParams.signatureParams.deadline,
                 OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-                submitParams.signatureParams.nonce
+                submitParams.signatureParams.nonce,
+                block.chainid,
+                address(queue)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, hash);
@@ -493,7 +495,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     submitParams.refundReceiver,
                     submitParams.signatureParams.deadline,
                     OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-                    1
+                    1,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (v, r, s) = vm.sign(alicePk, hash);
@@ -532,7 +536,16 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         {
             sigHash = keccak256(
                 abi.encode(
-                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 0
+                    1e6,
+                    offerAsset,
+                    wantAsset,
+                    alice,
+                    alice,
+                    deadline,
+                    OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
+                    0,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
@@ -568,7 +581,16 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
             sigHash = keccak256(
                 abi.encode(
-                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 1
+                    1e6,
+                    offerAsset,
+                    wantAsset,
+                    alice,
+                    alice,
+                    deadline,
+                    OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
+                    1,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
