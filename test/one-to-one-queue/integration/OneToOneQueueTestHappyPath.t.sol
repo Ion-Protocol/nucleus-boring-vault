@@ -221,4 +221,48 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         assertEq(queue.lastProcessedOrder(), 3, "Last processed order should be 3");
     }
 
+    function testOnlyOneOrderRefund() external {
+        USDC.approve(address(queue), 1e6);
+
+        deal(address(USDC), address(queue), 1e6);
+
+        // user submits 1 order
+        _submitAnOrder();
+
+        vm.startPrank(owner);
+        queue.forceRefund(1);
+
+        vm.stopPrank();
+        assertEq(USDC.balanceOf(user1), 1e6, "User should just have their 1 USDC balance back including fees paid");
+        assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0");
+
+        // Process the orders
+        assertEq(queue.lastProcessedOrder(), 0, "Last processed order should be 0");
+        queue.processOrders(1);
+        assertEq(queue.lastProcessedOrder(), 1, "Last processed order should be 1");
+    }
+
+    function testOnlyOneOrderForceProcess() external {
+        deal(address(USDG0), address(queue), 1e6);
+
+        // user submits 1 order
+        _submitAnOrder();
+
+        vm.startPrank(owner);
+        queue.forceProcess(1);
+        vm.stopPrank();
+
+        assertEq(
+            USDG0.balanceOf(user1),
+            1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+            "User should just have their 1 USDG0 balance - fees"
+        );
+        assertEq(USDC.balanceOf(user1), 0, "User should have no USDC");
+
+        // Process the orders
+        assertEq(queue.lastProcessedOrder(), 0, "Last processed order should be 0");
+        queue.processOrders(1);
+        assertEq(queue.lastProcessedOrder(), 1, "Last processed order should be 1");
+    }
+
 }
