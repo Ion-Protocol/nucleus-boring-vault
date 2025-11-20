@@ -31,8 +31,11 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
 
         // Force refund and process a bunch of orders
         vm.startPrank(owner);
+        _expectOrderProcessedEvent(3, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(3);
+        _expectOrderProcessedEvent(4, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(4);
+        _expectOrderProcessedEvent(7, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(7);
         queue.forceRefund(2);
         queue.forceRefund(5);
@@ -56,6 +59,12 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         );
 
         // Process all the orders
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(6, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(8, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(9, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(10, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(12, OneToOneQueue.OrderType.DEFAULT, false);
         queue.processOrders(12);
         totalUSDG0ForUser += 6e6 - (6e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000); // 3 USDG0 - fees. 3 from normal
         // processing
@@ -97,6 +106,14 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         );
 
         // Process all the orders
+        _expectOrderProcessedEvent(3, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(4, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(5, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(6, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(7, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(8, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(9, OneToOneQueue.OrderType.DEFAULT, false);
+        _expectOrderProcessedEvent(10, OneToOneQueue.OrderType.DEFAULT, false);
         queue.processOrders(12);
         totalUSDG0ForUser += 8e6 - (8e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000); // 3 USDG0 - fees. 3 from normal
         // processing
@@ -124,9 +141,13 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
 
         // Force refund and process a bunch of orders
         vm.startPrank(owner);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(1);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(2);
+        _expectOrderProcessedEvent(11, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(11);
+        _expectOrderProcessedEvent(12, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcess(12);
         vm.stopPrank();
 
@@ -215,6 +236,18 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         orderIndices[9] = 10;
         orderIndices[10] = 11;
         orderIndices[11] = 12;
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(3, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(4, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(5, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(6, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(7, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(8, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(9, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(10, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(11, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(12, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcessOrders(orderIndices);
         vm.stopPrank();
 
@@ -262,6 +295,7 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
                 refundCount++;
             } else if (orderType == 2) {
                 vm.prank(owner);
+                _expectOrderProcessedEvent(i + 1, OneToOneQueue.OrderType.PRE_FILLED, true);
                 queue.forceProcess(i + 1);
                 forceProcessCount++;
             }

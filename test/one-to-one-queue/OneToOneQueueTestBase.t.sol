@@ -263,6 +263,37 @@ abstract contract OneToOneQueueTestBase is Test {
         return amountOfferAfterFees * uint128(10 ** difference);
     }
 
+    function _expectOrderProcessedEvent(
+        uint256 orderIndex,
+        OneToOneQueue.OrderType orderType,
+        bool isForceProcessed
+    )
+        internal
+    {
+        (
+            uint128 amountOffer,
+            uint128 amountWant,
+            IERC20 offerAsset,
+            IERC20 wantAsset,
+            address refundReceiver,
+            // old order type
+        ) = queue.queue(orderIndex);
+
+        address receiver = queue.ownerOf(orderIndex);
+
+        OneToOneQueue.Order memory order = OneToOneQueue.Order({
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            amountOffer: amountOffer,
+            amountWant: amountWant,
+            refundReceiver: refundReceiver,
+            orderType: orderType
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrderProcessed(orderIndex, order, receiver, isForceProcessed);
+    }
+
     function _getPermitSignature(
         IERC20 token,
         address owner,

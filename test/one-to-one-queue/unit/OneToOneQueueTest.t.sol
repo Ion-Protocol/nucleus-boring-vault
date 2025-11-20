@@ -238,33 +238,14 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         _submitAnOrder();
         vm.startPrank(owner);
 
-        (
-            uint128 amountOffer,
-            uint128 amountWant,
-            IERC20 offerAsset,
-            IERC20 wantAsset,
-            address refundReceiver,
-            OneToOneQueue.OrderType orderType
-        ) = queue.queue(1);
-
-        OneToOneQueue.Order memory order = OneToOneQueue.Order({
-            offerAsset: offerAsset,
-            wantAsset: wantAsset,
-            amountOffer: amountOffer,
-            amountWant: amountWant,
-            refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.PRE_FILLED // order event should emit with refund not with old status
-        });
-
         uint256[] memory orderIndices = new uint256[](2);
         orderIndices[0] = 1;
         orderIndices[1] = 2;
 
         deal(address(USDG0), address(queue), 2e6);
 
-        vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrderProcessed(2, order, user1, true);
-        emit OneToOneQueue.OrderProcessed(1, order, user1, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcessOrders(orderIndices);
 
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
