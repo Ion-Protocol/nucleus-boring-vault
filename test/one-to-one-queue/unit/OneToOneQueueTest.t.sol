@@ -49,6 +49,27 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_SetRecoveryAddress() external {
+        address oldRecoveryAddress = queue.recoveryAddress();
+        address newRecoveryAddress = makeAddr("new recovery address");
+        assertEq(oldRecoveryAddress, recoveryAddress);
+
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
+        queue.setRecoveryAddress(address(newRecoveryAddress));
+
+        vm.startPrank(owner);
+        vm.expectRevert(OneToOneQueue.ZeroAddress.selector);
+        queue.setRecoveryAddress(address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.RecoveryAddressUpdated(oldRecoveryAddress, address(newRecoveryAddress));
+        queue.setRecoveryAddress(address(newRecoveryAddress));
+        assertEq(queue.recoveryAddress(), address(newRecoveryAddress));
+        vm.stopPrank();
+
+        assertEq(queue.recoveryAddress(), address(newRecoveryAddress), "recovery address should be set");
+    }
+
     function test_AddOfferAsset() external {
         address oldOfferAsset = address(USDC);
         address newOfferAsset = address(new tERC20(6));
