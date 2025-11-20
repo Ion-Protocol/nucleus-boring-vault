@@ -474,7 +474,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (endIndex > latestOrder) revert NotEnoughOrdersToProcess(ordersToProcess, latestOrder);
 
         // Essentially performing WHILE(++lastProcessedOrder < endIndex)
-        // However, using local variables to avoid unecessary storage reads
+        // However, using local variables to avoid unnecessary storage reads
         for (uint256 i; i < ordersToProcess; ++i) {
             uint256 orderIndex = startIndex + i;
 
@@ -489,7 +489,27 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             address receiver = ownerOf(orderIndex);
             _checkBalanceQueue(order.wantAsset, order.amountWant, orderIndex);
 
-            _tryTransferWantAssetAndBurn(orderIndex);
+            // Burn the order after noting the receiver, but before the transfer.
+            _burn(orderIndex);
+
+            // From SafeERC20 library to perform a safeERC20 transfer and return a bool on success. Implemented here
+            // since it's private and we cannot call it directly It's worth noting that there are some tokens like
+            // Tether Gold that return false while succeeding.
+            // This situation would result success in being false even though the transfer did not revert.
+            bool success = _callOptionalReturnBool(order.wantAsset, receiver, order.amountWant);
+
+            // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
+            // recoveryAddress. This is because the queue could possibly be greifed by setting blacklisted addresses as
+            // the receivers and causing the queue to clog up on process. We handle this by taking the funds to the
+            // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
+            // for distribution
+            if (!success) {
+                // Set the type for the storage and memory as we will emit the memory order
+                order.orderType = OrderType.FAILED_TRANSFER;
+                queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
+                order.wantAsset.safeTransfer(recoveryAddress, order.amountWant);
+                emit OrderFailedTransfer(orderIndex, recoveryAddress, receiver, order);
+            }
 
             unchecked {
                 orderIndex = ++lastProcessedOrder;
@@ -588,22 +608,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
-     * @dev Helper to prevent greifing the contract with blacklsited receivers or otherwise failing addresses.
-     *    The contract will move failing orders to a recovery address where funds will be held until the user is
-     * un-blacklisted.
+     * @dev From SafeERC20 library: _callOptionalReturnBool(): Do a safe transfer and return a bool instead of reverting
+     * This is a function in SafeERC20 but is private so we need to replicate it here
      */
-    function _tryTransferWantAssetAndBurn(uint256 orderIndex) internal {
-        Order memory order = queue[orderIndex];
-        address receiver = ownerOf(orderIndex);
-        // Burn the order after noting the receiver, but before the transfer.
-        _burn(orderIndex);
+    function _callOptionalReturnBool(IERC20 token, address receiver, uint256 amount) internal returns (bool success) {
+        bytes memory data = abi.encodeWithSelector(token.transfer.selector, receiver, amount);
 
-        IERC20 token = order.wantAsset;
-        bytes memory data = abi.encodeWithSelector(token.transfer.selector, receiver, order.amountWant);
-
-        // From SafeERC20 library: _callOptionalReturnBool(): Do a safe transfer and return a bool instead of reverting
-        // This is a function in SafeERC20 but is private so we need to replicate it here
-        bool success;
         uint256 returnSize;
         uint256 returnValue;
         assembly ("memory-safe") {
@@ -612,16 +622,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             returnValue := mload(0)
         }
         success = success && (returnSize == 0 ? address(token).code.length > 0 : returnValue == 1);
-
-        // Evaluate if the _callOptionalReturnBool is successful
-        if (!success) {
-            // Set the type for the storage and memory as we will return the memory order
-            order.orderType = OrderType.FAILED_TRANSFER;
-            queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
-            token.safeTransfer(recoveryAddress, order.amountWant);
-            emit OrderFailedTransfer(orderIndex, recoveryAddress, receiver, order);
-        }
-        // if success, do nothing as transfer is complete
     }
 
     /// @notice force refund an order in the queue even if it's not at the front. Users will be refunded the offer
