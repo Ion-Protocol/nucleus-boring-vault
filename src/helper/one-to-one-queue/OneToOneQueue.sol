@@ -418,10 +418,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
         uint256 newAmountForReceiver = params.amountOffer - feeAmount;
 
-        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        params.offerAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
-
         // Increment the latestOrder as this one is being minted
         unchecked {
             orderIndex = ++latestOrder;
@@ -440,6 +436,10 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             orderType: OrderType.DEFAULT
         });
         queue[orderIndex] = order;
+
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
+        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        params.offerAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Mint NFT receipt to receiver
         _safeMint(params.receiver, orderIndex);
@@ -512,7 +512,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             }
 
             unchecked {
-                orderIndex = ++lastProcessedOrder;
+                ++lastProcessedOrder;
             }
 
             emit OrderProcessed(orderIndex, order, receiver, false);
