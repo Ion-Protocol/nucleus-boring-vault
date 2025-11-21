@@ -9,6 +9,7 @@ import { VerboseAuth, Authority } from "./access/VerboseAuth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title OneToOneQueue
@@ -18,6 +19,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     /// @notice Type for internal order handling
     /// @dev all but default orders are skipped on solve, as refunds and pre-fills are handled at the time they are
@@ -427,9 +429,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
         Order memory order = Order({
-            amountOffer: uint128(params.amountOffer),
+            amountOffer: params.amountOffer.toUint128(),
             amountWant: _getWantAmountInWantDecimals(
-                uint128(newAmountForReceiver), params.offerAsset, params.wantAsset
+                newAmountForReceiver.toUint128(), params.offerAsset, params.wantAsset
             ),
             offerAsset: params.offerAsset,
             wantAsset: params.wantAsset,
