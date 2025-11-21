@@ -96,8 +96,9 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         deal(address(USDC), user1, depositAmount1);
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
+        uint256 numberOfOrders = queue.latestOrder() + 1 - queue.lastProcessedOrder();
         queue.submitOrderAndProcess(
-            _createSubmitOrderParams(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams)
+            _createSubmitOrderParams(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams), numberOfOrders
         );
         vm.stopPrank();
 
@@ -132,8 +133,9 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
         vm.startPrank(user1);
         DAI.approve(address(queue), 1e18);
+        uint256 numberOfOrders = queue.latestOrder() + 1 - queue.lastProcessedOrder();
         queue.submitOrderAndProcess(
-            _createSubmitOrderParams(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams)
+            _createSubmitOrderParams(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams), numberOfOrders
         );
         vm.stopPrank();
 
