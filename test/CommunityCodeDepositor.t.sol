@@ -341,7 +341,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         // deposit without approval
         vm.startPrank(owner);
-        vm.expectRevert("EIP2612: invalid signature");
+        vm.expectRevert(abi.encodeWithSelector(CommunityCodeDepositor.PermitFailedAndAllowanceTooLow.selector));
         uint256 sharesMinted = communityCodeDepositor.depositWithPermit(
             ERC20(address(USDC)), depositAmount, minimumMint, owner, "test code", deadline, v, r, s
         );

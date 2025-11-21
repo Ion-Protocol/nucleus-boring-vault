@@ -28,6 +28,7 @@ contract CommunityCodeDepositor is Auth {
     error IncorrectNativeDepositAmount();
     error NativeWrapperAccountantDecimalsMismatch();
     error NativeDepositNotSupported();
+    error PermitFailedAndAllowanceTooLow();
 
     INativeWrapper public immutable nativeWrapper;
 
@@ -148,7 +149,12 @@ contract CommunityCodeDepositor is Auth {
         // we need to use permit to process approval on this contract before making a deposit.
 
         // solhint-disable-next-line no-empty-blocks
-        depositAsset.permit(msg.sender, address(this), depositAmount, deadline, v, r, s);
+        try depositAsset.permit(msg.sender, address(this), depositAmount, deadline, v, r, s) { }
+        catch {
+            if (depositAsset.allowance(msg.sender, address(this)) < depositAmount) {
+                revert PermitFailedAndAllowanceTooLow();
+            }
+        }
 
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
