@@ -202,10 +202,10 @@ abstract contract OneToOneQueueTestBase is Test {
         _expectOrderSubmittedEvent(1e6, USDC, USDG0, user1, user1, user1, defaultParams, user1, false);
         OneToOneQueue.SubmitOrderParams memory params =
             _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
-        queue.submitOrder(params);
+        uint256 orderIndex = queue.submitOrder(params);
         vm.stopPrank();
 
-        assertTrue(queue.ownerOf(1) == user1, "_sumbitAnOrder: user1 should be the owner of the order");
+        assertTrue(queue.ownerOf(orderIndex) == user1, "_sumbitAnOrder: user1 should be the owner of the order");
     }
 
     function _expectOrderSubmittedEvent(
@@ -261,6 +261,37 @@ abstract contract OneToOneQueueTestBase is Test {
 
         uint8 difference = wantDecimals - offerDecimals;
         return amountOfferAfterFees * uint128(10 ** difference);
+    }
+
+    function _expectOrderProcessedEvent(
+        uint256 orderIndex,
+        OneToOneQueue.OrderType orderType,
+        bool isForceProcessed
+    )
+        internal
+    {
+        (
+            uint128 amountOffer,
+            uint128 amountWant,
+            IERC20 offerAsset,
+            IERC20 wantAsset,
+            address refundReceiver,
+            // old order type
+        ) = queue.queue(orderIndex);
+
+        address receiver = queue.ownerOf(orderIndex);
+
+        OneToOneQueue.Order memory order = OneToOneQueue.Order({
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            amountOffer: amountOffer,
+            amountWant: amountWant,
+            refundReceiver: refundReceiver,
+            orderType: orderType
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrderProcessed(orderIndex, order, receiver, isForceProcessed);
     }
 
     function _getPermitSignature(
