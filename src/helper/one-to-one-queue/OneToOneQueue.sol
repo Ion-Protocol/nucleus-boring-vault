@@ -424,10 +424,6 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             orderIndex = ++latestOrder;
         }
 
-        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
-
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
         Order memory order = Order({
@@ -441,6 +437,10 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             orderType: OrderType.DEFAULT
         });
         queue[orderIndex] = order;
+
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
+        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Mint NFT receipt to receiver
         _safeMint(params.receiver, orderIndex);
