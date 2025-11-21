@@ -12,7 +12,10 @@
     "rev": "222b5cf49f4b3043305094ed6f0a994a771e5e0e"
   },
   "lib/forge-std": {
-    "rev": "c28115db8d90ebffb41953cf83aac63130f4bd40"
+    "tag": {
+      "name": "v1.9.3",
+      "rev": "8f24d6b04c92975e0795b5868aa0d783251cdeaa"
+    }
   },
   "lib/ion-protocol": {
     "rev": "3da1aadb970a3e1e866ab714b14525b1cefb22ed"
@@ -20,8 +23,14 @@
   "lib/openzeppelin-contracts": {
     "rev": "e30b390d84ea27e430f56efcf39d19c1ec4d30eb"
   },
+  "lib/predicate-contracts": {
+    "rev": "32d16b289752951c6dfe51b7efd2ec1c17b63e5c"
+  },
   "lib/solmate": {
     "rev": "97bdb2003b70382996a79a406813f76417b1cf90"
+  },
+  "lib/v3-core": {
+    "rev": "d8b1c635c275d2a9450bd6a78f3fa2484fef73eb"
   },
   "lib/v3-periphery": {
     "rev": "0682387198a24c7cd63566a2c58398533860a5d1"
