@@ -47,6 +47,33 @@ contract DeprecationStep1IntegrationTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_submitOrderAndProcessAllRevertsWhenContractIsDeprecatedForAllButOwner()
+        external
+        givenContractStartsDeprecation
+    {
+        vm.startPrank(user1);
+
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+
+        bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrderAndProcessAll.selector, params);
+        vm.expectRevert(
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Unauthorized - Deprecated "),
+            address(queue)
+        );
+        queue.submitOrderAndProcessAll(params);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        deal(address(USDC), owner, 1e6);
+        deal(address(USDG0), address(queue), 1e6);
+        USDC.approve(address(queue), 1e6);
+        vm.expectEmit(true, true, true, true);
+        emit OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcessAll(_createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams));
+        vm.stopPrank();
+    }
+
     function test_submitOrderRevertsWhenContractIsDeprecatedForAllButOwner() external givenContractStartsDeprecation {
         vm.startPrank(user1);
         OneToOneQueue.SubmitOrderParams memory params =
@@ -122,6 +149,35 @@ contract DeprecationStep2IntegrationTest is OneToOneQueueTestBase {
         queue.submitOrderAndProcess(
             _createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams), numberOfOrders
         );
+        vm.stopPrank();
+    }
+
+    function test_submitOrderAndProcessAllRevertsWhenContractIsDeprecatedForAllButOwner()
+        external
+        givenContractFinishesDeprecation
+    {
+        vm.startPrank(user1);
+
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+
+        bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrderAndProcessAll.selector, params);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector, user1, data, "- Paused - Unauthorized - Deprecated "
+            ),
+            address(queue)
+        );
+        queue.submitOrderAndProcessAll(params);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        deal(address(USDC), owner, 1e6);
+        deal(address(USDG0), address(queue), 1e6);
+        USDC.approve(address(queue), 1e6);
+        vm.expectEmit(true, true, true, true);
+        emit OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcessAll(_createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams));
         vm.stopPrank();
     }
 
