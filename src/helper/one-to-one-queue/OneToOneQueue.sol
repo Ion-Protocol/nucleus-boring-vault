@@ -353,7 +353,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
-     * @notice Submit and immediately process an order if liquidity is available
+     * @notice Submit and immediately process a number of orders if liquidity is available
      * @param params SubmitOrderParams struct containing all order parameters
      * @param ordersToProcess Number of orders to process
      * @return orderIndex The index of the created order
@@ -367,8 +367,23 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(params);
-        // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
         processOrders(ordersToProcess);
+    }
+
+    /**
+     * @notice Submit and immediately process an order if liquidity is available. Must process all the preceding orders
+     * to do so.
+     * @param params SubmitOrderParams struct containing all order parameters
+     * @return orderIndex The index of the created order
+     */
+    function submitOrderAndProcessAll(SubmitOrderParams calldata params)
+        external
+        requiresAuthVerbose
+        returns (uint256 orderIndex)
+    {
+        orderIndex = submitOrder(params);
+        // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
+        processOrders(orderIndex - lastProcessedOrder);
     }
 
     /**

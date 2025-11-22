@@ -687,6 +687,24 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_submitOrderAndProcessAll() external {
+        deal(address(USDG0), address(queue), 1e6);
+        deal(address(USDC), user1, 1e6);
+        vm.startPrank(user1);
+        USDC.approve(address(queue), 1e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcessAll(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams));
+        assertEq(uint8(queue.getOrderStatus(queue.latestOrder())), uint8(OneToOneQueue.OrderStatus.COMPLETE));
+        assertEq(
+            USDG0.balanceOf(user1),
+            1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+            "user1 should have their USDG0 balance - fees"
+        );
+        vm.stopPrank();
+    }
+
     function test_statusNotFound(uint256 aNumber) external {
         aNumber = bound(aNumber, 1, 1000);
         assertEq(uint8(queue.getOrderStatus(aNumber)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
