@@ -102,6 +102,14 @@ abstract contract OneToOneQueueTestBase is Test {
      */
     event Unpaused(address account);
 
+    event OrderFailedTransfer(
+        uint256 indexed orderIndex,
+        address indexed recoveryAddress,
+        address indexed originalReceiver,
+        OneToOneQueue.Order order
+    );
+    event RecoveryAddressUpdated(address indexed oldRecoveryAddress, address indexed newRecoveryAddress);
+
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
     QueueAccessAuthority rolesAuthority;
@@ -121,6 +129,7 @@ abstract contract OneToOneQueueTestBase is Test {
     address pauser1 = makeAddr("pauser1");
     address pauser2 = makeAddr("pauser2");
     address feeRecipient = makeAddr("fee recipient");
+    address recoveryAddress = makeAddr("recovery address");
     address alice;
     uint256 alicePk;
 
@@ -136,10 +145,12 @@ abstract contract OneToOneQueueTestBase is Test {
         nonce: 0
     });
 
-    function setUp() external {
+    function setUp() public virtual {
         vm.startPrank(owner);
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
-        queue = new OneToOneQueue("name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, owner);
+        queue = new OneToOneQueue(
+            "name", "symbol", mockBoringVaultAddress, feeRecipient, feeModule, recoveryAddress, owner
+        );
 
         address[] memory pausers = new address[](2);
         pausers[0] = pauser1;
@@ -191,10 +202,10 @@ abstract contract OneToOneQueueTestBase is Test {
         _expectOrderSubmittedEvent(1e6, USDC, USDG0, user1, user1, user1, defaultParams, user1, false);
         OneToOneQueue.SubmitOrderParams memory params =
             _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
-        queue.submitOrder(params);
+        uint256 orderIndex = queue.submitOrder(params);
         vm.stopPrank();
 
-        assertTrue(queue.ownerOf(1) == user1, "_sumbitAnOrder: user1 should be the owner of the order");
+        assertTrue(queue.ownerOf(orderIndex) == user1, "_sumbitAnOrder: user1 should be the owner of the order");
     }
 
     function _expectOrderSubmittedEvent(
@@ -250,6 +261,37 @@ abstract contract OneToOneQueueTestBase is Test {
 
         uint8 difference = wantDecimals - offerDecimals;
         return amountOfferAfterFees * uint128(10 ** difference);
+    }
+
+    function _expectOrderProcessedEvent(
+        uint256 orderIndex,
+        OneToOneQueue.OrderType orderType,
+        bool isForceProcessed
+    )
+        internal
+    {
+        (
+            uint128 amountOffer,
+            uint128 amountWant,
+            IERC20 offerAsset,
+            IERC20 wantAsset,
+            address refundReceiver,
+            // old order type
+        ) = queue.queue(orderIndex);
+
+        address receiver = queue.ownerOf(orderIndex);
+
+        OneToOneQueue.Order memory order = OneToOneQueue.Order({
+            offerAsset: offerAsset,
+            wantAsset: wantAsset,
+            amountOffer: amountOffer,
+            amountWant: amountWant,
+            refundReceiver: refundReceiver,
+            orderType: orderType
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrderProcessed(orderIndex, order, receiver, isForceProcessed);
     }
 
     function _getPermitSignature(

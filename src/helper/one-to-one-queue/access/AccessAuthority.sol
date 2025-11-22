@@ -30,7 +30,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     IAccessAuthorityHook public accessAuthorityHook;
 
     /// @notice Mapping of accepted pausers
-    /// @dev We implement this instead of using Roles to eleminate the need for an AccessAuthority for your
+    /// @dev We implement this instead of using Roles to eliminate the need for an AccessAuthority for your
     /// AccessAuthority to configure a pause role
     mapping(address => bool) public pausers;
 
@@ -210,7 +210,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     /**
      * @dev Hook to allow for additional logic to be added to the canCallVerbose function.
      * Returns true by default to enforce no additional checks.
-     * May be overriden in the derived contract or logic may be provided via an AccessAuthorityHook contract.
+     * May be overridden in the derived contract or logic may be provided via an AccessAuthorityHook contract.
      */
     function _canCallVerboseExtensionHook(
         address user,

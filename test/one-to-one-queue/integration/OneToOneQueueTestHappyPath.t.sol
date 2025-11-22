@@ -44,13 +44,13 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         assertEq(queue.ownerOf(1), user1, "user1 should own NFT ID 1");
         assertEq(queue.totalSupply(), 1, "total supply should be 1 after first mint");
 
-        // User2 sumbits an order
+        // User2 submits an order
         vm.startPrank(user2);
         USDC.approve(address(queue), depositAmount2);
         queue.submitOrder(_createSubmitOrderParams(depositAmount2, USDC, USDG0, user2, user2, user2, defaultParams));
         vm.stopPrank();
 
-        // User3 sumbits an order
+        // User3 submits an order
         vm.startPrank(user3);
         USDC.approve(address(queue), depositAmount3);
         queue.submitOrder(_createSubmitOrderParams(depositAmount3, USDC, USDG0, user3, user3, user3, defaultParams));
@@ -92,12 +92,13 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         assertEq(USDG0.balanceOf(user1), 1e6 - user1Fees, "User1 should have received their 1 USDG0 - fees");
         assertEq(USDC.balanceOf(feeRecipient), totalFees, "Fee receiver should have received fees");
 
-        // User1 now deposit and sovles atomically to get all orders solved including their new one
+        // User1 now deposit and solves atomically to get all orders solved including their new one
         deal(address(USDC), user1, depositAmount1);
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
+        uint256 numberOfOrders = queue.latestOrder() + 1 - queue.lastProcessedOrder();
         queue.submitOrderAndProcess(
-            _createSubmitOrderParams(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams)
+            _createSubmitOrderParams(depositAmount1, USDC, USDG0, user1, user1, user1, defaultParams), numberOfOrders
         );
         vm.stopPrank();
 
@@ -132,8 +133,9 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
 
         vm.startPrank(user1);
         DAI.approve(address(queue), 1e18);
+        uint256 numberOfOrders = queue.latestOrder() + 1 - queue.lastProcessedOrder();
         queue.submitOrderAndProcess(
-            _createSubmitOrderParams(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams)
+            _createSubmitOrderParams(depositAmount1, DAI, USDG0, user1, user1, user1, defaultParams), numberOfOrders
         );
         vm.stopPrank();
 
@@ -218,6 +220,52 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         queue.processOrders(3);
         assertEq(USDC.balanceOf(user1) - balanceUSDCBefore, 2e6, "User should have no more USDC");
         assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0 because they were refunded");
+        assertEq(queue.lastProcessedOrder(), 3, "Last processed order should be 3");
+    }
+
+    function testOnlyOneOrderRefund() external {
+        USDC.approve(address(queue), 1e6);
+
+        deal(address(USDC), address(queue), 1e6);
+
+        // user submits 1 order
+        _submitAnOrder();
+
+        vm.startPrank(owner);
+        queue.forceRefund(1);
+
+        vm.stopPrank();
+        assertEq(USDC.balanceOf(user1), 1e6, "User should just have their 1 USDC balance back including fees paid");
+        assertEq(USDG0.balanceOf(user1), 0, "User should have no USDG0");
+
+        // Process the orders
+        assertEq(queue.lastProcessedOrder(), 0, "Last processed order should be 0");
+        queue.processOrders(1);
+        assertEq(queue.lastProcessedOrder(), 1, "Last processed order should be 1");
+    }
+
+    function testOnlyOneOrderForceProcess() external {
+        deal(address(USDG0), address(queue), 1e6);
+
+        // user submits 1 order
+        _submitAnOrder();
+
+        vm.startPrank(owner);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        queue.forceProcess(1);
+        vm.stopPrank();
+
+        assertEq(
+            USDG0.balanceOf(user1),
+            1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+            "User should just have their 1 USDG0 balance - fees"
+        );
+        assertEq(USDC.balanceOf(user1), 0, "User should have no USDC");
+
+        // Process the orders
+        assertEq(queue.lastProcessedOrder(), 0, "Last processed order should be 0");
+        queue.processOrders(1);
+        assertEq(queue.lastProcessedOrder(), 1, "Last processed order should be 1");
     }
 
 }

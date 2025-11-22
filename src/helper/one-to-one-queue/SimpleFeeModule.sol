@@ -2,6 +2,7 @@
 pragma solidity 0.8.21;
 
 import { IFeeModule, IERC20 } from "./interfaces/IFeeModule.sol";
+import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
@@ -10,6 +11,8 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  * @dev Fees are sent to a designated fee recipient
  */
 contract SimpleFeeModule is IFeeModule {
+
+    using FixedPointMathLib for uint256;
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 public immutable offerFeePercentage;
@@ -36,11 +39,9 @@ contract SimpleFeeModule is IFeeModule {
     )
         external
         view
-        returns (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount)
+        returns (uint256 feeAmount)
     {
-        feeAmount = (amount * offerFeePercentage) / ONE_HUNDRED_PERCENT;
-        newAmountForReceiver = amount - feeAmount;
-        feeAsset = IERC20(offerAsset);
+        feeAmount = amount.mulDivUp(offerFeePercentage, ONE_HUNDRED_PERCENT);
     }
 
 }
