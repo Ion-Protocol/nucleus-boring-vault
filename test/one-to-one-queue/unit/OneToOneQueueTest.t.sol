@@ -238,33 +238,14 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         _submitAnOrder();
         vm.startPrank(owner);
 
-        (
-            uint128 amountOffer,
-            uint128 amountWant,
-            IERC20 offerAsset,
-            IERC20 wantAsset,
-            address refundReceiver,
-            OneToOneQueue.OrderType orderType
-        ) = queue.queue(1);
-
-        OneToOneQueue.Order memory order = OneToOneQueue.Order({
-            offerAsset: offerAsset,
-            wantAsset: wantAsset,
-            amountOffer: amountOffer,
-            amountWant: amountWant,
-            refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.PRE_FILLED // order event should emit with refund not with old status
-        });
-
         uint256[] memory orderIndices = new uint256[](2);
         orderIndices[0] = 1;
         orderIndices[1] = 2;
 
         deal(address(USDG0), address(queue), 2e6);
 
-        vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrderProcessed(2, order, user1, true);
-        emit OneToOneQueue.OrderProcessed(1, order, user1, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcessOrders(orderIndices);
 
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
@@ -460,7 +441,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                 submitParams.refundReceiver,
                 submitParams.signatureParams.deadline,
                 OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-                submitParams.signatureParams.nonce
+                submitParams.signatureParams.nonce,
+                block.chainid,
+                address(queue)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, hash);
@@ -493,7 +476,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     submitParams.refundReceiver,
                     submitParams.signatureParams.deadline,
                     OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-                    1
+                    1,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (v, r, s) = vm.sign(alicePk, hash);
@@ -532,7 +517,16 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         {
             sigHash = keccak256(
                 abi.encode(
-                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 0
+                    1e6,
+                    offerAsset,
+                    wantAsset,
+                    alice,
+                    alice,
+                    deadline,
+                    OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
+                    0,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
@@ -568,7 +562,16 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
             sigHash = keccak256(
                 abi.encode(
-                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 1
+                    1e6,
+                    offerAsset,
+                    wantAsset,
+                    alice,
+                    alice,
+                    deadline,
+                    OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
+                    1,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
@@ -700,6 +703,11 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             "user1 should have their USDG0 balance - fees"
         );
         vm.stopPrank();
+    }
+
+    function test_statusNotFound(uint256 aNumber) external {
+        aNumber = bound(aNumber, 1, 1000);
+        assertEq(uint8(queue.getOrderStatus(aNumber)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
     }
 
     function test_submitOrderAndProcessLessThanTotal() external {

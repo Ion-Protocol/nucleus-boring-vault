@@ -9,6 +9,7 @@ import { VerboseAuth, Authority } from "./access/VerboseAuth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title OneToOneQueue
@@ -18,6 +19,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     /// @notice Type for internal order handling
     /// @dev all but default orders are skipped on solve, as refunds and pre-fills are handled at the time they are
@@ -31,6 +33,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     /// @notice Return type of a user's order status in the queue
     enum OrderStatus {
+        NOT_FOUND,
         PENDING,
         COMPLETE,
         COMPLETE_PRE_FILLED,
@@ -151,6 +154,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
+    error PermitFailedAndAllowanceTooLow();
 
     /**
      * @notice Initialize the contract
@@ -401,7 +405,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
 
         if (orderIndex > lastProcessedOrder) {
-            return OrderStatus.PENDING;
+            if (orderIndex > latestOrder) {
+                return OrderStatus.NOT_FOUND;
+            } else {
+                return OrderStatus.PENDING;
+            }
         } else {
             return OrderStatus.COMPLETE;
         }
@@ -425,22 +433,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         address depositor = _verifyDepositor(params);
 
-        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
+        uint256 feeAmount =
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
-
-        // if the fee asset is the same as the offer asset
-        if (feeAsset == params.offerAsset) {
-            // the fee module must have accounted for fees and newAmount correctly
-            assert(newAmountForReceiver + feeAmount == params.amountOffer);
-        } else {
-            // if the fee asset is something else, the amount of offer asset in must equal the amount going to the
-            // receiver
-            assert(newAmountForReceiver == params.amountOffer);
-        }
-
-        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
+        uint256 newAmountForReceiver = params.amountOffer - feeAmount;
 
         // Increment the latestOrder as this one is being minted
         unchecked {
@@ -450,9 +445,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
         Order memory order = Order({
-            amountOffer: uint128(params.amountOffer),
+            amountOffer: params.amountOffer.toUint128(),
             amountWant: _getWantAmountInWantDecimals(
-                uint128(newAmountForReceiver), params.offerAsset, params.wantAsset
+                newAmountForReceiver.toUint128(), params.offerAsset, params.wantAsset
             ),
             offerAsset: params.offerAsset,
             wantAsset: params.wantAsset,
@@ -460,6 +455,10 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             orderType: OrderType.DEFAULT
         });
         queue[orderIndex] = order;
+
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
+        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        params.offerAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Mint NFT receipt to receiver
         _safeMint(params.receiver, orderIndex);
@@ -498,6 +497,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             Order memory order = queue[orderIndex];
 
             if (order.orderType == OrderType.PRE_FILLED || order.orderType == OrderType.REFUND) {
+                unchecked {
+                    ++lastProcessedOrder;
+                }
                 // ignore
                 continue;
             }
@@ -529,7 +531,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             }
 
             unchecked {
-                orderIndex = ++lastProcessedOrder;
+                ++lastProcessedOrder;
             }
 
             emit OrderProcessed(orderIndex, order, receiver, false);
@@ -555,7 +557,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.refundReceiver,
                     params.signatureParams.deadline,
                     params.signatureParams.approvalMethod,
-                    params.signatureParams.nonce
+                    params.signatureParams.nonce,
+                    block.chainid,
+                    address(this)
                 )
             );
             if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
@@ -575,7 +579,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         // Do nothing if using standard ERC20 approve
         if (params.signatureParams.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            IERC20Permit(address(params.offerAsset))
+            try IERC20Permit(address(params.offerAsset))
                 .permit(
                     depositor,
                     address(this),
@@ -584,7 +588,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.signatureParams.approvalV,
                     params.signatureParams.approvalR,
                     params.signatureParams.approvalS
-                );
+                ) { }
+            catch {
+                if (params.offerAsset.allowance(depositor, address(this)) < params.amountOffer) {
+                    revert PermitFailedAndAllowanceTooLow();
+                }
+            }
         }
     }
 
