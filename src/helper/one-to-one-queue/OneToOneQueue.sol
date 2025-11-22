@@ -367,7 +367,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     }
 
     /**
-     * @notice Submit and immediately process an order if liquidity is available. Must process all the preceeding orders
+     * @notice Submit and immediately process an order if liquidity is available. Must process all the preceding orders
      * to do so.
      * @param params SubmitOrderParams struct containing all order parameters
      * @return orderIndex The index of the created order
