@@ -31,6 +31,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     /// @notice Return type of a user's order status in the queue
     enum OrderStatus {
+        NOT_FOUND,
         PENDING,
         COMPLETE,
         COMPLETE_PRE_FILLED,
@@ -387,7 +388,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
 
         if (orderIndex > lastProcessedOrder) {
-            return OrderStatus.PENDING;
+            if (orderIndex > latestOrder) {
+                return OrderStatus.NOT_FOUND;
+            } else {
+                return OrderStatus.PENDING;
+            }
         } else {
             return OrderStatus.COMPLETE;
         }
