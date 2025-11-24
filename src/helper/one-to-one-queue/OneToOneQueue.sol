@@ -9,6 +9,7 @@ import { VerboseAuth, Authority } from "./access/VerboseAuth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title OneToOneQueue
@@ -18,22 +19,26 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     /// @notice Type for internal order handling
     /// @dev all but default orders are skipped on solve, as refunds and pre-fills are handled at the time they are
     /// marked
     enum OrderType {
         DEFAULT, // Normal order in queue
-        PRE_FILLED, // Order filled out of order, skip on solve
-        REFUND // Order refunded, skip on solve
+        PRE_FILLED, // Order filled out of order, skip on process
+        REFUND, // Order refunded, skip on process
+        FAILED_TRANSFER // Order failed transfer on process, funds are held in recovery address
     }
 
     /// @notice Return type of a user's order status in the queue
     enum OrderStatus {
+        NOT_FOUND,
         PENDING,
         COMPLETE,
         COMPLETE_PRE_FILLED,
-        COMPLETE_REFUNDED
+        COMPLETE_REFUNDED,
+        FAILED_TRANSFER
     }
 
     /// @notice Approval method for submitting an order
@@ -97,6 +102,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /// @notice recipient of queue fees
     address public feeRecipient;
 
+    /// @notice Address to hold funds for failed transfers
+    address public recoveryAddress;
+
     /// @notice Mapping of order index to Order struct
     mapping(uint256 => Order) public queue;
 
@@ -127,6 +135,10 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         uint256 indexed orderIndex, Order order, address indexed receiver, bool indexed isForceProcessed
     );
     event OrderRefunded(uint256 indexed orderIndex, Order order);
+    event OrderFailedTransfer(
+        uint256 indexed orderIndex, address indexed recoveryAddress, address indexed originalReceiver, Order order
+    );
+    event RecoveryAddressUpdated(address indexed oldRecoveryAddress, address indexed newRecoveryAddress);
 
     error ZeroAddress();
     error AssetAlreadySupported(address asset);
@@ -142,6 +154,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
+    error PermitFailedAndAllowanceTooLow();
 
     /**
      * @notice Initialize the contract
@@ -158,6 +171,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address _offerAssetRecipient,
         address _feeRecipient,
         IFeeModule _feeModule,
+        address _recoveryAddress,
         address _owner
     )
         ERC721(_name, _symbol)
@@ -167,9 +181,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (_owner == address(0)) revert ZeroAddress();
         if (_offerAssetRecipient == address(0)) revert ZeroAddress();
         if (_feeRecipient == address(0)) revert ZeroAddress();
+        if (_recoveryAddress == address(0)) revert ZeroAddress();
         if (address(_feeModule) == address(0)) revert ZeroAddress();
 
         offerAssetRecipient = _offerAssetRecipient;
+        recoveryAddress = _recoveryAddress;
         feeRecipient = _feeRecipient;
         feeModule = _feeModule;
     }
@@ -196,6 +212,17 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         address oldFeeRecipient = feeRecipient;
         feeRecipient = _feeRecipient;
         emit FeeRecipientUpdated(oldFeeRecipient, _feeRecipient);
+    }
+
+    /**
+     * @notice Set the recovery address
+     * @param _recoveryAddress Address of the new recovery address
+     */
+    function setRecoveryAddress(address _recoveryAddress) external requiresAuthVerbose {
+        if (_recoveryAddress == address(0)) revert ZeroAddress();
+        address oldRecoveryAddress = recoveryAddress;
+        recoveryAddress = _recoveryAddress;
+        emit RecoveryAddressUpdated(oldRecoveryAddress, _recoveryAddress);
     }
 
     /**
@@ -328,16 +355,20 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /**
      * @notice Submit and immediately process an order if liquidity is available
      * @param params SubmitOrderParams struct containing all order parameters
+     * @param ordersToProcess Number of orders to process
      * @return orderIndex The index of the created order
      */
-    function submitOrderAndProcess(SubmitOrderParams calldata params)
+    function submitOrderAndProcess(
+        SubmitOrderParams calldata params,
+        uint256 ordersToProcess
+    )
         external
         requiresAuthVerbose
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(params);
         // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
-        processOrders(orderIndex - lastProcessedOrder);
+        processOrders(ordersToProcess);
     }
 
     /**
@@ -354,8 +385,16 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             return OrderStatus.COMPLETE_REFUNDED;
         }
 
+        if (order.orderType == OrderType.FAILED_TRANSFER) {
+            return OrderStatus.FAILED_TRANSFER;
+        }
+
         if (orderIndex > lastProcessedOrder) {
-            return OrderStatus.PENDING;
+            if (orderIndex > latestOrder) {
+                return OrderStatus.NOT_FOUND;
+            } else {
+                return OrderStatus.PENDING;
+            }
         } else {
             return OrderStatus.COMPLETE;
         }
@@ -379,22 +418,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         address depositor = _verifyDepositor(params);
 
-        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
+        uint256 feeAmount =
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
-
-        // if the fee asset is the same as the offer asset
-        if (feeAsset == params.offerAsset) {
-            // the fee module must have accounted for fees and newAmount correctly
-            assert(newAmountForReceiver + feeAmount == params.amountOffer);
-        } else {
-            // if the fee asset is something else, the amount of offer asset in must equal the amount going to the
-            // receiver
-            assert(newAmountForReceiver == params.amountOffer);
-        }
-
-        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
-        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
+        uint256 newAmountForReceiver = params.amountOffer - feeAmount;
 
         // Increment the latestOrder as this one is being minted
         unchecked {
@@ -404,9 +430,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         // Create order
         // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
         Order memory order = Order({
-            amountOffer: uint128(params.amountOffer),
+            amountOffer: params.amountOffer.toUint128(),
             amountWant: _getWantAmountInWantDecimals(
-                uint128(newAmountForReceiver), params.offerAsset, params.wantAsset
+                newAmountForReceiver.toUint128(), params.offerAsset, params.wantAsset
             ),
             offerAsset: params.offerAsset,
             wantAsset: params.wantAsset,
@@ -414,6 +440,10 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             orderType: OrderType.DEFAULT
         });
         queue[orderIndex] = order;
+
+        // Transfer the offer assets to the offerAssetRecipient and feeRecipient
+        params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
+        params.offerAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Mint NFT receipt to receiver
         _safeMint(params.receiver, orderIndex);
@@ -445,13 +475,16 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (endIndex > latestOrder) revert NotEnoughOrdersToProcess(ordersToProcess, latestOrder);
 
         // Essentially performing WHILE(++lastProcessedOrder < endIndex)
-        // However, using local variables to avoid unecessary storage reads
+        // However, using local variables to avoid unnecessary storage reads
         for (uint256 i; i < ordersToProcess; ++i) {
             uint256 orderIndex = startIndex + i;
 
             Order memory order = queue[orderIndex];
 
             if (order.orderType == OrderType.PRE_FILLED || order.orderType == OrderType.REFUND) {
+                unchecked {
+                    ++lastProcessedOrder;
+                }
                 // ignore
                 continue;
             }
@@ -460,11 +493,30 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             address receiver = ownerOf(orderIndex);
             _checkBalanceQueue(order.wantAsset, order.amountWant, orderIndex);
 
+            // Burn the order after noting the receiver, but before the transfer.
             _burn(orderIndex);
-            order.wantAsset.safeTransfer(receiver, order.amountWant);
+
+            // From SafeERC20 library to perform a safeERC20 transfer and return a bool on success. Implemented here
+            // since it's private and we cannot call it directly It's worth noting that there are some tokens like
+            // Tether Gold that return false while succeeding.
+            // This situation would result success in being false even though the transfer did not revert.
+            bool success = _callOptionalReturnBool(order.wantAsset, receiver, order.amountWant);
+
+            // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
+            // recoveryAddress. This is because the queue could possibly be greifed by setting blacklisted addresses as
+            // the receivers and causing the queue to clog up on process. We handle this by taking the funds to the
+            // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
+            // for distribution
+            if (!success) {
+                // Set the type for the storage and memory as we will emit the memory order
+                order.orderType = OrderType.FAILED_TRANSFER;
+                queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
+                order.wantAsset.safeTransfer(recoveryAddress, order.amountWant);
+                emit OrderFailedTransfer(orderIndex, recoveryAddress, receiver, order);
+            }
 
             unchecked {
-                orderIndex = ++lastProcessedOrder;
+                ++lastProcessedOrder;
             }
 
             emit OrderProcessed(orderIndex, order, receiver, false);
@@ -490,7 +542,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.refundReceiver,
                     params.signatureParams.deadline,
                     params.signatureParams.approvalMethod,
-                    params.signatureParams.nonce
+                    params.signatureParams.nonce,
+                    block.chainid,
+                    address(this)
                 )
             );
             if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
@@ -510,7 +564,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         // Do nothing if using standard ERC20 approve
         if (params.signatureParams.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            IERC20Permit(address(params.offerAsset))
+            try IERC20Permit(address(params.offerAsset))
                 .permit(
                     depositor,
                     address(this),
@@ -519,7 +573,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.signatureParams.approvalV,
                     params.signatureParams.approvalR,
                     params.signatureParams.approvalS
-                );
+                ) { }
+            catch {
+                if (params.offerAsset.allowance(depositor, address(this)) < params.amountOffer) {
+                    revert PermitFailedAndAllowanceTooLow();
+                }
+            }
         }
     }
 
@@ -557,6 +616,23 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (balance < amount) {
             revert InsufficientBalanceInQueue(orderIndex, address(asset), amount, balance);
         }
+    }
+
+    /**
+     * @dev From SafeERC20 library: _callOptionalReturnBool(): Do a safe transfer and return a bool instead of reverting
+     * This is a function in SafeERC20 but is private so we need to replicate it here
+     */
+    function _callOptionalReturnBool(IERC20 token, address receiver, uint256 amount) internal returns (bool success) {
+        bytes memory data = abi.encodeWithSelector(token.transfer.selector, receiver, amount);
+
+        uint256 returnSize;
+        uint256 returnValue;
+        assembly ("memory-safe") {
+            success := call(gas(), token, 0, add(data, 0x20), mload(data), 0, 0x20)
+            returnSize := returndatasize()
+            returnValue := mload(0)
+        }
+        success = success && (returnSize == 0 ? address(token).code.length > 0 : returnValue == 1);
     }
 
     /// @notice force refund an order in the queue even if it's not at the front. Users will be refunded the offer

@@ -49,6 +49,27 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_SetRecoveryAddress() external {
+        address oldRecoveryAddress = queue.recoveryAddress();
+        address newRecoveryAddress = makeAddr("new recovery address");
+        assertEq(oldRecoveryAddress, recoveryAddress);
+
+        vm.expectPartialRevert(VerboseAuth.Unauthorized.selector);
+        queue.setRecoveryAddress(address(newRecoveryAddress));
+
+        vm.startPrank(owner);
+        vm.expectRevert(OneToOneQueue.ZeroAddress.selector);
+        queue.setRecoveryAddress(address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.RecoveryAddressUpdated(oldRecoveryAddress, address(newRecoveryAddress));
+        queue.setRecoveryAddress(address(newRecoveryAddress));
+        assertEq(queue.recoveryAddress(), address(newRecoveryAddress));
+        vm.stopPrank();
+
+        assertEq(queue.recoveryAddress(), address(newRecoveryAddress), "recovery address should be set");
+    }
+
     function test_AddOfferAsset() external {
         address oldOfferAsset = address(USDC);
         address newOfferAsset = address(new tERC20(6));
@@ -217,33 +238,14 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         _submitAnOrder();
         vm.startPrank(owner);
 
-        (
-            uint128 amountOffer,
-            uint128 amountWant,
-            IERC20 offerAsset,
-            IERC20 wantAsset,
-            address refundReceiver,
-            OneToOneQueue.OrderType orderType
-        ) = queue.queue(1);
-
-        OneToOneQueue.Order memory order = OneToOneQueue.Order({
-            offerAsset: offerAsset,
-            wantAsset: wantAsset,
-            amountOffer: amountOffer,
-            amountWant: amountWant,
-            refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.PRE_FILLED // order event should emit with refund not with old status
-        });
-
         uint256[] memory orderIndices = new uint256[](2);
         orderIndices[0] = 1;
         orderIndices[1] = 2;
 
         deal(address(USDG0), address(queue), 2e6);
 
-        vm.expectEmit(true, true, true, true);
-        emit OneToOneQueue.OrderProcessed(2, order, user1, true);
-        emit OneToOneQueue.OrderProcessed(1, order, user1, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
         queue.forceProcessOrders(orderIndices);
 
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
@@ -439,7 +441,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                 submitParams.refundReceiver,
                 submitParams.signatureParams.deadline,
                 OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-                submitParams.signatureParams.nonce
+                submitParams.signatureParams.nonce,
+                block.chainid,
+                address(queue)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, hash);
@@ -472,7 +476,9 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     submitParams.refundReceiver,
                     submitParams.signatureParams.deadline,
                     OneToOneQueue.ApprovalMethod.EIP20_APROVE,
-                    1
+                    1,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (v, r, s) = vm.sign(alicePk, hash);
@@ -511,7 +517,16 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         {
             sigHash = keccak256(
                 abi.encode(
-                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 0
+                    1e6,
+                    offerAsset,
+                    wantAsset,
+                    alice,
+                    alice,
+                    deadline,
+                    OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
+                    0,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
@@ -547,7 +562,16 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
             sigHash = keccak256(
                 abi.encode(
-                    1e6, offerAsset, wantAsset, alice, alice, deadline, OneToOneQueue.ApprovalMethod.EIP2612_PERMIT, 1
+                    1e6,
+                    offerAsset,
+                    wantAsset,
+                    alice,
+                    alice,
+                    deadline,
+                    OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
+                    1,
+                    block.chainid,
+                    address(queue)
                 )
             );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, sigHash);
@@ -650,7 +674,10 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
         vm.expectEmit(true, true, true, true);
         emit OneToOneQueue.OrdersProcessedInRange(1, 1);
-        queue.submitOrderAndProcess(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams));
+        uint256 numberOfOrders = queue.latestOrder() + 1 - queue.lastProcessedOrder();
+        queue.submitOrderAndProcess(
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams), numberOfOrders
+        );
         assertEq(uint8(queue.getOrderStatus(queue.latestOrder())), uint8(OneToOneQueue.OrderStatus.COMPLETE));
         assertEq(
             USDG0.balanceOf(user1),
@@ -658,6 +685,32 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             "user1 should have their USDG0 balance - fees"
         );
         vm.stopPrank();
+    }
+
+    function test_statusNotFound(uint256 aNumber) external {
+        aNumber = bound(aNumber, 1, 1000);
+        assertEq(uint8(queue.getOrderStatus(aNumber)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
+    }
+
+    function test_submitOrderAndProcessLessThanTotal() external {
+        deal(address(USDG0), address(queue), 1e6);
+
+        _submitAnOrder();
+
+        deal(address(USDC), user1, 1e6);
+        vm.startPrank(user1);
+        USDC.approve(address(queue), 1e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcess(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams), 1);
+        assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE));
+        assertEq(
+            USDG0.balanceOf(user1),
+            1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+            "user1 should have their USDG0 balance - fees"
+        );
+        assertEq(uint8(queue.getOrderStatus(2)), uint8(OneToOneQueue.OrderStatus.PENDING));
     }
 
 }
