@@ -73,6 +73,7 @@ contract GriefingTest is OneToOneQueueTestBase {
         });
         vm.expectEmit(true, true, true, true);
         emit OrderFailedTransfer(2, recoveryAddress, blacklistedAddress, greifingOrder);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.FAILED_TRANSFER, false);
         queue.processOrders(3);
         vm.stopPrank();
 

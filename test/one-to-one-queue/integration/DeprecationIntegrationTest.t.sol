@@ -76,6 +76,7 @@ contract DeprecationStep1IntegrationTest is OneToOneQueueTestBase {
         vm.stopPrank();
 
         vm.startPrank(user1);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.DEFAULT, false);
         vm.expectEmit(true, true, true, true);
         emit OrdersProcessedInRange(1, 1);
         queue.processOrders(1);
