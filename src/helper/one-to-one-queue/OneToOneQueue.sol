@@ -351,16 +351,20 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /**
      * @notice Submit and immediately process an order if liquidity is available
      * @param params SubmitOrderParams struct containing all order parameters
+     * @param ordersToProcess Number of orders to process
      * @return orderIndex The index of the created order
      */
-    function submitOrderAndProcess(SubmitOrderParams calldata params)
+    function submitOrderAndProcess(
+        SubmitOrderParams calldata params,
+        uint256 ordersToProcess
+    )
         external
         requiresAuthVerbose
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(params);
         // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
-        processOrders(orderIndex - lastProcessedOrder);
+        processOrders(ordersToProcess);
     }
 
     /**
