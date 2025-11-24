@@ -31,6 +31,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
     /// @notice Return type of a user's order status in the queue
     enum OrderStatus {
+        NOT_FOUND,
         PENDING,
         COMPLETE,
         COMPLETE_PRE_FILLED,
@@ -151,6 +152,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
+    error PermitFailedAndAllowanceTooLow();
 
     /**
      * @notice Initialize the contract
@@ -351,16 +353,20 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     /**
      * @notice Submit and immediately process an order if liquidity is available
      * @param params SubmitOrderParams struct containing all order parameters
+     * @param ordersToProcess Number of orders to process
      * @return orderIndex The index of the created order
      */
-    function submitOrderAndProcess(SubmitOrderParams calldata params)
+    function submitOrderAndProcess(
+        SubmitOrderParams calldata params,
+        uint256 ordersToProcess
+    )
         external
         requiresAuthVerbose
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(params);
         // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
-        processOrders(orderIndex - lastProcessedOrder);
+        processOrders(ordersToProcess);
     }
 
     /**
@@ -382,7 +388,11 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
 
         if (orderIndex > lastProcessedOrder) {
-            return OrderStatus.PENDING;
+            if (orderIndex > latestOrder) {
+                return OrderStatus.NOT_FOUND;
+            } else {
+                return OrderStatus.PENDING;
+            }
         } else {
             return OrderStatus.COMPLETE;
         }
@@ -406,18 +416,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         address depositor = _verifyDepositor(params);
 
-        (uint256 newAmountForReceiver, IERC20 feeAsset, uint256 feeAmount) =
+        uint256 feeAmount =
             feeModule.calculateOfferFees(params.amountOffer, params.offerAsset, params.wantAsset, params.receiver);
-
-        // if the fee asset is the same as the offer asset
-        if (feeAsset == params.offerAsset) {
-            // the fee module must have accounted for fees and newAmount correctly
-            assert(newAmountForReceiver + feeAmount == params.amountOffer);
-        } else {
-            // if the fee asset is something else, the amount of offer asset in must equal the amount going to the
-            // receiver
-            assert(newAmountForReceiver == params.amountOffer);
-        }
+        uint256 newAmountForReceiver = params.amountOffer - feeAmount;
 
         // Increment the latestOrder as this one is being minted
         unchecked {
@@ -440,7 +441,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         // Transfer the offer assets to the offerAssetRecipient and feeRecipient
         params.offerAsset.safeTransferFrom(depositor, offerAssetRecipient, newAmountForReceiver);
-        feeAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
+        params.offerAsset.safeTransferFrom(depositor, feeRecipient, feeAmount);
 
         // Mint NFT receipt to receiver
         _safeMint(params.receiver, orderIndex);
@@ -536,7 +537,9 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.refundReceiver,
                     params.signatureParams.deadline,
                     params.signatureParams.approvalMethod,
-                    params.signatureParams.nonce
+                    params.signatureParams.nonce,
+                    block.chainid,
+                    address(this)
                 )
             );
             if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
@@ -556,7 +559,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         // Do nothing if using standard ERC20 approve
         if (params.signatureParams.approvalMethod == ApprovalMethod.EIP2612_PERMIT) {
-            IERC20Permit(address(params.offerAsset))
+            try IERC20Permit(address(params.offerAsset))
                 .permit(
                     depositor,
                     address(this),
@@ -565,7 +568,12 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.signatureParams.approvalV,
                     params.signatureParams.approvalR,
                     params.signatureParams.approvalS
-                );
+                ) { }
+            catch {
+                if (params.offerAsset.allowance(depositor, address(this)) < params.amountOffer) {
+                    revert PermitFailedAndAllowanceTooLow();
+                }
+            }
         }
     }
 
