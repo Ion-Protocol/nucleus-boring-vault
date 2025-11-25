@@ -26,6 +26,7 @@ library ConfigReader {
         uint16 allowedExchangeRateChangeLower;
         uint32 minimumUpdateDelayInSeconds;
         uint16 managementFee;
+        uint16 performanceFee;
         bytes32 boringVaultSalt;
         string boringVaultName;
         string boringVaultSymbol;
@@ -76,6 +77,7 @@ library ConfigReader {
         config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
         config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
         config.managementFee = uint16(_config.readUint(".accountant.managementFee"));
+        config.performanceFee = uint16(_config.readUint(".accountant.performanceFee"));
 
         // Reading from the 'boringVault' section
         config.boringVault = _config.readAddress(".boringVault.address");
