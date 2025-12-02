@@ -177,7 +177,7 @@ contract CommunityCodeDepositor is Auth {
         if (to == address(0)) revert ZeroAddress();
         bytes32 depositHash;
         unchecked {
-            depositHash = keccak256(abi.encodePacked(address(this), ++depositNonce));
+            depositHash = keccak256(abi.encodePacked(address(this), ++depositNonce, block.chainid));
         }
 
         // Clear leftover allowance for non-standard ERC20
