@@ -708,6 +708,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
     function test_statusNotFound(uint256 aNumber) external {
         aNumber = bound(aNumber, 1, 1000);
         assertEq(uint8(queue.getOrderStatus(aNumber)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
+        assertEq(uint8(queue.getOrderStatus(0)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
     }
 
     function test_submitOrderAndProcessLessThanTotal() external {
