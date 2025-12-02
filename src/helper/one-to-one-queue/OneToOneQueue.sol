@@ -558,6 +558,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
                     params.signatureParams.deadline,
                     params.signatureParams.approvalMethod,
                     params.signatureParams.nonce,
+                    address(feeModule),
                     block.chainid,
                     address(this)
                 )

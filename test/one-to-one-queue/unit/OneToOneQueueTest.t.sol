@@ -442,6 +442,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                 submitParams.signatureParams.deadline,
                 OneToOneQueue.ApprovalMethod.EIP20_APROVE,
                 submitParams.signatureParams.nonce,
+                queue.feeModule(),
                 block.chainid,
                 address(queue)
             )
@@ -477,6 +478,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     submitParams.signatureParams.deadline,
                     OneToOneQueue.ApprovalMethod.EIP20_APROVE,
                     1,
+                    queue.feeModule(),
                     block.chainid,
                     address(queue)
                 )
@@ -525,6 +527,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     deadline,
                     OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
                     0,
+                    queue.feeModule(),
                     block.chainid,
                     address(queue)
                 )
@@ -570,6 +573,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     deadline,
                     OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
                     1,
+                    queue.feeModule(),
                     block.chainid,
                     address(queue)
                 )
