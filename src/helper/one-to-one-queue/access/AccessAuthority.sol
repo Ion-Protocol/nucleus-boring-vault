@@ -40,7 +40,6 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
 
     mapping(address => mapping(bytes4 => bytes32)) public getRolesWithCapability;
 
-    event DeprecationBegun(uint8 step);
     event DeprecationContinued(uint8 newStep);
     event DeprecationFinished(uint8 newStep);
     event PauserStatusSet(address indexed pauser, bool indexed canPause);
