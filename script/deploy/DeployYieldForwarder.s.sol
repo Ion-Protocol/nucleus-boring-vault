@@ -13,7 +13,7 @@ contract DeployYieldForwarder is BaseScript {
     string constant NAME = "Boring Vault";
     string constant SYMBOL = "BV";
     address constant BALANCER_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
-    address constant MANAGER_ADDRESS = ;
+    address constant MANAGER_ADDRESS = address(0);
 
     function run() public broadcast {
         // deploy a roles authority
@@ -23,9 +23,10 @@ contract DeployYieldForwarder is BaseScript {
         BoringVault boringVault = new BoringVault(getMultisig(), NAME, SYMBOL, 18);
 
         // deploy a managerWithMerkleVerification
-        ManagerWithMerkleVerification managerWithMerkleVerification = new ManagerWithMerkleVerification(getMultisig(), address(boringVault), BALANCER_VAULT);
+        ManagerWithMerkleVerification managerWithMerkleVerification =
+            new ManagerWithMerkleVerification(getMultisig(), address(boringVault), BALANCER_VAULT);
 
-        // configure the roles 
+        // configure the roles
         rolesAuthority.setRoleCapability(MANAGER_ROLE, address(boringVault), BoringVault.manage.selector, true);
         rolesAuthority.setUserRole(MANAGER_ADDRESS, MANAGER_ROLE, true);
     }
