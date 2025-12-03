@@ -660,7 +660,26 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         _checkBalanceQueue(order.offerAsset, order.amountOffer, orderIndex);
         _burn(orderIndex);
-        order.offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
+
+        // From SafeERC20 library to perform a safeERC20 transfer and return a bool on success. Implemented here
+        // since it's private and we cannot call it directly It's worth noting that there are some tokens like
+        // Tether Gold that return false while succeeding.
+        // This situation would result success in being false even though the transfer did not revert.
+        bool success = _callOptionalReturnBool(order.offerAsset, order.refundReceiver, order.amountOffer);
+
+        // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
+        // recoveryAddress. This is because the queue could possibly be greifed by setting a blacklisted addresses as
+        // the refund receiver and block the refund ability. We handle this by taking the funds to the
+        // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
+        // for distribution
+        if (!success) {
+            // Set the type for the storage and memory as we will emit the memory order. The only difference is the
+            // REFUND status which we override as FAILED_TRANSFER
+            order.orderType = OrderType.FAILED_TRANSFER;
+            queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
+            order.offerAsset.safeTransfer(recoveryAddress, order.amountOffer);
+            emit OrderFailedTransfer(orderIndex, recoveryAddress, order.refundReceiver, order);
+        }
 
         emit OrderRefunded(orderIndex, queue[orderIndex]);
     }
