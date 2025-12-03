@@ -204,7 +204,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.OrderType orderType
+            OneToOneQueue.OrderType orderType,
+            // did order fail transfer
         ) = queue.queue(1);
 
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
@@ -213,7 +214,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.REFUND // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.REFUND, // order event should emit with refund not with old status
+            didOrderFailTransfer: false
         });
 
         vm.expectEmit(true, true, true, true);
@@ -244,8 +246,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
         deal(address(USDG0), address(queue), 2e6);
 
-        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
-        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true, false);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true, false);
         queue.forceProcessOrders(orderIndices);
 
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
@@ -275,7 +277,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.OrderType orderType
+            OneToOneQueue.OrderType orderType,
+            // did order fail transfer
         ) = queue.queue(1);
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
             offerAsset: offerAsset,
@@ -283,7 +286,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.REFUND // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.REFUND, // order event should emit with refund not with old status
+            didOrderFailTransfer: false
         });
 
         vm.expectRevert(
@@ -300,7 +304,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 1));
         queue.ownerOf(1);
 
-        (,,,,, orderType) = queue.queue(1);
+        (,,,,, orderType,) = queue.queue(1);
         assertEq(uint8(orderType), uint8(OneToOneQueue.OrderType.REFUND), "order should be marked for refund");
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_REFUNDED));
         assertEq(USDC.balanceOf(user1), 1e6, "user1 should have their USDC balance back");

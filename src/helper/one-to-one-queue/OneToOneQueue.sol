@@ -27,8 +27,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     enum OrderType {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on process
-        REFUND, // Order refunded, skip on process
-        FAILED_TRANSFER // Order failed transfer on process, funds are held in recovery address
+        REFUND // Order refunded, skip on process
     }
 
     /// @notice Return type of a user's order status in the queue
@@ -38,7 +37,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         COMPLETE,
         COMPLETE_PRE_FILLED,
         COMPLETE_REFUNDED,
-        FAILED_TRANSFER
+        FAILED_TRANSFER,
+        FAILED_REFUND
     }
 
     /// @notice Approval method for submitting an order
@@ -79,6 +79,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         IERC20 wantAsset; // Asset being requested
         address refundReceiver; // Address to receive refunds
         OrderType orderType; // Current status of the order
+        bool didOrderFailTransfer; // Whether the order failed to transfer on process or refund
     }
 
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
@@ -397,10 +398,13 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
 
         if (order.orderType == OrderType.REFUND) {
+            if (order.didOrderFailTransfer) {
+                return OrderStatus.FAILED_REFUND;
+            }
             return OrderStatus.COMPLETE_REFUNDED;
         }
 
-        if (order.orderType == OrderType.FAILED_TRANSFER) {
+        if (order.didOrderFailTransfer) {
             return OrderStatus.FAILED_TRANSFER;
         }
 
@@ -452,7 +456,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             offerAsset: params.offerAsset,
             wantAsset: params.wantAsset,
             refundReceiver: params.refundReceiver,
-            orderType: OrderType.DEFAULT
+            orderType: OrderType.DEFAULT,
+            didOrderFailTransfer: false
         });
         queue[orderIndex] = order;
 
@@ -496,7 +501,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
             Order memory order = queue[orderIndex];
 
-            if (order.orderType == OrderType.PRE_FILLED || order.orderType == OrderType.REFUND) {
+            if (order.orderType != OrderType.DEFAULT) {
                 unchecked {
                     ++lastProcessedOrder;
                 }
@@ -524,8 +529,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             // for distribution
             if (!success) {
                 // Set the type for the storage and memory as we will emit the memory order
-                order.orderType = OrderType.FAILED_TRANSFER;
-                queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
+                order.didOrderFailTransfer = true;
+                queue[orderIndex].didOrderFailTransfer = true;
                 order.wantAsset.safeTransfer(recoveryAddress, order.amountWant);
                 emit OrderFailedTransfer(orderIndex, recoveryAddress, receiver, order);
             }
@@ -675,8 +680,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         if (!success) {
             // Set the type for the storage and memory as we will emit the memory order. The only difference is the
             // REFUND status which we override as FAILED_TRANSFER
-            order.orderType = OrderType.FAILED_TRANSFER;
-            queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
+            order.didOrderFailTransfer = true;
+            queue[orderIndex].didOrderFailTransfer = true;
             order.offerAsset.safeTransfer(recoveryAddress, order.amountOffer);
             emit OrderFailedTransfer(orderIndex, recoveryAddress, order.refundReceiver, order);
         }

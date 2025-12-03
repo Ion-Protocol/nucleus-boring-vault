@@ -69,11 +69,12 @@ contract GriefingTest is OneToOneQueueTestBase {
             offerAsset: IERC20(address(USDC)),
             wantAsset: IERC20(address(blacklistToken)),
             refundReceiver: user1,
-            orderType: OneToOneQueue.OrderType.FAILED_TRANSFER
+            orderType: OneToOneQueue.OrderType.DEFAULT,
+            didOrderFailTransfer: true
         });
         vm.expectEmit(true, true, true, true);
         emit OrderFailedTransfer(2, recoveryAddress, blacklistedAddress, greifingOrder);
-        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.FAILED_TRANSFER, false);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.DEFAULT, false, true);
         queue.processOrders(3);
         vm.stopPrank();
 
