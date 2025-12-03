@@ -157,6 +157,8 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
         virtual
         returns (bool canCall, string memory reasons)
     {
+        /////
+        revert("I AM EVIL");
         // If the contract is paused, canCall is false
         if (paused()) {
             reasons = "- Paused ";
