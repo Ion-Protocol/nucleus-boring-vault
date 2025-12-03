@@ -518,7 +518,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             bool success = _callOptionalReturnBool(order.wantAsset, receiver, order.amountWant);
 
             // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
-            // recoveryAddress. This is because the queue could possibly be greifed by setting blacklisted addresses as
+            // recoveryAddress. This is because the queue could possibly be griefed by setting blacklisted addresses as
             // the receivers and causing the queue to clog up on process. We handle this by taking the funds to the
             // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
             // for distribution
