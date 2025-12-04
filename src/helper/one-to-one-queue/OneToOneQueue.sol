@@ -390,6 +390,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
      * @notice A user facing function to return an order's status
      */
     function getOrderStatus(uint256 orderIndex) external view returns (OrderStatus) {
+        if (orderIndex == 0) return OrderStatus.NOT_FOUND;
         Order memory order = queue[orderIndex];
 
         if (order.orderType == OrderType.PRE_FILLED) {
