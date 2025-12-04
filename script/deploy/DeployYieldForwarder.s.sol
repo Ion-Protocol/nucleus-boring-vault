@@ -17,16 +17,40 @@ contract DeployYieldForwarder is BaseScript {
     address constant STRATEGIST_ADDRESS = 0x000054f89dCC1248716804E7eF5c5E225FE3a000;
     uint8 constant DECIMALS = 6;
 
+    bytes32 SALT_ROLES_AUTHORITY = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00323232323232323232cafe;
+    bytes32 SALT_BORING_VUALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00cafecafecafecafe32cafe;
+    bytes32 SALT_MANAGER_WITH_MERKLE_VERIFICATION = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00777767777677777777cafe;
+
     function run() public broadcast {
         // deploy a roles authority
-        RolesAuthority rolesAuthority = new RolesAuthority(getMultisig(), Authority(address(0)));
+        RolesAuthority rolesAuthority = RolesAuthority(
+            CREATEX.deployCreate3(
+                SALT_ROLES_AUTHORITY,
+                abi.encodePacked(type(RolesAuthority).creationCode, abi.encode(broadcaster, Authority(address(0))))
+            )
+        );
 
         // deploy a boring vault
-        BoringVault boringVault = new BoringVault(getMultisig(), NAME, SYMBOL, DECIMALS);
+        address boringVaultAddress = CREATEX.deployCreate3(
+            SALT_BORING_VUALT,
+            abi.encodePacked(type(BoringVault).creationCode, abi.encode(broadcaster, NAME, SYMBOL, DECIMALS))
+        );
+        BoringVault boringVault = BoringVault(payable(boringVaultAddress));
 
         // deploy a managerWithMerkleVerification
-        ManagerWithMerkleVerification managerWithMerkleVerification =
-            new ManagerWithMerkleVerification(getMultisig(), address(boringVault), BALANCER_VAULT);
+        ManagerWithMerkleVerification managerWithMerkleVerification = ManagerWithMerkleVerification(
+            CREATEX.deployCreate3(
+                SALT_MANAGER_WITH_MERKLE_VERIFICATION,
+                abi.encodePacked(
+                    type(ManagerWithMerkleVerification).creationCode,
+                    abi.encode(broadcaster, address(boringVault), BALANCER_VAULT)
+                )
+            )
+        );
+
+        // Set Authority
+        boringVault.setAuthority(rolesAuthority);
+        managerWithMerkleVerification.setAuthority(rolesAuthority);
 
         // configure the roles
         rolesAuthority.setRoleCapability(
@@ -51,6 +75,11 @@ contract DeployYieldForwarder is BaseScript {
 
         rolesAuthority.setUserRole(address(managerWithMerkleVerification), MANAGER_ROLE, true);
         rolesAuthority.setUserRole(STRATEGIST_ADDRESS, STRATEGIST_ROLE, true);
+
+        // Transfer ownership to the multisig
+        rolesAuthority.transferOwnership(getMultisig());
+        boringVault.transferOwnership(getMultisig());
+        managerWithMerkleVerification.transferOwnership(getMultisig());
     }
 
 }
