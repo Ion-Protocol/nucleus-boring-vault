@@ -109,6 +109,7 @@ abstract contract OneToOneQueueTestBase is Test {
         OneToOneQueue.Order order
     );
     event RecoveryAddressUpdated(address indexed oldRecoveryAddress, address indexed newRecoveryAddress);
+    event AuthorityUpdated(address indexed user, address indexed newAuthority);
 
     OneToOneQueue queue;
     SimpleFeeModule feeModule;

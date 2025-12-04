@@ -8,7 +8,7 @@ import { QueueAccessAuthority, AccessAuthority } from "src/helper/one-to-one-que
 import { IAccessAuthorityHook } from "src/helper/one-to-one-queue/access/AccessAuthority.sol";
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
 import { OneToOneQueueTestBase, tERC20, ERC20 } from "../OneToOneQueueTestBase.t.sol";
-import { VerboseAuth } from "src/helper/one-to-one-queue/access/VerboseAuth.sol";
+import { VerboseAuth, Authority } from "src/helper/one-to-one-queue/access/VerboseAuth.sol";
 
 contract AccessAuthorityTest is OneToOneQueueTestBase {
 
@@ -181,6 +181,38 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         emit AccessAuthority.AccessAuthorityHookUpdated(address(0), address(0));
         rolesAuthority.setAccessAuthorityHook(IAccessAuthorityHook(address(0)));
         vm.stopPrank();
+    }
+
+    function test_setAuthority() external {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector,
+                address(this),
+                abi.encodeWithSelector(VerboseAuth.setAuthority.selector, address(0)),
+                "- Not authorized"
+            ),
+            address(queue)
+        );
+        queue.setAuthority(Authority(address(0)));
+
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit VerboseAuth.AuthorityUpdated(owner, Authority(address(0)));
+        queue.setAuthority(Authority(address(0)));
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VerboseAuth.Unauthorized.selector,
+                address(this),
+                abi.encodeWithSelector(VerboseAuth.setAuthority.selector, address(0)),
+                "- No Authority Set: Owner Only "
+            ),
+            address(queue)
+        );
+        queue.setAuthority(Authority(address(0)));
+
+        assertEq(address(queue.authority()), address(0));
     }
 
 }
