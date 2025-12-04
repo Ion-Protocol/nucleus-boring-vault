@@ -22,8 +22,7 @@ contract DeployYieldForwarder is BaseScript {
     bytes32 SALT_MANAGER_WITH_MERKLE_VERIFICATION = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00777767777677777777cafe;
 
     function run() public broadcast {
-        // deploy a roles authority with broadcaster as the owner for now
-        // we will transfer ownership to the multisig later after setting roles
+        // deploy a roles authority
         RolesAuthority rolesAuthority = RolesAuthority(
             CREATEX.deployCreate3(
                 SALT_ROLES_AUTHORITY,
@@ -34,7 +33,7 @@ contract DeployYieldForwarder is BaseScript {
         // deploy a boring vault
         address boringVaultAddress = CREATEX.deployCreate3(
             SALT_BORING_VUALT,
-            abi.encodePacked(type(BoringVault).creationCode, abi.encode(getMultisig(), NAME, SYMBOL, DECIMALS))
+            abi.encodePacked(type(BoringVault).creationCode, abi.encode(broadcaster, NAME, SYMBOL, DECIMALS))
         );
         BoringVault boringVault = BoringVault(payable(boringVaultAddress));
 
@@ -44,10 +43,14 @@ contract DeployYieldForwarder is BaseScript {
                 SALT_MANAGER_WITH_MERKLE_VERIFICATION,
                 abi.encodePacked(
                     type(ManagerWithMerkleVerification).creationCode,
-                    abi.encode(getMultisig(), address(boringVault), BALANCER_VAULT)
+                    abi.encode(broadcaster, address(boringVault), BALANCER_VAULT)
                 )
             )
         );
+
+        // Set Authority
+        boringVault.setAuthority(rolesAuthority);
+        managerWithMerkleVerification.setAuthority(rolesAuthority);
 
         // configure the roles
         rolesAuthority.setRoleCapability(
@@ -73,7 +76,10 @@ contract DeployYieldForwarder is BaseScript {
         rolesAuthority.setUserRole(address(managerWithMerkleVerification), MANAGER_ROLE, true);
         rolesAuthority.setUserRole(STRATEGIST_ADDRESS, STRATEGIST_ROLE, true);
 
+        // Transfer ownership to the multisig
         rolesAuthority.transferOwnership(getMultisig());
+        boringVault.transferOwnership(getMultisig());
+        managerWithMerkleVerification.transferOwnership(getMultisig());
     }
 
 }
