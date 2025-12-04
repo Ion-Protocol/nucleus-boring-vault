@@ -29,7 +29,6 @@ contract DeployYieldForwarder is BaseScript {
             new ManagerWithMerkleVerification(getMultisig(), address(boringVault), BALANCER_VAULT);
 
         // configure the roles
-        bytes4 manageSelector = bytes4(keccak256(abi.encodePacked("manage(address,bytes,uint256)")));
         rolesAuthority.setRoleCapability(
             MANAGER_ROLE,
             address(boringVault),
