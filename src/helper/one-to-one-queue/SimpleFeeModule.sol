@@ -39,6 +39,7 @@ contract SimpleFeeModule is IFeeModule {
     )
         external
         view
+        override
         returns (uint256 feeAmount)
     {
         feeAmount = amount.mulDivUp(offerFeePercentage, ONE_HUNDRED_PERCENT);
