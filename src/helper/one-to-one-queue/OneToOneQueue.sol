@@ -27,8 +27,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
     enum OrderType {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on process
-        REFUND, // Order refunded, skip on process
-        FAILED_TRANSFER // Order failed transfer on process, funds are held in recovery address
+        REFUND // Order refunded, skip on process
     }
 
     /// @notice Return type of a user's order status in the queue
@@ -38,7 +37,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         COMPLETE,
         COMPLETE_PRE_FILLED,
         COMPLETE_REFUNDED,
-        FAILED_TRANSFER
+        FAILED_TRANSFER,
+        FAILED_REFUND
     }
 
     /// @notice Approval method for submitting an order
@@ -79,6 +79,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         IERC20 wantAsset; // Asset being requested
         address refundReceiver; // Address to receive refunds
         OrderType orderType; // Current status of the order
+        bool didOrderFailTransfer; // Whether the order failed to transfer on process or refund
     }
 
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
@@ -398,10 +399,13 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
         }
 
         if (order.orderType == OrderType.REFUND) {
+            if (order.didOrderFailTransfer) {
+                return OrderStatus.FAILED_REFUND;
+            }
             return OrderStatus.COMPLETE_REFUNDED;
         }
 
-        if (order.orderType == OrderType.FAILED_TRANSFER) {
+        if (order.didOrderFailTransfer) {
             return OrderStatus.FAILED_TRANSFER;
         }
 
@@ -453,7 +457,8 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             offerAsset: params.offerAsset,
             wantAsset: params.wantAsset,
             refundReceiver: params.refundReceiver,
-            orderType: OrderType.DEFAULT
+            orderType: OrderType.DEFAULT,
+            didOrderFailTransfer: false
         });
         queue[orderIndex] = order;
 
@@ -497,7 +502,7 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
             Order memory order = queue[orderIndex];
 
-            if (order.orderType == OrderType.PRE_FILLED || order.orderType == OrderType.REFUND) {
+            if (order.orderType != OrderType.DEFAULT) {
                 unchecked {
                     ++lastProcessedOrder;
                 }
@@ -519,14 +524,14 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
             bool success = _callOptionalReturnBool(order.wantAsset, receiver, order.amountWant);
 
             // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
-            // recoveryAddress. This is because the queue could possibly be greifed by setting blacklisted addresses as
+            // recoveryAddress. This is because the queue could possibly be griefed by setting blacklisted addresses as
             // the receivers and causing the queue to clog up on process. We handle this by taking the funds to the
             // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
             // for distribution
             if (!success) {
                 // Set the type for the storage and memory as we will emit the memory order
-                order.orderType = OrderType.FAILED_TRANSFER;
-                queue[orderIndex].orderType = OrderType.FAILED_TRANSFER;
+                order.didOrderFailTransfer = true;
+                queue[orderIndex].didOrderFailTransfer = true;
                 order.wantAsset.safeTransfer(recoveryAddress, order.amountWant);
                 emit OrderFailedTransfer(orderIndex, recoveryAddress, receiver, order);
             }
@@ -662,7 +667,26 @@ contract OneToOneQueue is ERC721Enumerable, VerboseAuth {
 
         _checkBalanceQueue(order.offerAsset, order.amountOffer, orderIndex);
         _burn(orderIndex);
-        order.offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
+
+        // From SafeERC20 library to perform a safeERC20 transfer and return a bool on success. Implemented here
+        // since it's private and we cannot call it directly It's worth noting that there are some tokens like
+        // Tether Gold that return false while succeeding.
+        // This situation would result success in being false even though the transfer did not revert.
+        bool success = _callOptionalReturnBool(order.offerAsset, order.refundReceiver, order.amountOffer);
+
+        // If the transfer to the receiver fails, we mark the order as FAILED_TRANSFER and transfer the tokens to a
+        // recoveryAddress. This is because the queue could possibly be greifed by setting a blacklisted addresses as
+        // the refund receiver and block the refund ability. We handle this by taking the funds to the
+        // recoveryAddress to distribute to the user once they become un-blacklisted or otherwise determine a scheme
+        // for distribution
+        if (!success) {
+            // Set the type for the storage and memory as we will emit the memory order. The only difference is the
+            // REFUND status which we override as FAILED_TRANSFER
+            order.didOrderFailTransfer = true;
+            queue[orderIndex].didOrderFailTransfer = true;
+            order.offerAsset.safeTransfer(recoveryAddress, order.amountOffer);
+            emit OrderFailedTransfer(orderIndex, recoveryAddress, order.refundReceiver, order);
+        }
 
         emit OrderRefunded(orderIndex, queue[orderIndex]);
     }

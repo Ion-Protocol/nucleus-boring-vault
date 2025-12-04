@@ -251,7 +251,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         _submitAnOrder();
 
         vm.startPrank(owner);
-        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true, false);
         queue.forceProcess(1);
         vm.stopPrank();
 
