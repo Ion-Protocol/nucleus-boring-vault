@@ -36,6 +36,7 @@ contract QueueAccessAuthority is AccessAuthority {
         _setPublicCapability(queue, OneToOneQueue.processOrders.selector, true);
         _setPublicCapability(queue, OneToOneQueue.submitOrder.selector, true);
         _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, true);
+        _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcessAll.selector, true);
     }
 
     /// @notice required override defining deprecation steps
@@ -46,8 +47,9 @@ contract QueueAccessAuthority is AccessAuthority {
     /// @notice handle deprecation for queue contract
     function _onDeprecationContinue(uint8 newStep) internal override {
         if (newStep == 1) {
-            setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);
-            setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, false);
+            _setPublicCapability(queue, OneToOneQueue.submitOrder.selector, false);
+            _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcess.selector, false);
+            _setPublicCapability(queue, OneToOneQueue.submitOrderAndProcessAll.selector, false);
         } else if (newStep == 2) {
             if (OneToOneQueue(queue).totalSupply() != 0) {
                 revert QueueNotEmpty();

@@ -41,8 +41,13 @@ abstract contract VerboseAuth {
         // We check if the caller is the owner first because we want to ensure they can
         // always swap out the authority even if it's reverting or using up a lot of gas.
         if (msg.sender != owner) {
+            if (address(authority) == address(0)) {
+                revert Unauthorized(msg.sender, msg.data, "- No Authority Set: Owner Only ");
+            }
             (bool canCall,) = authority.canCallVerbose(msg.sender, address(this), msg.data);
-            require(canCall);
+            if (!canCall) {
+                revert Unauthorized(msg.sender, msg.data, "- Not authorized");
+            }
         }
 
         authority = newAuthority;

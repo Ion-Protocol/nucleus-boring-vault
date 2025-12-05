@@ -43,6 +43,28 @@ contract PauseQueueIntegrationTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_submitOrderAndProcessAllRevertsWhenContractIsPausedForAllButOwner() external givenContractIsPaused {
+        vm.startPrank(user1);
+
+        OneToOneQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams);
+        bytes memory data = abi.encodeWithSelector(OneToOneQueue.submitOrderAndProcessAll.selector, params);
+        vm.expectRevert(
+            abi.encodeWithSelector(VerboseAuth.Unauthorized.selector, user1, data, "- Paused "), address(queue)
+        );
+        queue.submitOrderAndProcessAll(params);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        deal(address(USDC), owner, 1e6);
+        deal(address(USDG0), address(queue), 1e6);
+        USDC.approve(address(queue), 1e6);
+        vm.expectEmit(true, true, true, true);
+        emit OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcessAll(_createSubmitOrderParams(1e6, USDC, USDG0, owner, owner, owner, defaultParams));
+        vm.stopPrank();
+    }
+
     function test_submitOrderRevertsWhenContractIsPausedForAllButOwner() external givenContractIsPaused {
         vm.startPrank(user1);
 

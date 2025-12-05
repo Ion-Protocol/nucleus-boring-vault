@@ -109,6 +109,7 @@ abstract contract OneToOneQueueTestBase is Test {
         OneToOneQueue.Order order
     );
     event RecoveryAddressUpdated(address indexed oldRecoveryAddress, address indexed newRecoveryAddress);
+    event AuthorityUpdated(address indexed user, address indexed newAuthority);
 
     OneToOneQueue queue;
     SimpleFeeModule feeModule;
@@ -230,7 +231,8 @@ abstract contract OneToOneQueueTestBase is Test {
             offerAsset: offerAsset,
             wantAsset: wantAsset,
             refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.DEFAULT
+            orderType: OneToOneQueue.OrderType.DEFAULT,
+            didOrderFailTransfer: false
         });
         vm.expectEmit(true, true, true, true);
         emit OneToOneQueue.OrderSubmitted(
@@ -266,7 +268,8 @@ abstract contract OneToOneQueueTestBase is Test {
     function _expectOrderProcessedEvent(
         uint256 orderIndex,
         OneToOneQueue.OrderType orderType,
-        bool isForceProcessed
+        bool isForceProcessed,
+        bool didOrderFailTransfer
     )
         internal
     {
@@ -277,6 +280,8 @@ abstract contract OneToOneQueueTestBase is Test {
             IERC20 wantAsset,
             address refundReceiver,
             // old order type
+            ,
+            // old did order fail transfer value
         ) = queue.queue(orderIndex);
 
         address receiver = queue.ownerOf(orderIndex);
@@ -287,7 +292,8 @@ abstract contract OneToOneQueueTestBase is Test {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            orderType: orderType
+            orderType: orderType,
+            didOrderFailTransfer: didOrderFailTransfer
         });
 
         vm.expectEmit(true, true, true, true);

@@ -44,13 +44,13 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         assertEq(queue.ownerOf(1), user1, "user1 should own NFT ID 1");
         assertEq(queue.totalSupply(), 1, "total supply should be 1 after first mint");
 
-        // User2 sumbits an order
+        // User2 submits an order
         vm.startPrank(user2);
         USDC.approve(address(queue), depositAmount2);
         queue.submitOrder(_createSubmitOrderParams(depositAmount2, USDC, USDG0, user2, user2, user2, defaultParams));
         vm.stopPrank();
 
-        // User3 sumbits an order
+        // User3 submits an order
         vm.startPrank(user3);
         USDC.approve(address(queue), depositAmount3);
         queue.submitOrder(_createSubmitOrderParams(depositAmount3, USDC, USDG0, user3, user3, user3, defaultParams));
@@ -92,7 +92,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         assertEq(USDG0.balanceOf(user1), 1e6 - user1Fees, "User1 should have received their 1 USDG0 - fees");
         assertEq(USDC.balanceOf(feeRecipient), totalFees, "Fee receiver should have received fees");
 
-        // User1 now deposit and sovles atomically to get all orders solved including their new one
+        // User1 now deposit and solves atomically to get all orders solved including their new one
         deal(address(USDC), user1, depositAmount1);
         vm.startPrank(user1);
         USDC.approve(address(queue), depositAmount1);
@@ -251,7 +251,7 @@ contract OneToOneQueueTestHappyPath is OneToOneQueueTestBase {
         _submitAnOrder();
 
         vm.startPrank(owner);
-        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true, false);
         queue.forceProcess(1);
         vm.stopPrank();
 

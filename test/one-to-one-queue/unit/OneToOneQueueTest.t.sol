@@ -204,7 +204,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.OrderType orderType
+            OneToOneQueue.OrderType orderType,
+            // did order fail transfer
         ) = queue.queue(1);
 
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
@@ -213,7 +214,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.REFUND // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.REFUND, // order event should emit with refund not with old status
+            didOrderFailTransfer: false
         });
 
         vm.expectEmit(true, true, true, true);
@@ -244,8 +246,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
         deal(address(USDG0), address(queue), 2e6);
 
-        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true);
-        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true);
+        _expectOrderProcessedEvent(1, OneToOneQueue.OrderType.PRE_FILLED, true, false);
+        _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.PRE_FILLED, true, false);
         queue.forceProcessOrders(orderIndices);
 
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_PRE_FILLED));
@@ -275,7 +277,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             IERC20 offerAsset,
             IERC20 wantAsset,
             address refundReceiver,
-            OneToOneQueue.OrderType orderType
+            OneToOneQueue.OrderType orderType,
+            // did order fail transfer
         ) = queue.queue(1);
         OneToOneQueue.Order memory order = OneToOneQueue.Order({
             offerAsset: offerAsset,
@@ -283,7 +286,8 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
             amountOffer: amountOffer,
             amountWant: amountWant,
             refundReceiver: refundReceiver,
-            orderType: OneToOneQueue.OrderType.REFUND // order event should emit with refund not with old status
+            orderType: OneToOneQueue.OrderType.REFUND, // order event should emit with refund not with old status
+            didOrderFailTransfer: false
         });
 
         vm.expectRevert(
@@ -300,7 +304,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 1));
         queue.ownerOf(1);
 
-        (,,,,, orderType) = queue.queue(1);
+        (,,,,, orderType,) = queue.queue(1);
         assertEq(uint8(orderType), uint8(OneToOneQueue.OrderType.REFUND), "order should be marked for refund");
         assertEq(uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE_REFUNDED));
         assertEq(USDC.balanceOf(user1), 1e6, "user1 should have their USDC balance back");
@@ -442,6 +446,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                 submitParams.signatureParams.deadline,
                 OneToOneQueue.ApprovalMethod.EIP20_APROVE,
                 submitParams.signatureParams.nonce,
+                queue.feeModule(),
                 block.chainid,
                 address(queue)
             )
@@ -477,6 +482,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     submitParams.signatureParams.deadline,
                     OneToOneQueue.ApprovalMethod.EIP20_APROVE,
                     1,
+                    queue.feeModule(),
                     block.chainid,
                     address(queue)
                 )
@@ -525,6 +531,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     deadline,
                     OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
                     0,
+                    queue.feeModule(),
                     block.chainid,
                     address(queue)
                 )
@@ -570,6 +577,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
                     deadline,
                     OneToOneQueue.ApprovalMethod.EIP2612_PERMIT,
                     1,
+                    queue.feeModule(),
                     block.chainid,
                     address(queue)
                 )
@@ -687,9 +695,28 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
+    function test_submitOrderAndProcessAll() external {
+        deal(address(USDG0), address(queue), 1e6);
+        deal(address(USDC), user1, 1e6);
+        vm.startPrank(user1);
+        USDC.approve(address(queue), 1e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit OneToOneQueue.OrdersProcessedInRange(1, 1);
+        queue.submitOrderAndProcessAll(_createSubmitOrderParams(1e6, USDC, USDG0, user1, user1, user1, defaultParams));
+        assertEq(uint8(queue.getOrderStatus(queue.latestOrder())), uint8(OneToOneQueue.OrderStatus.COMPLETE));
+        assertEq(
+            USDG0.balanceOf(user1),
+            1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
+            "user1 should have their USDG0 balance - fees"
+        );
+        vm.stopPrank();
+    }
+
     function test_statusNotFound(uint256 aNumber) external {
         aNumber = bound(aNumber, 1, 1000);
         assertEq(uint8(queue.getOrderStatus(aNumber)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
+        assertEq(uint8(queue.getOrderStatus(0)), uint8(OneToOneQueue.OrderStatus.NOT_FOUND));
     }
 
     function test_submitOrderAndProcessLessThanTotal() external {

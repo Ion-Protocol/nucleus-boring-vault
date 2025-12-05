@@ -177,21 +177,31 @@ contract CommunityCodeDepositor is Auth {
         if (to == address(0)) revert ZeroAddress();
         bytes32 depositHash;
         unchecked {
-            depositHash = keccak256(abi.encodePacked(address(this), ++depositNonce));
+            depositHash = keccak256(abi.encodePacked(address(this), ++depositNonce, block.chainid));
         }
 
         // Clear leftover allowance for non-standard ERC20
-        depositAsset.safeApprove(boringVault, 0);
+        _tryClearApproval(depositAsset);
         depositAsset.safeApprove(boringVault, depositAmount);
 
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
         ERC20(boringVault).safeTransfer(to, shares);
         // Clear leftover allowance
-        depositAsset.safeApprove(boringVault, 0);
+        _tryClearApproval(depositAsset);
 
         emit DepositWithCommunityCode(
             msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, communityCode
         );
+    }
+
+    /**
+     * @notice Helper function to clear allowance. Helps with weird ERC20s that require a 0 approval before a new one.
+     * And also this does not revert on failure in order to also handle ERC20s that revert on a zero approval.
+     * @dev In the case of a token that reverts on a zero approval AND requires approval set to 0 before a new approval
+     * this will of course fail. But we would consider this a critical flaw of the token itself.
+     */
+    function _tryClearApproval(ERC20 depositAsset) internal {
+        address(depositAsset).call(abi.encodeWithSelector(depositAsset.approve.selector, boringVault, 0));
     }
 
 }
