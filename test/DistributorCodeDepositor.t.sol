@@ -10,7 +10,7 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { VaultArchitectureSharedSetup } from "test/shared-setup/VaultArchitectureSharedSetup.t.sol";
-import { CommunityCodeDepositor, INativeWrapper } from "src/helper/CommunityCodeDepositor.sol";
+import { DistributorCodeDepositor, INativeWrapper } from "src/helper/DistributorCodeDepositor.sol";
 import { stdStorage, StdStorage, stdError } from "@forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
 
@@ -24,13 +24,13 @@ interface IERC2612 {
 
 }
 
-contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
+contract DistributorCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
 
-    CommunityCodeDepositor public communityCodeDepositor;
+    DistributorCodeDepositor public distributorCodeDepositor;
     address public owner = vm.addr(uint256(bytes32("owner")));
 
     function setUp() external {
@@ -52,18 +52,18 @@ contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
         // Deploy vault architecture using the helper function
         (boringVault, teller, accountant) =
             _deployVaultArchitecture("Ethereum Earn", "earnETH", 18, address(WETH), assets, startingExchangeRate);
-        // deploy community code depositor
-        communityCodeDepositor = new CommunityCodeDepositor(teller, nativeWrapper, rolesAuthority, true, owner);
+        // deploy distributor code depositor
+        distributorCodeDepositor = new DistributorCodeDepositor(teller, nativeWrapper, rolesAuthority, true, owner);
 
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setPublicCapability(
-            address(communityCodeDepositor), communityCodeDepositor.deposit.selector, true
+            address(distributorCodeDepositor), distributorCodeDepositor.deposit.selector, true
         );
         rolesAuthority.setPublicCapability(
-            address(communityCodeDepositor), communityCodeDepositor.depositWithPermit.selector, true
+            address(distributorCodeDepositor), distributorCodeDepositor.depositWithPermit.selector, true
         );
         rolesAuthority.setPublicCapability(
-            address(communityCodeDepositor), communityCodeDepositor.depositNative.selector, true
+            address(distributorCodeDepositor), distributorCodeDepositor.depositNative.selector, true
         );
         vm.stopPrank();
     }
@@ -82,7 +82,7 @@ contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
         uint256 expectedShares = depositAmount.mulDivDown(ONE_SHARE, quoteRate);
 
         vm.deal(address(this), depositAmount);
-        uint256 sharesMinted = communityCodeDepositor.depositNative{ value: depositAmount }(
+        uint256 sharesMinted = distributorCodeDepositor.depositNative{ value: depositAmount }(
             depositAmount, minimumMint, recipient, "test code"
         );
         assertEq(sharesMinted, expectedShares, "shares minted must equal expected shares");
@@ -108,7 +108,7 @@ contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
         uint256 expectedShares = depositAmount.mulDivDown(ONE_SHARE, quoteRate);
 
         vm.deal(address(this), depositAmount);
-        uint256 sharesMinted = communityCodeDepositor.depositNative{ value: depositAmount }(
+        uint256 sharesMinted = distributorCodeDepositor.depositNative{ value: depositAmount }(
             depositAmount, minimumMint, recipient, "test code"
         );
         assertEq(sharesMinted, expectedShares, "shares minted must equal expected shares");
@@ -126,15 +126,16 @@ contract CommunityCodeDepositorWithNativeTest is VaultArchitectureSharedSetup {
         address recipient = address(this);
 
         vm.deal(address(this), depositAmount);
-        vm.expectRevert(CommunityCodeDepositor.IncorrectNativeDepositAmount.selector);
-        uint256 sharesMinted = communityCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
+        vm.expectRevert(DistributorCodeDepositor.IncorrectNativeDepositAmount.selector);
+        uint256 sharesMinted =
+            distributorCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
     }
 
     function test_depositNativeWithCustomRecipient() external { }
 
 }
 
-contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup {
+contract DistributorCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup {
 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -143,7 +144,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
     bytes32 private constant PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
-    CommunityCodeDepositor public communityCodeDepositor;
+    DistributorCodeDepositor public distributorCodeDepositor;
     address public owner = vm.addr(uint256(bytes32("owner")));
 
     function setUp() external {
@@ -166,19 +167,19 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         INativeWrapper nativeWrapper = INativeWrapper(WETH);
 
-        // deploy community code depositor
-        communityCodeDepositor =
-            new CommunityCodeDepositor(teller, INativeWrapper(address(0)), rolesAuthority, false, owner);
+        // deploy distributor code depositor
+        distributorCodeDepositor =
+            new DistributorCodeDepositor(teller, INativeWrapper(address(0)), rolesAuthority, false, owner);
 
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setPublicCapability(
-            address(communityCodeDepositor), communityCodeDepositor.deposit.selector, true
+            address(distributorCodeDepositor), distributorCodeDepositor.deposit.selector, true
         );
         rolesAuthority.setPublicCapability(
-            address(communityCodeDepositor), communityCodeDepositor.depositWithPermit.selector, true
+            address(distributorCodeDepositor), distributorCodeDepositor.depositWithPermit.selector, true
         );
         rolesAuthority.setPublicCapability(
-            address(communityCodeDepositor), communityCodeDepositor.depositNative.selector, true
+            address(distributorCodeDepositor), distributorCodeDepositor.depositNative.selector, true
         );
         vm.stopPrank();
     }
@@ -189,8 +190,9 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         address recipient = address(this);
 
         vm.deal(address(this), depositAmount);
-        vm.expectRevert(CommunityCodeDepositor.NativeDepositNotSupported.selector);
-        uint256 sharesMinted = communityCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
+        vm.expectRevert(DistributorCodeDepositor.NativeDepositNotSupported.selector);
+        uint256 sharesMinted =
+            distributorCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
     }
 
     function test_depositWithSenderAsRecipient() external {
@@ -209,10 +211,10 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         _setERC20Balance(address(USDC), address(this), depositAmount);
 
-        USDC.approve(address(communityCodeDepositor), depositAmount);
+        USDC.approve(address(distributorCodeDepositor), depositAmount);
 
         uint256 sharesMinted =
-            communityCodeDepositor.deposit(ERC20(address(USDC)), depositAmount, minimumMint, recipient, "test code");
+            distributorCodeDepositor.deposit(ERC20(address(USDC)), depositAmount, minimumMint, recipient, "test code");
 
         assertEq(USDC.balanceOf(owner), 0, "owner must have no deposit asset balance");
         assertEq(sharesMinted, expectedShares, "shares minted must equal expected shares");
@@ -233,10 +235,10 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         _setERC20Balance(address(USDC), address(this), depositAmount);
 
-        USDC.approve(address(communityCodeDepositor), depositAmount);
+        USDC.approve(address(distributorCodeDepositor), depositAmount);
 
         uint256 sharesMinted =
-            communityCodeDepositor.deposit(ERC20(address(USDC)), depositAmount, minimumMint, recipient, "test code");
+            distributorCodeDepositor.deposit(ERC20(address(USDC)), depositAmount, minimumMint, recipient, "test code");
 
         assertEq(USDC.balanceOf(owner), 0, "owner must have no deposit asset balance");
         assertEq(sharesMinted, expectedShares, "shares minted must equal expected shares");
@@ -252,7 +254,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         uint256 deadline = block.timestamp + 1000;
 
-        address spender = address(communityCodeDepositor);
+        address spender = address(distributorCodeDepositor);
 
         uint256 quoteRate = accountant.getRateInQuoteSafe(ERC20(address(USDC))); // quote / share
         uint256 expectedShares = depositAmount.mulDivDown(ONE_SHARE, quoteRate);
@@ -268,7 +270,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         // deposit without approval
         vm.startPrank(owner);
-        uint256 sharesMinted = communityCodeDepositor.depositWithPermit(
+        uint256 sharesMinted = distributorCodeDepositor.depositWithPermit(
             ERC20(address(USDC)), depositAmount, minimumMint, owner, "test code", deadline, v, r, s
         );
         vm.stopPrank();
@@ -283,7 +285,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         uint256 depositAmount = 123e6;
         uint256 deadline = block.timestamp + 1000;
 
-        address spender = address(communityCodeDepositor);
+        address spender = address(distributorCodeDepositor);
 
         uint256 quoteRate = accountant.getRateInQuoteSafe(ERC20(address(USDC))); // quote / share
 
@@ -300,7 +302,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         // deposit without approval
         vm.startPrank(owner);
-        uint256 sharesMinted = communityCodeDepositor.depositWithPermit(
+        uint256 sharesMinted = distributorCodeDepositor.depositWithPermit(
             ERC20(address(USDC)), depositAmount, depositAmount, customRecipient, "test code", deadline, v, r, s
         );
         vm.stopPrank();
@@ -319,7 +321,7 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
         uint256 depositAmount = 123e6;
         uint256 minimumMint = 123e6;
         uint256 deadline = block.timestamp + 1000;
-        address spender = address(communityCodeDepositor);
+        address spender = address(distributorCodeDepositor);
 
         // owner is the depositor aka msg.sender to the depositor contract
         uint256 ownerSk = uint256(bytes32("owner_private_key"));
@@ -341,8 +343,8 @@ contract CommunityCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup
 
         // deposit without approval
         vm.startPrank(owner);
-        vm.expectRevert(abi.encodeWithSelector(CommunityCodeDepositor.PermitFailedAndAllowanceTooLow.selector));
-        uint256 sharesMinted = communityCodeDepositor.depositWithPermit(
+        vm.expectRevert(abi.encodeWithSelector(DistributorCodeDepositor.PermitFailedAndAllowanceTooLow.selector));
+        uint256 sharesMinted = distributorCodeDepositor.depositWithPermit(
             ERC20(address(USDC)), depositAmount, minimumMint, owner, "test code", deadline, v, r, s
         );
         vm.stopPrank();
