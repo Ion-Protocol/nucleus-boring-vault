@@ -204,7 +204,7 @@ abstract contract AccessAuthority is Pausable, VerboseAuth, Authority {
     /**
      * @dev required override to return number of the total deprecation steps
      */
-    function totalDeprecationSteps() public virtual returns (uint8);
+    function totalDeprecationSteps() public view virtual returns (uint8);
 
     /**
      * @dev Hook to allow for additional logic to be added to the canCallVerbose function.

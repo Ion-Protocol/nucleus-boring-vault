@@ -50,7 +50,6 @@ contract AccessAuthorityTest is OneToOneQueueTestBase {
         vm.stopPrank();
 
         assertTrue(rolesAuthority.paused());
-        vm.stopPrank();
 
         vm.startPrank(user1);
         OneToOneQueue.SubmitOrderParams memory params =
