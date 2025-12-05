@@ -20,7 +20,7 @@ interface INativeWrapper {
 
 }
 
-contract CommunityCodeDepositor is Auth {
+contract DistributorCodeDepositor is Auth {
 
     using SafeTransferLib for ERC20;
 
@@ -39,14 +39,14 @@ contract CommunityCodeDepositor is Auth {
     uint256 public depositNonce;
 
     // more details on the deposit also exists on the Teller event
-    event DepositWithCommunityCode(
+    event DepositWithDistributorCode(
         address indexed depositor,
         ERC20 indexed depositAsset,
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
         bytes32 depositHash,
-        bytes indexed communityCode
+        bytes indexed distributorCode
     );
 
     constructor(
@@ -88,13 +88,13 @@ contract CommunityCodeDepositor is Auth {
      * @param depositAmount The amount to deposit
      * @param minimumMint Minimum amount of shares to mint. Reverts otherwise
      * @param to The recipient of the shares
-     * @param communityCode Indicator for which operator the token gets staked to
+     * @param distributorCode Indicator for which operator the token gets staked to
      */
     function depositNative(
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
-        bytes calldata communityCode
+        bytes calldata distributorCode
     )
         external
         payable
@@ -104,7 +104,7 @@ contract CommunityCodeDepositor is Auth {
         if (!isNativeDepositSupported) revert NativeDepositNotSupported();
         if (msg.value != depositAmount) revert IncorrectNativeDepositAmount();
         nativeWrapper.deposit{ value: msg.value }();
-        return _deposit(ERC20(address(nativeWrapper)), depositAmount, minimumMint, to, communityCode);
+        return _deposit(ERC20(address(nativeWrapper)), depositAmount, minimumMint, to, distributorCode);
     }
 
     /**
@@ -113,21 +113,21 @@ contract CommunityCodeDepositor is Auth {
      * @param depositAmount The amount to deposit
      * @param minimumMint Minimum amount of shares to mint. Reverts otherwise
      * @param to The recipient of the shares
-     * @param communityCode Indicator for which operator the token gets staked to
+     * @param distributorCode Indicator for which operator the token gets staked to
      */
     function deposit(
         ERC20 depositAsset,
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
-        bytes calldata communityCode
+        bytes calldata distributorCode
     )
         external
         requiresAuth
         returns (uint256 shares)
     {
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
-        return _deposit(depositAsset, depositAmount, minimumMint, to, communityCode);
+        return _deposit(depositAsset, depositAmount, minimumMint, to, distributorCode);
     }
 
     function depositWithPermit(
@@ -135,7 +135,7 @@ contract CommunityCodeDepositor is Auth {
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
-        bytes calldata communityCode,
+        bytes calldata distributorCode,
         uint256 deadline,
         uint8 v,
         bytes32 r,
@@ -158,7 +158,7 @@ contract CommunityCodeDepositor is Auth {
 
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
 
-        return _deposit(depositAsset, depositAmount, minimumMint, to, communityCode);
+        return _deposit(depositAsset, depositAmount, minimumMint, to, distributorCode);
     }
 
     /**
@@ -169,7 +169,7 @@ contract CommunityCodeDepositor is Auth {
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
-        bytes calldata communityCode
+        bytes calldata distributorCode
     )
         internal
         returns (uint256 shares)
@@ -189,8 +189,8 @@ contract CommunityCodeDepositor is Auth {
         // Clear leftover allowance
         _tryClearApproval(depositAsset);
 
-        emit DepositWithCommunityCode(
-            msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, communityCode
+        emit DepositWithDistributorCode(
+            msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, distributorCode
         );
     }
 
