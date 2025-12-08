@@ -13,7 +13,7 @@ contract DeployDistributorCodeDepositor is BaseScript {
 
     address teller = 0xB32b109FD960038c5135F25DFa9639A43396D6bB;
     address nativeWrapper = address(0);
-    address rolesAuthority = 0x368B75a32Db53332bd9916Cf27272bf9696BCc45;
+    address rolesAuthority = 0x2b09f5edF88A6777E2bA7A0517a97Bf744921c42;
     bool isNativeDepositSupported = false;
     address owner = getMultisig();
 
