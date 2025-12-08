@@ -12,7 +12,7 @@ import "src/helper/Constants.sol";
 contract DeployYieldForwarder is BaseScript {
 
     string constant NAME = "Usdg0Orchestration";
-    string constant SYMBOL = "USDG0_O";
+    string constant SYMBOL = "ORCH0";
     address constant BALANCER_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     address constant STRATEGIST_ADDRESS = 0x000054f89dCC1248716804E7eF5c5E225FE3a000;
     uint8 constant DECIMALS = 6;
