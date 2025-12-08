@@ -32,7 +32,7 @@ contract DeployYieldForwarder is BaseScript {
 
         // deploy a boring vault
         address boringVaultAddress = CREATEX.deployCreate3(
-            SALT_BORING_VUALT,
+            SALT_BORING_VAULT,
             abi.encodePacked(type(BoringVault).creationCode, abi.encode(broadcaster, NAME, SYMBOL, DECIMALS))
         );
         BoringVault boringVault = BoringVault(payable(boringVaultAddress));
