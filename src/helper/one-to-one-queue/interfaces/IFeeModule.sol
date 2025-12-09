@@ -15,7 +15,7 @@ interface IFeeModule {
      * @param amount deposited
      * @param offerAsset address
      * @param wantAsset address
-     * @param receiver of the receiver
+     * @param receiver address of the want asset
      * @return feeAmount to take
      */
     function calculateOfferFees(
