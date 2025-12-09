@@ -1,5 +1,5 @@
 {
-    "filter_paths": "lib",
+    "filter_paths": "lib|node_modules",
     "detectors_to_exclude": "naming-convention,pragma,assembly,equality",
     "exclude_informational": true,
     "exclude_low": true,
