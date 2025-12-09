@@ -131,8 +131,6 @@ contract DistributorCodeDepositorWithNativeTest is VaultArchitectureSharedSetup 
             distributorCodeDepositor.depositNative(depositAmount, minimumMint, recipient, "test code");
     }
 
-    function test_depositNativeWithCustomRecipient() external { }
-
 }
 
 contract DistributorCodeDepositorWithoutNativeTest is VaultArchitectureSharedSetup {
