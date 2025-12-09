@@ -11,20 +11,20 @@ import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol
 contract DeployOneToOneQueue is BaseScript {
 
     address owner = getMultisig();
-    uint256 constant OFFER_FEE_PERCENTAGE = 10; // 0.1% FEE
+    uint256 constant OFFER_FEE_PERCENTAGE = 2; // 0.02% FEE
     string constant QUEUE_ERC721_NAME = "USDG Queue";
     string constant QUEUE_ERC721_SYMBOL = "USDGQ";
     address constant OFFER_ASSET_RECIPIENT = 0x606E6Be1Bf42b786f3FbFE3c195BBEA68FDD0dff; // the yield forwarder boring
     // vault address
-    address constant FEE_RECIPIENT = address(0); // the address to send fees to
+    address constant FEE_RECIPIENT = getMultisig(); // the address to send fees to
 
     address constant PAUSE_CONTRACT = 0x858d3eE2a16F7B6E43C8D87a5E1F595dE32f4419;
     address constant PAUSE_EOA = 0xe5CcB29Cb9C886da329098A184302E2D5Ff0cD9E;
     address[] PAUSERS = [PAUSE_CONTRACT, PAUSE_EOA];
 
-    bytes32 constant SALT_FEE_MODULE = 0x12341ed9cb38ae1b15016c6ed9f88e247f2af76f009378453939393939222211;
-    bytes32 constant SALT_ONE_TO_ONE_QUEUE = 0x12341ed9cb38ae1b15016c6ed9f88e247f2af76f009378453939393939222212;
-    bytes32 constant SALT_QUEUE_ACCESS_AUTHORITY = 0x12341ed9cb38ae1b15016c6ed9f88e247f2af76f009378453939393939222213;
+    bytes32 constant SALT_FEE_MODULE = 0x1Ab5a40491925cB445fd59e607330046bEac68E500937845393939393924fe11;
+    bytes32 constant SALT_ONE_TO_ONE_QUEUE = 0x1Ab5a40491925cB445fd59e607330046bEac68E5009378453978cd3939222212;
+    bytes32 constant SALT_QUEUE_ACCESS_AUTHORITY = 0x1Ab5a40491925cB445fd59e607330046bEac68E50094ab253939393939222213;
 
     function run() external broadcast {
         // Deploy the Fee Module
