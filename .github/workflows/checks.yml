@@ -55,7 +55,7 @@ jobs:
         uses: codespell-project/actions-codespell@v2.0
         with:
           check_filenames: true
-          ignore_words_list: we,amountIn
+          ignore_words_list: we,amountIn,aNumber
           skip: ./.git,./lib,./certora,./audit,./package-lock.json
 
   validate-links:

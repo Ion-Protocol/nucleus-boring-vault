@@ -285,7 +285,7 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         for (uint256 i; i < ordersToPlace.length; i++) {
             uint8 orderType = ordersToPlace[i] % 2;
             _submitAnOrder();
-            if (orderType == 1) {
+            if (orderType == 0) {
                 vm.prank(owner);
                 queue.forceRefund(i + 1);
                 // do a transfer so we can keep using helper _submitAnOrder which just uses the user1 as the refund
@@ -293,10 +293,11 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
                 vm.prank(user1);
                 USDC.transfer(refundReceiver, 1e6);
                 refundCount++;
-            } else if (orderType == 2) {
-                vm.prank(owner);
+            } else if (orderType == 1) {
+                vm.startPrank(owner);
                 _expectOrderProcessedEvent(i + 1, OneToOneQueue.OrderType.PRE_FILLED, true, false);
                 queue.forceProcess(i + 1);
+                vm.stopPrank();
                 forceProcessCount++;
             }
         }

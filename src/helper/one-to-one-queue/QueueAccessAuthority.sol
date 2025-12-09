@@ -40,7 +40,7 @@ contract QueueAccessAuthority is AccessAuthority {
     }
 
     /// @notice required override defining deprecation steps
-    function totalDeprecationSteps() public override returns (uint8) {
+    function totalDeprecationSteps() public view override returns (uint8) {
         return 2;
     }
 

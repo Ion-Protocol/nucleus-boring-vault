@@ -234,7 +234,7 @@ contract OneToOneQueueTest is OneToOneQueueTestBase {
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(OneToOneQueue.InvalidOrderIndex.selector, 0));
-        queue.forceRefundOrders(new uint256[](1));
+        queue.forceProcessOrders(new uint256[](1));
 
         _submitAnOrder();
         _submitAnOrder();
