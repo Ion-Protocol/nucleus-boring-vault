@@ -9,11 +9,11 @@ import { DistributorCodeDepositor, INativeWrapper } from "src/helper/Distributor
 
 contract DeployDistributorCodeDepositor is BaseScript {
 
-    bytes32 constant salt = 0x1Ab5a40491925cB445fd59e607330046bEac68E5005534574445309932585859;
+    bytes32 constant salt = 0x1Ab5a40491925cB445fd59e607330046bEac68E500553457444530993258585a;
 
-    address teller = 0x094c771B02094482C2D514ac46d793c8A9f5F693;
+    address teller = 0x6a12293FE7395f3E1FFcCF6E689A3a2c6926166D;
     address nativeWrapper = address(0);
-    address rolesAuthority = 0xaeeC053e978A4Bfc05BEBf297250cE8528B8530d;
+    address rolesAuthority = 0xc34Fd9a670Aed5f67B7033274B4E91804303d037;
     bool isNativeDepositSupported = false;
     address owner = getMultisig();
 
