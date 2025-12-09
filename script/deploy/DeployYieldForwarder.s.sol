@@ -11,15 +11,15 @@ import "src/helper/Constants.sol";
 
 contract DeployYieldForwarder is BaseScript {
 
-    string constant NAME = "YieldForwarder";
-    string constant SYMBOL = "YF";
+    string constant NAME = "USDG0Orchestration";
+    string constant SYMBOL = "ORCH0";
     address constant BALANCER_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     address constant STRATEGIST_ADDRESS = 0x000054f89dCC1248716804E7eF5c5E225FE3a000;
     uint8 constant DECIMALS = 6;
 
-    bytes32 SALT_ROLES_AUTHORITY = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00323232323232323232cafe;
-    bytes32 SALT_BORING_VUALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00cafecafecafecafe32cafe;
-    bytes32 SALT_MANAGER_WITH_MERKLE_VERIFICATION = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f00777767777677777777cafe;
+    bytes32 SALT_ROLES_AUTHORITY = 0x1Ab5a40491925cB445fd59e607330046bEac68E500677821112232323232cafe;
+    bytes32 SALT_BORING_VAULT = 0x1Ab5a40491925cB445fd59e607330046bEac68E500cafe5555555552323332fe;
+    bytes32 SALT_MANAGER_WITH_MERKLE_VERIFICATION = 0x1Ab5a40491925cB445fd59e607330046bEac68E5008828383822102320930203;
 
     function run() public broadcast {
         // deploy a roles authority
@@ -32,7 +32,7 @@ contract DeployYieldForwarder is BaseScript {
 
         // deploy a boring vault
         address boringVaultAddress = CREATEX.deployCreate3(
-            SALT_BORING_VUALT,
+            SALT_BORING_VAULT,
             abi.encodePacked(type(BoringVault).creationCode, abi.encode(broadcaster, NAME, SYMBOL, DECIMALS))
         );
         BoringVault boringVault = BoringVault(payable(boringVaultAddress));
