@@ -97,7 +97,7 @@ contract GriefingTest is OneToOneQueueTestBase {
         assertEq(
             blacklistToken.balanceOf(address(recoveryAddress)),
             1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000),
-            "recovery address should have 1e6 balance"
+            "recovery address should have 1e6 balance minus fees"
         );
     }
 

@@ -66,7 +66,7 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         _expectOrderProcessedEvent(10, OneToOneQueue.OrderType.DEFAULT, false, false);
         _expectOrderProcessedEvent(12, OneToOneQueue.OrderType.DEFAULT, false, false);
         queue.processOrders(12);
-        totalUSDG0ForUser += 6e6 - (6e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000); // 3 USDG0 - fees. 3 from normal
+        totalUSDG0ForUser += 6e6 - (6e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000);
         // processing
         assertEq(USDC.balanceOf(user1), totalUSDCForUser, "User1 should have their USDC balance back");
         assertEq(USDG0.balanceOf(user1), totalUSDG0ForUser, "User1 should have their USDG0 balance");
@@ -115,7 +115,7 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         _expectOrderProcessedEvent(9, OneToOneQueue.OrderType.DEFAULT, false, false);
         _expectOrderProcessedEvent(10, OneToOneQueue.OrderType.DEFAULT, false, false);
         queue.processOrders(12);
-        totalUSDG0ForUser += 8e6 - (8e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000); // 3 USDG0 - fees. 3 from normal
+        totalUSDG0ForUser += 8e6 - (8e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000);
         // processing
         assertEq(USDC.balanceOf(user1), totalUSDCForUser, "User1 should have their USDC balance back");
         assertEq(USDG0.balanceOf(user1), totalUSDG0ForUser, "User1 should have their USDG0 balance");
@@ -160,7 +160,7 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
 
         // Process all the orders
         queue.processOrders(12);
-        totalUSDG0ForUser += 8e6 - (8e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000); // 3 USDG0 - fees. 3 from normal
+        totalUSDG0ForUser += 8e6 - (8e6 * TEST_OFFER_FEE_PERCENTAGE / 10_000);
         // processing
         assertEq(USDC.balanceOf(user1), totalUSDCForUser, "User1 should have their USDC balance back");
         assertEq(USDG0.balanceOf(user1), totalUSDG0ForUser, "User1 should have their USDG0 balance");
