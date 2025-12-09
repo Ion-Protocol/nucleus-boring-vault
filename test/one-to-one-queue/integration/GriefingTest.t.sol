@@ -41,10 +41,10 @@ contract GriefingTest is OneToOneQueueTestBase {
         vm.stopPrank();
     }
 
-    function test_greifing() external {
+    function test_griefing() external {
         deal(address(USDC), user1, 3e6);
         deal(address(blacklistToken), address(queue), 3e6);
-        // sandwich a greifing order between two normal orders
+        // sandwich a griefing order between two normal orders
         OneToOneQueue.SubmitOrderParams memory normalOrder =
             _createSubmitOrderParams(1e6, USDC, IERC20(address(blacklistToken)), user1, user1, user1, defaultParams);
         vm.startPrank(user1);
@@ -63,7 +63,7 @@ contract GriefingTest is OneToOneQueueTestBase {
         assertTrue(queue.ownerOf(3) == user1, "user1 should own the third order");
 
         // process all orders
-        OneToOneQueue.Order memory greifingOrder = OneToOneQueue.Order({
+        OneToOneQueue.Order memory griefingOrder = OneToOneQueue.Order({
             amountOffer: 1e6,
             amountWant: uint128((1e6 - (1e6 * TEST_OFFER_FEE_PERCENTAGE) / 10_000)),
             offerAsset: IERC20(address(USDC)),
@@ -73,12 +73,11 @@ contract GriefingTest is OneToOneQueueTestBase {
             didOrderFailTransfer: true
         });
         vm.expectEmit(true, true, true, true);
-        emit OrderFailedTransfer(2, recoveryAddress, blacklistedAddress, greifingOrder);
+        emit OrderFailedTransfer(2, recoveryAddress, blacklistedAddress, griefingOrder);
         _expectOrderProcessedEvent(2, OneToOneQueue.OrderType.DEFAULT, false, true);
         queue.processOrders(3);
-        vm.stopPrank();
 
-        // check that the greifing order is at the back of the queue
+        // check that the griefing order is at the back of the queue
         // and that the normal orders are complete
         assertEq(
             uint8(queue.getOrderStatus(1)), uint8(OneToOneQueue.OrderStatus.COMPLETE), "normal order should be complete"
@@ -86,13 +85,13 @@ contract GriefingTest is OneToOneQueueTestBase {
         assertEq(
             uint8(queue.getOrderStatus(2)),
             uint8(OneToOneQueue.OrderStatus.FAILED_TRANSFER),
-            "greifing order should be failed transfer"
+            "griefing order should be failed transfer"
         );
         assertEq(
             uint8(queue.getOrderStatus(3)), uint8(OneToOneQueue.OrderStatus.COMPLETE), "normal order should be complete"
         );
         assertEq(queue.latestOrder(), 3, "latest order should be 3");
-        assertEq(queue.lastProcessedOrder(), 3, "last processed order should be 2");
+        assertEq(queue.lastProcessedOrder(), 3, "last processed order should be 3");
 
         assertEq(blacklistToken.balanceOf(blacklistedAddress), 0, "blacklisted address should have no balance");
         assertEq(

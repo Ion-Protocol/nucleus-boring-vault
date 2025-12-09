@@ -98,7 +98,7 @@ contract OneToOneQueueTestManyOrders is OneToOneQueueTestBase {
         queue.forceRefund(12);
         vm.stopPrank();
 
-        uint256 totalUSDCForUser = 4e6; // 3 refunds return 3 USDC
+        uint256 totalUSDCForUser = 4e6;
         uint256 totalUSDG0ForUser = 0;
         assertEq(USDC.balanceOf(user1), totalUSDCForUser, "User1 should have their USDC balance back");
         assertEq(
