@@ -136,4 +136,4 @@ jobs:
 
       - name: Run Slither
         run: |
-          solc-select install 0.8.21 && export SOLC_VERSION='0.8.21' && slither src
+          npm i && solc-select install 0.8.21 && export SOLC_VERSION='0.8.21' && slither src
