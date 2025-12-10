@@ -121,12 +121,12 @@ abstract contract BaseScript is Script {
         string memory nameEntropy
     )
         internal
+        pure
         returns (bytes32)
     {
         bytes1 crosschainProtectionFlag = isCrosschainProtected ? bytes1(0x01) : bytes1(0x00);
         bytes32 nameEntropyHash = keccak256(abi.encodePacked(nameEntropy));
-        bytes32 bitmask = 0x000000000000000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFF;
-        bytes11 nameEntropyHash11 = bytes11(nameEntropyHash & bitmask);
+        bytes11 nameEntropyHash11 = bytes11(nameEntropyHash);
         return bytes32(abi.encodePacked(deployer, crosschainProtectionFlag, nameEntropyHash11));
     }
 
