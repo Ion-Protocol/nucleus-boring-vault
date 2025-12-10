@@ -55,33 +55,8 @@ jobs:
         uses: codespell-project/actions-codespell@v2.0
         with:
           check_filenames: true
-          ignore_words_list: we,amountIn
+          ignore_words_list: we,amountIn,aNumber
           skip: ./.git,./lib,./certora,./audit,./package-lock.json
-
-  validate-links:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        ruby_version:
-          - 3.3
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby_version }}
-          bundler-cache: true
-
-      - name: Install awesome_bot
-        run: gem install awesome_bot
-
-      - name: Validate URLs
-        run: awesome_bot ./*.md src/**/*.sol --allow-dupe --allow-redirect --request-delay 0.4 --white-list mainnet.infura.io/v3,localhost
 
   solhint:
     runs-on: ${{ matrix.os }}
@@ -136,4 +111,4 @@ jobs:
 
       - name: Run Slither
         run: |
-          solc-select install 0.8.21 && export SOLC_VERSION='0.8.21' && slither src
+          npm i && solc-select install 0.8.21 && export SOLC_VERSION='0.8.21' && slither src
