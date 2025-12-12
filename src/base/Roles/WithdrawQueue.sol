@@ -8,8 +8,6 @@ import { IFeeModule } from "src/interfaces/IFeeModule.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
 /**
@@ -20,15 +18,12 @@ import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMul
 contract WithdrawQueue is ERC721Enumerable, Auth {
 
     using SafeERC20 for IERC20;
-    using SafeCast for uint256;
 
     /// @notice Type for internal order handling
-    /// @dev all but default orders are skipped on solve, as refunds and pre-fills are handled at the time they are
-    /// marked
     enum OrderType {
         DEFAULT, // Normal order in queue
         PRE_FILLED, // Order filled out of order, skip on process
-        REFUND // Order refunded, skip on process
+        REFUND // Order marked for refund, on process handle refund only
     }
 
     /// @notice Return type of a user's order status in the queue
@@ -37,9 +32,9 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         PENDING,
         COMPLETE,
         COMPLETE_PRE_FILLED,
+        PENDING_REFUND,
         COMPLETE_REFUNDED,
-        FAILED_TRANSFER,
-        FAILED_REFUND
+        FAILED_TRANSFER_REFUNDED // In the event an order fails to transfer to it's receiver, we refund it
     }
 
     /// @notice Approval method for submitting an order
@@ -72,18 +67,23 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
     /// @notice Represents a withdrawal order in the queue
     struct Order {
-        uint256 amountOffer; // Amount of offer asset in offer decimals to exchange for the same amount of want asset
+        uint256 amountOffer; // Amount of shares to withdraw
         IERC20 wantAsset; // Asset being requested
         address refundReceiver; // Address to receive refunds
-        OrderType orderType; // Current status of the order
-        bool didOrderFailTransfer; // Whether the order failed to transfer on process or refund
+        OrderType orderType; // Current type of the order, indicates how the order is processed
+        bool didOrderFailTransfer; // Whether the order failed to transfer on process. In this event the shares are
+        // refunded
     }
 
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
     mapping(bytes32 => bool) public usedSignatureHashes;
 
-    /// @notice Minimum order size per offer asset
-    mapping(address => uint256) public minimumOrderSizePerAsset;
+    /// @notice the offer asset to be withdrawn from. This must be the vault of the provided Teller. This may never
+    /// change even if a vault's Teller does.
+    IERC20 public immutable offerAsset;
+
+    /// @notice Minimum order size of shares to withdraw
+    uint256 public minimumOrderSize;
 
     /// @notice Address of the fee module for calculating fees
     IFeeModule public feeModule;
@@ -93,9 +93,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
     /// @notice Teller this contract is queueing withdraws for
     TellerWithMultiAssetSupport public tellerWithMultiAssetSupport;
-
-    /// @notice the vault of the teller
-    IERC20 public immutable offerAsset;
 
     /// @notice Mapping of order index to Order struct
     mapping(uint256 => Order) public queue;
@@ -108,7 +105,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     uint256 public latestOrder;
 
     event FeeModuleUpdated(IFeeModule indexed oldFeeModule, IFeeModule indexed newFeeModule);
-    event MinimumOrderSizeUpdated(address indexed asset, uint256 oldMinimum, uint256 newMinimum);
+    event MinimumOrderSizeUpdated(uint256 oldMinimum, uint256 newMinimum);
     event FeeRecipientUpdated(address indexed oldFeeRecipient, address indexed newFeeRecipient);
     event OrderSubmitted(
         uint256 indexed orderIndex,
@@ -123,8 +120,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     );
     event OrderRefunded(uint256 indexed orderIndex, Order order);
     event TellerUpdated(TellerWithMultiAssetSupport indexed oldTeller, TellerWithMultiAssetSupport indexed newTeller);
-    event OrderMarkedForRefundByUser(uint256 indexed orderIndex);
-    event OrderMarkedForRefundByProtocol(uint256 indexed orderIndex);
+    event OrderMarkedForRefund(uint256 indexed orderIndex, bool indexed isMarkedByUser);
 
     error ZeroAddress();
     error OrderAlreadyProcessed(uint256 orderIndex);
@@ -134,7 +130,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     error SignatureExpired(uint256 deadline, uint256 currentTimestamp);
     error SignatureHashAlreadyUsed(bytes32 hash);
     error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
-    error InsufficientBalanceInQueue(uint256 orderIndex, address asset, uint256 required, uint256 available);
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
     error InvalidDepositor(address intendedDepositor, address depositor);
@@ -143,6 +138,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     error MustOwnOrder();
     error QueueMustBeEmpty();
     error AssetNotSupported();
+    error InvalidAssetsOut();
 
     /**
      * @notice Initialize the contract
@@ -181,6 +177,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     /**
      * @notice Set the fee module address
      * @param _feeModule Address of the new fee module
+     * @dev May only update the fee module if the queue is empty (no active orders)
      */
     function setFeeModule(IFeeModule _feeModule) external requiresAuth {
         if (address(_feeModule) == address(0)) revert ZeroAddress();
@@ -203,24 +200,30 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         emit FeeRecipientUpdated(oldFeeRecipient, _feeRecipient);
     }
 
+    /**
+     * @notice Set a new TellerWithMultiAssetSupport
+     * @dev The Teller may be updated but the offer asset may not. The new teller's vault() must return the same asset.
+     * The queue must also be empty (no active orders)
+     */
     function setTellerWithMultiAssetSupport(TellerWithMultiAssetSupport _newTeller) external requiresAuth {
         if (address(_newTeller) == address(0)) revert ZeroAddress();
         if (address(_newTeller.vault()) != address(offerAsset)) revert TellerVaultMissmatch();
+        if (totalSupply() != 0) revert QueueMustBeEmpty();
+
         TellerWithMultiAssetSupport oldTeller = tellerWithMultiAssetSupport;
         tellerWithMultiAssetSupport = _newTeller;
         emit TellerUpdated(oldTeller, _newTeller);
     }
 
     /**
-     * @notice Update an assets minimum order size
-     * @param _asset Address of asset
-     * @param _newMinimum for this asset to update to
+     * @notice Update the minimum order size
+     * @param _newMinimum to update to
      */
-    function updateAssetMinimumOrderSize(address _asset, uint256 _newMinimum) external requiresAuth {
-        uint256 oldMinimum = minimumOrderSizePerAsset[_asset];
-        minimumOrderSizePerAsset[_asset] = _newMinimum;
+    function updateAssetMinimumOrderSize(uint256 _newMinimum) external requiresAuth {
+        uint256 oldMinimum = minimumOrderSize;
+        minimumOrderSize = _newMinimum;
 
-        emit MinimumOrderSizeUpdated(_asset, oldMinimum, _newMinimum);
+        emit MinimumOrderSizeUpdated(oldMinimum, _newMinimum);
     }
 
     /**
@@ -239,13 +242,16 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      */
     function forceProcessOrders(uint256[] calldata orderIndices) external requiresAuth {
         uint256 length = orderIndices.length;
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i; i < length;) {
             _forceProcess(orderIndices[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 
     /**
-     * @notice Force process an order out of sequence
+     * @notice Force process a single order out of sequence
      * @param orderIndex Index of the order to force process
      */
     function forceProcess(uint256 orderIndex) external requiresAuth {
@@ -253,27 +259,36 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     }
 
     /**
-     * @notice Cancel an order. Upon process shares will be returned rather than withdrawn
+     * @notice Cancel an order. Upon process shares will be returned rather than withdrawn. Orders may not be
+     * un-canceled
+     * @dev This is a public function made for users to cancel their own orders that they must be the owner of
      * @param orderIndex Index of the order to cancel
      */
     function cancelOrder(uint256 orderIndex) external requiresAuth {
         if (ownerOf(orderIndex) != msg.sender) revert MustOwnOrder();
-        Order memory order = queue[orderIndex];
-        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderType(orderIndex, order.orderType);
-        order.orderType = OrderType.REFUND;
-        emit OrderMarkedForRefundByUser(orderIndex);
+        _markOrderForRefund(orderIndex, true);
     }
 
     /**
      * @notice The same as cancelling an order but may be done to any order, not just one owned by the sender. Meant to
-     * be a permissioned function
+     * be a permissioned function for admins to refund orders.
      * @param orderIndex Index of the order to cancel
      */
     function refundOrder(uint256 orderIndex) external requiresAuth {
-        Order memory order = queue[orderIndex];
-        if (order.orderType != OrderType.DEFAULT) revert InvalidOrderType(orderIndex, order.orderType);
-        order.orderType = OrderType.REFUND;
-        emit OrderMarkedForRefundByProtocol(orderIndex);
+        _markOrderForRefund(orderIndex, false);
+    }
+
+    /**
+     * @notice Refund a batch of orders
+     */
+    function refundOrders(uint256[] calldata orderIndices) external requiresAuth {
+        uint256 length = orderIndices.length;
+        for (uint256 i; i < length;) {
+            _markOrderForRefund(orderIndices[i], false);
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**
@@ -306,7 +321,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         returns (uint256 orderIndex)
     {
         orderIndex = submitOrder(params);
-        // This is = getPendingOrderCount(). OrderIndex = latestOrder but does not require a cold storage read
+        // This is = pending order count. orderIndex = latestOrder and does not require a cold storage read
         processOrders(orderIndex - lastProcessedOrder);
     }
 
@@ -314,32 +329,21 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      * @notice A user facing function to return an order's status
      */
     function getOrderStatus(uint256 orderIndex) external view returns (OrderStatus) {
-        if (orderIndex == 0) return OrderStatus.NOT_FOUND;
+        if (orderIndex == 0 || orderIndex > latestOrder) return OrderStatus.NOT_FOUND;
         Order memory order = queue[orderIndex];
 
         if (order.orderType == OrderType.PRE_FILLED) {
             return OrderStatus.COMPLETE_PRE_FILLED;
         }
 
-        if (order.orderType == OrderType.REFUND) {
-            if (order.didOrderFailTransfer) {
-                return OrderStatus.FAILED_REFUND;
-            }
-            return OrderStatus.COMPLETE_REFUNDED;
-        }
-
         if (order.didOrderFailTransfer) {
-            return OrderStatus.FAILED_TRANSFER;
+            return OrderStatus.FAILED_TRANSFER_REFUNDED;
         }
 
         if (orderIndex > lastProcessedOrder) {
-            if (orderIndex > latestOrder) {
-                return OrderStatus.NOT_FOUND;
-            } else {
-                return OrderStatus.PENDING;
-            }
+            return order.orderType == OrderType.REFUND ? OrderStatus.COMPLETE_REFUNDED : OrderStatus.PENDING;
         } else {
-            return OrderStatus.COMPLETE;
+            return order.orderType == OrderType.REFUND ? OrderStatus.PENDING_REFUND : OrderStatus.PENDING;
         }
     }
 
@@ -349,13 +353,10 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      */
     function submitOrder(SubmitOrderParams calldata params) public requiresAuth returns (uint256 orderIndex) {
         {
-            // TODO: Decide if we want minimums
-            // uint256 minimumOrderSize = minimumOrderSizePerAsset[address(params.offerAsset)];
-            // if (params.amountOffer < minimumOrderSize) revert AmountBelowMinimum(params.amountOffer,
-            // minimumOrderSize);
+            if (params.amountOffer < minimumOrderSize) revert AmountBelowMinimum(params.amountOffer, minimumOrderSize);
             if (params.receiver == address(0)) revert ZeroAddress();
             if (params.refundReceiver == address(0)) revert ZeroAddress();
-            if (tellerWithMultiAssetSupport.isSupported(ERC20(address(params.wantAsset)))) revert AssetNotSupported();
+            if (!tellerWithMultiAssetSupport.isSupported(ERC20(address(params.wantAsset)))) revert AssetNotSupported();
         }
 
         address depositor = _verifyDepositor(params);
@@ -366,7 +367,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         }
 
         // Create order
-        // Since newAmountForReceiver is in offer decimals, we need to calculate the amountWant in want decimals
         Order memory order = Order({
             amountOffer: params.amountOffer,
             wantAsset: params.wantAsset,
@@ -382,17 +382,14 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         // Mint NFT receipt to receiver
         _safeMint(params.receiver, orderIndex);
 
-        emit OrderSubmitted(
-            orderIndex, queue[orderIndex], params.receiver, depositor, params.signatureParams.submitWithSignature
-        );
+        emit OrderSubmitted(orderIndex, order, params.receiver, depositor, params.signatureParams.submitWithSignature);
     }
 
     /**
      * @notice Process orders sequentially from the queue
      * @param ordersToProcess Number of orders to attempt processing
      * @dev Processes orders starting from lastProcessedOrder + 1
-     *      Skips PRE_FILLED orders and REFUND orders
-     *      Requires sufficient want asset balance in contract
+     *      Skips all non DEFAULT type orders
      */
     function processOrders(uint256 ordersToProcess) public requiresAuth {
         if (ordersToProcess == 0) revert InvalidOrdersCount(ordersToProcess);
@@ -410,17 +407,18 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
         // Essentially performing WHILE(++lastProcessedOrder < endIndex)
         // However, using local variables to avoid unnecessary storage reads
-        for (uint256 i; i < ordersToProcess; ++i) {
+        for (uint256 i; i < ordersToProcess;) {
             uint256 orderIndex = startIndex + i;
 
             Order memory order = queue[orderIndex];
 
             if (order.orderType != OrderType.DEFAULT) {
                 if (order.orderType == OrderType.REFUND) {
-                    offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
+                    _refundOrder(order, orderIndex);
                 }
                 unchecked {
                     ++lastProcessedOrder;
+                    ++i;
                 }
                 // ignore
                 continue;
@@ -429,18 +427,25 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             // receiver is the owner of the receipt token
             address receiver = ownerOf(orderIndex);
 
-            // Burn the order after noting the receiver, but before the transfer.
+            // Burn the order after noting the receiver, but before the withdraw.
             _burn(orderIndex);
 
             try tellerWithMultiAssetSupport.bulkWithdraw(
-                ERC20(address(order.wantAsset)), order.amountOffer, order.amountOffer, receiver
-            ) { }
-            catch {
-                offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
+                ERC20(address(order.wantAsset)), order.amountOffer, 0, receiver
+            ) returns (
+                uint256 assetsOut
+            ) {
+                if (assetsOut == 0) {
+                    revert InvalidAssetsOut();
+                }
+            } catch {
+                order.didOrderFailTransfer = true;
+                _refundOrder(order, orderIndex);
             }
 
             unchecked {
                 ++lastProcessedOrder;
+                ++i;
             }
 
             emit OrderProcessed(orderIndex, order, receiver, false);
@@ -507,6 +512,13 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         }
     }
 
+    /// @notice helper function to mark an order for refund
+    function _markOrderForRefund(uint256 orderIndex, bool isMarkedByUser) internal {
+        Order memory order = _getOrderEnsureDefault(orderIndex);
+        queue[orderIndex].orderType = OrderType.REFUND;
+        emit OrderMarkedForRefund(orderIndex, isMarkedByUser);
+    }
+
     /// @notice force process an order in the queue even if it's not at the front
     function _forceProcess(uint256 orderIndex) internal {
         Order memory order = _getOrderEnsureDefault(orderIndex);
@@ -516,9 +528,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
         address receiver = ownerOf(orderIndex);
         _burn(orderIndex);
-        tellerWithMultiAssetSupport.bulkWithdraw(
-            ERC20(address(order.wantAsset)), order.amountOffer, order.amountOffer, receiver
-        );
+        tellerWithMultiAssetSupport.bulkWithdraw(ERC20(address(order.wantAsset)), order.amountOffer, 0, receiver);
 
         emit OrderProcessed(orderIndex, queue[orderIndex], receiver, true);
     }
@@ -534,6 +544,16 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
         // require order is set to DEFAULT type
         if (order.orderType != OrderType.DEFAULT) revert InvalidOrderType(orderIndex, order.orderType);
+    }
+
+    /**
+     * @notice Helper function to refund an order
+     * @dev We do not check for failed transfers here. As in the case of the share token, we have built this token and
+     * know it does not revert due to blacklists or ERC777 hooks. So we do not need special handling here
+     */
+    function _refundOrder(Order memory order, uint256 orderIndex) internal {
+        offerAsset.safeTransfer(order.refundReceiver, order.amountOffer);
+        emit OrderRefunded(orderIndex, order);
     }
 
 }
