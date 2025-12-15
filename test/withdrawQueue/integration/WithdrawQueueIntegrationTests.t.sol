@@ -5,7 +5,7 @@ import { BaseWithdrawQueueTest, console } from "../BaseWithdrawQueueTest.t.sol";
 import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
-contract WithdrawQueueTest is BaseWithdrawQueueTest {
+contract WithdrawQueueIntegrationTests is BaseWithdrawQueueTest {
 
     function testWithdrawQueueHappyPath() external {
         uint256 depositAmount1 = 1e6;
