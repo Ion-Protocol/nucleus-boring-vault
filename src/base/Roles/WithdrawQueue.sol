@@ -430,8 +430,10 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             // Burn the order after noting the receiver, but before the withdraw.
             _burn(orderIndex);
 
+            uint feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
+
             try tellerWithMultiAssetSupport.bulkWithdraw(
-                ERC20(address(order.wantAsset)), order.amountOffer, 0, receiver
+                ERC20(address(order.wantAsset)), order.amountOffer - feeAmount, 0, receiver
             ) returns (
                 uint256 assetsOut
             ) {
@@ -442,6 +444,9 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 order.didOrderFailTransfer = true;
                 _refundOrder(order, orderIndex);
             }
+
+            // After the withdraw succeeds, transfer the fees to the fee recipient
+            offerAsset.safeTransfer(feeRecipient, feeAmount);
 
             unchecked {
                 ++lastProcessedOrder;
