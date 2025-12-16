@@ -9,6 +9,8 @@ import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { BoringVault } from "src/base/BoringVault.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 /**
  * @title WithdrawQueue
@@ -17,6 +19,7 @@ import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMul
  */
 contract WithdrawQueue is ERC721Enumerable, Auth {
 
+    using FixedPointMathLib for uint256;
     using SafeERC20 for IERC20;
 
     /// @notice Type for internal order handling
@@ -137,8 +140,10 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     error TellerVaultMissmatch();
     error MustOwnOrder();
     error QueueMustBeEmpty();
-    error AssetNotSupported();
+    error AssetNotSupported(IERC20 asset);
     error InvalidAssetsOut();
+    error EmptyArray();
+    error VaultInsufficientBalance(IERC20 wantAsset, uint256 expectedAssetsOut, uint256 vaultBalanceOfWantAsset);
 
     /**
      * @notice Initialize the contract
@@ -242,6 +247,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      */
     function forceProcessOrders(uint256[] calldata orderIndices) external requiresAuth {
         uint256 length = orderIndices.length;
+        if (length == 0) revert EmptyArray();
         for (uint256 i; i < length;) {
             _forceProcess(orderIndices[i]);
             unchecked {
@@ -283,6 +289,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      */
     function refundOrders(uint256[] calldata orderIndices) external requiresAuth {
         uint256 length = orderIndices.length;
+        if (length == 0) revert EmptyArray();
         for (uint256 i; i < length;) {
             _markOrderForRefund(orderIndices[i], false);
             unchecked {
@@ -341,9 +348,9 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         }
 
         if (orderIndex > lastProcessedOrder) {
-            return order.orderType == OrderType.REFUND ? OrderStatus.COMPLETE_REFUNDED : OrderStatus.PENDING;
-        } else {
             return order.orderType == OrderType.REFUND ? OrderStatus.PENDING_REFUND : OrderStatus.PENDING;
+        } else {
+            return order.orderType == OrderType.REFUND ? OrderStatus.COMPLETE_REFUNDED : OrderStatus.COMPLETE;
         }
     }
 
@@ -356,7 +363,9 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             if (params.amountOffer < minimumOrderSize) revert AmountBelowMinimum(params.amountOffer, minimumOrderSize);
             if (params.receiver == address(0)) revert ZeroAddress();
             if (params.refundReceiver == address(0)) revert ZeroAddress();
-            if (!tellerWithMultiAssetSupport.isSupported(ERC20(address(params.wantAsset)))) revert AssetNotSupported();
+            if (!tellerWithMultiAssetSupport.isSupported(ERC20(address(params.wantAsset)))) {
+                revert AssetNotSupported(params.wantAsset);
+            }
         }
 
         address depositor = _verifyDepositor(params);
@@ -432,6 +441,15 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
             uint256 feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
 
+            BoringVault vault = tellerWithMultiAssetSupport.vault();
+            uint256 expectedAssetsOut = tellerWithMultiAssetSupport.accountant()
+                .getRateInQuoteSafe(ERC20(address(order.wantAsset)))
+                .mulDivDown((order.amountOffer - feeAmount), 10 ** vault.decimals());
+            uint256 vaultBalanceOfWantAsset = order.wantAsset.balanceOf(address(vault));
+            if (vaultBalanceOfWantAsset < expectedAssetsOut) {
+                revert VaultInsufficientBalance(order.wantAsset, expectedAssetsOut, vaultBalanceOfWantAsset);
+            }
+
             try tellerWithMultiAssetSupport.bulkWithdraw(
                 ERC20(address(order.wantAsset)), order.amountOffer - feeAmount, 0, receiver
             ) returns (
@@ -440,13 +458,14 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 if (assetsOut == 0) {
                     revert InvalidAssetsOut();
                 }
+                assert(assetsOut == expectedAssetsOut);
+
+                // After the withdraw succeeds, transfer the fees to the fee recipient
+                offerAsset.safeTransfer(feeRecipient, feeAmount);
             } catch {
-                order.didOrderFailTransfer = true;
+                queue[orderIndex].didOrderFailTransfer = true;
                 _refundOrder(order, orderIndex);
             }
-
-            // After the withdraw succeeds, transfer the fees to the fee recipient
-            offerAsset.safeTransfer(feeRecipient, feeAmount);
 
             unchecked {
                 ++lastProcessedOrder;
@@ -533,7 +552,13 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
         address receiver = ownerOf(orderIndex);
         _burn(orderIndex);
-        tellerWithMultiAssetSupport.bulkWithdraw(ERC20(address(order.wantAsset)), order.amountOffer, 0, receiver);
+
+        uint256 feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
+        tellerWithMultiAssetSupport.bulkWithdraw(
+            ERC20(address(order.wantAsset)), order.amountOffer - feeAmount, 0, receiver
+        );
+
+        offerAsset.safeTransfer(feeRecipient, feeAmount);
 
         emit OrderProcessed(orderIndex, queue[orderIndex], receiver, true);
     }
