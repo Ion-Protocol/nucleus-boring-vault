@@ -27,7 +27,7 @@ contract WithdrawQueueIntegrationTests is BaseWithdrawQueueTest {
                 intendedDepositor: user,
                 receiver: user,
                 refundReceiver: user,
-                signatureParams: defaultParams
+                signatureParams: defaultSignatureParams
             })
         );
 
