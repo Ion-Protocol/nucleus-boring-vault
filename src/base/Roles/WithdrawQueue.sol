@@ -423,6 +423,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
             if (order.orderType != OrderType.DEFAULT) {
                 if (order.orderType == OrderType.REFUND) {
+                    _burn(orderIndex);
                     _refundOrder(order, orderIndex);
                 }
                 unchecked {
