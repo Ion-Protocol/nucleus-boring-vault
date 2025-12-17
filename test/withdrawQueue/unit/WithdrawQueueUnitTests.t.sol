@@ -686,7 +686,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         // Signature may not be re-used
         // Signature may not be used after the deadline
         WithdrawQueue.SignatureParams memory signatureParams = WithdrawQueue.SignatureParams({
-            approvalMethod: WithdrawQueue.ApprovalMethod.EIP20_APROVE,
+            approvalMethod: WithdrawQueue.ApprovalMethod.EIP20_APPROVE,
             approvalV: 0,
             approvalR: bytes32(0),
             approvalS: bytes32(0),

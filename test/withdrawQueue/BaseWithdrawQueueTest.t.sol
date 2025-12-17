@@ -75,7 +75,7 @@ contract BaseWithdrawQueueTest is Test {
 
     // A simple params struct used in most tests
     WithdrawQueue.SignatureParams defaultSignatureParams = WithdrawQueue.SignatureParams({
-        approvalMethod: WithdrawQueue.ApprovalMethod.EIP20_APROVE,
+        approvalMethod: WithdrawQueue.ApprovalMethod.EIP20_APPROVE,
         approvalV: 0,
         approvalR: bytes32(0),
         approvalS: bytes32(0),

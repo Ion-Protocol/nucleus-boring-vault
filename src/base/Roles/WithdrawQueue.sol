@@ -42,7 +42,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
     /// @notice Approval method for submitting an order
     enum ApprovalMethod {
-        EIP20_APROVE,
+        EIP20_APPROVE,
         EIP2612_PERMIT
     }
 
