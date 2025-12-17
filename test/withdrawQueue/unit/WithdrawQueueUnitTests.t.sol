@@ -846,6 +846,11 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         _submitAnOrder();
         _submitAnOrder();
         _submitAnOrder();
+        assertEq(withdrawQueue.ownerOf(1), user, "user should own order 1");
+        assertEq(withdrawQueue.ownerOf(2), user, "user should own order 2");
+        assertEq(withdrawQueue.ownerOf(3), user, "user should own order 3");
+        assertEq(withdrawQueue.ownerOf(4), user, "user should own order 4");
+        assertEq(withdrawQueue.totalSupply(), 4, "total supply should be 4");
 
         vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidOrdersCount.selector, 0));
         withdrawQueue.processOrders(0);
@@ -864,11 +869,17 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         withdrawQueue.refundOrder(2);
         withdrawQueue.forceProcess(3);
 
+        assertEq(withdrawQueue.ownerOf(1), user, "user should own order 1 still");
+        assertEq(withdrawQueue.ownerOf(2), user, "user should own order 2 still");
+        assertEq(withdrawQueue.ownerOf(4), user, "user should own order 4 still");
+        assertEq(withdrawQueue.totalSupply(), 3, "total supply should be 3 after force process");
+
         _expectOrderProcessedEvent(1, USDC, user, 1e6, WithdrawQueue.OrderType.DEFAULT, false);
         _expectOrderRefundedEvent(2, USDC, user, 1e6);
         vm.expectEmit(true, true, true, true);
         emit WithdrawQueue.OrdersProcessedInRange(1, 4);
         withdrawQueue.processOrders(4);
+        assertEq(withdrawQueue.totalSupply(), 0, "total supply should be 0 after process");
 
         uint256 userUSDCBalance2 = USDC.balanceOf(user);
         uint256 userShareBalance2 = boringVault.balanceOf(user);
@@ -886,9 +897,12 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         vm.stopPrank();
 
         _submitAnOrder();
+        assertEq(withdrawQueue.ownerOf(5), user, "user should own order 5");
+        assertEq(withdrawQueue.totalSupply(), 1, "total supply should be 1 after submit");
         tERC20(address(USDC)).setFailSwitch(true);
         withdrawQueue.processOrders(1);
         tERC20(address(USDC)).setFailSwitch(false);
+        assertEq(withdrawQueue.totalSupply(), 0, "total supply should be 0 after process fail order");
 
         uint256 userUSDCBalance3 = USDC.balanceOf(user);
         uint256 userShareBalance3 = boringVault.balanceOf(user);
