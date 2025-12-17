@@ -67,6 +67,8 @@ contract BaseWithdrawQueueTest is Test {
     address feeRecipient = makeAddr("fee recipient");
     address alice;
     uint256 alicePk;
+    address bob;
+    uint256 bobPk;
 
     uint8 public constant MINTER_ROLE = 1;
     uint8 public constant BURNER_ROLE = 2;
@@ -90,6 +92,7 @@ contract BaseWithdrawQueueTest is Test {
         USDC = IERC20(address(new tERC20(6)));
         require(address(USDC) != address(0), "USDC is not deployed");
         (alice, alicePk) = makeAddrAndKey("alice");
+        (bob, bobPk) = makeAddrAndKey("bob");
 
         // Deploy the vault contracts
         boringVault = new BoringVault(owner, "Boring Vault", "BV", 6);
@@ -123,6 +126,9 @@ contract BaseWithdrawQueueTest is Test {
         );
         rolesAuthority.setPublicCapability(address(withdrawQueue), WithdrawQueue.submitOrder.selector, true);
         rolesAuthority.setPublicCapability(address(withdrawQueue), WithdrawQueue.cancelOrder.selector, true);
+        rolesAuthority.setPublicCapability(
+            address(withdrawQueue), WithdrawQueue.cancelOrderWithSignature.selector, true
+        );
         rolesAuthority.setPublicCapability(address(withdrawQueue), WithdrawQueue.processOrders.selector, true);
         rolesAuthority.setPublicCapability(address(withdrawQueue), WithdrawQueue.submitOrderAndProcess.selector, true);
         rolesAuthority.setPublicCapability(

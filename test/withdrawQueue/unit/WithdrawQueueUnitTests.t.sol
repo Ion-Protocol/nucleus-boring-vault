@@ -289,18 +289,18 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
     }
 
     function test_cancelOrder() external {
-        // Test a user must own the order they're canceling (revert MustOwnOrder)
+        // Test a user must own the order they're canceling
         // NOTE: because the user must own the order it's impossible to revert with InvalidOrderIndex
         // Should fail with InvalidOrderType if order is already marked for refund
         // Should emit OrderMarkedForRefund
 
         _submitAnOrder();
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.MustOwnOrder.selector));
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.OnlyOrderOwnerCanCancel.selector, address(this), user));
         withdrawQueue.cancelOrder(1);
 
         vm.startPrank(owner);
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.MustOwnOrder.selector));
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.OnlyOrderOwnerCanCancel.selector, owner, user));
         withdrawQueue.cancelOrder(1);
         vm.stopPrank();
 
@@ -320,6 +320,67 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         withdrawQueue.cancelOrder(1);
 
         vm.stopPrank();
+    }
+
+    function test_cancelOrderWithSignature() external {
+        // Test a valid signature may cancel an order
+        // Test an invalid signater may not cancel an order
+        // Test a signature may not be used past it's deadline
+        // Test a signature may not be reused (as the order is already marked for refund)
+        WithdrawQueue.SubmitOrderParams memory params =
+            _createSubmitOrderParams(USDC, 1e6, alice, alice, alice, defaultSignatureParams);
+        deal(address(boringVault), alice, 2e6);
+        vm.startPrank(alice);
+        boringVault.approve(address(withdrawQueue), 2e6);
+        // submit 2 orders
+        withdrawQueue.submitOrder(params);
+        withdrawQueue.submitOrder(params);
+
+        uint256 deadline = block.timestamp + 1000;
+        bytes32 hash = keccak256(
+            abi.encode(withdrawQueue.CANCEL_ORDER_TYPEHASH(), 1, deadline, address(withdrawQueue), block.chainid)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePk, hash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        vm.stopPrank();
+
+        vm.expectEmit(true, true, true, true);
+        emit WithdrawQueue.OrderMarkedForRefund(1, true);
+        withdrawQueue.cancelOrderWithSignature(1, deadline, signature);
+
+        // attempt to double sign fails
+        vm.expectRevert(
+            abi.encodeWithSelector(WithdrawQueue.InvalidOrderType.selector, 1, WithdrawQueue.OrderType.REFUND)
+        );
+        withdrawQueue.cancelOrderWithSignature(1, deadline, signature);
+
+        vm.startPrank(bob);
+        // sign a second cancelation as bob
+        hash = keccak256(
+            abi.encode(withdrawQueue.CANCEL_ORDER_TYPEHASH(), 2, deadline, address(withdrawQueue), block.chainid)
+        );
+        (v, r, s) = vm.sign(bobPk, hash);
+        signature = abi.encodePacked(r, s, v);
+
+        vm.stopPrank();
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.OnlyOrderOwnerCanCancel.selector, bob, alice));
+        withdrawQueue.cancelOrderWithSignature(2, deadline, signature);
+
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.OnlyOrderOwnerCanCancel.selector, bob, alice));
+        withdrawQueue.cancelOrderWithSignature(2, deadline, signature);
+
+        vm.startPrank(alice);
+        // alice signs a cancelation for order 2
+        hash = keccak256(
+            abi.encode(withdrawQueue.CANCEL_ORDER_TYPEHASH(), 2, deadline, address(withdrawQueue), block.chainid)
+        );
+        (v, r, s) = vm.sign(alicePk, hash);
+        signature = abi.encodePacked(r, s, v);
+        vm.stopPrank();
+
+        vm.warp(deadline + 1);
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.SignatureExpired.selector, deadline, block.timestamp));
+        withdrawQueue.cancelOrderWithSignature(2, deadline, signature);
     }
 
     function test_refundOrder() external {
