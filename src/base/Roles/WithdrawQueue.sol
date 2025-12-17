@@ -101,10 +101,10 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     mapping(uint256 => Order) public queue;
 
     /// @notice The index of the last order that was processed
-    /// @dev Initialized to 0, meaining the queue starts at 1.
+    /// @dev Initialized to 0, meaning the queue starts at 1.
     uint256 public lastProcessedOrder;
 
-    /// @notice represents the back of the queue, incremented on sumbiting orders
+    /// @notice represents the back of the queue, incremented on submitting orders
     uint256 public latestOrder;
 
     event FeeModuleUpdated(IFeeModule indexed oldFeeModule, IFeeModule indexed newFeeModule);

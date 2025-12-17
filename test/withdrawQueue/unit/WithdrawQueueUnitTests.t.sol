@@ -683,7 +683,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
     function test_submitOrder_approval_withSignature() external {
         // Sign with vm.sign
         // Signature must match the intended depositor
-        // Signature may not be re-used
+        // Signature may not be reused
         // Signature may not be used after the deadline
         WithdrawQueue.SignatureParams memory signatureParams = WithdrawQueue.SignatureParams({
             approvalMethod: WithdrawQueue.ApprovalMethod.EIP20_APPROVE,
