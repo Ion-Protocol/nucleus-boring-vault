@@ -78,6 +78,8 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         // refunded
     }
 
+    bytes32 public constant CANCEL_ORDER_TYPEHASH = keccak256("cancelOrderWithSignature(uint256,uint256,bytes)");
+
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
     mapping(bytes32 => bool) public usedSignatureHashes;
 
@@ -138,7 +140,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     error InvalidDepositor(address intendedDepositor, address depositor);
     error PermitFailedAndAllowanceTooLow();
     error TellerVaultMissmatch();
-    error MustOwnOrder();
+    error OnlyOrderOwnerCanCancel(address attemptedToCancel, address orderOwner);
     error QueueMustBeEmpty();
     error AssetNotSupported(IERC20 asset);
     error InvalidAssetsOut();
@@ -271,7 +273,27 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      * @param orderIndex Index of the order to cancel
      */
     function cancelOrder(uint256 orderIndex) external requiresAuth {
-        if (ownerOf(orderIndex) != msg.sender) revert MustOwnOrder();
+        if (ownerOf(orderIndex) != msg.sender) revert OnlyOrderOwnerCanCancel(msg.sender, ownerOf(orderIndex));
+        _markOrderForRefund(orderIndex, true);
+    }
+
+    /**
+     * @notice Cancel an order using a signature. Works the same way as cancelOrder, but enforces the signer owns the
+     * order to cancel
+     * @dev There is no explicit replay protection here as orders marked for refund already may not be marked again.
+     */
+    function cancelOrderWithSignature(
+        uint256 orderIndex,
+        uint256 deadline,
+        bytes calldata cancelSignature
+    )
+        external
+        requiresAuth
+    {
+        bytes32 hash = keccak256(abi.encode(CANCEL_ORDER_TYPEHASH, orderIndex, deadline, address(this), block.chainid));
+        if (block.timestamp > deadline) revert SignatureExpired(deadline, block.timestamp);
+        address signer = ECDSA.recover(hash, cancelSignature);
+        if (signer != ownerOf(orderIndex)) revert OnlyOrderOwnerCanCancel(signer, ownerOf(orderIndex));
         _markOrderForRefund(orderIndex, true);
     }
 
