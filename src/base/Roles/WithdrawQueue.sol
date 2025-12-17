@@ -442,7 +442,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
             uint256 feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
 
-            BoringVault vault = tellerWithMultiAssetSupport.vault();
+            BoringVault vault = BoringVault(payable(address(offerAsset)));
             uint256 expectedAssetsOut = tellerWithMultiAssetSupport.accountant()
                 .getRateInQuoteSafe(ERC20(address(order.wantAsset)))
                 .mulDivDown((order.amountOffer - feeAmount), 10 ** vault.decimals());
