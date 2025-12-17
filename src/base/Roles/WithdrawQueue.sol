@@ -98,7 +98,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     TellerWithMultiAssetSupport public tellerWithMultiAssetSupport;
 
     /// @notice Mapping of order index to Order struct
-    mapping(uint256 => Order) public queue;
+    mapping(uint256 => Order) public orderAtQueueIndex;
 
     /// @notice The index of the last order that was processed
     /// @dev Initialized to 0, meaning the queue starts at 1.
@@ -337,7 +337,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      */
     function getOrderStatus(uint256 orderIndex) external view returns (OrderStatus) {
         if (orderIndex == 0 || orderIndex > latestOrder) return OrderStatus.NOT_FOUND;
-        Order memory order = queue[orderIndex];
+        Order memory order = orderAtQueueIndex[orderIndex];
 
         if (order.orderType == OrderType.PRE_FILLED) {
             return OrderStatus.COMPLETE_PRE_FILLED;
@@ -383,7 +383,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             orderType: OrderType.DEFAULT,
             didOrderFailTransfer: false
         });
-        queue[orderIndex] = order;
+        orderAtQueueIndex[orderIndex] = order;
 
         // Transfer the offer assets to the queue to hold until process
         offerAsset.safeTransferFrom(depositor, address(this), params.amountOffer);
@@ -419,7 +419,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         for (uint256 i; i < ordersToProcess;) {
             uint256 orderIndex = startIndex + i;
 
-            Order memory order = queue[orderIndex];
+            Order memory order = orderAtQueueIndex[orderIndex];
 
             if (order.orderType != OrderType.DEFAULT) {
                 if (order.orderType == OrderType.REFUND) {
@@ -464,7 +464,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 // After the withdraw succeeds, transfer the fees to the fee recipient
                 offerAsset.safeTransfer(feeRecipient, feeAmount);
             } catch {
-                queue[orderIndex].didOrderFailTransfer = true;
+                orderAtQueueIndex[orderIndex].didOrderFailTransfer = true;
                 _refundOrder(order, orderIndex);
             }
 
@@ -540,7 +540,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     /// @notice helper function to mark an order for refund
     function _markOrderForRefund(uint256 orderIndex, bool isMarkedByUser) internal {
         Order memory order = _getOrderEnsureDefault(orderIndex);
-        queue[orderIndex].orderType = OrderType.REFUND;
+        orderAtQueueIndex[orderIndex].orderType = OrderType.REFUND;
         emit OrderMarkedForRefund(orderIndex, isMarkedByUser);
     }
 
@@ -549,7 +549,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         Order memory order = _getOrderEnsureDefault(orderIndex);
 
         // Mark as pre-filled
-        queue[orderIndex].orderType = OrderType.PRE_FILLED;
+        orderAtQueueIndex[orderIndex].orderType = OrderType.PRE_FILLED;
 
         address receiver = ownerOf(orderIndex);
         _burn(orderIndex);
@@ -561,7 +561,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
 
         offerAsset.safeTransfer(feeRecipient, feeAmount);
 
-        emit OrderProcessed(orderIndex, queue[orderIndex], receiver, true);
+        emit OrderProcessed(orderIndex, orderAtQueueIndex[orderIndex], receiver, true);
     }
 
     /// @return order after checking index is a real order and is DEFAULT status
@@ -571,7 +571,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
         if (orderIndex <= lastProcessedOrder) revert OrderAlreadyProcessed(orderIndex);
 
-        order = queue[orderIndex];
+        order = orderAtQueueIndex[orderIndex];
 
         // require order is set to DEFAULT type
         if (order.orderType != OrderType.DEFAULT) revert InvalidOrderType(orderIndex, order.orderType);
