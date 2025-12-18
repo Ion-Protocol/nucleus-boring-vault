@@ -7,24 +7,91 @@ import { WithdrawQueueIntegrationBaseTest } from "./WithdrawQueueIntegrationBase
 
 contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
 
-    function test_QueuePathsWithExchangeRateChanges(uint96 r0, uint96 r1, uint96 r2) external {
-        // test a single order in the queue along the submit, process, submit cancel, submit force process, and submit
-        // fail transfer paths with exchange rate changes.
-        // r0 = rate at time of subission
-        // r1 = rate at time of refund or force process
-        // r2 = rate at time of process
-        r0 = (r0 % uint96(10 * 10 ** accountant.decimals())) + 1;
-        r1 = (r1 % uint96(10 * 10 ** accountant.decimals())) + 1;
-        r2 = (r2 % uint96(10 * 10 ** accountant.decimals())) + 1;
+    function testScenario_ExchangeRateToZero() external {
+        // Scenario: Accountant exchange rate is 0
+        // Users cannot deposit - revert - so we deal them some shares to mimic having deposited earlier
+        // Users cannot withdraw via submitAndProcess
+        // User can submit
+        // User cannot process
+        // User can cancel
+        // User can process
 
-        // happy path (normal process)
-        _happyPath(1e6, r0, r2);
+        vm.startPrank(owner);
+        accountant.updateExchangeRate(0);
+        accountant.unpause();
+        vm.stopPrank();
+        vm.startPrank(user);
+        USDC.approve(address(boringVault), 1e6);
+        vm.expectRevert(address(teller));
+        teller.deposit(ERC20(address(USDC)), 1e6, 0);
 
-        /// TODO: May need to make these separate tests, as in extreeme cases like the truncation to a 0 assets back,
-        /// the queue can get stuck and prevent future flows... Or we can bound these better...
+        deal(address(boringVault), user, 1e6);
+        boringVault.approve(address(withdrawQueue), 1e6);
 
-        // cancel path (user cancels and then gets processed)
-        _cancelPath(1e6, r0, r1, r2);
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidAssetsOut.selector));
+        withdrawQueue.submitOrderAndProcessAll(
+            _createSubmitOrderParams(USDC, 1e6, user, user, user, defaultSignatureParams)
+        );
+
+        withdrawQueue.submitOrder(_createSubmitOrderParams(USDC, 1e6, user, user, user, defaultSignatureParams));
+
+        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidAssetsOut.selector));
+        withdrawQueue.processOrders(1);
+
+        withdrawQueue.cancelOrder(1);
+        withdrawQueue.processOrders(1);
+        assertEq(boringVault.balanceOf(user), 1e6, "user should have 1e6 shares back");
+        vm.stopPrank();
+    }
+
+    function testScenario_DifferentReceiver() external {
+        // Scenario: User submits an order with a different receiver than themself
+        deal(address(boringVault), user, 1e6);
+        deal(address(USDC), address(boringVault), 1e6);
+
+        vm.startPrank(user);
+        boringVault.approve(address(withdrawQueue), 1e6);
+        withdrawQueue.submitOrder(_createSubmitOrderParams(USDC, 1e6, user, user2, user, defaultSignatureParams));
+        assertEq(withdrawQueue.ownerOf(1), user2, "user2 should be the owner of the order");
+        assertEq(withdrawQueue.totalSupply(), 1, "total supply should be 1");
+        vm.stopPrank();
+
+        withdrawQueue.processOrders(1);
+        assertEq(USDC.balanceOf(user2), _getAmountAfterFees(1e6), "user2 should have 1e6 USDC - fees");
+    }
+
+    function testScenario_DifferentRefundReceiver() external {
+        // Scenario: User submits an order with a different refund receiver than themself and cancels
+        deal(address(boringVault), user, 1e6);
+        deal(address(USDC), address(boringVault), 1e6);
+        vm.startPrank(user);
+        boringVault.approve(address(withdrawQueue), 1e6);
+        withdrawQueue.submitOrder(_createSubmitOrderParams(USDC, 1e6, user, user, user2, defaultSignatureParams));
+        withdrawQueue.cancelOrder(1);
+        vm.stopPrank();
+
+        withdrawQueue.processOrders(1);
+        assertEq(boringVault.balanceOf(user2), 1e6, "user2 should have 1e6 shares");
+    }
+
+    function testScenario_QueueFullOfRefunds() external {
+        // Scenario: Queue has 5 orders, all refunded. Happy path is still possible from this state
+        _submitAnOrder();
+        _submitAnOrder();
+        _submitAnOrder();
+        _submitAnOrder();
+        _submitAnOrder();
+
+        // Not using the batch refund since it's easier for the test
+        vm.startPrank(owner);
+        withdrawQueue.refundOrder(1);
+        withdrawQueue.refundOrder(2);
+        withdrawQueue.refundOrder(3);
+        withdrawQueue.refundOrder(4);
+        withdrawQueue.refundOrder(5);
+        vm.stopPrank();
+
+        _happyPath(1e6, 1e6, 1e6);
     }
 
 }

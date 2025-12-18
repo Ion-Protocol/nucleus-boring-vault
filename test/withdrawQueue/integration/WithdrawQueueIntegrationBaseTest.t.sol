@@ -51,6 +51,10 @@ contract WithdrawQueueIntegrationBaseTest is BaseWithdrawQueueTest {
     }
 
     function _happyPath(uint256 depositAmount, uint96 r0, uint96 r2) internal {
+        uint256 shareBalanceOfQueueStart = boringVault.balanceOf(address(withdrawQueue));
+        uint256 vaultUSDCBalanceStart = USDC.balanceOf(address(boringVault));
+        uint256 totalSupplyStart = withdrawQueue.totalSupply();
+
         _updateExchangeRate(r0);
 
         uint256 expectedShares = _convertUSDCToShares(depositAmount);
@@ -79,10 +83,15 @@ contract WithdrawQueueIntegrationBaseTest is BaseWithdrawQueueTest {
         vm.stopPrank();
         _updateExchangeRate(r2);
         assertEq(boringVault.balanceOf(user), 0, "user should have no shares");
-        assertEq(boringVault.balanceOf(address(withdrawQueue)), expectedShares, "queue should be holding shares");
-        assertEq(USDC.balanceOf(address(boringVault)), depositAmount, "vault should have USDC");
-        assertEq(withdrawQueue.ownerOf(1), user, "User should own order 1");
-        assertEq(withdrawQueue.totalSupply(), 1, "total supply should be 0");
+        assertEq(
+            boringVault.balanceOf(address(withdrawQueue)),
+            expectedShares + shareBalanceOfQueueStart,
+            "queue should be holding shares"
+        );
+        assertEq(USDC.balanceOf(address(boringVault)), depositAmount + vaultUSDCBalanceStart, "vault should have USDC");
+        assertEq(withdrawQueue.ownerOf(withdrawQueue.latestOrder()), user, "User should own order latestOrder");
+        uint256 ordersCount = withdrawQueue.totalSupply();
+        assertEq(ordersCount, totalSupplyStart + 1, "total supply should have increased by 1");
 
         // Reset the boring vault balance to reflect the new rate
         deal(address(USDC), address(boringVault), _convertSharesToUSDC(expectedShares));
@@ -95,9 +104,9 @@ contract WithdrawQueueIntegrationBaseTest is BaseWithdrawQueueTest {
         if (expectedValOfSharesAfterFees == 0) {
             console.log("expectedValOfSharesAfterFees is 0");
             vm.expectRevert(WithdrawQueue.InvalidAssetsOut.selector);
-            withdrawQueue.processOrders(1);
+            withdrawQueue.processOrders(ordersCount);
         } else {
-            withdrawQueue.processOrders(1);
+            withdrawQueue.processOrders(ordersCount);
             /// TODO: This works with a max delta of 10 but not 1... Find out why. Likely scaled rounding errors
             assertApproxEqAbs(USDC.balanceOf(user), expectedValOfSharesAfterFees, 10, "User should have USDC - fees");
             assertApproxEqAbs(
