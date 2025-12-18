@@ -162,4 +162,9 @@ abstract contract NucleusDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Nothing to decode
     }
 
+    // @desc process orders using the one to one queue
+    function processOrders(uint256 ordersToProcess) external pure returns (bytes memory addressesFound) {
+        // Nothing to decode
+    }
+
 }
