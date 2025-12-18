@@ -18,10 +18,10 @@ contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
         string memory rpcKey = "MAINNET_RPC_URL";
         _startFork(rpcKey);
         accountantWeth = new AccountantWithRateProviders(
-            address(this), address(WETH), address(this), 1e18, address(WETH), 2.5e4, 0.5e4, 0, 0
+            address(this), address(WETH), address(this), 1e18, address(WETH), 2.5e4, 0.5e4, 0, 0, 0
         );
         accountantUsdc = new AccountantWithRateProviders(
-            address(this), address(USDC), address(this), 1e6, address(USDC), 2.5e4, 0.5e4, 0, 0
+            address(this), address(USDC), address(this), 1e6, address(USDC), 2.5e4, 0.5e4, 0, 0, 0
         );
 
         oracleRelay = new OracleRelay(address(this));
@@ -66,7 +66,7 @@ contract MonotonicExchangeRateOracleTest is Test, MainnetAddresses {
     function testUpdateImplementation() external {
         MonotonicExchangeRateOracle oracle1 = new MonotonicExchangeRateOracle(address(this), accountantUsdc);
         AccountantWithRateProviders accountantUsdc2 = new AccountantWithRateProviders(
-            address(this), address(WETH), address(this), 1e18, address(WETH), 2.5e4, 0.5e4, 0, 0
+            address(this), address(WETH), address(this), 1e18, address(WETH), 2.5e4, 0.5e4, 0, 0, 0
         );
         MonotonicExchangeRateOracle oracle2 = new MonotonicExchangeRateOracle(address(this), accountantUsdc2);
         oracleRelay.setImplementation(address(oracle1));
