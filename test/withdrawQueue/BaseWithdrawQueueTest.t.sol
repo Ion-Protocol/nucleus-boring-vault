@@ -12,6 +12,7 @@ import { SimpleFeeModule, IFeeModule } from "src/helper/one-to-one-queue/SimpleF
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 
 contract tERC20 is ERC20 {
 
@@ -31,6 +32,8 @@ contract tERC20 is ERC20 {
 }
 
 contract BaseWithdrawQueueTest is Test {
+
+    using FixedPointMathLib for uint256;
 
     event FeeModuleUpdated(IFeeModule indexed oldFeeModule, IFeeModule indexed newFeeModule);
     event MinimumOrderSizeUpdated(uint256 oldMinimum, uint256 newMinimum);
@@ -144,7 +147,7 @@ contract BaseWithdrawQueueTest is Test {
     }
 
     function _getFees(uint256 amount) internal view returns (uint256) {
-        return amount * TEST_OFFER_FEE_PERCENTAGE / 10_000;
+        return (amount.mulDivUp(feeModule.offerFeePercentage(), 10_000));
     }
 
     function _getAmountAfterFees(uint256 amount) internal view returns (uint256) {

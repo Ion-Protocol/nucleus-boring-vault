@@ -92,6 +92,28 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
         vm.stopPrank();
 
         _happyPath(1e6, 1e6, 1e6);
+        _happyPath(1e6, 1e6, 1e6);
+    }
+
+    function testScenario_QueueFullOfPreFilledOrders() external {
+        // Scenario: Queue has 5 orders, all pre-filled. Happy path is still possible from this state
+        _submitAnOrder();
+        _submitAnOrder();
+        _submitAnOrder();
+        _submitAnOrder();
+        _submitAnOrder();
+
+        // Not using the batch force process since it's easier for the test
+        vm.startPrank(owner);
+        withdrawQueue.forceProcess(1);
+        withdrawQueue.forceProcess(2);
+        withdrawQueue.forceProcess(3);
+        withdrawQueue.forceProcess(4);
+        withdrawQueue.forceProcess(5);
+        vm.stopPrank();
+
+        _happyPath(1e6, 1e6, 1e6);
+        _happyPath(1e6, 1e6, 1e6);
     }
 
 }
