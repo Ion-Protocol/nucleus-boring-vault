@@ -90,6 +90,58 @@ contract WithdrawQueueIntegrationBaseTest is BaseWithdrawQueueTest {
         assertEq(USDC.balanceOf(user), 0, "user should have no USDC");
     }
 
+    function _happySubmitAndProcessAllPath(uint256 depositAmount, uint96 r0) internal {
+        uint256 shareBalanceOfQueueStart = boringVault.balanceOf(address(withdrawQueue));
+        uint256 feeRecipientShareBalanceStart = boringVault.balanceOf(feeRecipient);
+        uint256 vaultUSDCBalanceStart = USDC.balanceOf(address(boringVault));
+        uint256 userShareBalanceStart = boringVault.balanceOf(user);
+        uint256 totalSupplyStart = withdrawQueue.totalSupply();
+
+        _updateExchangeRate(r0);
+
+        uint256 expectedShares = _convertUSDCToShares(depositAmount);
+
+        deal(address(USDC), user, depositAmount);
+
+        vm.startPrank(user);
+        USDC.approve(address(boringVault), depositAmount);
+
+        teller.deposit(ERC20(address(USDC)), depositAmount, 0);
+
+        assertEq(boringVault.balanceOf(user) - userShareBalanceStart, expectedShares, "user should have shares");
+
+        boringVault.approve(address(withdrawQueue), expectedShares);
+        console.log("vault USDC Balance", USDC.balanceOf(address(boringVault)));
+        console.log("USDC expected before fees", _convertSharesToUSDC(expectedShares));
+
+        withdrawQueue.submitOrderAndProcessAll(
+            WithdrawQueue.SubmitOrderParams({
+                amountOffer: expectedShares,
+                wantAsset: USDC,
+                intendedDepositor: user,
+                receiver: user,
+                refundReceiver: user,
+                signatureParams: defaultSignatureParams
+            })
+        );
+
+        vm.stopPrank();
+        assertEq(boringVault.balanceOf(user) - userShareBalanceStart, 0, "user should have no shares");
+
+        uint256 userSharesAfterFees = _getAmountAfterFees(expectedShares);
+        uint256 expectedValOfSharesAfterFees = _convertSharesToUSDC(userSharesAfterFees);
+
+        // If the value change is so drastic that the user withdraw amount is 0, expect InvalidAssetsOut error
+        console.log("expectedValOfSharesAfterFees", expectedValOfSharesAfterFees);
+        assertEq(USDC.balanceOf(user), expectedValOfSharesAfterFees, "User should have USDC - fees");
+        assertEq(
+            boringVault.balanceOf(feeRecipient) - feeRecipientShareBalanceStart,
+            _getFees(expectedShares),
+            "fee recipient should have fees"
+        );
+        assertEq(withdrawQueue.totalSupply(), 0, "total supply should be 0");
+    }
+
     function _happyPath(uint256 depositAmount, uint96 r0, uint96 r2) internal {
         uint256 shareBalanceOfQueueStart = boringVault.balanceOf(address(withdrawQueue));
         uint256 feeRecipientShareBalanceStart = boringVault.balanceOf(feeRecipient);

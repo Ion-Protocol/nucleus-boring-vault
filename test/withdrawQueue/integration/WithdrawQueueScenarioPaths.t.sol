@@ -92,7 +92,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
         vm.stopPrank();
 
         _happyPath(1e6, 1e6, 1e6);
-        _happyPath(1e6, 1e6, 1e6);
+        _happySubmitAndProcessAllPath(1e6, 1e6);
     }
 
     function testScenario_QueueFullOfPreFilledOrders() external {
@@ -113,7 +113,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
         vm.stopPrank();
 
         _happyPath(1e6, 1e6, 1e6);
-        _happyPath(1e6, 1e6, 1e6);
+        _happySubmitAndProcessAllPath(1e6, 1e6);
     }
 
 }
