@@ -9,4 +9,8 @@ contract WithdrawQueueHappyPathTest is WithdrawQueueIntegrationBaseTest {
         _happyPath(1e6, 1e6, 1e6);
     }
 
+    function test_WithdrawQueueHappyPathSubmitAndProcessAll() external {
+        _happySubmitAndProcessAllPath(1e6, 1e6);
+    }
+
 }
