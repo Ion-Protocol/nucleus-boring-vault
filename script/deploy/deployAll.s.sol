@@ -66,6 +66,9 @@ contract DeployAll is BaseScript {
         mainConfig.accountant.toHexString().write(OUTPUT_JSON_PATH, ".accountant");
         mainConfig.teller.toHexString().write(OUTPUT_JSON_PATH, ".teller");
         mainConfig.rolesAuthority.toHexString().write(OUTPUT_JSON_PATH, ".rolesAuthority");
+        if (mainConfig.distributorCodeDepositorDeploy) {
+            mainConfig.distributorCodeDepositor.toHexString().write(OUTPUT_JSON_PATH, ".distributorCodeDepositor");
+        }
     }
 
     function deploy(ConfigReader.Config memory config) public override returns (address) {
