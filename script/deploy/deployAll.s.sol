@@ -17,7 +17,8 @@ import {
 import { DeployMultiChainHyperlaneTeller } from "./single/05c_DeployMultiChainHyperlaneTeller.s.sol";
 import { DeployRolesAuthority } from "./single/06_DeployRolesAuthority.s.sol";
 import { TellerSetup } from "./single/07_TellerSetup.s.sol";
-import { SetAuthorityAndTransferOwnerships } from "./single/08_SetAuthorityAndTransferOwnerships.s.sol";
+import { DeployDistributorCodeDepositor } from "./single/08_DeployDistributorCodeDepositor.s.sol";
+import { SetAuthorityAndTransferOwnerships } from "./single/09_SetAuthorityAndTransferOwnerships.s.sol";
 
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
@@ -91,6 +92,13 @@ contract DeployAll is BaseScript {
         address rolesAuthority = new DeployRolesAuthority().deploy(config);
         config.rolesAuthority = rolesAuthority;
         console.log("Roles Authority: ", rolesAuthority);
+
+        if (config.distributorCodeDepositorDeploy) {
+            config.distributorCodeDepositor = new DeployDistributorCodeDepositor().deploy(config);
+            console.log("Distributor Code Depositor Deployed");
+        } else {
+            console.log("Distributor Code Depositor Not Deployed");
+        }
 
         new SetAuthorityAndTransferOwnerships().deploy(config);
         console.log("Set Authority And Transfer Ownerships Complete");

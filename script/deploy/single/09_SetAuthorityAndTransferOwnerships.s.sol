@@ -40,12 +40,18 @@ contract SetAuthorityAndTransferOwnerships is BaseScript {
         IAuthority(config.accountant).transferOwnership(config.protocolAdmin);
         IAuthority(config.teller).transferOwnership(config.protocolAdmin);
         IAuthority(config.rolesAuthority).transferOwnership(config.protocolAdmin);
+        // No need to transfer ownership to distributor code depositor as it is set to protocolAdmin in deployment.
 
         // Post Configuration Check
         require(IAuthority(config.boringVault).owner() == config.protocolAdmin, "boringVault");
         require(IAuthority(config.manager).owner() == config.protocolAdmin, "manager");
         require(IAuthority(config.accountant).owner() == config.protocolAdmin, "accountant");
         require(IAuthority(config.teller).owner() == config.protocolAdmin, "teller");
+        if (config.distributorCodeDepositorDeploy) {
+            require(
+                IAuthority(config.distributorCodeDepositor).owner() == config.protocolAdmin, "distributorCodeDepositor"
+            );
+        }
     }
 
 }
