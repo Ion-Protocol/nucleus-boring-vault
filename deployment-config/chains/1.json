@@ -112,6 +112,16 @@
       "note": "WBTC",
       "isPegged": true,
       "rateProvider": "0x0000000000000000000000000000000000000000"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "note": "USDC",
+      "isPegged": true,
+      "rateProvider": "0x0000000000000000000000000000000000000000"
+    },
+    "0xe343167631d89b6ffc58b88d6b7fb0228795491d": {
+      "note": "USDG",
+      "isPegged": true,
+      "rateProvider": "0x0000000000000000000000000000000000000000"
     }
   }
 }
