@@ -71,8 +71,7 @@ contract WithdrawQueueInvariantTest is BaseWithdrawQueueTest {
     }
 
     /**
-     * @notice Order status integrity: no order can be in multiple states
-     * @dev Each processed/cancelled/refunded order should not also be pending
+     * @notice Order status integrity: All orders <= lastProcessed should not be pending
      */
     function invariant_orderStatusIntegrity() public view {
         uint256 lastProcessed = withdrawQueue.lastProcessedOrder();
@@ -80,10 +79,8 @@ contract WithdrawQueueInvariantTest is BaseWithdrawQueueTest {
 
         // All orders <= lastProcessed should not be pending
         for (uint256 i = 1; i <= lastProcessed && i <= latest; i++) {
-            if (i > 0) {
-                WithdrawQueue.OrderStatus status = withdrawQueue.getOrderStatus(i);
-                assertTrue(status != WithdrawQueue.OrderStatus.PENDING, "Processed orders should not be pending");
-            }
+            WithdrawQueue.OrderStatus status = withdrawQueue.getOrderStatus(i);
+            assertTrue(status != WithdrawQueue.OrderStatus.PENDING, "Processed orders should not be pending");
         }
     }
 
@@ -117,15 +114,6 @@ contract WithdrawQueueInvariantTest is BaseWithdrawQueueTest {
         }
 
         assertEq(totalSupply, sumBalances, "Total supply should equal sum of balances");
-    }
-
-    /**
-     * @notice No reverts: if we reach here, operations didn't revert unexpectedly
-     * @dev This invariant passing means the queue handles all edge cases correctly
-     */
-    function invariant_noUnexpectedReverts() public view {
-        // If this runs, no operations caused unexpected reverts
-        assertTrue(true, "No unexpected reverts occurred");
     }
 
     /**
