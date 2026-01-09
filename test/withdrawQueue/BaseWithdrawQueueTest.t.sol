@@ -90,7 +90,7 @@ contract BaseWithdrawQueueTest is Test {
         nonce: 0
     });
 
-    function setUp() external virtual {
+    function setUp() public virtual {
         vm.startPrank(owner);
         USDC = IERC20(address(new tERC20(6)));
         require(address(USDC) != address(0), "USDC is not deployed");
