@@ -83,16 +83,16 @@ contract LiveDeploy is ForkTest, DeployAll {
                     ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
                 )
             );
-            bool isPegged = getChainConfigFile()
-                .readBool(
-                    string(
-                        abi.encodePacked(
-                            ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".isPegged"
-                        )
+            string memory chainConfig = getChainConfigFile();
+            bool isPegged = chainConfig.readBool(
+                string(
+                    abi.encodePacked(
+                        ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".isPegged"
                     )
-                );
+                )
+            );
             if (!isPegged) {
-                address rateProvider = getChainConfigFile().readAddress(key);
+                address rateProvider = chainConfig.readAddress(key);
                 assertNotEq(rateProvider, address(0), "Rate provider address is 0");
                 assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
             }
