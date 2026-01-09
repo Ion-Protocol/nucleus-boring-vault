@@ -100,6 +100,9 @@ contract LiveDeploy is ForkTest, DeployAll {
             SOLVER_ROLE, mainConfig.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         vm.stopPrank();
+
+        require(mainConfig.distributorCodeDepositor != address(0), "Distributor Code Depositor is not deployed");
+        require(mainConfig.distributorCodeDepositor.code.length != 0, "Distributor Code Depositor has no code");
     }
 
     function testDepositAndBridge(uint256 amount) public {

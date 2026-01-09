@@ -62,5 +62,10 @@
   "decoder": {
     "decoderSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000001c",
     "address": "0x00000000004F96C07B83e86600D86F0000000000"
+  },
+  "distributorCodeDepositor": {
+    "deploy": true,
+    "distributorCodeDepositorSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000001d",
+    "nativeSupported": true
   }
 }
