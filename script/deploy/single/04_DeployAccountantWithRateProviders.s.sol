@@ -51,7 +51,8 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 config.allowedExchangeRateChangeUpper,
                 config.allowedExchangeRateChangeLower,
                 config.minimumUpdateDelayInSeconds,
-                config.managementFee
+                config.managementFee,
+                config.performanceFee
             );
         }
 
@@ -81,12 +82,14 @@ contract DeployAccountantWithRateProviders is BaseScript {
                 uint128 _feesOwedInBase,
                 uint128 _totalSharesLastUpdate,
                 uint96 _exchangeRate,
+                uint96 _highestExchangeRate,
                 uint16 _allowedExchangeRateChangeUpper,
                 uint16 _allowedExchangeRateChangeLower,
                 uint64 _lastUpdateTimestamp,
                 bool _isPaused,
                 uint32 _minimumUpdateDelayInSeconds,
-                uint16 _managementFee
+                uint16 _managementFee,
+                uint16 _performanceFee
             ) = accountant.accountantState();
 
             // Post Deploy Checks

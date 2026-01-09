@@ -52,7 +52,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         ONE_SHARE = 10 ** boringVault.decimals();
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         teller = new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant));

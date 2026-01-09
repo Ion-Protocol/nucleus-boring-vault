@@ -55,7 +55,7 @@ contract PauserTest is Test, MainnetAddresses {
         b1.setAuthority(r1);
 
         a1 = new AccountantWithRateProviders(
-            address(this), address(b1), address(this), 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(b1), address(this), 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
         a1.setAuthority(r1);
 
@@ -81,7 +81,7 @@ contract PauserTest is Test, MainnetAddresses {
         b2.setAuthority(r2);
 
         a2 = new AccountantWithRateProviders(
-            address(this), address(b2), address(this), 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(b2), address(this), 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
         a2.setAuthority(r2);
 
@@ -106,7 +106,7 @@ contract PauserTest is Test, MainnetAddresses {
         b3.setAuthority(r3);
 
         a3 = new AccountantWithRateProviders(
-            address(this), address(b3), address(this), 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(b3), address(this), 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
         a3.setAuthority(r3);
 
@@ -130,17 +130,17 @@ contract PauserTest is Test, MainnetAddresses {
         uint256 failCount = pauser.pauseAll();
         assertEq(failCount, 0);
 
-        (,,,,,,, bool isPaused,,) = a1.accountantState();
+        (,,,,,,,, bool isPaused,,,) = a1.accountantState();
         assertTrue(isPaused);
         assertTrue(m1.isPaused());
         assertTrue(t1.isPaused());
 
-        (,,,,,,, isPaused,,) = a2.accountantState();
+        (,,,,,,,, isPaused,,,) = a2.accountantState();
         assertTrue(isPaused);
         assertTrue(m2.isPaused());
         assertTrue(t2.isPaused());
 
-        (,,,,,,, isPaused,,) = a3.accountantState();
+        (,,,,,,,, isPaused,,,) = a3.accountantState();
         assertTrue(isPaused);
         assertTrue(m3.isPaused());
         assertTrue(t3.isPaused());
@@ -150,17 +150,17 @@ contract PauserTest is Test, MainnetAddresses {
         uint256 failCount = pauser.pauseSymbol("BV1");
         assertEq(failCount, 0);
 
-        (,,,,,,, bool isPaused,,) = a1.accountantState();
+        (,,,,,,,, bool isPaused,,,) = a1.accountantState();
         assertTrue(isPaused);
         assertTrue(m1.isPaused());
         assertTrue(t1.isPaused());
 
-        (,,,,,,, isPaused,,) = a2.accountantState();
+        (,,,,,,,, isPaused,,,) = a2.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m2.isPaused());
         assertTrue(!t2.isPaused());
 
-        (,,,,,,, isPaused,,) = a3.accountantState();
+        (,,,,,,,, isPaused,,,) = a3.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m3.isPaused());
         assertTrue(!t3.isPaused());
@@ -169,17 +169,17 @@ contract PauserTest is Test, MainnetAddresses {
     function testPauseSingleIndex() external {
         pauser.pauseSingle("BV1", 2);
 
-        (,,,,,,, bool isPaused,,) = a1.accountantState();
+        (,,,,,,,, bool isPaused,,,) = a1.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m1.isPaused());
         assertTrue(t1.isPaused());
 
-        (,,,,,,, isPaused,,) = a2.accountantState();
+        (,,,,,,,, isPaused,,,) = a2.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m2.isPaused());
         assertTrue(!t2.isPaused());
 
-        (,,,,,,, isPaused,,) = a3.accountantState();
+        (,,,,,,,, isPaused,,,) = a3.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m3.isPaused());
         assertTrue(!t3.isPaused());
@@ -188,17 +188,17 @@ contract PauserTest is Test, MainnetAddresses {
     function testPauseSingleByContract() external {
         pauser.pauseSingle(address(m1));
 
-        (,,,,,,, bool isPaused,,) = a1.accountantState();
+        (,,,,,,,, bool isPaused,,,) = a1.accountantState();
         assertTrue(!isPaused);
         assertTrue(m1.isPaused());
         assertTrue(!t1.isPaused());
 
-        (,,,,,,, isPaused,,) = a2.accountantState();
+        (,,,,,,,, isPaused,,,) = a2.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m2.isPaused());
         assertTrue(!t2.isPaused());
 
-        (,,,,,,, isPaused,,) = a3.accountantState();
+        (,,,,,,,, isPaused,,,) = a3.accountantState();
         assertTrue(!isPaused);
         assertTrue(!m3.isPaused());
         assertTrue(!t3.isPaused());
@@ -227,17 +227,17 @@ contract PauserTest is Test, MainnetAddresses {
         uint256 failingCount = pauser.pauseAll();
         assertEq(failingCount, 4);
 
-        (,,,,,,, bool isPaused,,) = a1.accountantState();
+        (,,,,,,,, bool isPaused,,,) = a1.accountantState();
         assertTrue(isPaused);
         assertTrue(m1.isPaused());
         assertTrue(t1.isPaused());
 
-        (,,,,,,, isPaused,,) = a2.accountantState();
+        (,,,,,,,, isPaused,,,) = a2.accountantState();
         assertTrue(isPaused);
         assertTrue(m2.isPaused());
         assertTrue(t2.isPaused());
 
-        (,,,,,,, isPaused,,) = a3.accountantState();
+        (,,,,,,,, isPaused,,,) = a3.accountantState();
         assertTrue(isPaused);
         assertTrue(m3.isPaused());
         assertTrue(t3.isPaused());
