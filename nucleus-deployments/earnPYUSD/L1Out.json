@@ -1,0 +1,8 @@
+{
+  "boringVault": "0x52df6b703eaff824a07df74723882d0dc65cc2e5",
+  "manager": "0x1dac0b58df1a55cf82a0b561e29b29a674378d98",
+  "accountant": "0x095d1b7257a20cf615c90e0d6a0e61c89fcc61a9",
+  "teller": "0x0affa0b97b5e43c81c79d03df1a934f7f8e40080",
+  "rolesAuthority": "0x88d961f9f5bae22b01fca2a14bd1b145f4faa2d5",
+  "distributorCodeDepositor": "0x1e35a47ea983e15365365a1ca18b6539ddc082ee"
+}
