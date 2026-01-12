@@ -63,7 +63,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
      * Importantly to note is that this does not assert anything. The purpose here is to assert that the queue does not
      * "break" under any random conditions.
      * a "break" would consist of the queue attempting to transfer shares or assets it does not have. Or getting stuck
-     * Chaos Monkey asserts there is always exactly enough assets in the vault to cover orders by re-dealing on any
+     * Chaos Monkey asserts there is always enough assets in the vault to cover orders by re-dealing on any
      * potential process including action based on the current exchange rate.
      */
     function test_ChaosMonkey(uint8[] calldata actions, bytes32 entropy) external {
