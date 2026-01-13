@@ -385,7 +385,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             if (params.amountOffer < minimumOrderSize) revert AmountBelowMinimum(params.amountOffer, minimumOrderSize);
             if (params.receiver == address(0)) revert ZeroAddress();
             if (params.refundReceiver == address(0)) revert ZeroAddress();
-            if (!tellerWithMultiAssetSupport.isSupported(ERC20(address(params.wantAsset)))) {
+            if (!tellerWithMultiAssetSupport.isWithdrawSupported(ERC20(address(params.wantAsset)))) {
                 revert AssetNotSupported(params.wantAsset);
             }
         }

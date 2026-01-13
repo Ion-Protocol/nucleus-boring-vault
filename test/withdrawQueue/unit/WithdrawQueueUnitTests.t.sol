@@ -726,7 +726,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         withdrawQueue.submitOrder(params);
         params.refundReceiver = user;
 
-        assertFalse(teller.isSupported(ERC20(address(badERC20))), "badERC20 should not be supported");
+        assertFalse(teller.isWithdrawSupported(ERC20(address(badERC20))), "badERC20 should not be withdraw supported");
         assertEq(address(params.wantAsset), address(badERC20), "want asset should be badERC20");
         vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.AssetNotSupported.selector, badERC20));
         withdrawQueue.submitOrder(params);

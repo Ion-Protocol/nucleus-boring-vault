@@ -142,7 +142,8 @@ contract BaseWithdrawQueueTest is Test {
         rolesAuthority.setUserRole(address(teller), MINTER_ROLE, true);
         rolesAuthority.setUserRole(address(teller), BURNER_ROLE, true);
 
-        teller.addAsset(ERC20(address(USDC)));
+        teller.addDepositAsset(ERC20(address(USDC)));
+        teller.addWithdrawAsset(ERC20(address(USDC)));
         vm.stopPrank();
     }
 
