@@ -92,8 +92,7 @@ contract WithdrawQueueInvariantTest is BaseWithdrawQueueTest {
         uint256 feeRecipientBalance = boringVault.balanceOf(feeRecipient);
         uint256 totalFees = handler.ghost_sumSharesFees();
 
-        // Fee recipient should have approximately the tracked fees
-        // Using approxEq to account for potential rounding in fee calculations
+        // Fee recipient should have exactly the tracked fees
         assertEq(feeRecipientBalance, totalFees, "Fee recipient should accumulate fees");
         console.log("feeRecipientBalance", feeRecipientBalance);
         console.log("totalFees", totalFees);

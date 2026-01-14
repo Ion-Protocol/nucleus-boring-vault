@@ -6,7 +6,6 @@ import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { BaseWithdrawQueueTest, console } from "../BaseWithdrawQueueTest.t.sol";
 import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
-import { console } from "forge-std/console.sol";
 
 contract WithdrawQueueIntegrationBaseTest is BaseWithdrawQueueTest {
 

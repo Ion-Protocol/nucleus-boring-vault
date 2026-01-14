@@ -19,12 +19,11 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
     address[] public userRoundRobin =
         [makeAddr("user1"), makeAddr("user2"), makeAddr("user3"), makeAddr("user4"), makeAddr("user5")];
 
-    function test_HappyPathsWithExchangeRateChanges(uint96 r0, uint96 r1, uint96 r2) external {
-        // r0 = rate at time of subission
+    function test_HappyPathsWithExchangeRateChanges(uint96 r0, uint96 r2) external {
+        // r0 = rate at time of submission
         // r1 = rate at time of refund or force process
         // r2 = rate at time of process
         r0 = (r0 % uint96(10 * 10 ** accountant.decimals())) + 1;
-        r1 = (r1 % uint96(10 * 10 ** accountant.decimals())) + 1;
         r2 = (r2 % uint96(10 * 10 ** accountant.decimals())) + 1;
 
         // happy path (normal process)
@@ -33,7 +32,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
     }
 
     function test_CancelPathWithExchangeRateChanges(uint96 r0, uint96 r1, uint96 r2) external {
-        // r0 = rate at time of subission
+        // r0 = rate at time of submission
         // r1 = rate at time of refund or force process
         // r2 = rate at time of process
         r0 = (r0 % uint96(10 * 10 ** accountant.decimals())) + 1;
@@ -45,8 +44,8 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
     }
 
     function test_ForceProcessPathWithExchangeRateChanges(uint96 r0, uint96 r1, uint96 r2) external {
-        // r0 = rate at time of subission
-        // r1 = rate at time of refund or force process
+        // r0 = rate at time of submission
+        // r1 = rate at time of refiund or force process
         // r2 = rate at time of process
         r0 = (r0 % uint96(10 * 10 ** accountant.decimals())) + 1;
         r1 = (r1 % uint96(10 * 10 ** accountant.decimals())) + 1;
@@ -79,7 +78,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
 
             if (action == ChaosMonkeyAction.Submit) {
                 uint256 shares = (uint256(entropy) % 100_000_000e6) + 1;
-                // We deal the user shares as the vault will be delt assets per it's rate later
+                // We deal the user shares as the vault will be dealt assets per it's rate later
                 deal(address(boringVault), user, shares, true);
 
                 vm.startPrank(user);
@@ -97,7 +96,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
                 vm.stopPrank();
             } else if (action == ChaosMonkeyAction.SubmitAndProcess) {
                 uint256 shares = (uint256(entropy) % 100_000_000e6) + 1;
-                // We deal the user shares as the vault will be delt assets per it's rate later
+                // We deal the user shares as the vault will be dealt assets per it's rate later
                 deal(address(boringVault), user, shares, true);
                 // Deal the vault the USDC balance as it should be at the current rate
                 deal(address(USDC), address(boringVault), _convertSharesToUSDC(boringVault.totalSupply()), true);
@@ -120,7 +119,8 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
                 if (supply == 0) continue;
                 // Deal the vault the USDC balance as it should be at the current rate
                 deal(address(USDC), address(boringVault), _convertSharesToUSDC(boringVault.totalSupply()), true);
-                uint256 orderToProcess = uint256(entropy) % withdrawQueue.totalSupply();
+                // We add 1 to the order to process as orders start at index 1
+                uint256 orderToProcess = (uint256(entropy) % supply) + 1;
                 // Skip if the order is 0 or already processed/cancelled/refunded
                 if (withdrawQueue.getOrderStatus(orderToProcess) != WithdrawQueue.OrderStatus.PENDING) continue;
                 vm.startPrank(user);
@@ -129,7 +129,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
                 vm.stopPrank();
             } else if (action == ChaosMonkeyAction.Cancel) {
                 if (supply == 0) continue;
-                uint256 orderToCancel = (uint256(entropy) % supply) + withdrawQueue.lastProcessedOrder();
+                uint256 orderToCancel = (uint256(entropy) % supply) + 1 + withdrawQueue.lastProcessedOrder();
                 // Skip if the order is 0 or already processed/cancelled/refunded
                 if (withdrawQueue.getOrderStatus(orderToCancel) != WithdrawQueue.OrderStatus.PENDING) continue;
                 vm.startPrank(withdrawQueue.ownerOf(orderToCancel));
@@ -137,7 +137,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
                 vm.stopPrank();
             } else if (action == ChaosMonkeyAction.Refund) {
                 if (supply == 0) continue;
-                uint256 orderToRefund = (uint256(entropy) % supply) + withdrawQueue.lastProcessedOrder();
+                uint256 orderToRefund = (uint256(entropy) % supply) + 1 + withdrawQueue.lastProcessedOrder();
                 // Skip if the order is 0 or already processed/cancelled/refunded
                 if (withdrawQueue.getOrderStatus(orderToRefund) != WithdrawQueue.OrderStatus.PENDING) continue;
                 vm.startPrank(owner);

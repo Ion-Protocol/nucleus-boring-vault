@@ -355,13 +355,5 @@ contract WithdrawQueueHandler is Test {
         }
     }
 
-    function getExpectedUSDCForPending() public view returns (uint256) {
-        uint256 pendingShares = getPendingShares();
-        if (pendingShares == 0) return 0;
-
-        uint256 sharesAfterFees = pendingShares - _calculateFees(pendingShares);
-        return _convertSharesToUSDC(sharesAfterFees);
-    }
-
 }
 
