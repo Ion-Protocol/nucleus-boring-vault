@@ -1,5 +1,6 @@
 {
   "name": "Ethereum",
+  "nativeWrapper": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
   "balancerVault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
   "opMessenger": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
   "lzEndpoint": "0x1a44076050125825900e736c501f859c50fE728c",
@@ -109,6 +110,16 @@
     },
     "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
       "note": "WBTC",
+      "isPegged": true,
+      "rateProvider": "0x0000000000000000000000000000000000000000"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "note": "USDC",
+      "isPegged": true,
+      "rateProvider": "0x0000000000000000000000000000000000000000"
+    },
+    "0xe343167631d89b6ffc58b88d6b7fb0228795491d": {
+      "note": "USDG",
       "isPegged": true,
       "rateProvider": "0x0000000000000000000000000000000000000000"
     }

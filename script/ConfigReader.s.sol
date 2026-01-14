@@ -61,6 +61,11 @@ library ConfigReader {
         address[] assets;
         address[] rateProviders;
         address[] priceFeeds;
+        bool distributorCodeDepositorDeploy;
+        bool distributorCodeDepositorIsNativeDepositSupported;
+        bytes32 distributorCodeDepositorSalt;
+        address distributorCodeDepositor;
+        address nativeWrapper;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
@@ -124,8 +129,16 @@ library ConfigReader {
         config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
         config.decoder = _config.readAddress(".decoder.address");
 
+        // Reading from the 'distributorCodeDepositor' section
+        config.distributorCodeDepositorDeploy = _config.readBool(".distributorCodeDepositor.deploy");
+        config.distributorCodeDepositorSalt =
+            _config.readBytes32(".distributorCodeDepositor.distributorCodeDepositorSalt");
+        config.distributorCodeDepositorIsNativeDepositSupported =
+            _config.readBool(".distributorCodeDepositor.nativeSupported");
+
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
+        config.nativeWrapper = _chainConfig.readAddress(".nativeWrapper");
 
         return config;
     }
