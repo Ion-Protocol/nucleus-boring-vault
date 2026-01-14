@@ -323,7 +323,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
             uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
             uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
-            emit ManagementFeesAccrued(managementFeesAnnual);
+            emit ManagementFeesAccrued(newFeesOwedInBase);
 
             if (newExchangeRate > state.highestExchangeRate) {
                 unchecked {
