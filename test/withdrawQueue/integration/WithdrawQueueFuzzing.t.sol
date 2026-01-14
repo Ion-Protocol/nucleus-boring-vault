@@ -45,7 +45,7 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
 
     function test_ForceProcessPathWithExchangeRateChanges(uint96 r0, uint96 r1, uint96 r2) external {
         // r0 = rate at time of submission
-        // r1 = rate at time of refiund or force process
+        // r1 = rate at time of refund or force process
         // r2 = rate at time of process
         r0 = (r0 % uint96(10 * 10 ** accountant.decimals())) + 1;
         r1 = (r1 % uint96(10 * 10 ** accountant.decimals())) + 1;

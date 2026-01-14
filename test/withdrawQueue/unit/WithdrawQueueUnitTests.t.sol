@@ -355,7 +355,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         withdrawQueue.cancelOrderWithSignature(1, deadline, signature);
 
         vm.startPrank(bob);
-        // sign a second cancelation as bob
+        // sign a second cancellation as bob
         hash = keccak256(
             abi.encode(withdrawQueue.CANCEL_ORDER_TYPEHASH(), 2, deadline, address(withdrawQueue), block.chainid)
         );
@@ -370,7 +370,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         withdrawQueue.cancelOrderWithSignature(2, deadline, signature);
 
         vm.startPrank(alice);
-        // alice signs a cancelation for order 2
+        // alice signs a cancellation for order 2
         hash = keccak256(
             abi.encode(withdrawQueue.CANCEL_ORDER_TYPEHASH(), 2, deadline, address(withdrawQueue), block.chainid)
         );
