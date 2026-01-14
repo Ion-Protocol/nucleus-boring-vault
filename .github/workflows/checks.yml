@@ -111,4 +111,4 @@ jobs:
 
       - name: Run Slither
         run: |
-          npm i && forge build && slither src
+          npm i && forge install && forge build && slither src
