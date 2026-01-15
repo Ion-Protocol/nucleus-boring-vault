@@ -594,7 +594,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     }
 
     /// @return order after checking index is a real order and is DEFAULT status
-    function _getOrderEnsureDefault(uint256 orderIndex) internal returns (Order memory order) {
+    function _getOrderEnsureDefault(uint256 orderIndex) internal view returns (Order memory order) {
         // The orderIndex != 0 check is redundant and checked below but more accurate description in the error
         // InvalidOrderIndex
         if (orderIndex > latestOrder || orderIndex == 0) revert InvalidOrderIndex(orderIndex);
