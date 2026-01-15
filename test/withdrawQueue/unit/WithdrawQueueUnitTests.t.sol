@@ -324,7 +324,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
 
     function test_cancelOrderWithSignature() external {
         // Test a valid signature may cancel an order
-        // Test an invalid signater may not cancel an order
+        // Test an invalid signature may not cancel an order
         // Test a signature may not be used past it's deadline
         // Test a signature may not be reused (as the order is already marked for refund)
         WithdrawQueue.SubmitOrderParams memory params =
@@ -762,7 +762,6 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         bytes32 hash = keccak256(
             abi.encode(
                 params.amountOffer,
-                withdrawQueue.offerAsset(),
                 params.wantAsset,
                 params.receiver,
                 params.refundReceiver,
@@ -853,7 +852,6 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         bytes32 hash = keccak256(
             abi.encode(
                 params.amountOffer,
-                withdrawQueue.offerAsset(),
                 params.wantAsset,
                 params.receiver,
                 params.refundReceiver,
@@ -937,6 +935,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
 
         _expectOrderProcessedEvent(1, USDC, user, 1e6, WithdrawQueue.OrderType.DEFAULT, false);
         _expectOrderRefundedEvent(2, USDC, user, 1e6);
+        _expectOrderRefundedEvent(4, USDC, user, 1e6);
         vm.expectEmit(true, true, true, true);
         emit WithdrawQueue.OrdersProcessedInRange(1, 4);
         withdrawQueue.processOrders(4);

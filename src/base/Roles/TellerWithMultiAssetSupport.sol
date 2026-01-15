@@ -352,6 +352,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         requiresAuth
         returns (uint256 assetsOut)
     {
+        if (isPaused) revert TellerWithMultiAssetSupport__Paused();
         if (!isWithdrawSupported[withdrawAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
 
         if (shareAmount == 0) revert TellerWithMultiAssetSupport__ZeroShares();

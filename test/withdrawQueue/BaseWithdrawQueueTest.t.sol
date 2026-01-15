@@ -109,7 +109,7 @@ contract BaseWithdrawQueueTest is Test {
         rolesAuthority = new RolesAuthority(owner, Authority(address(0)));
 
         feeModule = new SimpleFeeModule(TEST_OFFER_FEE_PERCENTAGE);
-        withdrawQueue = new WithdrawQueue("Withdraw Queue", "WQ", feeRecipient, teller, feeModule, owner);
+        withdrawQueue = new WithdrawQueue("Withdraw Queue", "WQ", feeRecipient, teller, feeModule, 0, owner);
 
         // Set Role Authorities, user roles and Capabilities
         boringVault.setAuthority(rolesAuthority);

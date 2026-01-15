@@ -78,7 +78,8 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         // refunded
     }
 
-    bytes32 public constant CANCEL_ORDER_TYPEHASH = keccak256("cancelOrderWithSignature(uint256,uint256,bytes)");
+    bytes32 public constant CANCEL_ORDER_TYPEHASH =
+        keccak256("Cancel(uint256 orderIndex,uint256 deadline,address queueAddress,uint256 chainId)");
 
     /// @notice Mapping of hashes that have been used for signatures to prevent replays
     mapping(bytes32 => bool) public usedSignatureHashes;
@@ -146,6 +147,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     error InvalidAssetsOut();
     error EmptyArray();
     error VaultInsufficientBalance(IERC20 wantAsset, uint256 expectedAssetsOut, uint256 vaultBalanceOfWantAsset);
+    error TellerIsPaused();
 
     /**
      * @notice Initialize the contract
@@ -162,6 +164,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         address _feeRecipient,
         TellerWithMultiAssetSupport _tellerWithMultiAssetSupport,
         IFeeModule _feeModule,
+        uint256 _minimumOrderSize,
         address _owner
     )
         ERC721(_name, _symbol)
@@ -179,6 +182,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         tellerWithMultiAssetSupport = _tellerWithMultiAssetSupport;
         offerAsset = _offerAsset;
         feeModule = _feeModule;
+        minimumOrderSize = _minimumOrderSize;
     }
 
     /**
@@ -456,6 +460,8 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 continue;
             }
 
+            if (tellerWithMultiAssetSupport.isPaused()) revert TellerIsPaused();
+
             // receiver is the owner of the receipt token
             address receiver = ownerOf(orderIndex);
 
@@ -487,6 +493,8 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 offerAsset.safeTransfer(feeRecipient, feeAmount);
             } catch {
                 orderAtQueueIndex[orderIndex].didOrderFailTransfer = true;
+                // refresh the order from storage with the updated didOrderFailTransfer
+                order = orderAtQueueIndex[orderIndex];
                 _refundOrder(order, orderIndex);
             }
 
@@ -512,7 +520,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             bytes32 hash = keccak256(
                 abi.encode(
                     params.amountOffer,
-                    offerAsset,
                     params.wantAsset,
                     params.receiver,
                     params.refundReceiver,
