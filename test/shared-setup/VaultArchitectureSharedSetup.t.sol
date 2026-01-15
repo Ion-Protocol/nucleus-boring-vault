@@ -80,7 +80,7 @@ abstract contract VaultArchitectureSharedSetup is Test, MainnetAddresses {
 
         // Deploy AccountantWithRateProviders
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, uint96(exchangeRate), base, 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, uint96(exchangeRate), base, 1.001e4, 0.999e4, 1, 0, 0
         );
 
         // Deploy TellerWithMultiAssetSupport

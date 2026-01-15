@@ -101,7 +101,7 @@ contract BaseWithdrawQueueTest is Test {
         boringVault = new BoringVault(owner, "Boring Vault", "BV", 6);
 
         accountant = new AccountantWithRateProviders(
-            owner, address(boringVault), payout_address, 1e6, address(USDC), 1.001e4, 0.999e4, 1, 0
+            owner, address(boringVault), payout_address, 1e6, address(USDC), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         teller = new TellerWithMultiAssetSupport(owner, address(boringVault), address(accountant));
