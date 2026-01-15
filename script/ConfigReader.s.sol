@@ -26,6 +26,7 @@ library ConfigReader {
         uint16 allowedExchangeRateChangeLower;
         uint32 minimumUpdateDelayInSeconds;
         uint16 managementFee;
+        uint16 performanceFee;
         bytes32 boringVaultSalt;
         string boringVaultName;
         string boringVaultSymbol;
@@ -60,6 +61,11 @@ library ConfigReader {
         address[] assets;
         address[] rateProviders;
         address[] priceFeeds;
+        bool distributorCodeDepositorDeploy;
+        bool distributorCodeDepositorIsNativeDepositSupported;
+        bytes32 distributorCodeDepositorSalt;
+        address distributorCodeDepositor;
+        address nativeWrapper;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
@@ -76,6 +82,7 @@ library ConfigReader {
         config.allowedExchangeRateChangeLower = uint16(_config.readUint(".accountant.allowedExchangeRateChangeLower"));
         config.minimumUpdateDelayInSeconds = uint32(_config.readUint(".accountant.minimumUpdateDelayInSeconds"));
         config.managementFee = uint16(_config.readUint(".accountant.managementFee"));
+        config.performanceFee = uint16(_config.readUint(".accountant.performanceFee"));
 
         // Reading from the 'boringVault' section
         config.boringVault = _config.readAddress(".boringVault.address");
@@ -122,8 +129,16 @@ library ConfigReader {
         config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
         config.decoder = _config.readAddress(".decoder.address");
 
+        // Reading from the 'distributorCodeDepositor' section
+        config.distributorCodeDepositorDeploy = _config.readBool(".distributorCodeDepositor.deploy");
+        config.distributorCodeDepositorSalt =
+            _config.readBytes32(".distributorCodeDepositor.distributorCodeDepositorSalt");
+        config.distributorCodeDepositorIsNativeDepositSupported =
+            _config.readBool(".distributorCodeDepositor.nativeSupported");
+
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
+        config.nativeWrapper = _chainConfig.readAddress(".nativeWrapper");
 
         return config;
     }

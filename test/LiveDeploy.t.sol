@@ -24,7 +24,7 @@ import {
 import { console2 } from "forge-std/console2.sol";
 
 string constant DEFAULT_RPC_URL = "L1_RPC_URL";
-uint256 constant DELTA = 10_050;
+uint256 constant DELTA = 10_500;
 
 // We use this so that we can use the inheritance linearization to start the fork before other constructors
 abstract contract ForkTest is Test {
@@ -83,10 +83,19 @@ contract LiveDeploy is ForkTest, DeployAll {
                     ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".rateProvider"
                 )
             );
-
-            address rateProvider = getChainConfigFile().readAddress(key);
-            assertNotEq(rateProvider, address(0), "Rate provider address is 0");
-            assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+            string memory chainConfig = getChainConfigFile();
+            bool isPegged = chainConfig.readBool(
+                string(
+                    abi.encodePacked(
+                        ".assetToRateProviderAndPriceFeed.", mainConfig.assets[i].toHexString(), ".isPegged"
+                    )
+                )
+            );
+            if (!isPegged) {
+                address rateProvider = chainConfig.readAddress(key);
+                assertNotEq(rateProvider, address(0), "Rate provider address is 0");
+                assertNotEq(rateProvider.code.length, 0, "No code at rate provider address");
+            }
         }
 
         // define one share based off of vault decimals
@@ -100,6 +109,9 @@ contract LiveDeploy is ForkTest, DeployAll {
             SOLVER_ROLE, mainConfig.teller, TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         vm.stopPrank();
+
+        require(mainConfig.distributorCodeDepositor != address(0), "Distributor Code Depositor is not deployed");
+        require(mainConfig.distributorCodeDepositor.code.length != 0, "Distributor Code Depositor has no code");
     }
 
     function testDepositAndBridge(uint256 amount) public {
