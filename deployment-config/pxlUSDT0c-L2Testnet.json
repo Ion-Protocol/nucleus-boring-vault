@@ -1,0 +1,60 @@
+{
+  "base": "0x78Cf24370174180738C5B8E352B6D14c83a6c9A9",
+  "protocolAdmin": "0x1Ab5a40491925cB445fd59e607330046bEac68E5",
+  "boringVaultAndBaseDecimals": "6",
+  "boringVault": {
+    "boringVaultSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe000",
+    "boringVaultName": "Amplify USDT0 Core",
+    "boringVaultSymbol": "pxlUSDT0c",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe111",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe222",
+    "payoutAddress": "0x1Ab5a40491925cB445fd59e607330046bEac68E5",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "performanceFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe333",
+    "maxGasForPeer": 0,
+    "minGasForPeer": 0,
+    "peerEid": 0,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "assets": [
+    ],
+    "dvnIfNoDefault": {
+      "required": [
+      ],
+      "optional": [
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 0,
+      "optionalThreshold": 0
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe444",
+    "strategist": "0x1Ab5a40491925cB445fd59e607330046bEac68E5",
+    "exchangeRateBot": "0x1Ab5a40491925cB445fd59e607330046bEac68E5",
+    "pauser": "0x1Ab5a40491925cB445fd59e607330046bEac68E5",
+    "solver": "0x1Ab5a40491925cB445fd59e607330046bEac68E5",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe555",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "distributorCodeDepositor": {
+    "deploy": true,
+    "distributorCodeDepositorSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afe666",
+    "nativeSupported": false
+  }
+}
