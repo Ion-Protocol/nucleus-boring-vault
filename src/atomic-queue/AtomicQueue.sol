@@ -22,6 +22,7 @@ import { IAtomicSolver } from "./IAtomicSolver.sol";
  * @custom:security-contact security@molecularlabs.io
  */
 contract AtomicQueue is ReentrancyGuard {
+
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -326,4 +327,5 @@ contract AtomicQueue is ReentrancyGuard {
     {
         return atomicPrice.mulDivDown(offerAmount, 10 ** offerDecimals);
     }
+
 }

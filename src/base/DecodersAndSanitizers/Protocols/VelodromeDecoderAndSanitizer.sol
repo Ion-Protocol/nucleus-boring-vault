@@ -2,11 +2,16 @@
 pragma solidity 0.8.21;
 
 import { IVelodromeNonFungiblePositionManager } from "src/interfaces/IVelodromeNonFungiblePositionManager.sol";
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
+    error VelodromeDecoderAndSanitizer__ReceiverNotBoringVault();
     error VelodromeDecoderAndSanitizer__BadPathFormat();
     error VelodromeDecoderAndSanitizer__BadTokenId();
 
@@ -96,11 +101,7 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
     // @desc Velodrome function to safeTransferFrom ERC721s
     // @tag to:address
-    function safeTransferFrom(
-        address,
-        address to,
-        uint256
-    )
+    function safeTransferFrom(address, address to, uint256)
         external
         pure
         virtual
@@ -128,4 +129,45 @@ abstract contract VelodromeDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // Nothing to sanitizer since only the NFT owner can claim rewards.
         return addressesFound;
     }
+
+    // @desc Velodrome function to swap tokens for ETH, only sanitize the first from address and the last to address, we
+    // are indifferent to the intermediate route
+    // @tag from:address:the from token of the first route
+    // @tag to:address:the to token of the last route
+    function swapExactTokensForETH(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        DecoderCustomTypes.VelodromeV2Route[] calldata routes,
+        address to,
+        uint256 deadline
+    )
+        external
+        view
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        if (to != address(boringVault)) revert VelodromeDecoderAndSanitizer__ReceiverNotBoringVault();
+        addressesFound = abi.encodePacked(routes[0].from, routes[routes.length - 1].to);
+    }
+
+    // @desc Velodrome function to swap tokens for ETH, only sanitize the first from address and the last to address, we
+    // are indifferent to the intermediate route
+    // @tag from:address:the from token of the first route
+    // @tag to:address:the to token of the last route
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        DecoderCustomTypes.VelodromeV2Route[] calldata routes,
+        address to,
+        uint256 deadline
+    )
+        external
+        view
+        virtual
+        returns (bytes memory addressesFound)
+    {
+        if (to != address(boringVault)) revert VelodromeDecoderAndSanitizer__ReceiverNotBoringVault();
+        addressesFound = abi.encodePacked(routes[0].from, routes[routes.length - 1].to);
+    }
+
 }

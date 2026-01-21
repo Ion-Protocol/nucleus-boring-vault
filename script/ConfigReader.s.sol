@@ -4,12 +4,15 @@ pragma solidity 0.8.21;
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 
 interface IAuthority {
+
     function setAuthority(address newAuthority) external;
     function transferOwnership(address newOwner) external;
     function owner() external returns (address);
+
 }
 
 library ConfigReader {
+
     using StdJson for string;
 
     struct Config {
@@ -57,6 +60,11 @@ library ConfigReader {
         address[] assets;
         address[] rateProviders;
         address[] priceFeeds;
+        bool distributorCodeDepositorDeploy;
+        bool distributorCodeDepositorIsNativeDepositSupported;
+        bytes32 distributorCodeDepositorSalt;
+        address distributorCodeDepositor;
+        address nativeWrapper;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
@@ -119,8 +127,16 @@ library ConfigReader {
         config.decoderSalt = _config.readBytes32(".decoder.decoderSalt");
         config.decoder = _config.readAddress(".decoder.address");
 
+        // Reading from the 'distributorCodeDepositor' section
+        config.distributorCodeDepositorDeploy = _config.readBool(".distributorCodeDepositor.deploy");
+        config.distributorCodeDepositorSalt =
+            _config.readBytes32(".distributorCodeDepositor.distributorCodeDepositorSalt");
+        config.distributorCodeDepositorIsNativeDepositSupported =
+            _config.readBool(".distributorCodeDepositor.nativeSupported");
+
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
+        config.nativeWrapper = _chainConfig.readAddress(".nativeWrapper");
 
         return config;
     }
@@ -128,4 +144,5 @@ library ConfigReader {
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
+
 }

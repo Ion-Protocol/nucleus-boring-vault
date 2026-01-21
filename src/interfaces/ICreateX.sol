@@ -7,6 +7,7 @@ pragma solidity ^0.8.4;
  * @custom:coauthor Matt Solomon (https://web.archive.org/web/20230921103335/https://mattsolomon.dev/)
  */
 interface ICreateX {
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                            TYPES                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -133,13 +134,7 @@ interface ICreateX {
         pure
         returns (address computedAddress);
 
-    function computeCreate2Address(
-        bytes32 salt,
-        bytes32 initCodeHash
-    )
-        external
-        view
-        returns (address computedAddress);
+    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash) external view returns (address computedAddress);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           CREATE3                          */
@@ -192,4 +187,5 @@ interface ICreateX {
     function computeCreate3Address(bytes32 salt, address deployer) external pure returns (address computedAddress);
 
     function computeCreate3Address(bytes32 salt) external view returns (address computedAddress);
+
 }

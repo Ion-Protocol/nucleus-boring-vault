@@ -4,6 +4,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 contract GenericRateProvider is IRateProvider {
+
     using Address for address;
 
     //============================== IMMUTABLES ===============================
@@ -82,4 +83,5 @@ contract GenericRateProvider is IRateProvider {
 
         return abi.decode(result, (uint256));
     }
+
 }

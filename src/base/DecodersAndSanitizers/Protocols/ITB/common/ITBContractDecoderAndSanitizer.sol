@@ -7,6 +7,7 @@ import { Ownable2StepDecoderAndSanitizer } from "./Ownable2StepDecoderAndSanitiz
 /// @title Decoder and sanitizer for ITBContract
 /// @author IntoTheBlock Corp
 abstract contract ITBContractDecoderAndSanitizer is WithdrawableDecoderAndSanitizer, Ownable2StepDecoderAndSanitizer {
+
     function approveToken(address _token, address _guy, uint256) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_token, _guy);
     }
@@ -14,4 +15,5 @@ abstract contract ITBContractDecoderAndSanitizer is WithdrawableDecoderAndSaniti
     function revokeToken(address _token, address _guy) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_token, _guy);
     }
+
 }

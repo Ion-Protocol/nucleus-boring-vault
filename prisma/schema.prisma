@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DecoderSelector {
+  id          String @id @db.VarChar(26) // Custom generated ID (24 hex chars + 0x prefix)
+  selector    String @db.VarChar(10)     // 4-byte selector (0x + 8 hex chars)
+  description String @db.Text           // Function description
+  signature   String @db.Text           // Function signature
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relation to tags
+  tags        Tag[]
+
+  @@map("decoder_selectors")
+}
+
+model Tag {
+  id               String @id @default(cuid())
+  title            String @db.VarChar(255)     // Parameter name
+  type             String @db.VarChar(255)     // Parameter type
+  description      String @db.Text            // Parameter description
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Foreign key to decoder selector
+  decoderId        String @db.VarChar(26)
+  decoderSelector  DecoderSelector @relation(fields: [decoderId], references: [id], onDelete: Cascade)
+
+  @@map("tags")
+}

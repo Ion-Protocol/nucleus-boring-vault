@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error EigenLayerLSTStakingDecoderAndSanitizer__CanOnlyReceiveAsTokens();
@@ -16,7 +20,7 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
     function depositIntoStrategy(
         address strategy,
         address token,
-        uint256 /*amount*/
+        uint256
     )
         external
         pure
@@ -48,7 +52,7 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
     function completeQueuedWithdrawals(
         DecoderCustomTypes.Withdrawal[] calldata withdrawals,
         address[][] calldata tokens,
-        uint256[] calldata, /*middlewareTimesIndexes*/
+        uint256[] calldata,
         bool[] calldata receiveAsTokens
     )
         external
@@ -57,7 +61,9 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
         returns (bytes memory addressesFound)
     {
         for (uint256 i = 0; i < withdrawals.length; i++) {
-            if (!receiveAsTokens[i]) revert EigenLayerLSTStakingDecoderAndSanitizer__CanOnlyReceiveAsTokens();
+            if (!receiveAsTokens[i]) {
+                revert EigenLayerLSTStakingDecoderAndSanitizer__CanOnlyReceiveAsTokens();
+            }
 
             addressesFound = abi.encodePacked(
                 addressesFound, withdrawals[i].staker, withdrawals[i].delegatedTo, withdrawals[i].withdrawer
@@ -70,4 +76,5 @@ abstract contract EigenLayerLSTStakingDecoderAndSanitizer is BaseDecoderAndSanit
             }
         }
     }
+
 }

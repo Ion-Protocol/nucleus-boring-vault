@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract OneInchDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error OneInchDecoderAndSanitizer__PermitNotSupported();
@@ -45,4 +49,5 @@ abstract contract OneInchDecoderAndSanitizer is BaseDecoderAndSanitizer {
             addressesFound = abi.encodePacked(addressesFound, uint160(pools[i]));
         }
     }
+
 }

@@ -12,6 +12,7 @@ import { IExecutor } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/interfa
 import { IExecutorFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/interfaces/IExecutorFeeLib.sol";
 
 contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
+
     using ExecutorOptions for bytes;
 
     uint256 private immutable nativeDecimalsRate;
@@ -201,7 +202,14 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
         }
     }
 
-    function _isV1Eid(uint32 /*_eid*/ ) internal pure virtual returns (bool) {
+    function _isV1Eid(
+        uint32 /*_eid*/
+    )
+        internal
+        pure
+        virtual
+        returns (bool)
+    {
         return false;
     }
 
@@ -212,4 +220,5 @@ contract ExecutorFeeLibMock is Ownable, IExecutorFeeLib {
 
     // send funds here to pay for price feed directly
     receive() external payable { }
+
 }

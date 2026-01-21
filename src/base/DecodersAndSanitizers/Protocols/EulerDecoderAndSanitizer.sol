@@ -11,6 +11,7 @@ struct BatchItem {
 }
 
 abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error EulerDecoderAndSanitizer__BoringVaultOnly();
     error EulerDecoderAndSanitizer__InvalidBatchLength();
     error EulerDecoderAndSanitizer__InvalidSelector();
@@ -26,6 +27,7 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
         bytes memory data = items[0].data;
         bytes4 selector;
+        /// @solidity memory-safe-assembly
         assembly {
             selector := mload(add(data, 0x20))
         }
@@ -34,6 +36,7 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (selector == bytes4(0xb460af94)) {
             address owner;
             address receiver;
+            /// @solidity memory-safe-assembly
             assembly {
                 owner := mload(add(data, 0x44))
                 receiver := mload(add(data, 0x64))
@@ -46,6 +49,7 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         // deposit(uint256 amount, address receiver)
         else if (selector == bytes4(0x4b3fd148) || selector == bytes4(0xacb70815) || selector == bytes4(0x6e553f65)) {
             address receiver;
+            /// @solidity memory-safe-assembly
             assembly {
                 receiver := mload(add(data, 0x44))
             }
@@ -84,4 +88,5 @@ abstract contract EulerDecoderAndSanitizer is BaseDecoderAndSanitizer {
         if (account != boringVault) revert EulerDecoderAndSanitizer__BoringVaultOnly();
         addressesFound = abi.encodePacked(vault);
     }
+
 }

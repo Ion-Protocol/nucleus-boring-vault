@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERC4626 ===============================
 
     // @desc deposit into the ERC4626 vault
@@ -49,4 +50,5 @@ abstract contract ERC4626DecoderAndSanitizer is BaseDecoderAndSanitizer {
     {
         addressesFound = abi.encodePacked(receiver, owner);
     }
+
 }

@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract EtherFiDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ETHERFI ===============================
 
     // @desc deposit into EtherFi
@@ -35,4 +36,5 @@ abstract contract EtherFiDecoderAndSanitizer is BaseDecoderAndSanitizer {
     function claimWithdraw(address _addr, uint256) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_addr);
     }
+
 }

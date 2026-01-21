@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract ZircuitSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ZIRCUIT SIMPLE STAKING ===============================
 
     // @desc Zircuit Simple Staking function to deposit for a user
@@ -12,7 +13,7 @@ abstract contract ZircuitSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanit
     function depositFor(
         address _token,
         address _for,
-        uint256 /*_amount*/
+        uint256
     )
         external
         pure
@@ -24,15 +25,8 @@ abstract contract ZircuitSimpleStakingDecoderAndSanitizer is BaseDecoderAndSanit
 
     // @desc Zircuit Simple Staking function to withdraw for a user
     // @tag token:address:The token to withdraw
-    function withdraw(
-        address _token,
-        uint256 /*_amount*/
-    )
-        external
-        pure
-        virtual
-        returns (bytes memory addressesFound)
-    {
+    function withdraw(address _token, uint256) external pure virtual returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(_token);
     }
+
 }

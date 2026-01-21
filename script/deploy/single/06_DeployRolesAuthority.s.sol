@@ -16,6 +16,7 @@ import "./../../../src/helper/Constants.sol";
  * NOTE Deploys with `Authority` set to zero bytes.
  */
 contract DeployRolesAuthority is BaseScript {
+
     using StdJson for string;
 
     function run() public virtual returns (address rolesAuthority) {
@@ -256,4 +257,5 @@ contract DeployRolesAuthority is BaseScript {
             "pauser should be able to call manager.pause"
         );
     }
+
 }

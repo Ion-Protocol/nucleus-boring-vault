@@ -3,15 +3,20 @@ pragma solidity 0.8.21;
 
 import { BaseDecoderAndSanitizer } from "./BaseDecoderAndSanitizer.sol";
 import { NativeWrapperDecoderAndSanitizer } from "./Protocols/NativeWrapperDecoderAndSanitizer.sol";
-import { UniswapV3DecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/UniswapV3DecoderAndSanitizer.sol";
-import { MasterChefV3DecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/MasterChefV3DecoderAndSanitizer.sol";
-import { PendleRouterDecoderAndSanitizer } from
-    "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
+import {
+    UniswapV3DecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/UniswapV3DecoderAndSanitizer.sol";
+import {
+    MasterChefV3DecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/MasterChefV3DecoderAndSanitizer.sol";
+import {
+    PendleRouterDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/PendleRouterDecoderAndSanitizer.sol";
 import { LevelDecoderAndSanitizer } from "./Protocols/LevelDecoderAndSanitizer.sol";
 import { ERC4626DecoderAndSanitizer } from "./Protocols/ERC4626DecoderAndSanitizer.sol";
 import { CurveDecoderAndSanitizer } from "./Protocols/CurveDecoderAndSanitizer.sol";
 import { BalancerV2DecoderAndSanitizer } from "./Protocols/BalancerV2DecoderAndSanitizer.sol";
+import { NucleusDecoderAndSanitizer } from "./Protocols/NucleusDecoderAndSanitizer.sol";
 
 contract unifiUSDDecoderAndSanitizer is
     NativeWrapperDecoderAndSanitizer,
@@ -21,8 +26,10 @@ contract unifiUSDDecoderAndSanitizer is
     LevelDecoderAndSanitizer,
     ERC4626DecoderAndSanitizer,
     CurveDecoderAndSanitizer,
-    BalancerV2DecoderAndSanitizer
+    BalancerV2DecoderAndSanitizer,
+    NucleusDecoderAndSanitizer
 {
+
     constructor(
         address _boringVault,
         address _uniswapV3NonFungiblePositionManager
@@ -60,4 +67,5 @@ contract unifiUSDDecoderAndSanitizer is
     {
         addressesFound = abi.encodePacked(receiver);
     }
+
 }

@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract PirexEthDecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     error PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
 
     // @desc Function to deposit ETH for pxETH, will revert if receiver is not the boring vault
@@ -49,4 +50,5 @@ abstract contract PirexEthDecoderAndSanitizer is BaseDecoderAndSanitizer {
             revert PirexEthDecoderAndSanitizer_OnlyBoringVaultAsReceiver();
         }
     }
+
 }

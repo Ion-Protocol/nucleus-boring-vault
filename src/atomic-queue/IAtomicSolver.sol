@@ -4,6 +4,7 @@ pragma solidity >=0.8.0;
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 
 interface IAtomicSolver {
+
     /**
      * @notice This function must be implemented in order for an address to be a `solver`
      *         for the AtomicQueue
@@ -24,4 +25,5 @@ interface IAtomicSolver {
         uint256 assetsForWant
     )
         external;
+
 }

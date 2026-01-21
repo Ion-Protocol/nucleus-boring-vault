@@ -28,7 +28,9 @@ import {
     IReceiveUlnE2
 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/mocks/ReceiveUln302Mock.sol";
 import {
-    DVNMock as DVN, ExecuteParam, IDVN
+    DVNMock as DVN,
+    ExecuteParam,
+    IDVN
 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/mocks/DVNMock.sol";
 import { DVNFeeLibMock as DVNFeeLib } from "@layerzerolabs/test-devtools-evm-foundry/contracts/mocks/DVNFeeLibMock.sol";
 import {
@@ -39,8 +41,9 @@ import {
     PriceFeedMock as PriceFeed,
     ILayerZeroPriceFeed
 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/mocks/PriceFeedMock.sol";
-import { EndpointV2Mock as EndpointV2 } from
-    "@layerzerolabs/test-devtools-evm-foundry/contracts/mocks//EndpointV2Mock.sol";
+import {
+    EndpointV2Mock as EndpointV2
+} from "@layerzerolabs/test-devtools-evm-foundry/contracts/mocks//EndpointV2Mock.sol";
 
 // OApp
 import { OApp } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
@@ -58,6 +61,7 @@ import { ExecutorFeeLibMock as ExecutorFeeLib } from "./ExecutorFeeLibMock.sol";
  * @dev Extends Foundry's Test contract and provides utility functions for setting up mock endpoints and OApps.
  */
 contract TestHelperOz5 is Test, OptionsHelper {
+
     using OptionsBuilder for bytes;
 
     enum LibraryType {
@@ -144,8 +148,9 @@ contract TestHelperOz5 is Test, OptionsHelper {
                     address[] memory messageLibs = new address[](2);
                     messageLibs[0] = address(sendUln);
                     messageLibs[1] = address(receiveUln);
-                    executor =
-                        new Executor(endpointAddr, address(0x0), messageLibs, address(priceFeed), address(this), admins);
+                    executor = new Executor(
+                        endpointAddr, address(0x0), messageLibs, address(priceFeed), address(this), admins
+                    );
 
                     ExecutorFeeLib executorLib = new ExecutorFeeLib();
                     executor.setWorkerFeeLib(address(executorLib));
@@ -285,6 +290,7 @@ contract TestHelperOz5 is Test, OptionsHelper {
      */
     function _deployOApp(bytes memory _oappBytecode, bytes memory _constructorArgs) internal returns (address addr) {
         bytes memory bytecode = bytes.concat(abi.encodePacked(_oappBytecode), _constructorArgs);
+        /// @solidity memory-safe-assembly
         assembly {
             addr := create(0, add(bytecode, 0x20), mload(bytecode))
             if iszero(extcodesize(addr)) { revert(0, 0) }
@@ -468,14 +474,7 @@ contract TestHelperOz5 is Test, OptionsHelper {
         return queue.length() > 0;
     }
 
-    function getNextInflightPacket(
-        uint16 _dstEid,
-        bytes32 _dstAddress
-    )
-        public
-        view
-        returns (bytes memory packetBytes)
-    {
+    function getNextInflightPacket(uint16 _dstEid, bytes32 _dstAddress) public view returns (bytes memory packetBytes) {
         DoubleEndedQueue.Bytes32Deque storage queue = packetsQueue[_dstEid][_dstAddress];
         if (queue.length() > 0) {
             bytes32 guid = queue.back();
@@ -488,4 +487,5 @@ contract TestHelperOz5 is Test, OptionsHelper {
     }
 
     receive() external payable { }
+
 }

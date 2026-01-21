@@ -4,6 +4,7 @@ pragma solidity >=0.8.0;
 /// @title Callback for IUniswapV3PoolActions#swap
 /// @notice Any contract that calls IUniswapV3PoolActions#swap must implement this interface
 interface IUniswapV3SwapCallback {
+
     /// @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.
     /// @dev In the implementation you must pay the pool tokens owed for the swap.
     /// The caller of this method must be checked to be a UniswapV3Pool deployed by the canonical UniswapV3Factory.
@@ -14,11 +15,13 @@ interface IUniswapV3SwapCallback {
     /// the end of the swap. If positive, the callback must send that amount of token1 to the pool.
     /// @param data Any data passed through by the caller via the IUniswapV3PoolActions#swap call
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
+
 }
 
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Uniswap V3
 interface IUniswapV3Router is IUniswapV3SwapCallback {
+
     struct ExactInputSingleParams {
         address tokenIn;
         address tokenOut;
@@ -76,4 +79,5 @@ interface IUniswapV3Router is IUniswapV3SwapCallback {
     /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactOutputParams` in calldata
     /// @return amountIn The amount of the input token
     function exactOutput(ExactOutputParams calldata params) external payable returns (uint256 amountIn);
+
 }

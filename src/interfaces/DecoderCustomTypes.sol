@@ -2,6 +2,7 @@
 pragma solidity 0.8.21;
 
 contract DecoderCustomTypes {
+
     // ========================================= BALANCER =========================================
     struct JoinPoolRequest {
         address[] assets;
@@ -52,6 +53,12 @@ contract DecoderCustomTypes {
         address recipient;
         uint256 deadline;
         uint160 sqrtPriceX96;
+    }
+
+    struct VelodromeV2Route {
+        address from;
+        address to;
+        bool stable;
     }
 
     // ========================================= UNISWAP V3 =========================================
@@ -158,8 +165,8 @@ contract DecoderCustomTypes {
         uint256 guessOffchain; // pass 0 in to skip this variable
         uint256 maxIteration; // every iteration, the diff between guessMin and guessMax will be divided by 2
         uint256 eps; // the max eps between the returned result & the correct result, base 1e18. Normally this number
-            // will be set
-            // to 1e15 (1e18/1000 = 0.1%)
+        // will be set
+        // to 1e15 (1e18/1000 = 0.1%)
     }
 
     struct SwapData {
@@ -306,7 +313,6 @@ contract DecoderCustomTypes {
         Borrow, // increase position debt
         AddToken, // upsert collateral asset to position storage
         RemoveToken // remove collateral asset from position storage
-
     }
 
     /// @title Action
@@ -318,4 +324,24 @@ contract DecoderCustomTypes {
         // dynamic bytes data, interpreted differently across operation types
         bytes data;
     }
+    // ========================================= Valantis =========================================
+
+    struct SovereignPoolSwapContextData {
+        bytes externalContext;
+        bytes verifierContext;
+        bytes swapCallbackContext;
+        bytes swapFeeModuleContext;
+    }
+
+    struct SovereignPoolSwapParams {
+        bool isSwapCallback;
+        bool isZeroToOne;
+        uint256 amountIn;
+        uint256 amountOutMin;
+        uint256 deadline;
+        address recipient;
+        address swapTokenOut;
+        SovereignPoolSwapContextData swapContext;
+    }
+
 }

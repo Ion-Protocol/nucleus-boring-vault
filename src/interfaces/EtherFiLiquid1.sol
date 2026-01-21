@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 interface EtherFiLiquid1 {
+
     struct AdaptorCall {
         address adaptor;
         bytes[] callData;
@@ -110,13 +111,7 @@ interface EtherFiLiquid1 {
     function maxRedeem(address owner) external view returns (uint256);
     function maxWithdraw(address owner) external view returns (uint256);
     function mint(uint256 shares, address receiver) external returns (uint256 assets);
-    function multiAssetDeposit(
-        address depositAsset,
-        uint256 assets,
-        address receiver
-    )
-        external
-        returns (uint256 shares);
+    function multiAssetDeposit(address depositAsset, uint256 assets, address receiver) external returns (uint256 shares);
     function multicall(bytes[] memory data) external;
     function name() external view returns (string memory);
     function nonces(address) external view returns (uint256);
@@ -174,4 +169,5 @@ interface EtherFiLiquid1 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transferOwnership(address newOwner) external;
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+
 }

@@ -5,6 +5,7 @@ pragma solidity 0.8.21;
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 
 contract BaseDecoderAndSanitizer {
+
     //============================== IMMUTABLES ===============================
 
     /**
@@ -34,7 +35,14 @@ contract BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(newOwner);
     }
 
+    // @desc transfer an ERC20
+    // @tag to:address:The recipient of the ERC20
+    function transfer(address to, uint256 value) external pure returns (bytes memory addressesFound) {
+        addressesFound = abi.encodePacked(to);
+    }
+
     fallback() external {
         revert BaseDecoderAndSanitizer__FunctionNotImplemented(msg.data);
     }
+
 }

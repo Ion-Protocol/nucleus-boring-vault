@@ -1,0 +1,61 @@
+{
+  "base": "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
+  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "boringVaultAndBaseDecimals": "6",
+  "boringVault": {
+    "boringVaultSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca0",
+    "boringVaultName": "Earn PYUSD",
+    "boringVaultSymbol": "earnPYUSD",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "manager": {
+    "managerSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca1",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "accountant": {
+    "accountantSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca2",
+    "payoutAddress": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+    "allowedExchangeRateChangeUpper": "10003",
+    "allowedExchangeRateChangeLower": "10000",
+    "minimumUpdateDelayInSeconds": "3600",
+    "managementFee": "0",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "teller": {
+    "tellerSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca3",
+    "maxGasForPeer": 0,
+    "minGasForPeer": 0,
+    "peerEid": 0,
+    "tellerContractName": "TellerWithMultiAssetSupport",
+    "assets": [
+      "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    ],
+    "dvnIfNoDefault": {
+      "required": [
+      ],
+      "optional": [
+      ],
+      "blockConfirmationsRequiredIfNoDefault": 0,
+      "optionalThreshold": 0
+    },
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "rolesAuthority": {
+    "rolesAuthoritySalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca4",
+    "strategist": "0xCb8FA722B2a138faC6B6D60013025E2504b9B753",
+    "exchangeRateBot": "0x1755397BEc366a1e1160d8aE0106C60E7e344B56",
+    "pauser": "0x858d3eE2a16F7B6E43C8D87a5E1F595dE32f4419",
+    "solver": "0x54563d1DdB55b029D6D7AcD89C633af746823092",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "decoder": {
+    "decoderSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca5",
+    "address": "0x0000000000000000000000000000000000000000"
+  },
+  "distributorCodeDepositor": {
+    "deploy": true,
+    "distributorCodeDepositorSalt": "0x1Ab5a40491925cB445fd59e607330046bEac68E500976a89b7eec04ad0afeca6",
+    "nativeSupported": false
+  }
+}

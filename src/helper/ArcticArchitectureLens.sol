@@ -6,6 +6,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 
 contract ArcticArchitectureLens {
+
     using FixedPointMathLib for uint256;
 
     /**
@@ -163,4 +164,5 @@ contract ArcticArchitectureLens {
     function isTellerPaused(TellerWithMultiAssetSupport teller) external view returns (bool) {
         return teller.isPaused();
     }
+
 }

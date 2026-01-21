@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { BaseDecoderAndSanitizer, DecoderCustomTypes } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
+import {
+    BaseDecoderAndSanitizer,
+    DecoderCustomTypes
+} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
 abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
+
     //============================== ERRORS ===============================
 
     error BalancerV2DecoderAndSanitizer__SingleSwapUserDataLengthNonZero();
@@ -139,4 +143,5 @@ abstract contract BalancerV2DecoderAndSanitizer is BaseDecoderAndSanitizer {
     function _getPoolAddressFromPoolId(bytes32 poolId) internal pure returns (address) {
         return address(uint160(uint256(poolId >> 96)));
     }
+
 }

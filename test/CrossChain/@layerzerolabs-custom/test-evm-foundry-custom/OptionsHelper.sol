@@ -6,6 +6,7 @@ import { ExecutorOptions } from "@layerzerolabs/lz-evm-protocol-v2/contracts/mes
 import { UlnOptions } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/libs/UlnOptions.sol";
 
 contract UlnOptionsMock {
+
     using UlnOptions for bytes;
 
     function decode(bytes calldata _options)
@@ -15,9 +16,11 @@ contract UlnOptionsMock {
     {
         return UlnOptions.decode(_options);
     }
+
 }
 
 contract OptionsHelper {
+
     UlnOptionsMock ulnOptions;
 
     function setUp() public virtual {
@@ -53,10 +56,7 @@ contract OptionsHelper {
         return this.decodeLzComposeOption(option);
     }
 
-    function _executorOptionExists(
-        bytes memory _options,
-        uint8 _executorOptionType
-    )
+    function _executorOptionExists(bytes memory _options, uint8 _executorOptionType)
         internal
         view
         returns (bool exist)
@@ -110,4 +110,5 @@ contract OptionsHelper {
     {
         return ExecutorOptions.decodeLzComposeOption(_option);
     }
+
 }

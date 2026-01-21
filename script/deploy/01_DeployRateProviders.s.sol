@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { GenericRateProvider } from "./../../../src/helper/GenericRateProvider.sol";
+import { GenericRateProvider } from "src/helper/GenericRateProvider.sol";
 import { BaseScript } from "./../Base.s.sol";
 import { stdJson as StdJson } from "@forge-std/StdJson.sol";
 import { ConfigReader } from "../ConfigReader.s.sol";
@@ -11,6 +11,7 @@ import { console2 } from "forge-std/console2.sol";
 
 /// NOTE This script must change based on the supported assets of each vault deployment.
 contract DeployRateProviders is BaseScript {
+
     using StdJson for string;
     using Strings for address;
 
@@ -171,4 +172,5 @@ contract DeployRateProviders is BaseScript {
 
         return address(rateProvider);
     }
+
 }
