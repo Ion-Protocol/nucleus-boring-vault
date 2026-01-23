@@ -38,6 +38,8 @@ contract DistributorCodeDepositor is Auth {
 
     uint256 public depositNonce;
 
+    uint256 public supplyCap;
+
     // more details on the deposit also exists on the Teller event
     event DepositWithDistributorCode(
         address indexed depositor,
@@ -49,11 +51,16 @@ contract DistributorCodeDepositor is Auth {
         bytes indexed distributorCode
     );
 
+    event SupplyCapUpdated(uint256 newSupplyCap);
+
+    error SupplyCapError(uint256 resultingSupply, uint256 supplyCap);
+
     constructor(
         TellerWithMultiAssetSupport _teller,
         INativeWrapper _nativeWrapper,
         Authority _rolesAuthority,
         bool _isNativeDepositSupported,
+        uint256 _supplyCap,
         address _owner
     )
         Auth(_owner, _rolesAuthority)
@@ -79,8 +86,18 @@ contract DistributorCodeDepositor is Auth {
         boringVault = address(_teller.vault());
         nativeWrapper = _nativeWrapper;
         isNativeDepositSupported = _isNativeDepositSupported;
+        supplyCap = _supplyCap;
 
         if (boringVault == address(0)) revert ZeroAddress();
+    }
+
+    /**
+     * @dev OWNER function to update the supply cap. We allow setting the cap to anything. Including values < current
+     * supply and a value = 0
+     */
+    function updateSupplyCap(uint256 newSupplyCap) external requiresAuth {
+        supplyCap = newSupplyCap;
+        emit SupplyCapUpdated(newSupplyCap);
     }
 
     /**
@@ -186,6 +203,11 @@ contract DistributorCodeDepositor is Auth {
 
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
         ERC20(boringVault).safeTransfer(to, shares);
+        uint256 totalSupply = ERC20(boringVault).totalSupply();
+
+        // Enforce the supply cap
+        if (totalSupply > supplyCap) revert SupplyCapError(totalSupply, supplyCap);
+
         // Clear leftover allowance
         _tryClearApproval(depositAsset);
 

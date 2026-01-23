@@ -34,6 +34,7 @@ contract DeployDistributorCodeDepositor is BaseScript {
                         nativeWrapper,
                         config.rolesAuthority,
                         config.distributorCodeDepositorIsNativeDepositSupported,
+                        config.distributorCodeDepositorSupplyCap,
                         config.protocolAdmin
                     )
                 )

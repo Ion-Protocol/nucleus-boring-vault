@@ -67,6 +67,7 @@
   "distributorCodeDepositor": {
     "deploy": true,
     "distributorCodeDepositorSalt": "0x48b53893da2e0b0248268c00000000000000000000000000000000000000001d",
-    "nativeSupported": true
+    "nativeSupported": true,
+    "supplyCap": 1000000000000000000000000000
   }
 }

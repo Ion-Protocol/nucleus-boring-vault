@@ -53,7 +53,8 @@ contract DistributorCodeDepositorWithNativeTest is VaultArchitectureSharedSetup 
         (boringVault, teller, accountant) =
             _deployVaultArchitecture("Ethereum Earn", "earnETH", 18, address(WETH), assets, startingExchangeRate);
         // deploy distributor code depositor
-        distributorCodeDepositor = new DistributorCodeDepositor(teller, nativeWrapper, rolesAuthority, true, owner);
+        distributorCodeDepositor =
+            new DistributorCodeDepositor(teller, nativeWrapper, rolesAuthority, true, type(uint256).max, owner);
 
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setPublicCapability(
@@ -166,8 +167,9 @@ contract DistributorCodeDepositorWithoutNativeTest is VaultArchitectureSharedSet
         INativeWrapper nativeWrapper = INativeWrapper(WETH);
 
         // deploy distributor code depositor
-        distributorCodeDepositor =
-            new DistributorCodeDepositor(teller, INativeWrapper(address(0)), rolesAuthority, false, owner);
+        distributorCodeDepositor = new DistributorCodeDepositor(
+            teller, INativeWrapper(address(0)), rolesAuthority, false, type(uint256).max, owner
+        );
 
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setPublicCapability(
