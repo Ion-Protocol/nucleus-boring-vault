@@ -234,7 +234,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
      * @dev Callable by OWNER_ROLE.
      */
     function updatePerformanceFee(uint16 performanceFee) external requiresAuth {
-        if (performanceFee > 0.2e4) revert AccountantWithRateProviders__PerformanceFeeTooLarge();
+        if (performanceFee > 1e4) revert AccountantWithRateProviders__PerformanceFeeTooLarge();
         uint16 oldFee = accountantState.performanceFee;
         accountantState.performanceFee = performanceFee;
         emit PerformanceFeeUpdated(oldFee, performanceFee);
