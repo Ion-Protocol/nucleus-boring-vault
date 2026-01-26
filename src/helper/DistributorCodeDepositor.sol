@@ -5,6 +5,9 @@ import { TellerWithMultiAssetSupport } from "../base/Roles/TellerWithMultiAssetS
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { Auth, Authority } from "solmate/auth/Auth.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+/// NOTE: I am importing from the one-to-one-queue since the WithdrawQueue update, once merge will have this moved. And
+/// I'd rather avoid the merge conflict
+import { IFeeModule, IERC20 } from "./one-to-one-queue/interfaces/IFeeModule.sol";
 
 interface INativeWrapper {
 
@@ -39,6 +42,8 @@ contract DistributorCodeDepositor is Auth {
     uint256 public depositNonce;
 
     uint256 public supplyCap;
+    address public feeRecipient;
+    IFeeModule public feeModule;
 
     // more details on the deposit also exists on the Teller event
     event DepositWithDistributorCode(
@@ -52,8 +57,11 @@ contract DistributorCodeDepositor is Auth {
     );
 
     event SupplyCapUpdated(uint256 newSupplyCap);
+    event FeeModuleUpdated(IFeeModule indexed newFeeModule);
+    event FeeRecipientUpdated(address indexed newFeeRecipient);
 
     error SupplyCapError(uint256 resultingSupply, uint256 supplyCap);
+    error NoCode(address addressEmptyCode);
 
     constructor(
         TellerWithMultiAssetSupport _teller,
@@ -61,6 +69,8 @@ contract DistributorCodeDepositor is Auth {
         Authority _rolesAuthority,
         bool _isNativeDepositSupported,
         uint256 _supplyCap,
+        IFeeModule _feeModule,
+        address _feeRecipient,
         address _owner
     )
         Auth(_owner, _rolesAuthority)
@@ -82,11 +92,20 @@ contract DistributorCodeDepositor is Auth {
             }
         }
 
+        address newFeeModuleAddress = address(_feeModule);
+        if (newFeeModuleAddress != address(0) && newFeeModuleAddress.code.length == 0) {
+            revert NoCode(newFeeModuleAddress);
+        }
+
+        if (_feeRecipient == address(0)) revert ZeroAddress();
+
         teller = _teller;
         boringVault = address(_teller.vault());
         nativeWrapper = _nativeWrapper;
         isNativeDepositSupported = _isNativeDepositSupported;
         supplyCap = _supplyCap;
+        feeModule = _feeModule;
+        feeRecipient = _feeRecipient;
 
         if (boringVault == address(0)) revert ZeroAddress();
     }
@@ -98,6 +117,28 @@ contract DistributorCodeDepositor is Auth {
     function updateSupplyCap(uint256 newSupplyCap) external requiresAuth {
         supplyCap = newSupplyCap;
         emit SupplyCapUpdated(newSupplyCap);
+    }
+
+    /**
+     * @dev OWNER function to update the fee module. We allow setting the fee module to the zero address as we handle
+     * this as no fees.
+     */
+    function updateFeeModule(IFeeModule newFeeModule) external requiresAuth {
+        address newFeeModuleAddress = address(newFeeModule);
+        if (newFeeModuleAddress != address(0) && newFeeModuleAddress.code.length == 0) {
+            revert NoCode(newFeeModuleAddress);
+        }
+        feeModule = newFeeModule;
+        emit FeeModuleUpdated(newFeeModule);
+    }
+
+    /**
+     * @dev OWNER function to update the fee recipient.
+     */
+    function updateFeeRecipient(address newFeeRecipient) external requiresAuth {
+        if (newFeeRecipient == address(0)) revert ZeroAddress();
+        feeRecipient = newFeeRecipient;
+        emit FeeRecipientUpdated(newFeeRecipient);
     }
 
     /**
@@ -202,14 +243,24 @@ contract DistributorCodeDepositor is Auth {
         depositAsset.safeApprove(boringVault, depositAmount);
 
         shares = teller.deposit(depositAsset, depositAmount, minimumMint);
-        ERC20(boringVault).safeTransfer(to, shares);
-        uint256 totalSupply = ERC20(boringVault).totalSupply();
 
-        // Enforce the supply cap
-        if (totalSupply > supplyCap) revert SupplyCapError(totalSupply, supplyCap);
+        uint256 feeAmount;
+        // if fee module is zero, no fees
+        if (address(feeModule) != address(0)) {
+            feeAmount = feeModule.calculateOfferFees(shares, IERC20(address(depositAsset)), IERC20(boringVault), to);
+        }
+
+        // Send "to" the shares - fees
+        ERC20(boringVault).safeTransfer(to, shares - feeAmount);
+        // Send the fees to the fee recipient
+        ERC20(boringVault).safeTransfer(feeRecipient, feeAmount);
+        uint256 totalSupply = ERC20(boringVault).totalSupply();
 
         // Clear leftover allowance
         _tryClearApproval(depositAsset);
+
+        // Enforce the supply cap
+        if (totalSupply > supplyCap) revert SupplyCapError(totalSupply, supplyCap);
 
         emit DepositWithDistributorCode(
             msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, distributorCode

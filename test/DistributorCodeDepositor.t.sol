@@ -13,6 +13,9 @@ import { VaultArchitectureSharedSetup } from "test/shared-setup/VaultArchitectur
 import { DistributorCodeDepositor, INativeWrapper } from "src/helper/DistributorCodeDepositor.sol";
 import { stdStorage, StdStorage, stdError } from "@forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
+/// NOTE: I am importing from the one-to-one-queue since the WithdrawQueue update, once merge will have this moved. And
+/// I'd rather avoid the merge conflict
+import { IFeeModule } from "src/helper/one-to-one-queue/interfaces/IFeeModule.sol";
 
 interface IERC2612 {
 
@@ -53,8 +56,9 @@ contract DistributorCodeDepositorWithNativeTest is VaultArchitectureSharedSetup 
         (boringVault, teller, accountant) =
             _deployVaultArchitecture("Ethereum Earn", "earnETH", 18, address(WETH), assets, startingExchangeRate);
         // deploy distributor code depositor
-        distributorCodeDepositor =
-            new DistributorCodeDepositor(teller, nativeWrapper, rolesAuthority, true, type(uint256).max, owner);
+        distributorCodeDepositor = new DistributorCodeDepositor(
+            teller, nativeWrapper, rolesAuthority, true, type(uint256).max, IFeeModule(address(0)), owner, owner
+        );
 
         vm.startPrank(rolesAuthority.owner());
         rolesAuthority.setPublicCapability(
@@ -168,7 +172,14 @@ contract DistributorCodeDepositorWithoutNativeTest is VaultArchitectureSharedSet
 
         // deploy distributor code depositor
         distributorCodeDepositor = new DistributorCodeDepositor(
-            teller, INativeWrapper(address(0)), rolesAuthority, false, type(uint256).max, owner
+            teller,
+            INativeWrapper(address(0)),
+            rolesAuthority,
+            false,
+            type(uint256).max,
+            IFeeModule(address(0)),
+            owner,
+            owner
         );
 
         vm.startPrank(rolesAuthority.owner());
