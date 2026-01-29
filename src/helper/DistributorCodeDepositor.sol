@@ -8,6 +8,8 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 /// NOTE: I am importing from the one-to-one-queue since the WithdrawQueue update, once merge will have this moved. And
 /// I'd rather avoid the merge conflict
 import { IFeeModule, IERC20 } from "./one-to-one-queue/interfaces/IFeeModule.sol";
+import { Attestation } from "@predicate/interfaces/IPredicateRegistry.sol";
+import { PredicateClient } from "@predicate/mixins/PredicateClient.sol";
 
 interface INativeWrapper {
 
@@ -23,7 +25,7 @@ interface INativeWrapper {
 
 }
 
-contract DistributorCodeDepositor is Auth {
+contract DistributorCodeDepositor is Auth, PredicateClient {
 
     using SafeTransferLib for ERC20;
 
@@ -32,6 +34,7 @@ contract DistributorCodeDepositor is Auth {
     error NativeWrapperAccountantDecimalsMismatch();
     error NativeDepositNotSupported();
     error PermitFailedAndAllowanceTooLow();
+    error FeesExceedOrEqualShares();
 
     INativeWrapper public immutable nativeWrapper;
 
@@ -44,6 +47,8 @@ contract DistributorCodeDepositor is Auth {
     uint256 public supplyCap;
     address public feeRecipient;
     IFeeModule public feeModule;
+
+    mapping(ERC20 => bool) public kytEnabled;
 
     // more details on the deposit also exists on the Teller event
     event DepositWithDistributorCode(
@@ -59,6 +64,7 @@ contract DistributorCodeDepositor is Auth {
     event SupplyCapUpdated(uint256 newSupplyCap);
     event FeeModuleUpdated(IFeeModule indexed newFeeModule);
     event FeeRecipientUpdated(address indexed newFeeRecipient);
+    event KytStatusUpdated(ERC20 indexed depositAsset, bool enabled);
 
     error SupplyCapError(uint256 resultingSupply, uint256 supplyCap);
     error NoCode(address addressEmptyCode);
@@ -71,6 +77,8 @@ contract DistributorCodeDepositor is Auth {
         uint256 _supplyCap,
         IFeeModule _feeModule,
         address _feeRecipient,
+        address _registry,
+        string memory _policyID,
         address _owner
     )
         Auth(_owner, _rolesAuthority)
@@ -106,8 +114,17 @@ contract DistributorCodeDepositor is Auth {
         supplyCap = _supplyCap;
         feeModule = _feeModule;
         feeRecipient = _feeRecipient;
+        _initPredicateClient(_registry, _policyID);
 
         if (boringVault == address(0)) revert ZeroAddress();
+    }
+
+    function setPolicyID(string memory _policyID) external requiresAuth {
+        _setPolicyID(_policyID);
+    }
+
+    function setRegistry(address _registry) external requiresAuth {
+        _setRegistry(_registry);
     }
 
     /**
@@ -142,6 +159,14 @@ contract DistributorCodeDepositor is Auth {
     }
 
     /**
+     * @dev OWNER function to update the KYT status of an asset
+     */
+    function updateKytStatus(ERC20 depositAsset, bool enabled) external requiresAuth {
+        kytEnabled[depositAsset] = enabled;
+        emit KytStatusUpdated(depositAsset, enabled);
+    }
+
+    /**
      * @notice For depositing the native asset of the chain
      * @param depositAmount The amount to deposit
      * @param minimumMint Minimum amount of shares to mint. Reverts otherwise
@@ -152,13 +177,15 @@ contract DistributorCodeDepositor is Auth {
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
-        bytes calldata distributorCode
+        bytes calldata distributorCode,
+        Attestation calldata _attestation
     )
         external
         payable
         requiresAuth
         returns (uint256 shares)
     {
+        _authorizeKyt(_attestation, ERC20(address(nativeWrapper)), depositAmount, minimumMint, to, distributorCode);
         if (!isNativeDepositSupported) revert NativeDepositNotSupported();
         if (msg.value != depositAmount) revert IncorrectNativeDepositAmount();
         nativeWrapper.deposit{ value: msg.value }();
@@ -178,12 +205,14 @@ contract DistributorCodeDepositor is Auth {
         uint256 depositAmount,
         uint256 minimumMint,
         address to,
-        bytes calldata distributorCode
+        bytes calldata distributorCode,
+        Attestation calldata _attestation
     )
         external
         requiresAuth
         returns (uint256 shares)
     {
+        _authorizeKyt(_attestation, depositAsset, depositAmount, minimumMint, to, distributorCode);
         depositAsset.safeTransferFrom(msg.sender, address(this), depositAmount);
         return _deposit(depositAsset, depositAmount, minimumMint, to, distributorCode);
     }
@@ -194,6 +223,7 @@ contract DistributorCodeDepositor is Auth {
         uint256 minimumMint,
         address to,
         bytes calldata distributorCode,
+        Attestation calldata _attestation,
         uint256 deadline,
         uint8 v,
         bytes32 r,
@@ -203,6 +233,7 @@ contract DistributorCodeDepositor is Auth {
         requiresAuth
         returns (uint256 shares)
     {
+        _authorizeKyt(_attestation, depositAsset, depositAmount, minimumMint, to, distributorCode);
         // cannot just wrap the teller.depositWithPermit because
         // we need to use permit to process approval on this contract before making a deposit.
 
@@ -250,6 +281,8 @@ contract DistributorCodeDepositor is Auth {
             feeAmount = feeModule.calculateOfferFees(shares, IERC20(address(depositAsset)), IERC20(boringVault), to);
         }
 
+        if (feeAmount >= shares) revert FeesExceedOrEqualShares();
+
         // Send "to" the shares - fees
         ERC20(boringVault).safeTransfer(to, shares - feeAmount);
         // Send the fees to the fee recipient
@@ -265,6 +298,35 @@ contract DistributorCodeDepositor is Auth {
         emit DepositWithDistributorCode(
             msg.sender, depositAsset, depositAmount, minimumMint, to, depositHash, distributorCode
         );
+    }
+
+    /**
+     * @dev Helper function to only perform Predicate authorization if the KYT status is enabled for the asset
+     */
+    function _authorizeKyt(
+        Attestation calldata _attestation,
+        ERC20 depositAsset,
+        uint256 depositAmount,
+        uint256 minimumMint,
+        address to,
+        bytes calldata distributorCode
+    )
+        internal
+    {
+        if (kytEnabled[depositAsset]) {
+            bytes memory encodedSigAndArgs = abi.encodeWithSignature(
+                "_deposit(address,uint256,uint256,address,bytes)",
+                depositAsset,
+                depositAmount,
+                minimumMint,
+                to,
+                distributorCode
+            );
+            require(
+                _authorizeTransaction(_attestation, encodedSigAndArgs, msg.sender, msg.value),
+                "MetaCoin: unauthorized transaction"
+            );
+        }
     }
 
     /**
