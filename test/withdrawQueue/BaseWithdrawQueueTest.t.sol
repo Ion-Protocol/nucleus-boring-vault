@@ -86,8 +86,7 @@ contract BaseWithdrawQueueTest is Test {
         approvalS: bytes32(0),
         submitWithSignature: false,
         deadline: block.timestamp + 1000,
-        eip2612Signature: "",
-        nonce: 0
+        eip2612Signature: ""
     });
 
     function setUp() public virtual {
