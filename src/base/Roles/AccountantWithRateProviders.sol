@@ -341,13 +341,13 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             unchecked {
                 accountantState.feesOwedInBase += uint128(newFeesOwedInBase);
             }
+
+            accountantState.exchangeRate = newExchangeRate;
+            accountantState.totalSharesLastUpdate = uint128(currentTotalShares);
+            accountantState.lastUpdateTimestamp = currentTime;
+
+            emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
         }
-
-        accountantState.exchangeRate = newExchangeRate;
-        accountantState.totalSharesLastUpdate = uint128(currentTotalShares);
-        accountantState.lastUpdateTimestamp = currentTime;
-
-        emit ExchangeRateUpdated(uint96(currentExchangeRate), newExchangeRate, currentTime);
     }
 
     /**
