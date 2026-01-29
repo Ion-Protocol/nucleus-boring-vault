@@ -769,6 +769,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
                 params.signatureParams.approvalMethod,
                 params.signatureParams.nonce,
                 address(withdrawQueue.feeModule()),
+                alice,
                 block.chainid,
                 address(withdrawQueue)
             )
@@ -781,7 +782,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         vm.startPrank(alice);
         boringVault.approve(address(withdrawQueue), 1e6);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidEip2612Signature.selector, user, alice));
+        vm.expectPartialRevert(WithdrawQueue.InvalidEip2612Signature.selector);
         withdrawQueue.submitOrder(params);
         params.intendedDepositor = alice;
 
@@ -859,6 +860,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
                 params.signatureParams.approvalMethod,
                 params.signatureParams.nonce,
                 address(withdrawQueue.feeModule()),
+                alice,
                 block.chainid,
                 address(withdrawQueue)
             )
@@ -870,7 +872,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
 
         vm.startPrank(alice);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidEip2612Signature.selector, user, alice));
+        vm.expectPartialRevert(WithdrawQueue.InvalidEip2612Signature.selector);
         withdrawQueue.submitOrder(params);
         params.intendedDepositor = alice;
 

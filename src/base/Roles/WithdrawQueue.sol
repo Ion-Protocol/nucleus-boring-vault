@@ -527,6 +527,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                     params.signatureParams.approvalMethod,
                     params.signatureParams.nonce,
                     address(feeModule),
+                    params.intendedDepositor,
                     block.chainid,
                     address(this)
                 )
