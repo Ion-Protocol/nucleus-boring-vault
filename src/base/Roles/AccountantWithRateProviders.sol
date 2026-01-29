@@ -271,9 +271,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
         AccountantState memory state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
 
-        if (state.exchangeRate > state.highestExchangeRate) {
-            revert AccountantWithRateProviders__ExchangeRateAlreadyHighest();
-        }
+        assert(state.exchangeRate <= state.highestExchangeRate);
 
         accountantState.highestExchangeRate = state.exchangeRate;
 
