@@ -17,9 +17,11 @@ contract WithdrawQueueScenarioPathsTest is WithdrawQueueIntegrationBaseTest {
         // User can process
 
         vm.startPrank(owner);
+        accountant.updateLower(0);
+        accountant.updateDelay(0);
         accountant.updateExchangeRate(0);
-        accountant.unpause();
         vm.stopPrank();
+        assertEq(accountant.getRate(), 0, "Exchange rate should be 0");
         vm.startPrank(user);
         USDC.approve(address(boringVault), 1e6);
         vm.expectRevert(address(teller));

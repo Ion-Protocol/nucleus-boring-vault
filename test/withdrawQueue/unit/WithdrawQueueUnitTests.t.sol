@@ -753,8 +753,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
             approvalS: bytes32(0),
             submitWithSignature: true,
             deadline: block.timestamp + 1000,
-            eip2612Signature: "",
-            nonce: 0
+            eip2612Signature: ""
         });
         WithdrawQueue.SubmitOrderParams memory params =
             _createSubmitOrderParams(USDC, 1e6, user, alice, alice, signatureParams);
@@ -767,8 +766,9 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
                 params.refundReceiver,
                 params.signatureParams.deadline,
                 params.signatureParams.approvalMethod,
-                params.signatureParams.nonce,
+                withdrawQueue.nonces(alice),
                 address(withdrawQueue.feeModule()),
+                alice,
                 block.chainid,
                 address(withdrawQueue)
             )
@@ -781,14 +781,14 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
         vm.startPrank(alice);
         boringVault.approve(address(withdrawQueue), 1e6);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidEip2612Signature.selector, user, alice));
+        vm.expectPartialRevert(WithdrawQueue.InvalidEip2612Signature.selector);
         withdrawQueue.submitOrder(params);
         params.intendedDepositor = alice;
 
         _expectOrderSubmittedEvent(1e6, USDC, alice, alice, true);
         withdrawQueue.submitOrder(params);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.SignatureHashAlreadyUsed.selector, hash));
+        vm.expectPartialRevert(WithdrawQueue.InvalidEip2612Signature.selector);
         withdrawQueue.submitOrder(params);
 
         vm.warp(block.timestamp + 1001);
@@ -816,8 +816,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
             approvalS: s,
             submitWithSignature: false,
             deadline: block.timestamp + 1000,
-            eip2612Signature: "",
-            nonce: 0
+            eip2612Signature: ""
         });
         WithdrawQueue.SubmitOrderParams memory params =
             _createSubmitOrderParams(USDC, 1e6, alice, alice, alice, signatureParams);
@@ -843,8 +842,7 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
             approvalS: _s,
             submitWithSignature: true,
             deadline: block.timestamp + 1000,
-            eip2612Signature: "",
-            nonce: 0
+            eip2612Signature: ""
         });
         WithdrawQueue.SubmitOrderParams memory params =
             _createSubmitOrderParams(USDC, 1e6, user, alice, alice, signatureParams);
@@ -857,8 +855,9 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
                 params.refundReceiver,
                 params.signatureParams.deadline,
                 params.signatureParams.approvalMethod,
-                params.signatureParams.nonce,
+                withdrawQueue.nonces(alice),
                 address(withdrawQueue.feeModule()),
+                alice,
                 block.chainid,
                 address(withdrawQueue)
             )
@@ -870,14 +869,14 @@ contract WithdrawQueueUnitTests is BaseWithdrawQueueTest {
 
         vm.startPrank(alice);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.InvalidEip2612Signature.selector, user, alice));
+        vm.expectPartialRevert(WithdrawQueue.InvalidEip2612Signature.selector);
         withdrawQueue.submitOrder(params);
         params.intendedDepositor = alice;
 
         _expectOrderSubmittedEvent(1e6, USDC, alice, alice, true);
         withdrawQueue.submitOrder(params);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawQueue.SignatureHashAlreadyUsed.selector, hash));
+        vm.expectPartialRevert(WithdrawQueue.InvalidEip2612Signature.selector);
         withdrawQueue.submitOrder(params);
 
         vm.warp(block.timestamp + 1001);
