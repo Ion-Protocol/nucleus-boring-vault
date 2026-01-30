@@ -279,14 +279,16 @@ contract DistributorCodeDepositor is Auth, PredicateClient {
         // if fee module is zero, no fees
         if (address(feeModule) != address(0)) {
             feeAmount = feeModule.calculateOfferFees(shares, IERC20(address(depositAsset)), IERC20(boringVault), to);
+            // Send the fees to the fee recipient if fees are taken
+            if (feeAmount > 0) {
+                ERC20(boringVault).safeTransfer(feeRecipient, feeAmount);
+            }
         }
 
         if (feeAmount >= shares) revert FeesExceedOrEqualShares();
 
         // Send "to" the shares - fees
         ERC20(boringVault).safeTransfer(to, shares - feeAmount);
-        // Send the fees to the fee recipient
-        ERC20(boringVault).safeTransfer(feeRecipient, feeAmount);
         uint256 totalSupply = ERC20(boringVault).totalSupply();
 
         // Clear leftover allowance
