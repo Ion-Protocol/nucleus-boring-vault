@@ -317,28 +317,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     }
 
     /**
-     * @notice Allows on ramp role to deposit into this contract.
-     * @dev Does NOT support native deposits.
-     * @dev Callable by SOLVER_ROLE.
-     */
-    function bulkDeposit(
-        ERC20 depositAsset,
-        uint256 depositAmount,
-        uint256 minimumMint,
-        address to
-    )
-        external
-        requiresAuth
-        nonReentrant
-        returns (uint256 shares)
-    {
-        if (!isDepositSupported[depositAsset]) revert TellerWithMultiAssetSupport__AssetNotSupported();
-
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, to);
-        emit BulkDeposit(address(depositAsset), depositAmount);
-    }
-
-    /**
      * @notice Allows off ramp role to withdraw from this contract.
      * @dev Callable by SOLVER_ROLE.
      */

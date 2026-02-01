@@ -55,7 +55,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
         bool submitWithSignature;
         uint256 deadline;
         bytes eip2612Signature;
-        uint256 nonce;
     }
 
     /// @notice Parameters for submitting an order
@@ -81,8 +80,8 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     bytes32 public constant CANCEL_ORDER_TYPEHASH =
         keccak256("Cancel(uint256 orderIndex,uint256 deadline,address queueAddress,uint256 chainId)");
 
-    /// @notice Mapping of hashes that have been used for signatures to prevent replays
-    mapping(bytes32 => bool) public usedSignatureHashes;
+    /// @notice Mapping of intended depositors to their nonces to prevent replay attacks
+    mapping(address => uint256) public nonces;
 
     /// @notice the offer asset to be withdrawn from. This must be the vault of the provided Teller. This may never
     /// change even if a vault's Teller does.
@@ -134,7 +133,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     error InvalidOrderIndex(uint256 orderIndex);
     error AmountBelowMinimum(uint256 amount, uint256 minimum);
     error SignatureExpired(uint256 deadline, uint256 currentTimestamp);
-    error SignatureHashAlreadyUsed(bytes32 hash);
     error NotEnoughOrdersToProcess(uint256 ordersToProcess, uint256 latestOrder);
     error InvalidOrdersCount(uint256 ordersToProcess);
     error InvalidEip2612Signature(address intendedDepositor, address depositor);
@@ -525,14 +523,13 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                     params.refundReceiver,
                     params.signatureParams.deadline,
                     params.signatureParams.approvalMethod,
-                    params.signatureParams.nonce,
+                    nonces[params.intendedDepositor]++,
                     address(feeModule),
+                    params.intendedDepositor,
                     block.chainid,
                     address(this)
                 )
             );
-            if (usedSignatureHashes[hash]) revert SignatureHashAlreadyUsed(hash);
-            usedSignatureHashes[hash] = true;
 
             depositor = ECDSA.recover(hash, params.signatureParams.eip2612Signature);
             // Here we check the intended depositor for a better revert message. If we didn't do this, an incorrect
