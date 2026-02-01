@@ -353,6 +353,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
             // exchange rate
             // to a better value, and pause it.
             accountantState.isPaused = true;
+            emit Paused();
         } else {
             // Only update fees if we are not paused.
             // Update fee accounting.
