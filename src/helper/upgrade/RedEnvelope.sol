@@ -88,7 +88,8 @@ contract RedEnvelopeUpgrade {
     function emergencyProxyCall(address _target, bytes memory _data, uint256 _value) external {
         require(msg.sender == multisig, "Only the multisig can call this function");
 
-        _target.call{ value: _value }(_data);
+        (bool success,) = _target.call{ value: _value }(_data);
+        require(success, "Emergency proxy call failed");
     }
 
     /**
@@ -277,7 +278,7 @@ contract RedEnvelopeUpgrade {
     }
 
     /**
-     * @dev a CREATEX helper to make a salt programatically
+     * @dev a CREATEX helper to make a salt programmatically
      */
     function _makeSalt(
         bool isCrosschainProtected,
