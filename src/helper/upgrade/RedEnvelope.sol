@@ -123,9 +123,10 @@ contract RedEnvelopeUpgrade {
     /**
      * @notice flash upgrade function. Requires this contract is granted ownership of the accountant and roles authority
      */
-    function flashUpgrade(FlashUpgradeParams calldata params) external {
-        DeployedContracts memory deployedContracts;
-
+    function flashUpgrade(FlashUpgradeParams calldata params)
+        external
+        returns (DeployedContracts memory deployedContracts)
+    {
         require(msg.sender == multisig, "Only the multisig can call this function");
         require(params.accountant1.owner() == address(this), "Accountant1 must be owned by this contract");
         require(params.authority.owner() == address(this), "Authority must be owned by this contract");
