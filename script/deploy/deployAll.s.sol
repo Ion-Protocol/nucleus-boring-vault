@@ -99,6 +99,7 @@ contract DeployAll is BaseScript {
         if (config.distributorCodeDepositorDeploy) {
             config.distributorCodeDepositor = new DeployDistributorCodeDepositor().deploy(config);
             console.log("Distributor Code Depositor Deployed");
+            console.log("Distributor Code Depositor: ", config.distributorCodeDepositor);
         } else {
             console.log("Distributor Code Depositor Not Deployed");
         }

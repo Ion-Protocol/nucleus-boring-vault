@@ -7,7 +7,6 @@ import {
     ETH_PER_WEETH_CHAINLINK,
     ETH_PER_EZETH_CHAINLINK,
     ETH_PER_RSETH_CHAINLINK,
-    ETH_PER_RSWETH_CHAINLINK,
     ETH_PER_PUFETH_REDSTONE,
     ETH_PER_APXETH_REDSTONE
 } from "./../../../src/helper/Constants.sol";
@@ -113,64 +112,6 @@ contract EzEthRateProviderTest is EthPerTokenRateProviderTest {
         ethPerTokenRateProvider = new EthPerTokenRateProvider(
             incorrectDescription,
             ETH_PER_EZETH_CHAINLINK,
-            MAX_TIME_FROM_LAST_UPDATE,
-            18,
-            EthPerTokenRateProvider.PriceFeedType.CHAINLINK
-        );
-    }
-
-}
-
-contract RsEthRateProviderTest is EthPerTokenRateProviderTest {
-
-    function setUp() public override {
-        super.setUp();
-
-        _setExpectedPriceRange(1e18, 1.2e18);
-
-        ethPerTokenRateProvider = new EthPerTokenRateProvider(
-            "RSETH / ETH",
-            ETH_PER_RSETH_CHAINLINK,
-            MAX_TIME_FROM_LAST_UPDATE,
-            18,
-            EthPerTokenRateProvider.PriceFeedType.CHAINLINK
-        );
-    }
-
-    function test_Revert_IncorrectDescription() public override {
-        vm.expectRevert(EthPerTokenRateProvider.InvalidDescription.selector);
-        ethPerTokenRateProvider = new EthPerTokenRateProvider(
-            incorrectDescription,
-            ETH_PER_RSETH_CHAINLINK,
-            MAX_TIME_FROM_LAST_UPDATE,
-            18,
-            EthPerTokenRateProvider.PriceFeedType.CHAINLINK
-        );
-    }
-
-}
-
-contract RswEthRateProviderTest is EthPerTokenRateProviderTest {
-
-    function setUp() public override {
-        super.setUp();
-
-        _setExpectedPriceRange(1e18, 1.2e18);
-
-        ethPerTokenRateProvider = new EthPerTokenRateProvider(
-            "rswETH / ETH",
-            ETH_PER_RSWETH_CHAINLINK,
-            MAX_TIME_FROM_LAST_UPDATE,
-            18,
-            EthPerTokenRateProvider.PriceFeedType.CHAINLINK
-        );
-    }
-
-    function test_Revert_IncorrectDescription() public override {
-        vm.expectRevert(EthPerTokenRateProvider.InvalidDescription.selector);
-        ethPerTokenRateProvider = new EthPerTokenRateProvider(
-            incorrectDescription,
-            ETH_PER_RSWETH_CHAINLINK,
             MAX_TIME_FROM_LAST_UPDATE,
             18,
             EthPerTokenRateProvider.PriceFeedType.CHAINLINK
