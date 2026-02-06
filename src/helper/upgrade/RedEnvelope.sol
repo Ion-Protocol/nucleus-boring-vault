@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
-import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import { DistributorCodeDepositor } from "src/helper/DistributorCodeDepositor.sol";
 import { ICreateX } from "lib/createx/src/ICreateX.sol";
-import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
-import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
 import "src/helper/constants.sol";
+import { IAccountantWithRateProviders } from "src/interfaces/Roles/IAccountantWithRateProviders.sol";
+import { ITellerWithMultiAssetSupport, ERC20 } from "src/interfaces/Roles/ITellerWithMultiAssetSupport.sol";
+import { IDistributorCodeDepositor } from "src/interfaces/IDistributorCodeDepositor.sol";
+import { IWithdrawQueue } from "src/interfaces/Roles/IWithdrawQueue.sol";
+import { IFeeModule } from "src/interfaces/IFeeModule.sol";
+
+import { SSTORE2 } from "lib/solmate/src/utils/SSTORE2.sol";
 
 /**
  * @dev interface for the accountant we are replacing (Accountant1). All else being equal, we only use this to call
@@ -34,6 +36,15 @@ interface IAccountant1 {
 
 }
 
+/// @notice enum to track the contract a bytecode is saved for
+enum CONTRACT {
+    ACCOUNTANT2,
+    TELLER2,
+    DCD2,
+    WITHDRAW_QUEUE,
+    FEE_MODULE
+}
+
 /**
  * @title RedEnvelopeUpgrade
  * @notice Red Envelope is the codename for a PaxosLabs Feb 2026 vault upgrade that includes the following:
@@ -48,9 +59,11 @@ interface IAccountant1 {
  */
 contract RedEnvelopeUpgrade {
 
+    using SSTORE2 for address;
+
     struct FlashUpgradeParams {
-        AccountantWithRateProviders accountant1;
-        TellerWithMultiAssetSupport teller1;
+        IAccountantWithRateProviders accountant1;
+        ITellerWithMultiAssetSupport teller1;
         RolesAuthority authority;
         uint16 accountantPerformanceFee;
         uint256 offerFeePercentage;
@@ -63,22 +76,37 @@ contract RedEnvelopeUpgrade {
         string queueErc721Symbol;
     }
 
+    struct DeployedContracts {
+        IAccountantWithRateProviders accountant2;
+        ITellerWithMultiAssetSupport teller2;
+        IDistributorCodeDepositor dcd2;
+        IWithdrawQueue withdrawQueue;
+        IFeeModule feeModule;
+    }
+
     // Constants and immutables
     ICreateX immutable CREATEX;
     address immutable multisig;
 
-    // Deployed Contracts
-    AccountantWithRateProviders public accountant2;
-    TellerWithMultiAssetSupport public teller2;
-    DistributorCodeDepositor public dcd2;
-    WithdrawQueue public withdrawQueue;
-    SimpleFeeModule public feeModule;
+    /// @dev pointer her refers to the SSTORE2 address the contract creation code is saved in
+    mapping(CONTRACT => address) public contractCreationCodePointer;
 
-    event ContractDeployed(string name, address contractAddress);
+    event ContractDeployed(CONTRACT indexed contractName, address indexed contractAddress);
 
     constructor(address _createx, address _multisig) {
         CREATEX = ICreateX(_createx);
         multisig = _multisig;
+    }
+
+    /**
+     * @dev This function is used to save contract creation code. This contract is too large if it imports all the
+     * BoringVault contracts.
+     *  So instead we can upload the creation code on-chain in a different transaction using SSTORE2 and this funciton,
+     * and read from it to deploy.
+     */
+    function setContractCreationCode(CONTRACT contractType, bytes calldata creationCode) external {
+        require(msg.sender == multisig, "Only the multisig can call this function");
+        contractCreationCodePointer[contractType] = SSTORE2.write(creationCode);
     }
 
     /**
@@ -96,7 +124,7 @@ contract RedEnvelopeUpgrade {
      * @notice flash upgrade function. Requires this contract is granted ownership of the accountant and roles authority
      */
     function flashUpgrade(FlashUpgradeParams calldata params) external {
-        string memory symbol = params.teller1.vault().symbol();
+        DeployedContracts memory deployedContracts;
 
         require(msg.sender == multisig, "Only the multisig can call this function");
         require(params.accountant1.owner() == address(this), "Accountant1 must be owned by this contract");
@@ -131,150 +159,183 @@ contract RedEnvelopeUpgrade {
                 params.accountantPerformanceFee
             );
 
-            bytes memory initCode = abi.encodePacked(type(AccountantWithRateProviders).creationCode, constructorParams);
-
             // Deploy
-            accountant2 = AccountantWithRateProviders(
-                CREATEX.deployCreate3(_makeSalt(false, symbol, "AccountantRedEnvelope"), initCode)
+            deployedContracts.accountant2 = IAccountantWithRateProviders(
+                CREATEX.deployCreate3(
+                    _makeSalt(false, params.teller1.vault().symbol(), "AccountantRedEnvelope"),
+                    abi.encodePacked(contractCreationCodePointer[CONTRACT.ACCOUNTANT2].read(), constructorParams)
+                )
             );
+            emit ContractDeployed(CONTRACT.ACCOUNTANT2, address(deployedContracts.accountant2));
         }
 
         // Set the Authority of the new accountant
-        accountant2.setAuthority(params.authority);
+        deployedContracts.accountant2.setAuthority(params.authority);
 
         // Set the Role Capabilities for the new accountant
         params.authority
             .setRoleCapability(
                 UPDATE_EXCHANGE_RATE_ROLE,
-                address(accountant2),
-                AccountantWithRateProviders.updateExchangeRate.selector,
+                address(deployedContracts.accountant2),
+                IAccountantWithRateProviders.updateExchangeRate.selector,
                 true
             );
         params.authority
-            .setRoleCapability(PAUSER_ROLE, address(accountant2), AccountantWithRateProviders.pause.selector, true);
+            .setRoleCapability(
+                PAUSER_ROLE, address(deployedContracts.accountant2), IAccountantWithRateProviders.pause.selector, true
+            );
 
         // Deploy the Teller
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         // NOTE: We set the owner to this flash-upgrade contract for now
-        teller2 = TellerWithMultiAssetSupport(
+        deployedContracts.teller2 = ITellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
-                _makeSalt(false, symbol, "TellerRedEnvelope"),
+                _makeSalt(false, params.teller1.vault().symbol(), "TellerRedEnvelope"),
                 abi.encodePacked(
-                    type(TellerWithMultiAssetSupport).creationCode,
-                    abi.encode(address(this), params.teller1.vault(), address(accountant2))
+                    contractCreationCodePointer[CONTRACT.TELLER2].read(),
+                    abi.encode(address(this), params.teller1.vault(), address(deployedContracts.accountant2))
                 )
             )
         );
+        emit ContractDeployed(CONTRACT.TELLER2, address(deployedContracts.teller2));
 
         // Set the Authority of the new teller
-        teller2.setAuthority(params.authority);
+        deployedContracts.teller2.setAuthority(params.authority);
 
         // Add the base asset support (both for deposit and withdraw)
-        teller2.addDepositAsset(params.accountant1.base());
-        teller2.addWithdrawAsset(params.accountant1.base());
+        deployedContracts.teller2.addDepositAsset(params.accountant1.base());
+        deployedContracts.teller2.addWithdrawAsset(params.accountant1.base());
 
         // Set the Role Capabilities for the new teller
         // NOTE: IMPORTANT we set the rate provider as address(0) and pegged for all assets
         for (uint256 i; i < params.depositAssets.length; ++i) {
-            teller2.addDepositAsset(ERC20(params.depositAssets[i]));
-            accountant2.setRateProviderData(ERC20(params.depositAssets[i]), true, address(0));
+            deployedContracts.teller2.addDepositAsset(ERC20(params.depositAssets[i]));
+            deployedContracts.accountant2.setRateProviderData(ERC20(params.depositAssets[i]), true, address(0));
         }
 
         // NOTE: IMPORTANT we set the rate provider as address(0) and pegged for all assets
         for (uint256 i; i < params.withdrawAssets.length; ++i) {
-            teller2.addWithdrawAsset(ERC20(params.withdrawAssets[i]));
-            accountant2.setRateProviderData(ERC20(params.withdrawAssets[i]), true, address(0));
+            deployedContracts.teller2.addWithdrawAsset(ERC20(params.withdrawAssets[i]));
+            deployedContracts.accountant2.setRateProviderData(ERC20(params.withdrawAssets[i]), true, address(0));
         }
 
         // Set the Role Capabilities for the new Teller
         params.authority
-            .setRoleCapability(DEPOSITOR_ROLE, address(teller2), TellerWithMultiAssetSupport.deposit.selector, true);
-        params.authority
             .setRoleCapability(
-                DEPOSITOR_ROLE, address(teller2), TellerWithMultiAssetSupport.depositWithPermit.selector, true
+                DEPOSITOR_ROLE, address(deployedContracts.teller2), ITellerWithMultiAssetSupport.deposit.selector, true
             );
         params.authority
-            .setRoleCapability(PAUSER_ROLE, address(teller2), TellerWithMultiAssetSupport.pause.selector, true);
+            .setRoleCapability(
+                DEPOSITOR_ROLE,
+                address(deployedContracts.teller2),
+                ITellerWithMultiAssetSupport.depositWithPermit.selector,
+                true
+            );
         params.authority
-            .setRoleCapability(SOLVER_ROLE, address(teller2), TellerWithMultiAssetSupport.bulkWithdraw.selector, true);
+            .setRoleCapability(
+                PAUSER_ROLE, address(deployedContracts.teller2), ITellerWithMultiAssetSupport.pause.selector, true
+            );
+        params.authority
+            .setRoleCapability(
+                SOLVER_ROLE,
+                address(deployedContracts.teller2),
+                ITellerWithMultiAssetSupport.bulkWithdraw.selector,
+                true
+            );
         // Grant the TELLER ROLE to the teller2 contract
-        params.authority.setUserRole(address(teller2), TELLER_ROLE, true);
+        params.authority.setUserRole(address(deployedContracts.teller2), TELLER_ROLE, true);
 
         // Deploy the DistributorCodeDepositor
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
         // NOTE: Unlike other contracts, we set the owner to the multisig directly as we do not need any further actions
         // to be completed
-        dcd2 = DistributorCodeDepositor(
+        deployedContracts.dcd2 = IDistributorCodeDepositor(
             CREATEX.deployCreate3(
-                _makeSalt(false, symbol, "DistributorCodeDepositorRedEnvelope"),
+                _makeSalt(false, params.teller1.vault().symbol(), "DistributorCodeDepositorRedEnvelope"),
                 abi.encodePacked(
-                    type(DistributorCodeDepositor).creationCode,
-                    abi.encode(address(teller2), address(0), params.authority, false, multisig)
+                    contractCreationCodePointer[CONTRACT.DCD2].read(),
+                    abi.encode(address(deployedContracts.teller2), address(0), params.authority, false, multisig)
                 )
             )
         );
+        emit ContractDeployed(CONTRACT.DCD2, address(deployedContracts.dcd2));
 
         // Set public capabilities for the distributor code depositor
-        params.authority.setPublicCapability(address(dcd2), DistributorCodeDepositor.deposit.selector, true);
-        params.authority.setPublicCapability(address(dcd2), DistributorCodeDepositor.depositWithPermit.selector, true);
+        params.authority
+            .setPublicCapability(address(deployedContracts.dcd2), IDistributorCodeDepositor.deposit.selector, true);
+        params.authority
+            .setPublicCapability(
+                address(deployedContracts.dcd2), IDistributorCodeDepositor.depositWithPermit.selector, true
+            );
 
         // Deploy the Simple Fee Module
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        feeModule = SimpleFeeModule(
+        deployedContracts.feeModule = IFeeModule(
             CREATEX.deployCreate3(
-                _makeSalt(false, symbol, "FeeModuleRedEnvelope"),
-                abi.encodePacked(type(SimpleFeeModule).creationCode, abi.encode(params.offerFeePercentage))
+                _makeSalt(false, params.teller1.vault().symbol(), "FeeModuleRedEnvelope"),
+                abi.encodePacked(
+                    contractCreationCodePointer[CONTRACT.FEE_MODULE].read(), abi.encode(params.offerFeePercentage)
+                )
             )
         );
+        emit ContractDeployed(CONTRACT.FEE_MODULE, address(deployedContracts.feeModule));
 
         // Deploy the Withdraw Queue
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         // NOTE: We set the owner to this flash-upgrade contract for now
-        withdrawQueue = WithdrawQueue(
+        deployedContracts.withdrawQueue = IWithdrawQueue(
             CREATEX.deployCreate3(
-                _makeSalt(false, symbol, "WithdrawQueueRedEnvelope"),
+                _makeSalt(false, params.teller1.vault().symbol(), "WithdrawQueueRedEnvelope"),
                 abi.encodePacked(
-                    type(WithdrawQueue).creationCode,
+                    contractCreationCodePointer[CONTRACT.WITHDRAW_QUEUE].read(),
                     abi.encode(
                         params.queueErc721Name,
                         params.queueErc721Symbol,
                         params.queueFeeRecipient,
-                        address(teller2),
-                        address(feeModule),
+                        address(deployedContracts.teller2),
+                        address(deployedContracts.feeModule),
                         params.minimumOrderSize,
                         address(this)
                     )
                 )
             )
         );
+        emit ContractDeployed(CONTRACT.WITHDRAW_QUEUE, address(deployedContracts.withdrawQueue));
 
         // Set the Authority of the new withdraw queue
-        withdrawQueue.setAuthority(params.authority);
+        deployedContracts.withdrawQueue.setAuthority(params.authority);
 
         // Set the Role Capabilities for the new withdraw queue
         params.authority
             .setRoleCapability(
-                WITHDRAW_QUEUE_PROCESSOR_ROLE, address(withdrawQueue), WithdrawQueue.processOrders.selector, true
+                WITHDRAW_QUEUE_PROCESSOR_ROLE,
+                address(deployedContracts.withdrawQueue),
+                IWithdrawQueue.processOrders.selector,
+                true
             );
 
         // Grant the processor role to the processor address
         params.authority.setUserRole(params.withdrawQueueProcessorAddress, WITHDRAW_QUEUE_PROCESSOR_ROLE, true);
-        params.authority.setUserRole(address(withdrawQueue), SOLVER_ROLE, true);
+        params.authority.setUserRole(address(deployedContracts.withdrawQueue), SOLVER_ROLE, true);
 
         // Grant public capabilities to the withdraw queue
-        params.authority.setPublicCapability(address(withdrawQueue), WithdrawQueue.submitOrder.selector, true);
-        params.authority.setPublicCapability(address(withdrawQueue), WithdrawQueue.cancelOrder.selector, true);
         params.authority
-            .setPublicCapability(address(withdrawQueue), WithdrawQueue.cancelOrderWithSignature.selector, true);
+            .setPublicCapability(address(deployedContracts.withdrawQueue), IWithdrawQueue.submitOrder.selector, true);
+        params.authority
+            .setPublicCapability(address(deployedContracts.withdrawQueue), IWithdrawQueue.cancelOrder.selector, true);
+        params.authority
+            .setPublicCapability(
+                address(deployedContracts.withdrawQueue), IWithdrawQueue.cancelOrderWithSignature.selector, true
+            );
 
         // Return the ownership of the contracts
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         params.authority.transferOwnership(msg.sender);
         params.accountant1.transferOwnership(msg.sender);
-        accountant2.transferOwnership(msg.sender);
-        teller2.transferOwnership(msg.sender);
-        withdrawQueue.transferOwnership(msg.sender);
+        deployedContracts.accountant2.transferOwnership(msg.sender);
+        deployedContracts.teller2.transferOwnership(msg.sender);
+        deployedContracts.withdrawQueue.transferOwnership(msg.sender);
     }
 
     /**
