@@ -88,25 +88,40 @@ contract RedEnvelopeUpgrade {
     ICreateX immutable CREATEX;
     address immutable multisig;
 
-    /// @dev pointer her refers to the SSTORE2 address the contract creation code is saved in
+    /// @dev Owner is the only role that can call setContractCreationCode. No other privileges.
+    address public owner;
+
+    /// @dev pointer here refers to the SSTORE2 address the contract creation code is saved in
     mapping(CONTRACT => address) public contractCreationCodePointer;
 
     event ContractDeployed(CONTRACT indexed contractName, address indexed contractAddress);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     constructor(address _createx, address _multisig) {
         CREATEX = ICreateX(_createx);
         multisig = _multisig;
+        owner = msg.sender;
     }
 
     /**
      * @dev This function is used to save contract creation code. This contract is too large if it imports all the
-     * BoringVault contracts.
-     *  So instead we can upload the creation code on-chain in a different transaction using SSTORE2 and this funciton,
-     * and read from it to deploy.
+     * BoringVault contracts. So instead we can upload the creation code on-chain in a different transaction using
+     * SSTORE2 and this function, and read from it to deploy. Only the owner can call this.
      */
     function setContractCreationCode(CONTRACT contractType, bytes calldata creationCode) external {
-        require(msg.sender == multisig, "Only the multisig can call this function");
+        require(msg.sender == owner, "Only the owner can call this function");
         contractCreationCodePointer[contractType] = SSTORE2.write(creationCode);
+    }
+
+    /**
+     * @dev Transfers the owner role to a new address. Only the current owner can call this.
+     * The owner's only privilege is calling setContractCreationCode.
+     */
+    function transferOwnership(address newOwner) external {
+        require(msg.sender == owner, "Only the owner can call this function");
+        address previousOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
     }
 
     /**
