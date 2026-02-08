@@ -499,8 +499,10 @@ contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
                 }
                 assert(assetsOut == expectedAssetsOut);
 
-                // After the withdraw succeeds, transfer the fees to the fee recipient
-                offerAsset.safeTransfer(feeRecipient, feeAmount);
+                // After the withdraw succeeds, transfer the fees to the fee recipient if fees > 0
+                if (feeAmount > 0) {
+                    offerAsset.safeTransfer(feeRecipient, feeAmount);
+                }
             } catch {
                 orderAtQueueIndex[orderIndex].didOrderFailTransfer = true;
                 // refresh the order from storage with the updated didOrderFailTransfer
