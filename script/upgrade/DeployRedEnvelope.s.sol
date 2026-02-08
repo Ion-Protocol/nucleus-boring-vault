@@ -19,18 +19,18 @@ contract DeployRedEnvelope is BaseScript {
         address createx = address(CREATEX);
         address multisig = getMultisig();
 
-        // Deploy RedEnvelope with minimal constructor (deployer is owner)
+        // Deploy RedEnvelope with minimal constructor (deployer is creationCodeSetter)
         RedEnvelopeUpgrade redEnvelopeUpgrade = new RedEnvelopeUpgrade(createx, multisig);
 
-        // Deployer sets creation code for each contract (deployer is owner)
+        // Deployer sets creation code for each contract (deployer is creationCodeSetter)
         redEnvelopeUpgrade.setContractCreationCode(CONTRACT.ACCOUNTANT2, type(AccountantWithRateProviders).creationCode);
         redEnvelopeUpgrade.setContractCreationCode(CONTRACT.TELLER2, type(TellerWithMultiAssetSupport).creationCode);
         redEnvelopeUpgrade.setContractCreationCode(CONTRACT.DCD2, type(DistributorCodeDepositor).creationCode);
         redEnvelopeUpgrade.setContractCreationCode(CONTRACT.WITHDRAW_QUEUE, type(WithdrawQueue).creationCode);
         redEnvelopeUpgrade.setContractCreationCode(CONTRACT.FEE_MODULE, type(SimpleFeeModule).creationCode);
 
-        // Transfer owner role to multisig so it can update creation code later if needed
-        redEnvelopeUpgrade.transferOwnership(multisig);
+        // Transfer creationCodeSetter role to multisig so it can update creation code later if needed
+        redEnvelopeUpgrade.transferCreationCodeSetter(multisig);
 
         return address(redEnvelopeUpgrade);
     }

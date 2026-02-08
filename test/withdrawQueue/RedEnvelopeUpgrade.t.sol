@@ -50,6 +50,7 @@ contract RedEnvelopeUpgradeTest is Test {
 
         // Deploy RedEnvelope upgrade contract
         upgradeContract = new RedEnvelopeUpgrade(address(createX), multisig);
+        upgradeContract.transferCreationCodeSetter(multisig);
     }
 
     function testFlashUpgrade() public {
