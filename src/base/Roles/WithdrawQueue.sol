@@ -471,9 +471,13 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             uint256 feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
 
             BoringVault vault = BoringVault(payable(address(offerAsset)));
+            // The following line will revert if the accountant is paused. Meaning a paused accountant will not result
+            // in refunded orders. It is technically possible the accountant pause between this call and a bulkWithdraw.
+            // But this is not feasible in any normal operation
             uint256 expectedAssetsOut = tellerWithMultiAssetSupport.accountant()
                 .getRateInQuoteSafe(ERC20(address(order.wantAsset)))
                 .mulDivDown((order.amountOffer - feeAmount), 10 ** vault.decimals());
+
             uint256 vaultBalanceOfWantAsset = order.wantAsset.balanceOf(address(vault));
             if (vaultBalanceOfWantAsset < expectedAssetsOut) {
                 revert VaultInsufficientBalance(order.wantAsset, expectedAssetsOut, vaultBalanceOfWantAsset);
