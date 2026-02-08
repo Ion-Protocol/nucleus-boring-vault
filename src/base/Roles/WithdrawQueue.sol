@@ -11,13 +11,14 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 
 /**
  * @title WithdrawQueue
  * @notice Handles user withdraws using the Teller in a FIFO order
  * @dev Implements ERC721Enumerable for tokenized order receipts
  */
-contract WithdrawQueue is ERC721Enumerable, Auth {
+contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
 
     using FixedPointMathLib for uint256;
     using SafeERC20 for IERC20;
@@ -426,7 +427,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      * @dev Processes orders starting from lastProcessedOrder + 1
      *      Skips all non DEFAULT type orders
      */
-    function processOrders(uint256 ordersToProcess) public requiresAuth {
+    function processOrders(uint256 ordersToProcess) public nonReentrant requiresAuth {
         if (ordersToProcess == 0) revert InvalidOrdersCount(ordersToProcess);
 
         uint256 startIndex;
@@ -483,6 +484,11 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 revert VaultInsufficientBalance(order.wantAsset, expectedAssetsOut, vaultBalanceOfWantAsset);
             }
 
+            unchecked {
+                ++lastProcessedOrder;
+                ++i;
+            }
+
             try tellerWithMultiAssetSupport.bulkWithdraw(
                 ERC20(address(order.wantAsset)), order.amountOffer - feeAmount, 0, receiver
             ) returns (
@@ -500,11 +506,6 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 // refresh the order from storage with the updated didOrderFailTransfer
                 order = orderAtQueueIndex[orderIndex];
                 _refundOrder(order, orderIndex);
-            }
-
-            unchecked {
-                ++lastProcessedOrder;
-                ++i;
             }
 
             emit OrderProcessed(orderIndex, order, receiver, false);
