@@ -128,6 +128,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     event OrderMarkedForRefund(uint256 indexed orderIndex, bool indexed isMarkedByUser);
 
     error ZeroAddress();
+    error ZeroAmount();
     error OrderAlreadyProcessed(uint256 orderIndex);
     error InvalidOrderType(uint256 orderIndex, OrderType currentStatus);
     error InvalidOrderIndex(uint256 orderIndex);
@@ -241,6 +242,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     function manageERC20(IERC20 token, uint256 amount, address receiver) external requiresAuth {
         if (address(token) == address(0)) revert ZeroAddress();
         if (receiver == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
 
         token.safeTransfer(receiver, amount);
     }
