@@ -410,7 +410,6 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
 
         AccountantState storage state = accountantState;
         if (state.isPaused) revert AccountantWithRateProviders__Paused();
-        if (state.feesOwedInBase == 0) revert AccountantWithRateProviders__ZeroFeesOwed();
 
         // Determine amount of fees owed in feeAsset.
         uint256 feesOwedInFeeAsset;
@@ -428,6 +427,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider {
                 feesOwedInFeeAsset = feesOwedInBaseUsingFeeAssetDecimals.mulDivDown(10 ** feeAssetDecimals, rate);
             }
         }
+        if (feesOwedInFeeAsset == 0) revert AccountantWithRateProviders__ZeroFeesOwed();
         // Zero out fees owed.
         state.feesOwedInBase = 0;
         // Transfer fee asset to payout address.

@@ -115,4 +115,19 @@ abstract contract BaseScript is Script {
         }
     }
 
+    function makeSalt(
+        address deployer,
+        bool isCrosschainProtected,
+        string memory nameEntropy
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+        bytes1 crosschainProtectionFlag = isCrosschainProtected ? bytes1(0x01) : bytes1(0x00);
+        bytes32 nameEntropyHash = keccak256(abi.encodePacked(nameEntropy));
+        bytes11 nameEntropyHash11 = bytes11(nameEntropyHash);
+        return bytes32(abi.encodePacked(deployer, crosschainProtectionFlag, nameEntropyHash11));
+    }
+
 }

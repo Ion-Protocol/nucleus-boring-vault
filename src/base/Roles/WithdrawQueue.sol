@@ -11,13 +11,14 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { TellerWithMultiAssetSupport, ERC20 } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
 
 /**
  * @title WithdrawQueue
  * @notice Handles user withdraws using the Teller in a FIFO order
  * @dev Implements ERC721Enumerable for tokenized order receipts
  */
-contract WithdrawQueue is ERC721Enumerable, Auth {
+contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
 
     using FixedPointMathLib for uint256;
     using SafeERC20 for IERC20;
@@ -128,6 +129,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     event OrderMarkedForRefund(uint256 indexed orderIndex, bool indexed isMarkedByUser);
 
     error ZeroAddress();
+    error ZeroAmount();
     error OrderAlreadyProcessed(uint256 orderIndex);
     error InvalidOrderType(uint256 orderIndex, OrderType currentStatus);
     error InvalidOrderIndex(uint256 orderIndex);
@@ -241,6 +243,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
     function manageERC20(IERC20 token, uint256 amount, address receiver) external requiresAuth {
         if (address(token) == address(0)) revert ZeroAddress();
         if (receiver == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
 
         token.safeTransfer(receiver, amount);
     }
@@ -424,7 +427,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
      * @dev Processes orders starting from lastProcessedOrder + 1
      *      Skips all non DEFAULT type orders
      */
-    function processOrders(uint256 ordersToProcess) public requiresAuth {
+    function processOrders(uint256 ordersToProcess) public nonReentrant requiresAuth {
         if (ordersToProcess == 0) revert InvalidOrdersCount(ordersToProcess);
 
         uint256 startIndex;
@@ -469,12 +472,21 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
             uint256 feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
 
             BoringVault vault = BoringVault(payable(address(offerAsset)));
+            // The following line will revert if the accountant is paused. Meaning a paused accountant will not result
+            // in refunded orders. It is technically possible the accountant pause between this call and a bulkWithdraw.
+            // But this is not feasible in any normal operation
             uint256 expectedAssetsOut = tellerWithMultiAssetSupport.accountant()
                 .getRateInQuoteSafe(ERC20(address(order.wantAsset)))
                 .mulDivDown((order.amountOffer - feeAmount), 10 ** vault.decimals());
+
             uint256 vaultBalanceOfWantAsset = order.wantAsset.balanceOf(address(vault));
             if (vaultBalanceOfWantAsset < expectedAssetsOut) {
                 revert VaultInsufficientBalance(order.wantAsset, expectedAssetsOut, vaultBalanceOfWantAsset);
+            }
+
+            unchecked {
+                ++lastProcessedOrder;
+                ++i;
             }
 
             try tellerWithMultiAssetSupport.bulkWithdraw(
@@ -487,18 +499,15 @@ contract WithdrawQueue is ERC721Enumerable, Auth {
                 }
                 assert(assetsOut == expectedAssetsOut);
 
-                // After the withdraw succeeds, transfer the fees to the fee recipient
-                offerAsset.safeTransfer(feeRecipient, feeAmount);
+                // After the withdraw succeeds, transfer the fees to the fee recipient if fees > 0
+                if (feeAmount > 0) {
+                    offerAsset.safeTransfer(feeRecipient, feeAmount);
+                }
             } catch {
                 orderAtQueueIndex[orderIndex].didOrderFailTransfer = true;
                 // refresh the order from storage with the updated didOrderFailTransfer
                 order = orderAtQueueIndex[orderIndex];
                 _refundOrder(order, orderIndex);
-            }
-
-            unchecked {
-                ++lastProcessedOrder;
-                ++i;
             }
 
             emit OrderProcessed(orderIndex, order, receiver, false);
