@@ -66,6 +66,10 @@ library ConfigReader {
         bytes32 distributorCodeDepositorSalt;
         address distributorCodeDepositor;
         address nativeWrapper;
+        uint256 distributorCodeDepositorSupplyCap;
+        address dcdFeeModule;
+        address registry;
+        string policyID;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal pure returns (Config memory config) {
@@ -135,6 +139,10 @@ library ConfigReader {
             _config.readBytes32(".distributorCodeDepositor.distributorCodeDepositorSalt");
         config.distributorCodeDepositorIsNativeDepositSupported =
             _config.readBool(".distributorCodeDepositor.nativeSupported");
+        config.distributorCodeDepositorSupplyCap = _config.readUint(".distributorCodeDepositor.supplyCap");
+        config.dcdFeeModule = _config.readAddress(".distributorCodeDepositor.feeModule");
+        config.registry = _config.readAddress(".distributorCodeDepositor.registry");
+        config.policyID = _config.readString(".distributorCodeDepositor.policyID");
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
