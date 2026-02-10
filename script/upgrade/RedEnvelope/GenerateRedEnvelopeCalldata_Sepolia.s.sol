@@ -14,7 +14,7 @@ import { console } from "@forge-std/Console.sol";
  * For simulation to succeed, run on a fork after RedEnvelope is deployed and ownership of
  * Accountant and Roles Authority has been transferred to the RedEnvelope contract.
  */
-contract GenerateRedEnvelopeCalldata is BaseScript {
+contract GenerateRedEnvelopeCalldata_Sepolia is BaseScript {
 
     // =============================================================================
     // DEPLOYMENT PARAMETERS — REVIEW AND UPDATE FOR EACH USE
