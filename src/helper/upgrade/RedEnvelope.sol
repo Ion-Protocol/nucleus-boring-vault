@@ -95,7 +95,9 @@ contract RedEnvelopeUpgrade {
     mapping(CONTRACT => address) public contractCreationCodePointer;
 
     event ContractDeployed(CONTRACT indexed contractName, address indexed contractAddress);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event CreationCodeSetterRoleTransferred(
+        address indexed previousCreationCodeSetter, address indexed newCreationCodeSetter
+    );
 
     constructor(address _createx, address _multisig) {
         CREATEX = ICreateX(_createx);
@@ -121,7 +123,7 @@ contract RedEnvelopeUpgrade {
         require(msg.sender == creationCodeSetter, "Only the creationCodeSetter can call this function");
         address previousCreationCodeSetter = creationCodeSetter;
         creationCodeSetter = newCreationCodeSetter;
-        emit OwnershipTransferred(previousCreationCodeSetter, newCreationCodeSetter);
+        emit CreationCodeSetterRoleTransferred(previousCreationCodeSetter, newCreationCodeSetter);
     }
 
     /**
