@@ -88,25 +88,42 @@ contract RedEnvelopeUpgrade {
     ICreateX immutable CREATEX;
     address immutable multisig;
 
-    /// @dev pointer her refers to the SSTORE2 address the contract creation code is saved in
+    /// @dev creationCodeSetter is the only role that can call setContractCreationCode. No other privileges.
+    address public creationCodeSetter;
+
+    /// @dev pointer here refers to the SSTORE2 address the contract creation code is saved in
     mapping(CONTRACT => address) public contractCreationCodePointer;
 
     event ContractDeployed(CONTRACT indexed contractName, address indexed contractAddress);
+    event CreationCodeSetterRoleTransferred(
+        address indexed previousCreationCodeSetter, address indexed newCreationCodeSetter
+    );
 
     constructor(address _createx, address _multisig) {
         CREATEX = ICreateX(_createx);
         multisig = _multisig;
+        creationCodeSetter = msg.sender;
     }
 
     /**
      * @dev This function is used to save contract creation code. This contract is too large if it imports all the
-     * BoringVault contracts.
-     *  So instead we can upload the creation code on-chain in a different transaction using SSTORE2 and this funciton,
-     * and read from it to deploy.
+     * BoringVault contracts. So instead we can upload the creation code on-chain in a different transaction using
+     * SSTORE2 and this function, and read from it to deploy. Only the creationCodeSetter can call this.
      */
     function setContractCreationCode(CONTRACT contractType, bytes calldata creationCode) external {
-        require(msg.sender == multisig, "Only the multisig can call this function");
+        require(msg.sender == creationCodeSetter, "Only the creationCodeSetter can call this function");
         contractCreationCodePointer[contractType] = SSTORE2.write(creationCode);
+    }
+
+    /**
+     * @dev Transfers the creationCodeSetter role to a new address. Only the current creationCodeSetter can call this.
+     * The creationCodeSetter's only privilege is calling setContractCreationCode.
+     */
+    function transferCreationCodeSetter(address newCreationCodeSetter) external {
+        require(msg.sender == creationCodeSetter, "Only the creationCodeSetter can call this function");
+        address previousCreationCodeSetter = creationCodeSetter;
+        creationCodeSetter = newCreationCodeSetter;
+        emit CreationCodeSetterRoleTransferred(previousCreationCodeSetter, newCreationCodeSetter);
     }
 
     /**
@@ -189,13 +206,12 @@ contract RedEnvelopeUpgrade {
         // Deploy the Teller
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         // NOTE: We set the owner to this flash-upgrade contract for now
+        bytes memory teller2ConstructorParams =
+            abi.encode(address(this), params.teller1.vault(), address(deployedContracts.accountant2));
         deployedContracts.teller2 = ITellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 _makeSalt(false, params.teller1.vault().symbol(), "TellerRedEnvelope"),
-                abi.encodePacked(
-                    contractCreationCodePointer[CONTRACT.TELLER2].read(),
-                    abi.encode(address(this), params.teller1.vault(), address(deployedContracts.accountant2))
-                )
+                abi.encodePacked(contractCreationCodePointer[CONTRACT.TELLER2].read(), teller2ConstructorParams)
             )
         );
         emit ContractDeployed(CONTRACT.TELLER2, address(deployedContracts.teller2));
@@ -251,13 +267,12 @@ contract RedEnvelopeUpgrade {
 
         // NOTE: Unlike other contracts, we set the owner to the multisig directly as we do not need any further actions
         // to be completed
+        bytes memory dcd2ConstructorParams =
+            abi.encode(address(deployedContracts.teller2), address(0), params.authority, false, multisig);
         deployedContracts.dcd2 = IDistributorCodeDepositor(
             CREATEX.deployCreate3(
                 _makeSalt(false, params.teller1.vault().symbol(), "DistributorCodeDepositorRedEnvelope"),
-                abi.encodePacked(
-                    contractCreationCodePointer[CONTRACT.DCD2].read(),
-                    abi.encode(address(deployedContracts.teller2), address(0), params.authority, false, multisig)
-                )
+                abi.encodePacked(contractCreationCodePointer[CONTRACT.DCD2].read(), dcd2ConstructorParams)
             )
         );
         emit ContractDeployed(CONTRACT.DCD2, address(deployedContracts.dcd2));
@@ -272,12 +287,11 @@ contract RedEnvelopeUpgrade {
 
         // Deploy the Simple Fee Module
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        bytes memory feeModuleConstructorParams = abi.encode(params.offerFeePercentage);
         deployedContracts.feeModule = IFeeModule(
             CREATEX.deployCreate3(
                 _makeSalt(false, params.teller1.vault().symbol(), "FeeModuleRedEnvelope"),
-                abi.encodePacked(
-                    contractCreationCodePointer[CONTRACT.FEE_MODULE].read(), abi.encode(params.offerFeePercentage)
-                )
+                abi.encodePacked(contractCreationCodePointer[CONTRACT.FEE_MODULE].read(), feeModuleConstructorParams)
             )
         );
         emit ContractDeployed(CONTRACT.FEE_MODULE, address(deployedContracts.feeModule));
@@ -285,20 +299,20 @@ contract RedEnvelopeUpgrade {
         // Deploy the Withdraw Queue
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         // NOTE: We set the owner to this flash-upgrade contract for now
+        bytes memory withdrawQueueConstructorParams = abi.encode(
+            params.queueErc721Name,
+            params.queueErc721Symbol,
+            params.queueFeeRecipient,
+            address(deployedContracts.teller2),
+            address(deployedContracts.feeModule),
+            params.minimumOrderSize,
+            address(this)
+        );
         deployedContracts.withdrawQueue = IWithdrawQueue(
             CREATEX.deployCreate3(
                 _makeSalt(false, params.teller1.vault().symbol(), "WithdrawQueueRedEnvelope"),
                 abi.encodePacked(
-                    contractCreationCodePointer[CONTRACT.WITHDRAW_QUEUE].read(),
-                    abi.encode(
-                        params.queueErc721Name,
-                        params.queueErc721Symbol,
-                        params.queueFeeRecipient,
-                        address(deployedContracts.teller2),
-                        address(deployedContracts.feeModule),
-                        params.minimumOrderSize,
-                        address(this)
-                    )
+                    contractCreationCodePointer[CONTRACT.WITHDRAW_QUEUE].read(), withdrawQueueConstructorParams
                 )
             )
         );
