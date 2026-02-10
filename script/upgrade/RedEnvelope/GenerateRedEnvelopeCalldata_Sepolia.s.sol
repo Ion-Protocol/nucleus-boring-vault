@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { BaseScript } from "../Base.s.sol";
+import { BaseScript } from "script/Base.s.sol";
 import { RedEnvelopeUpgrade } from "src/helper/upgrade/RedEnvelope.sol";
 import { IAccountantWithRateProviders } from "src/interfaces/Roles/IAccountantWithRateProviders.sol";
 import { ITellerWithMultiAssetSupport } from "src/interfaces/Roles/ITellerWithMultiAssetSupport.sol";
