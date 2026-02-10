@@ -285,6 +285,9 @@ contract RedEnvelopeUpgrade {
                 address(deployedContracts.dcd2), IDistributorCodeDepositor.depositWithPermit.selector, true
             );
 
+        // Grant the DEPOSITOR ROLE to the distributor code depositor
+        params.authority.setUserRole(address(deployedContracts.dcd2), DEPOSITOR_ROLE, true);
+
         // Deploy the Simple Fee Module
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         bytes memory feeModuleConstructorParams = abi.encode(params.offerFeePercentage);
