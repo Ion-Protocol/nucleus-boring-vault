@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.21;
 
-import { IFeeModule, IERC20 } from "./interfaces/IFeeModule.sol";
+import { IFeeModule, IERC20 } from "src/interfaces/IFeeModule.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
