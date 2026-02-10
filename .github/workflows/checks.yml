@@ -24,7 +24,7 @@ jobs:
           node-version: ${{ matrix.node_version }}
 
       - name: Run Prettier
-        run: npx prettier -c '**/*.{md,yml,yaml}'
+        run: npx prettier -c '**/*.{md,yml,yaml,ts,js}'
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -109,4 +109,4 @@ jobs:
 
       - name: Run Slither
         run: |
-          npm i && forge install && slither src 
+          npm i && forge install && slither src
