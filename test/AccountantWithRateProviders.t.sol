@@ -267,7 +267,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
             accountant.accountantState();
         assertEq(fees_owed, expected_fees_owed, "Fees owed should equal expected");
         assertEq(total_shares, 1000e18, "Total shares should be 1_000e18");
-        assertEq(current_exchange_rate, prev_exchange_rate, "Current exchange rate should NOTbe updated");
+        assertEq(current_exchange_rate, prev_exchange_rate, "Current exchange rate should NOT be updated");
         assertEq(last_update_timestamp, prev_update_timestamp, "Last update timestamp should NOT be updated");
         assertTrue(is_paused == true, "Accountant should be paused");
     }
