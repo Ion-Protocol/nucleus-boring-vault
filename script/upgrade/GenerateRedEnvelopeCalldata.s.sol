@@ -6,6 +6,7 @@ import { RedEnvelopeUpgrade } from "src/helper/upgrade/RedEnvelope.sol";
 import { IAccountantWithRateProviders } from "src/interfaces/Roles/IAccountantWithRateProviders.sol";
 import { ITellerWithMultiAssetSupport } from "src/interfaces/Roles/ITellerWithMultiAssetSupport.sol";
 import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { TELLER_ROLE } from "src/helper/constants.sol";
 import { console } from "@forge-std/Console.sol";
 
 /**
@@ -53,6 +54,16 @@ contract GenerateRedEnvelopeCalldata is BaseScript {
     // =============================================================================
 
     function run() public {
+        // A few checks to ensure the pre-upgrade contracts were provided correctly
+        require(
+            address(ITellerWithMultiAssetSupport(TELLER1_ADDRESS).accountant()) == ACCOUNTANT1_ADDRESS,
+            "Teller1 accountant mismatch"
+        );
+        require(
+            RolesAuthority(ROLES_AUTHORITY_ADDRESS).doesUserHaveRole(TELLER1_ADDRESS, TELLER_ROLE),
+            "Teller must have TELLER_ROLE on the provided RolesAuthority"
+        );
+
         address multisig = getMultisig();
         address queueFeeRecipient = QUEUE_FEE_RECIPIENT_ADDRESS == address(0) ? multisig : QUEUE_FEE_RECIPIENT_ADDRESS;
 
