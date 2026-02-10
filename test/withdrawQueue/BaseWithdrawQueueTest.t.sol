@@ -8,7 +8,7 @@ import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAsset
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { SimpleFeeModule, IFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
+import { SimpleFeeModule, IFeeModule } from "src/helper/SimpleFeeModule.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
