@@ -7,7 +7,7 @@ import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRatePr
 import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { DistributorCodeDepositor } from "src/helper/DistributorCodeDepositor.sol";
 import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
-import { SimpleFeeModule } from "src/helper/one-to-one-queue/SimpleFeeModule.sol";
+import { SimpleFeeModule } from "src/helper/SimpleFeeModule.sol";
 
 contract DeployRedEnvelope is BaseScript {
 
