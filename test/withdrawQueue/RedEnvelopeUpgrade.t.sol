@@ -3,7 +3,9 @@ pragma solidity 0.8.21;
 
 import { Test } from "@forge-std/Test.sol";
 import { BoringVault } from "src/base/BoringVault.sol";
-import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import {
+    MultiChainLayerZeroTellerWithMultiAssetSupport
+} from "src/base/Roles/CrossChain/MultiChainLayerZeroTellerWithMultiAssetSupport.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
 import { DistributorCodeDepositor } from "src/helper/DistributorCodeDepositor.sol";
 import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
@@ -44,12 +46,14 @@ contract RedEnvelopeUpgradeTest is Test {
         // Query the owner of the contracts to get the multisig address
         multisig = ACCOUNTANT1.owner();
 
+        address layerZeroEndpoint = 0x1a44076050125825900e736c501f859c50fE728c;
+
         // Verify all contracts have the same owner
         assertEq(ROLES_AUTHORITY.owner(), multisig, "RolesAuthority owner mismatch");
         assertEq(ACCOUNTANT1.owner(), multisig, "Accountant1 owner mismatch");
 
         // Deploy RedEnvelope upgrade contract
-        upgradeContract = new RedEnvelopeUpgrade(address(createX), multisig);
+        upgradeContract = new RedEnvelopeUpgrade(address(createX), multisig, layerZeroEndpoint);
         upgradeContract.transferCreationCodeSetter(multisig);
     }
 
@@ -66,7 +70,7 @@ contract RedEnvelopeUpgradeTest is Test {
         assertEq(ROLES_AUTHORITY.owner(), address(upgradeContract), "RolesAuthority ownership not transferred");
 
         bytes memory accountantCreationCode = type(AccountantWithRateProviders).creationCode;
-        bytes memory tellerCreationCode = type(TellerWithMultiAssetSupport).creationCode;
+        bytes memory tellerCreationCode = type(MultiChainLayerZeroTellerWithMultiAssetSupport).creationCode;
         bytes memory dcdCreationCode = type(DistributorCodeDepositor).creationCode;
         bytes memory withdrawQueueCreationCode = type(WithdrawQueue).creationCode;
         bytes memory feeModuleCreationCode = type(SimpleFeeModule).creationCode;
