@@ -85,8 +85,8 @@ contract RedEnvelopeUpgrade {
     }
 
     // Constants and immutables
-    ICreateX immutable CREATEX;
-    address immutable multisig;
+    ICreateX public immutable CREATEX;
+    address public immutable multisig;
 
     /// @dev creationCodeSetter is the only role that can call setContractCreationCode. No other privileges.
     address public creationCodeSetter;
