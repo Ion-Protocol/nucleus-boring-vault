@@ -30,9 +30,9 @@ contract GenerateRedEnvelopeCalldata_pxlPYUSDc is BaseScript {
     address constant ROLES_AUTHORITY_ADDRESS = 0x88d961F9f5bae22B01FCa2A14bd1b145f4faa2D5;
 
     /// @dev Accountant performance fee in basis points (1e4 = 100%). E.g. 2000 = 20%
-    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 2000;
+    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 500;
     /// @dev Offer fee percentage in basis points. E.g. 2 = 0.02%
-    uint256 constant OFFER_FEE_PERCENTAGE_BPS = 2;
+    uint256 constant OFFER_FEE_PERCENTAGE_BPS = 0;
 
     /// @dev Assets allowed for deposit (add DEPOSIT_ASSET_2, ... and extend array in run() if needed)
     address constant DEPOSIT_ASSET_1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC

@@ -30,9 +30,9 @@ contract GenerateRedEnvelopeCalldata_earnUSDT is BaseScript {
     address constant ROLES_AUTHORITY_ADDRESS = 0xc34Fd9a670Aed5f67B7033274B4E91804303d037;
 
     /// @dev Accountant performance fee in basis points (1e4 = 100%). E.g. 2000 = 20%
-    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 2000;
+    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 500;
     /// @dev Offer fee percentage in basis points. E.g. 2 = 0.02%
-    uint256 constant OFFER_FEE_PERCENTAGE_BPS = 2;
+    uint256 constant OFFER_FEE_PERCENTAGE_BPS = 0;
 
     /// @dev Assets allowed for deposit (add DEPOSIT_ASSET_2, ... and extend array in run() if needed)
     address constant DEPOSIT_ASSET_1 = 0xdAC17F958D2ee523a2206206994597C13D831ec7; // USDT
