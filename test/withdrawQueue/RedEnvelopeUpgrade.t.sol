@@ -23,6 +23,7 @@ contract RedEnvelopeUpgradeTest is Test {
     // =============================================================================
     // DEPLOYMENT PARAMETERS (matching GenerateRedEnvelopeCalldata_earnUSDG.s.sol)
     // =============================================================================
+    address constant LAYER_ZERO_ENDPOINT = 0x1a44076050125825900e736c501f859c50fE728c;
 
     // Pre-upgrade contracts (earnUSDG on mainnet)
     address constant ACCOUNTANT1_ADDRESS = 0x99cCA5087479E092F63874E7Fb7356C143623B26;
@@ -66,7 +67,7 @@ contract RedEnvelopeUpgradeTest is Test {
         // =============================================================================
 
         // Deploy RedEnvelope with CreateX and multisig as owner
-        redEnvelopeContract = new RedEnvelopeUpgrade(address(createX), MULTISIG);
+        redEnvelopeContract = new RedEnvelopeUpgrade(address(createX), MULTISIG, LAYER_ZERO_ENDPOINT, address(this));
 
         // Deployer (this test contract) sets creation codes for all contracts
         // This matches the DeployRedEnvelope script where the deployer is creationCodeSetter initially
