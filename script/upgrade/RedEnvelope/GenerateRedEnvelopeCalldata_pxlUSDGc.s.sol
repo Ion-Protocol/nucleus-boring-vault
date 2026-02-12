@@ -14,7 +14,7 @@ import { console } from "@forge-std/Console.sol";
  * For simulation to succeed, run on a fork after RedEnvelope is deployed and ownership of
  * Accountant and Roles Authority has been transferred to the RedEnvelope contract.
  */
-contract GenerateRedEnvelopeCalldata_earnUSDG is BaseScript {
+contract GenerateRedEnvelopeCalldata_pxlUSDGc is BaseScript {
 
     // =============================================================================
     // DEPLOYMENT PARAMETERS — REVIEW AND UPDATE FOR EACH USE
@@ -52,8 +52,8 @@ contract GenerateRedEnvelopeCalldata_earnUSDG is BaseScript {
     uint256 constant MINIMUM_ORDER_SIZE = 10e6;
 
     /// @dev ERC721 name and symbol for the new WithdrawQueue receipt NFT
-    string constant QUEUE_ERC721_NAME = "unearnUSDG";
-    string constant QUEUE_ERC721_SYMBOL = "unearnUSDG";
+    string constant QUEUE_ERC721_NAME = "unpxlUSDGc";
+    string constant QUEUE_ERC721_SYMBOL = "unpxlUSDGc";
 
     // =============================================================================
 

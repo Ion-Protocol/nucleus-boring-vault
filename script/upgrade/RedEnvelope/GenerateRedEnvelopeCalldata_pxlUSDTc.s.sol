@@ -14,7 +14,7 @@ import { console } from "@forge-std/Console.sol";
  * For simulation to succeed, run on a fork after RedEnvelope is deployed and ownership of
  * Accountant and Roles Authority has been transferred to the RedEnvelope contract.
  */
-contract GenerateRedEnvelopeCalldata_earnUSDC is BaseScript {
+contract GenerateRedEnvelopeCalldata_pxlUSDTc is BaseScript {
 
     // =============================================================================
     // DEPLOYMENT PARAMETERS — REVIEW AND UPDATE FOR EACH USE
@@ -25,9 +25,9 @@ contract GenerateRedEnvelopeCalldata_earnUSDC is BaseScript {
     // deployed on mainnet
 
     /// @dev Pre-upgrade contracts (being replaced by flashUpgrade)
-    address constant ACCOUNTANT1_ADDRESS = 0x931c3a450e0612E050a4Ad67942916C8fF4aE9B3;
-    address constant TELLER1_ADDRESS = 0xB32b109FD960038c5135F25DFa9639A43396D6bB;
-    address constant ROLES_AUTHORITY_ADDRESS = 0x2b09f5edF88A6777E2bA7A0517a97Bf744921c42;
+    address constant ACCOUNTANT1_ADDRESS = 0x8864fD53aE4Dc56F2E0E8bEaFc9CcE39c0c2dd3F;
+    address constant TELLER1_ADDRESS = 0x6a12293FE7395f3E1FFcCF6E689A3a2c6926166D;
+    address constant ROLES_AUTHORITY_ADDRESS = 0xc34Fd9a670Aed5f67B7033274B4E91804303d037;
 
     /// @dev Accountant performance fee in basis points (1e4 = 100%). E.g. 2000 = 20%
     uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 500;
@@ -35,10 +35,10 @@ contract GenerateRedEnvelopeCalldata_earnUSDC is BaseScript {
     uint256 constant OFFER_FEE_PERCENTAGE_BPS = 0;
 
     /// @dev Assets allowed for deposit (add DEPOSIT_ASSET_2, ... and extend array in run() if needed)
-    address constant DEPOSIT_ASSET_1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC
+    address constant DEPOSIT_ASSET_1 = 0xdAC17F958D2ee523a2206206994597C13D831ec7; // USDT
 
     /// @dev Assets allowed for withdraw (add WITHDRAW_ASSET_2, ... and extend array in run() if needed)
-    address constant WITHDRAW_ASSET_1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC
+    address constant WITHDRAW_ASSET_1 = 0xdAC17F958D2ee523a2206206994597C13D831ec7; // USDT
 
     /// @dev Address that can call processOrders on the new WithdrawQueue
     address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xCb8FA722B2a138faC6B6D60013025E2504b9B753;
@@ -51,8 +51,8 @@ contract GenerateRedEnvelopeCalldata_earnUSDC is BaseScript {
     uint256 constant MINIMUM_ORDER_SIZE = 10e6;
 
     /// @dev ERC721 name and symbol for the new WithdrawQueue receipt NFT
-    string constant QUEUE_ERC721_NAME = "unearnUSDC";
-    string constant QUEUE_ERC721_SYMBOL = "unearnUSDC";
+    string constant QUEUE_ERC721_NAME = "unpxlUSDTc";
+    string constant QUEUE_ERC721_SYMBOL = "unpxlUSDTc";
 
     // =============================================================================
 
