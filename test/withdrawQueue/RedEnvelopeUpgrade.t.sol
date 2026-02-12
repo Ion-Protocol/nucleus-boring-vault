@@ -2,110 +2,140 @@
 pragma solidity 0.8.21;
 
 import { Test } from "@forge-std/Test.sol";
-import { BoringVault } from "src/base/BoringVault.sol";
-import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import { RedEnvelopeUpgrade, CONTRACT } from "src/helper/upgrade/RedEnvelope.sol";
+import { IAccountantWithRateProviders } from "src/interfaces/Roles/IAccountantWithRateProviders.sol";
+import { ITellerWithMultiAssetSupport } from "src/interfaces/Roles/ITellerWithMultiAssetSupport.sol";
+import { RolesAuthority } from "@solmate/auth/authorities/RolesAuthority.sol";
+import { ICreateX } from "lib/createx/src/ICreateX.sol";
 import { AccountantWithRateProviders } from "src/base/Roles/AccountantWithRateProviders.sol";
+import { TellerWithMultiAssetSupport } from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import { DistributorCodeDepositor } from "src/helper/DistributorCodeDepositor.sol";
 import { WithdrawQueue } from "src/base/Roles/WithdrawQueue.sol";
 import { SimpleFeeModule } from "src/helper/SimpleFeeModule.sol";
 
-import { IBoringVault } from "src/interfaces/IBoringVault.sol";
-import { ITellerWithMultiAssetSupport } from "src/interfaces/Roles/ITellerWithMultiAssetSupport.sol";
-import { IAccountantWithRateProviders } from "src/interfaces/Roles/IAccountantWithRateProviders.sol";
-
-import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { RedEnvelopeUpgrade, CONTRACT } from "src/helper/upgrade/RedEnvelope.sol";
-import { ICreateX } from "lib/createx/src/ICreateX.sol";
-
+/**
+ * @notice Test that mimics the earnUSDG RedEnvelope deployment and upgrade flow
+ * @dev Follows the same pattern as DeployRedEnvelope.s.sol and GenerateRedEnvelopeCalldata_earnUSDG.s.sol
+ *      to ensure the test matches the production deployment process
+ */
 contract RedEnvelopeUpgradeTest is Test {
 
-    // Existing deployed contracts on mainnet (earnUSDG)
-    IBoringVault constant BORING_VAULT = IBoringVault(payable(0xcB25f8a0ee2850C11F8A2848e722f70Bd6bA5D9C));
-    IAccountantWithRateProviders constant ACCOUNTANT1 =
-        IAccountantWithRateProviders(0x99cCA5087479E092F63874E7Fb7356C143623B26);
-    ITellerWithMultiAssetSupport constant TELLER1 =
-        ITellerWithMultiAssetSupport(0x094c771B02094482C2D514ac46d793c8A9f5F693);
-    RolesAuthority constant ROLES_AUTHORITY = RolesAuthority(0xaeeC053e978A4Bfc05BEBf297250cE8528B8530d);
+    // =============================================================================
+    // DEPLOYMENT PARAMETERS (matching GenerateRedEnvelopeCalldata_earnUSDG.s.sol)
+    // =============================================================================
 
-    RedEnvelopeUpgrade upgradeContract;
-    ICreateX createX;
-    address multisig;
-    address withdrawQueueProcessor = makeAddr("processor");
-    address queueFeeRecipient = makeAddr("feeRecipient");
+    // Pre-upgrade contracts (earnUSDG on mainnet)
+    address constant ACCOUNTANT1_ADDRESS = 0x99cCA5087479E092F63874E7Fb7356C143623B26;
+    address constant TELLER1_ADDRESS = 0x094c771B02094482C2D514ac46d793c8A9f5F693;
+    address constant ROLES_AUTHORITY_ADDRESS = 0xaeeC053e978A4Bfc05BEBf297250cE8528B8530d;
+
+    // Upgrade parameters
+    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 2000; // 20%
+    uint256 constant OFFER_FEE_PERCENTAGE_BPS = 2; // 0.02%
+
+    // Assets
+    address constant DEPOSIT_ASSET_1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC
+    address constant DEPOSIT_ASSET_2 = 0xe343167631d89B6Ffc58B88d6b7fB0228795491D; // USDG
+    address constant WITHDRAW_ASSET_1 = 0xe343167631d89B6Ffc58B88d6b7fB0228795491D; // USDG
+
+    // Queue parameters
+    address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xCb8FA722B2a138faC6B6D60013025E2504b9B753;
+    address constant QUEUE_FEE_RECIPIENT_ADDRESS = address(0); // Will use multisig
+    uint256 constant MINIMUM_ORDER_SIZE = 10e6;
+    string constant QUEUE_ERC721_NAME = "unearnUSDG";
+    string constant QUEUE_ERC721_SYMBOL = "unearnUSDG";
+
+    // Test multisig (overriding production multisig for testing)
+    address constant MULTISIG = 0x0000000000417626Ef34D62C4DC189b021603f2F;
+
+    // =============================================================================
+
+    RedEnvelopeUpgrade public redEnvelopeContract;
+    ICreateX public createX;
 
     function setUp() public {
         // Fork Ethereum mainnet
         uint256 forkId = vm.createFork(vm.envString("MAINNET_RPC_URL"));
         vm.selectFork(forkId);
 
-        // Get CreateX address from environment variable
+        // Get CreateX address
         createX = ICreateX(vm.envAddress("CREATEX"));
 
-        // Query the owner of the contracts to get the multisig address
-        multisig = ACCOUNTANT1.owner();
+        // =============================================================================
+        // DEPLOYMENT (matching DeployRedEnvelope.s.sol flow)
+        // =============================================================================
 
-        // Verify all contracts have the same owner
-        assertEq(ROLES_AUTHORITY.owner(), multisig, "RolesAuthority owner mismatch");
-        assertEq(ACCOUNTANT1.owner(), multisig, "Accountant1 owner mismatch");
+        // Deploy RedEnvelope with CreateX and multisig as owner
+        redEnvelopeContract = new RedEnvelopeUpgrade(address(createX), MULTISIG);
 
-        // Deploy RedEnvelope upgrade contract
-        upgradeContract = new RedEnvelopeUpgrade(address(createX), multisig);
-        upgradeContract.transferCreationCodeSetter(multisig);
+        // Deployer (this test contract) sets creation codes for all contracts
+        // This matches the DeployRedEnvelope script where the deployer is creationCodeSetter initially
+        redEnvelopeContract.setContractCreationCode(
+            CONTRACT.ACCOUNTANT2, type(AccountantWithRateProviders).creationCode
+        );
+        redEnvelopeContract.setContractCreationCode(CONTRACT.TELLER2, type(TellerWithMultiAssetSupport).creationCode);
+        redEnvelopeContract.setContractCreationCode(CONTRACT.DCD2, type(DistributorCodeDepositor).creationCode);
+        redEnvelopeContract.setContractCreationCode(CONTRACT.WITHDRAW_QUEUE, type(WithdrawQueue).creationCode);
+        redEnvelopeContract.setContractCreationCode(CONTRACT.FEE_MODULE, type(SimpleFeeModule).creationCode);
+
+        // Transfer creationCodeSetter role to multisig (matching DeployRedEnvelope script)
+        redEnvelopeContract.transferCreationCodeSetter(MULTISIG);
     }
 
     function testFlashUpgrade() public {
-        // Transfer ownership of accountant and roles authority to upgrade contract
-        vm.prank(multisig);
-        ACCOUNTANT1.transferOwnership(address(upgradeContract));
+        // =============================================================================
+        // PREPARE UPGRADE (matching GenerateRedEnvelopeCalldata_earnUSDG.s.sol flow)
+        // =============================================================================
 
-        vm.prank(multisig);
-        ROLES_AUTHORITY.transferOwnership(address(upgradeContract));
+        address queueFeeRecipient = QUEUE_FEE_RECIPIENT_ADDRESS == address(0) ? MULTISIG : QUEUE_FEE_RECIPIENT_ADDRESS;
 
-        // Verify ownership was transferred
-        assertEq(ACCOUNTANT1.owner(), address(upgradeContract), "Accountant1 ownership not transferred");
-        assertEq(ROLES_AUTHORITY.owner(), address(upgradeContract), "RolesAuthority ownership not transferred");
+        // Build deposit and withdraw asset arrays
+        address[] memory depositAssets = new address[](2);
+        depositAssets[0] = DEPOSIT_ASSET_1;
+        depositAssets[1] = DEPOSIT_ASSET_2;
 
-        bytes memory accountantCreationCode = type(AccountantWithRateProviders).creationCode;
-        bytes memory tellerCreationCode = type(TellerWithMultiAssetSupport).creationCode;
-        bytes memory dcdCreationCode = type(DistributorCodeDepositor).creationCode;
-        bytes memory withdrawQueueCreationCode = type(WithdrawQueue).creationCode;
-        bytes memory feeModuleCreationCode = type(SimpleFeeModule).creationCode;
+        address[] memory withdrawAssets = new address[](1);
+        withdrawAssets[0] = WITHDRAW_ASSET_1;
 
-        vm.startPrank(multisig);
-        upgradeContract.setContractCreationCode(CONTRACT.ACCOUNTANT2, accountantCreationCode);
-        upgradeContract.setContractCreationCode(CONTRACT.TELLER2, tellerCreationCode);
-        upgradeContract.setContractCreationCode(CONTRACT.DCD2, dcdCreationCode);
-        upgradeContract.setContractCreationCode(CONTRACT.WITHDRAW_QUEUE, withdrawQueueCreationCode);
-        upgradeContract.setContractCreationCode(CONTRACT.FEE_MODULE, feeModuleCreationCode);
-        vm.stopPrank();
-
-        // Prepare upgrade parameters
+        // Build FlashUpgradeParams with all parameters
         RedEnvelopeUpgrade.FlashUpgradeParams memory params = RedEnvelopeUpgrade.FlashUpgradeParams({
-            accountant1: ACCOUNTANT1,
-            teller1: TELLER1,
-            authority: ROLES_AUTHORITY,
-            accountantPerformanceFee: 100, // 1%
-            offerFeePercentage: 2, // 0.02%
-            depositAssets: new address[](0),
-            withdrawAssets: new address[](0),
-            withdrawQueueProcessorAddress: withdrawQueueProcessor,
+            accountant1: IAccountantWithRateProviders(ACCOUNTANT1_ADDRESS),
+            teller1: ITellerWithMultiAssetSupport(TELLER1_ADDRESS),
+            authority: RolesAuthority(ROLES_AUTHORITY_ADDRESS),
+            accountantPerformanceFee: ACCOUNTANT_PERFORMANCE_FEE_BPS,
+            offerFeePercentage: OFFER_FEE_PERCENTAGE_BPS,
+            depositAssets: depositAssets,
+            withdrawAssets: withdrawAssets,
+            withdrawQueueProcessorAddress: WITHDRAW_QUEUE_PROCESSOR_ADDRESS,
             queueFeeRecipient: queueFeeRecipient,
-            minimumOrderSize: 0,
-            queueErc721Name: "Test Queue",
-            queueErc721Symbol: "TQ"
+            minimumOrderSize: MINIMUM_ORDER_SIZE,
+            queueErc721Name: QUEUE_ERC721_NAME,
+            queueErc721Symbol: QUEUE_ERC721_SYMBOL
         });
 
-        // Execute upgrade as multisig
-        vm.prank(multisig);
-        RedEnvelopeUpgrade.DeployedContracts memory deployedContracts = upgradeContract.flashUpgrade(params);
+        // =============================================================================
+        // EXECUTE UPGRADE (matching GenerateRedEnvelopeCalldata_earnUSDG.s.sol flow)
+        // =============================================================================
+
+        // Multisig transfers ownership of Accountant1 and RolesAuthority to RedEnvelope
+        vm.startPrank(MULTISIG);
+        params.accountant1.transferOwnership(address(redEnvelopeContract));
+        params.authority.transferOwnership(address(redEnvelopeContract));
+        // Multisig calls flashUpgrade on RedEnvelope
+        RedEnvelopeUpgrade.DeployedContracts memory deployedContracts = redEnvelopeContract.flashUpgrade(params);
+        vm.stopPrank();
+
+        // =============================================================================
+        // VERIFY RESULTS
+        // =============================================================================
 
         // Verify ownership was returned to multisig
-        assertEq(ROLES_AUTHORITY.owner(), multisig, "RolesAuthority ownership not returned");
-        assertEq(ACCOUNTANT1.owner(), multisig, "Accountant1 ownership not returned");
+        assertEq(params.authority.owner(), MULTISIG, "RolesAuthority ownership not returned");
+        assertEq(params.accountant1.owner(), MULTISIG, "Accountant1 ownership not returned");
 
-        assertEq(deployedContracts.accountant2.owner(), multisig, "Accountant2 ownership not returned");
-        assertEq(deployedContracts.teller2.owner(), multisig, "Teller2 ownership not returned");
-        assertEq(deployedContracts.withdrawQueue.owner(), multisig, "WithdrawQueue ownership not returned");
+        assertEq(deployedContracts.accountant2.owner(), MULTISIG, "Accountant2 ownership not returned");
+        assertEq(deployedContracts.teller2.owner(), MULTISIG, "Teller2 ownership not returned");
+        assertEq(deployedContracts.withdrawQueue.owner(), MULTISIG, "WithdrawQueue ownership not returned");
 
         // Verify new contracts were deployed
         assertTrue(address(deployedContracts.accountant2) != address(0), "Accountant2 not deployed");
