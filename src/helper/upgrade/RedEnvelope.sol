@@ -100,11 +100,11 @@ contract RedEnvelopeUpgrade {
         address indexed previousCreationCodeSetter, address indexed newCreationCodeSetter
     );
 
-    constructor(address _createx, address _multisig, address _layerZeroEndpoint) {
+    constructor(address _createx, address _multisig, address _layerZeroEndpoint, address _creationCodeSetter) {
         CREATEX = ICreateX(_createx);
         multisig = _multisig;
         layerZeroEndpoint = _layerZeroEndpoint;
-        creationCodeSetter = msg.sender;
+        creationCodeSetter = _creationCodeSetter;
     }
 
     /**
