@@ -85,6 +85,7 @@ contract RedEnvelopeUpgrade {
     }
 
     // Constants and immutables
+    address public immutable layerZeroEndpoint;
     ICreateX public immutable CREATEX;
     address public immutable multisig;
 
@@ -99,9 +100,10 @@ contract RedEnvelopeUpgrade {
         address indexed previousCreationCodeSetter, address indexed newCreationCodeSetter
     );
 
-    constructor(address _createx, address _multisig) {
+    constructor(address _createx, address _multisig, address _layerZeroEndpoint) {
         CREATEX = ICreateX(_createx);
         multisig = _multisig;
+        layerZeroEndpoint = _layerZeroEndpoint;
         creationCodeSetter = msg.sender;
     }
 
@@ -130,7 +132,7 @@ contract RedEnvelopeUpgrade {
      * @dev As an emergency measure, we allow the multisig to use this address to do anything. If a dangling ownership
      * is forgotten we can always recover it
      */
-    function emergencyProxyCall(address _target, bytes memory _data, uint256 _value) external {
+    function emergencyProxyCall(address _target, bytes memory _data, uint256 _value) external payable {
         require(msg.sender == multisig, "Only the multisig can call this function");
 
         (bool success,) = _target.call{ value: _value }(_data);
@@ -205,9 +207,12 @@ contract RedEnvelopeUpgrade {
 
         // Deploy the Teller
         // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        // NOTE: We set the owner to this flash-upgrade contract for now
-        bytes memory teller2ConstructorParams =
-            abi.encode(address(this), params.teller1.vault(), address(deployedContracts.accountant2));
+        // NOTE: We set the owner to this flash-upgrade contract for now.
+        // Also this contract does not deploy a regular teller, but a MultiChainLayerZeroTellerWithMultiAssetSupport.
+        // And thus it's constructor arg contains the LayerZero endpoint.
+        bytes memory teller2ConstructorParams = abi.encode(
+            address(this), params.teller1.vault(), address(deployedContracts.accountant2), layerZeroEndpoint
+        );
         deployedContracts.teller2 = ITellerWithMultiAssetSupport(
             CREATEX.deployCreate3(
                 _makeSalt(false, params.teller1.vault().symbol(), "TellerRedEnvelope"),
@@ -216,6 +221,8 @@ contract RedEnvelopeUpgrade {
         );
         emit ContractDeployed(CONTRACT.TELLER2, address(deployedContracts.teller2));
 
+        // NOTE: There is no necessary role distinction for the layerzero teller vs normal teller as all added
+        // functionality is owner only. Even the bridge functions which will be left non-public until owner discression
         // Set the Authority of the new teller
         deployedContracts.teller2.setAuthority(params.authority);
 
