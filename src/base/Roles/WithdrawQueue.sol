@@ -162,6 +162,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
      * @param _feeRecipient Address of the fee recipient
      * @param _tellerWithMultiAssetSupport Teller this queue handles withdraws for
      * @param _feeModule Address of fee module contract
+     * @param _minimumOrderSize Minimum order size of shares to withdraw
      * @param _owner Address of the initial owner
      */
     constructor(
