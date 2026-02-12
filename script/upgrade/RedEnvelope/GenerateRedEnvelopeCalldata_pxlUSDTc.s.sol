@@ -41,7 +41,7 @@ contract GenerateRedEnvelopeCalldata_pxlUSDTc is BaseScript {
     address constant WITHDRAW_ASSET_1 = 0xdAC17F958D2ee523a2206206994597C13D831ec7; // USDT
 
     /// @dev Address that can call processOrders on the new WithdrawQueue
-    address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xCb8FA722B2a138faC6B6D60013025E2504b9B753;
+    address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xf1f0A2A9Af8a79100fc0819f7e1a956803E80Cbc;
 
     /// @dev Recipient of queue fees. Set to address(0) to use the chain multisig (getMultisig()); otherwise set
     /// explicit address.

@@ -42,7 +42,7 @@ contract GenerateRedEnvelopeCalldata_pxlUSDGc is BaseScript {
     address constant WITHDRAW_ASSET_1 = 0xe343167631d89B6Ffc58B88d6b7fB0228795491D; // USDG
 
     /// @dev Address that can call processOrders on the new WithdrawQueue
-    address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xCb8FA722B2a138faC6B6D60013025E2504b9B753;
+    address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xf1f0d689C1aB6e3f38B8cC6261a1088d2cb611Cb;
 
     /// @dev Recipient of queue fees. Set to address(0) to use the chain multisig (getMultisig()); otherwise set
     /// explicit address.
