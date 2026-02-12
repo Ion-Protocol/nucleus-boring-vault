@@ -53,7 +53,7 @@ contract RedEnvelopeUpgradeTest is Test {
         assertEq(ACCOUNTANT1.owner(), multisig, "Accountant1 owner mismatch");
 
         // Deploy RedEnvelope upgrade contract
-        upgradeContract = new RedEnvelopeUpgrade(address(createX), multisig, layerZeroEndpoint);
+        upgradeContract = new RedEnvelopeUpgrade(address(createX), multisig, layerZeroEndpoint, multisig);
         upgradeContract.transferCreationCodeSetter(multisig);
     }
 
