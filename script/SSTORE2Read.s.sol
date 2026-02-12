@@ -19,8 +19,7 @@ contract SSTORE2Read is Script {
         bytes memory data = pointer.read();
 
         // Print the raw bytes
-        // console.logBytes(data);
-        console.logBytes32(keccak256(data));
+        console.logBytes(data);
     }
 
 }
