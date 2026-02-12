@@ -9,6 +9,7 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  * @title SimpleFeeModule
  * @notice A simple fee module implementation that charges a percentage fee
  * @dev Fees are sent to a designated fee recipient
+ * @custom:security-contact security@molecularlabs.io
  */
 contract SimpleFeeModule is IFeeModule {
 

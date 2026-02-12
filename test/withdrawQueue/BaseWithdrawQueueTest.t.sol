@@ -47,7 +47,12 @@ contract BaseWithdrawQueueTest is Test {
     );
     event OrdersProcessedInRange(uint256 indexed startIndex, uint256 indexed endIndex);
     event OrderProcessed(
-        uint256 indexed orderIndex, WithdrawQueue.Order order, address indexed receiver, bool indexed isForceProcessed
+        uint256 indexed orderIndex,
+        WithdrawQueue.Order order,
+        address indexed receiver,
+        bool indexed isForceProcessed,
+        uint256 feeAmount,
+        uint256 assetsOut
     );
     event OrderRefunded(uint256 indexed orderIndex, WithdrawQueue.Order order);
     event TellerUpdated(TellerWithMultiAssetSupport indexed oldTeller, TellerWithMultiAssetSupport indexed newTeller);
@@ -235,8 +240,11 @@ contract BaseWithdrawQueueTest is Test {
             orderType: orderType,
             didOrderFailTransfer: false
         });
+        uint256 feeAmount = feeModule.calculateOfferFees(amountOffer, wantAsset, IERC20(receiver), receiver);
+        uint256 expectedAssetsOut = teller.accountant().getRateInQuoteSafe(ERC20(address(wantAsset)))
+            .mulDivDown((amountOffer - feeAmount), 10 ** boringVault.decimals());
         vm.expectEmit(true, true, true, true);
-        emit WithdrawQueue.OrderProcessed(orderIndex, order, receiver, isForceProcessed);
+        emit WithdrawQueue.OrderProcessed(orderIndex, order, receiver, isForceProcessed, feeAmount, expectedAssetsOut);
     }
 
     function _expectOrderRefundedEvent(

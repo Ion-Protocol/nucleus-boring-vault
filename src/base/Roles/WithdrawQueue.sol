@@ -17,6 +17,7 @@ import { ReentrancyGuard } from "@solmate/utils/ReentrancyGuard.sol";
  * @title WithdrawQueue
  * @notice Handles user withdraws using the Teller in a FIFO order
  * @dev Implements ERC721Enumerable for tokenized order receipts
+ * @custom:security-contact security@molecularlabs.io
  */
 contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
 
@@ -122,7 +123,12 @@ contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
     );
     event OrdersProcessedInRange(uint256 indexed startIndex, uint256 indexed endIndex);
     event OrderProcessed(
-        uint256 indexed orderIndex, Order order, address indexed receiver, bool indexed isForceProcessed
+        uint256 indexed orderIndex,
+        Order order,
+        address indexed receiver,
+        bool indexed isForceProcessed,
+        uint256 feeAmount,
+        uint256 assetsOut
     );
     event OrderRefunded(uint256 indexed orderIndex, Order order);
     event TellerUpdated(TellerWithMultiAssetSupport indexed oldTeller, TellerWithMultiAssetSupport indexed newTeller);
@@ -156,6 +162,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
      * @param _feeRecipient Address of the fee recipient
      * @param _tellerWithMultiAssetSupport Teller this queue handles withdraws for
      * @param _feeModule Address of fee module contract
+     * @param _minimumOrderSize Minimum order size of shares to withdraw
      * @param _owner Address of the initial owner
      */
     constructor(
@@ -510,7 +517,7 @@ contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
                 _refundOrder(order, orderIndex);
             }
 
-            emit OrderProcessed(orderIndex, order, receiver, false);
+            emit OrderProcessed(orderIndex, order, receiver, false, feeAmount, expectedAssetsOut);
         }
 
         emit OrdersProcessedInRange(startIndex, endIndex);
@@ -590,13 +597,13 @@ contract WithdrawQueue is ERC721Enumerable, Auth, ReentrancyGuard {
         _burn(orderIndex);
 
         uint256 feeAmount = feeModule.calculateOfferFees(order.amountOffer, offerAsset, order.wantAsset, receiver);
-        tellerWithMultiAssetSupport.bulkWithdraw(
+        uint256 assetsOut = tellerWithMultiAssetSupport.bulkWithdraw(
             ERC20(address(order.wantAsset)), order.amountOffer - feeAmount, 0, receiver
         );
 
         offerAsset.safeTransfer(feeRecipient, feeAmount);
 
-        emit OrderProcessed(orderIndex, orderAtQueueIndex[orderIndex], receiver, true);
+        emit OrderProcessed(orderIndex, orderAtQueueIndex[orderIndex], receiver, true, feeAmount, assetsOut);
     }
 
     /// @return order after checking index is a real order and is DEFAULT status
