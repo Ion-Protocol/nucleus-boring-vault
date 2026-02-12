@@ -21,7 +21,7 @@ contract GenerateRedEnvelopeCalldata_pxlPYUSDc is BaseScript {
     // =============================================================================
 
     /// @dev Deployed RedEnvelope contract that will receive ownership and execute flashUpgrade
-    address constant RED_ENVELOPE_ADDRESS = address(0); // TODO: update this after Red Envelope Flash Upgrade is
+    address constant RED_ENVELOPE_ADDRESS = 0x2Cb6d683bA54B56a403b9F14Ae33Ab7384291568;
     // deployed on mainnet
 
     /// @dev Pre-upgrade contracts (being replaced by flashUpgrade)
