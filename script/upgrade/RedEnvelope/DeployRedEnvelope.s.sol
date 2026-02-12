@@ -27,11 +27,9 @@ contract DeployRedEnvelope is BaseScript {
         );
 
         // Deploy RedEnvelope with minimal constructor (deployer is creationCodeSetter)
-        bytes memory constructorParams = abi.encode(createx, multisig, layerZeroEndpoint);
+        bytes memory constructorParams = abi.encode(createx, multisig, layerZeroEndpoint, broadcaster);
         RedEnvelopeUpgrade redEnvelopeUpgrade = RedEnvelopeUpgrade(
-            CREATEX.deployCreate3(
-                SALT, abi.encodePacked(type(RedEnvelopeUpgrade).creationCode, constructorParams, broadcaster)
-            )
+            CREATEX.deployCreate3(SALT, abi.encodePacked(type(RedEnvelopeUpgrade).creationCode, constructorParams))
         );
 
         // Deployer sets creation code for each contract (deployer is creationCodeSetter)
