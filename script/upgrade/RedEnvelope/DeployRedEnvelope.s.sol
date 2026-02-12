@@ -18,6 +18,7 @@ contract DeployRedEnvelope is BaseScript {
     }
 
     function deploy() public broadcast returns (address) {
+        bytes32 SALT = 0x1Ab5a40491925cB445fd59e607330046bEac68E5004728234324239e83f23083;
         address createx = address(CREATEX);
         address multisig = getMultisig();
         address layerZeroEndpoint = 0x1a44076050125825900e736c501f859c50fE728c;
@@ -26,7 +27,10 @@ contract DeployRedEnvelope is BaseScript {
         );
 
         // Deploy RedEnvelope with minimal constructor (deployer is creationCodeSetter)
-        RedEnvelopeUpgrade redEnvelopeUpgrade = new RedEnvelopeUpgrade(createx, multisig, layerZeroEndpoint);
+        bytes memory constructorParams = abi.encode(createx, multisig, layerZeroEndpoint);
+        RedEnvelopeUpgrade redEnvelopeUpgrade = RedEnvelopeUpgrade(
+            CREATEX.deployCreate3(SALT, abi.encodePacked(type(RedEnvelopeUpgrade).creationCode, constructorParams))
+        );
 
         // Deployer sets creation code for each contract (deployer is creationCodeSetter)
         redEnvelopeUpgrade.setContractCreationCode(CONTRACT.ACCOUNTANT2, type(AccountantWithRateProviders).creationCode);
