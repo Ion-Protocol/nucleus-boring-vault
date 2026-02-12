@@ -15,13 +15,13 @@ import { SimpleFeeModule } from "src/helper/SimpleFeeModule.sol";
 
 /**
  * @notice Test that mimics the earnUSDG RedEnvelope deployment and upgrade flow
- * @dev Follows the same pattern as DeployRedEnvelope.s.sol and GenerateRedEnvelopeCalldata_earnUSDG.s.sol
+ * @dev Follows the same pattern as DeployRedEnvelope.s.sol and GenerateRedEnvelopeCalldata_pxlUSDGc.s.sol
  *      to ensure the test matches the production deployment process
  */
 contract RedEnvelopeUpgradeTest is Test {
 
     // =============================================================================
-    // DEPLOYMENT PARAMETERS (matching GenerateRedEnvelopeCalldata_earnUSDG.s.sol)
+    // DEPLOYMENT PARAMETERS (matching GenerateRedEnvelopeCalldata_pxlUSDGc.s.sol)
     // =============================================================================
     address constant LAYER_ZERO_ENDPOINT = 0x1a44076050125825900e736c501f859c50fE728c;
 
@@ -31,7 +31,7 @@ contract RedEnvelopeUpgradeTest is Test {
     address constant ROLES_AUTHORITY_ADDRESS = 0xaeeC053e978A4Bfc05BEBf297250cE8528B8530d;
 
     // Upgrade parameters
-    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 2000; // 20%
+    uint16 constant ACCOUNTANT_PERFORMANCE_FEE_BPS = 500; // 5%
     uint256 constant OFFER_FEE_PERCENTAGE_BPS = 2; // 0.02%
 
     // Assets
