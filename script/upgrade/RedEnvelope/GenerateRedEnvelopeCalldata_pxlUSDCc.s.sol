@@ -49,7 +49,7 @@ contract GenerateRedEnvelopeCalldata_pxlUSDCc is BaseScript {
     uint256 constant MINIMUM_ORDER_SIZE = 5e6;
 
     /// @dev ERC721 name and symbol for the new WithdrawQueue receipt NFT
-    string constant QUEUE_ERC721_NAME = "unpxlUSDCc";
+    string constant QUEUE_ERC721_NAME = "pxlUSDCc Withdraw Queue NFT";
     string constant QUEUE_ERC721_SYMBOL = "unpxlUSDCc";
 
     // =============================================================================
