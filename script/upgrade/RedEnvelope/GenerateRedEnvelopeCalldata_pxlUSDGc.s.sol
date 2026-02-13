@@ -37,6 +37,7 @@ contract GenerateRedEnvelopeCalldata_pxlUSDGc is BaseScript {
     /// @dev Assets allowed for deposit (add DEPOSIT_ASSET_2, ... and extend array in run() if needed)
     address constant DEPOSIT_ASSET_1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC
     address constant DEPOSIT_ASSET_2 = 0xe343167631d89B6Ffc58B88d6b7fB0228795491D; // USDG
+    address constant DEPOSIT_ASSET_3 = 0x6c3ea9036406852006290770BEdFcAbA0e23A0e8; // pyUSD
 
     /// @dev Assets allowed for withdraw (add WITHDRAW_ASSET_2, ... and extend array in run() if needed)
     address constant WITHDRAW_ASSET_1 = 0xe343167631d89B6Ffc58B88d6b7fB0228795491D; // USDG
@@ -67,9 +68,10 @@ contract GenerateRedEnvelopeCalldata_pxlUSDGc is BaseScript {
         address multisig = getMultisig();
         address queueFeeRecipient = multisig;
 
-        address[] memory depositAssets = new address[](2);
+        address[] memory depositAssets = new address[](3);
         depositAssets[0] = DEPOSIT_ASSET_1;
         depositAssets[1] = DEPOSIT_ASSET_2;
+        depositAssets[2] = DEPOSIT_ASSET_3;
 
         address[] memory withdrawAssets = new address[](1);
         withdrawAssets[0] = WITHDRAW_ASSET_1;
