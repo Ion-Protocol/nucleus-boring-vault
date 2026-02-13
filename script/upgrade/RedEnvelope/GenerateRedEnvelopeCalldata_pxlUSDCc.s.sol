@@ -43,12 +43,8 @@ contract GenerateRedEnvelopeCalldata_pxlUSDCc is BaseScript {
     /// @dev Address that can call processOrders on the new WithdrawQueue
     address constant WITHDRAW_QUEUE_PROCESSOR_ADDRESS = 0xf1f05ad44466e8ACb455c11929A60D885BB1731C;
 
-    /// @dev Recipient of queue fees. Set to address(0) to use the chain multisig (getMultisig()); otherwise set
-    /// explicit address.
-    address constant QUEUE_FEE_RECIPIENT_ADDRESS = address(0);
-
     /// @dev Minimum order size for the WithdrawQueue (e.g. 10e6 for 6-decimal tokens)
-    uint256 constant MINIMUM_ORDER_SIZE = 10e6;
+    uint256 constant MINIMUM_ORDER_SIZE = 5e6;
 
     /// @dev ERC721 name and symbol for the new WithdrawQueue receipt NFT
     string constant QUEUE_ERC721_NAME = "unpxlUSDCc";
@@ -68,7 +64,7 @@ contract GenerateRedEnvelopeCalldata_pxlUSDCc is BaseScript {
         );
 
         address multisig = getMultisig();
-        address queueFeeRecipient = QUEUE_FEE_RECIPIENT_ADDRESS == address(0) ? multisig : QUEUE_FEE_RECIPIENT_ADDRESS;
+        address queueFeeRecipient = multisig;
 
         address[] memory depositAssets = new address[](1);
         depositAssets[0] = DEPOSIT_ASSET_1;
