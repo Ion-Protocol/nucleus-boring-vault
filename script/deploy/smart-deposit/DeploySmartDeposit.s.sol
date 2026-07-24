@@ -57,17 +57,28 @@ contract DeploySmartDeposit is BaseScript {
             // risk of a vulnerability allowing an attacker to upgrade to a malicious implementation contract,
             // compromising any forwarded user funds.
             smartDepositForwarder = stagingSmartDepositForwarder;
-            smartDepositFactoryBeaconOwner = smartDepositForwarder;
-            recoveryAccount = smartDepositForwarder;
+            smartDepositFactoryBeaconOwner = stagingSmartDepositForwarder;
+            recoveryAccount = stagingSmartDepositForwarder;
         } else if (block.chainid == 1) {
+            dcdAddress = 0x847452E98aa5BDED23d1b6Ad9658F0993093Eb9A;
+
+            smartDepositForwarder = prodSmartDepositForwarder;
             smartDepositFactoryBeaconOwner = 0x0000000000417626Ef34D62C4DC189b021603f2F; // mainnet protocol multisig
             recoveryAccount = 0x0000000000417626Ef34D62C4DC189b021603f2F;
-            smartDepositForwarder = prodSmartDepositForwarder;
         } else if (block.chainid == 8453) {
             dcdAddress = 0xd0E5D3542f9E5A72F39E0245b953c5134E876c1B; // bkey prod vault dcd
+
+            smartDepositForwarder = prodSmartDepositForwarder;
             smartDepositFactoryBeaconOwner = 0xE5a5F3A6C88B894710992e1C2626be0DEB99566E; // base protocol multisig
             recoveryAccount = 0xE5a5F3A6C88B894710992e1C2626be0DEB99566E;
+        } else if (block.chainid == 84_532) {
+            dcdAddress = 0xd0E5D3542f9E5A72F39E0245b953c5134E876c1B;
+
+            // BKey wants to test base sepolia in prod, so use prod smart deposit forwarder
+            // This allows prod offchain system to forward testnet funds on deployed accounts
             smartDepositForwarder = prodSmartDepositForwarder;
+            smartDepositFactoryBeaconOwner = stagingSmartDepositForwarder; // base sepolia protocol multisig stand-in
+            recoveryAccount = prodSmartDepositForwarder;
         } else {
             revert("unsupported chain; set dcdAddress and smartDepositFactoryBeaconOwner for this chainid");
         }
