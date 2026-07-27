@@ -9,6 +9,9 @@ import { BoringVault } from "src/base/BoringVault.sol";
 import { ManagerWithMerkleVerification } from "src/base/Roles/ManagerWithMerkleVerification.sol";
 import { BaseDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 import { EquivalentExchangeUManager } from "src/micro-managers/EquivalentExchangeUManager.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+
+import { MockRateProvider } from "./mocks/MockRateProvider.sol";
 
 /// @notice Minimal mintable ERC20 used to stand up baskets at arbitrary decimals.
 contract MockERC20 is ERC20 {
@@ -90,6 +93,12 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
 
     MockERC20 internal usdc; // 6 decimals
     MockERC20 internal dai; //  18 decimals
+    MockERC20 internal gold; // 8 decimals, oracle-priced (non-USD)
+
+    MockRateProvider internal goldOracle; // USD per whole gold token, 18-dec (1e18 == $1.00)
+
+    /// @notice Gold oracle price used across the oracle tests: $2000 per whole token.
+    uint256 internal constant GOLD_USD_PRICE = 2000e18;
 
     address internal payer = makeAddr("subsidyPayer");
 
@@ -102,6 +111,8 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
 
         usdc = new MockERC20("USD Coin", "USDC", 6);
         dai = new MockERC20("Dai", "DAI", 18);
+        gold = new MockERC20("Gold", "GLD", 8);
+        goldOracle = new MockRateProvider(GOLD_USD_PRICE);
 
         // Wire up auth: the manager may manage the vault, and the uManager may drive the manager.
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
@@ -123,19 +134,19 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
         rolesAuthority.setUserRole(address(uManager), STRATEGIST_ROLE, true);
 
-        // Basket = { USDC, DAI }, treated 1:1 after decimal normalization.
-        ERC20[] memory basket = new ERC20[](2);
-        basket[0] = usdc;
-        basket[1] = dai;
+        // Basket = { USDC, DAI }, both treated 1:1 with USD after decimal normalization (no oracle).
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
+        basket[0] = EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)) });
+        basket[1] = EquivalentExchangeUManager.BasketToken({ token: dai, oracle: IRateProvider(address(0)) });
         uManager.setBasketTokens(basket);
 
         // Deltas bind to basket tokens by position, so every test's bounds are written against this exact
         // order. Pin it here: if the basket ever changes, these assertions fail loudly rather than letting
         // the suite silently apply USDC bounds to DAI and vice versa.
-        address[] memory storedBasket = uManager.getBasketTokens();
+        EquivalentExchangeUManager.BasketToken[] memory storedBasket = uManager.getBasketTokens();
         assertEq(storedBasket.length, 2, "basket size");
-        assertEq(storedBasket[0], address(usdc), "basket[0] is USDC");
-        assertEq(storedBasket[1], address(dai), "basket[1] is DAI");
+        assertEq(address(storedBasket[0].token), address(usdc), "basket[0] is USDC");
+        assertEq(address(storedBasket[1].token), address(dai), "basket[1] is DAI");
 
         // Seed the vault with USDC to spend, and the swap route with DAI liquidity to hand back.
         usdc.mint(address(boringVault), 1000e6);
@@ -145,6 +156,13 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         dai.mint(payer, 1000e18);
         vm.prank(payer);
         dai.approve(address(uManager), type(uint256).max);
+
+        // Seed the swap route with gold liquidity and fund the payer with gold for oracle-subsidy tests.
+        // The default basket excludes gold; the oracle tests reconfigure the basket to include it.
+        gold.mint(address(mockSwap), 1_000_000e8);
+        gold.mint(payer, 1000e8);
+        vm.prank(payer);
+        gold.approve(address(uManager), type(uint256).max);
     }
 
     // ============================== happy paths ==============================
@@ -445,7 +463,164 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         uManager.execute(calls, payer, dai, _wideAllowableTokenDeltas());
     }
 
+    // ============================== oracle-priced tokens ==============================
+    // These tests reconfigure the basket to { USDC (1:1 USD), GLD (oracle-priced at $2000) } so the value
+    // invariant and subsidy conversion must go through the gold oracle. GLD is 8-decimal, so its
+    // normalization interacts with the oracle price. 1000e6 USDC == $1000; $1000 of gold == 0.5 GLD == 5e7.
+
+    function test_Execute_OraclePricedSwap_ValueNeutral_NoSubsidy() external {
+        _setUsdcGoldBasket();
+
+        // Swap $1000 of USDC for exactly $1000 of gold (5e7 GLD at $2000/token): value-neutral, no subsidy.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 5e7);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 1000e18, 1000e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
+
+        assertEq(subsidyAmount, 0, "value-neutral oracle swap pulls no subsidy");
+        assertEq(usdc.balanceOf(address(boringVault)), 0, "vault USDC spent");
+        assertEq(gold.balanceOf(address(boringVault)), 5e7, "vault received gold");
+    }
+
+    function test_Execute_OraclePricedSwap_ShortfallCoveredByUsdSubsidy() external {
+        _setUsdcGoldBasket();
+
+        // Fund the payer with USDC to subsidize with (payer is only seeded with DAI/GLD in setUp).
+        usdc.mint(payer, 1000e6);
+        vm.prank(payer);
+        usdc.approve(address(uManager), type(uint256).max);
+
+        // Swap $1000 USDC for only $999 of gold (4.995e7 GLD): a $1 shortfall, priced through the oracle
+        // and covered by 1 native USDC unit (1e6).
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 4.995e7);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 1000e18, 1000e18, 1e6, 1e18);
+
+        uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
+
+        assertEq(gold.balanceOf(address(boringVault)), 4.995e7, "vault received the $999 of gold");
+        assertEq(usdc.balanceOf(address(boringVault)), 1e6, "vault topped up with $1 of USDC subsidy");
+    }
+
+    function test_Execute_ShortfallCoveredByOracleSubsidy() external {
+        _setUsdcGoldBasket();
+
+        // Swap $1000 of USDC for no gold at all: the entire $1000 must be recovered from the payer, paid in
+        // the oracle-priced gold token. $1000 / $2000 == 0.5 GLD == 5e7 native units.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 0);
+
+        uint256 payerGoldBefore = gold.balanceOf(payer);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), gold, 1000e18, 1000e18, 5e7, 1000e18);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, gold, _wideUsdcGoldDeltas());
+
+        // subsidyAmount is native GLD units (5e7), NOT the $1000 normalized figure.
+        assertEq(subsidyAmount, 5e7, "subsidy is 0.5 GLD in native units");
+        assertEq(gold.balanceOf(address(boringVault)), 5e7, "vault made whole in gold");
+        assertEq(payerGoldBefore - gold.balanceOf(payer), 5e7, "payer spent exactly the converted gold");
+    }
+
+    function test_Execute_DirtyOracleMappingNotUsedForUsdSubsidyToken() external {
+        // First make gold oracle-priced, populating its tokenOracles entry.
+        _setUsdcGoldBasket();
+
+        // Then reconfigure gold as a 1:1 USD asset. Its tokenOracles entry is intentionally left "dirty"
+        // (not deleted), but its oracleFlags bit is now clear, so gold must be priced 1:1 in USD
+        // everywhere -- including when it is the subsidy token, which is what this test pins.
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
+        basket[0] = EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)) });
+        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: IRateProvider(address(0)) });
+        uManager.setBasketTokens(basket);
+
+        // Swap $1000 USDC for only $999 of gold priced 1:1 (999e8 GLD): a $1 shortfall subsidized in gold.
+        // As a USD asset $1 == 1 whole GLD (1e8); if the stale $2000 oracle were wrongly used it would be
+        // ~5e4 instead.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 999e8);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), gold, 1000e18, 1000e18, 1e8, 1e18);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, gold, _wideUsdcGoldDeltas());
+
+        assertEq(subsidyAmount, 1e8, "gold subsidized 1:1 as USD, not via the stale oracle");
+    }
+
+    function test_Execute_RevertWhen_OracleRateZero() external {
+        _setUsdcGoldBasket();
+
+        // A zero oracle rate cannot value gold, so execute must revert rather than mis-price the basket.
+        goldOracle.setRate(0);
+
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 5e7);
+
+        vm.expectRevert(abi.encodeWithSelector(EquivalentExchangeUManager.InvalidRate.selector, address(gold)));
+        uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
+    }
+
     // ============================== helpers ==============================
+
+    /// @notice Reconfigures the basket to { USDC (1:1 USD), GLD (oracle-priced) }, in that order.
+    function _setUsdcGoldBasket() internal {
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
+        basket[0] = EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)) });
+        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: goldOracle });
+        uManager.setBasketTokens(basket);
+    }
+
+    /// @notice Wide bounds for the { USDC, GLD } basket, so oracle tests isolate value/subsidy behavior.
+    function _wideUsdcGoldDeltas() internal pure returns (int256[] memory allowableTokenDelta) {
+        allowableTokenDelta = new int256[](2);
+        allowableTokenDelta[0] = type(int256).min;
+        allowableTokenDelta[1] = type(int256).min;
+    }
+
+    /// @notice Builds the two-call route (approve USDC -> swap, then swap USDC->GLD to the vault), sets the
+    ///         corresponding merkle root, and returns the batch.
+    function _approveAndSwapUsdcForGold(
+        uint256 approveAmount,
+        uint256 amountIn,
+        uint256 amountOut
+    )
+        internal
+        returns (EquivalentExchangeUManager.ManageCalls memory)
+    {
+        ManageLeaf[] memory leafs = new ManageLeaf[](2);
+
+        leafs[0] = ManageLeaf(address(usdc), false, "approve(address,uint256)", new address[](1));
+        leafs[0].argumentAddresses[0] = address(mockSwap);
+
+        leafs[1] =
+            ManageLeaf(address(mockSwap), false, "swap(address,address,uint256,uint256,address)", new address[](3));
+        leafs[1].argumentAddresses[0] = address(usdc);
+        leafs[1].argumentAddresses[1] = address(gold);
+        leafs[1].argumentAddresses[2] = address(boringVault);
+
+        bytes32[][] memory tree = _generateMerkleTree(leafs);
+        manager.setManageRoot(address(uManager), tree[tree.length - 1][0]);
+        bytes32[][] memory proofs = _getProofsUsingTree(leafs, tree);
+
+        return _batch(
+            _actions(
+                _mc(
+                    proofs[0],
+                    address(usdc),
+                    abi.encodeWithSelector(ERC20.approve.selector, address(mockSwap), approveAmount)
+                ),
+                _mc(
+                    proofs[1],
+                    address(mockSwap),
+                    abi.encodeWithSelector(
+                        MockSwap.swap.selector, address(usdc), address(gold), amountIn, amountOut, address(boringVault)
+                    )
+                )
+            )
+        );
+    }
 
     /// @notice Builds a minimum-signed-delta bound set for the { USDC, DAI } basket.
     /// @dev Bounds attach to basket tokens by position, so `usdc` lands at index 0 and `dai` at index 1.
