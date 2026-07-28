@@ -321,17 +321,20 @@ contract EquivalentExchangeUManager is UManager {
 
             _checkTokenDelta(token, balanceBefore, balanceAfter, allowableTokenDelta[i]);
 
+            // A 1:1 token starts from NORMALIZED_ONE; an oracle-priced token (its flag bit set) uses one getRate()
+            // reading.
+            uint256 baseRate = _hasOracleFlag(flags, i) ? tokenOracles[token].getRate() : NORMALIZED_ONE;
+            // A zero rate cannot value the token, so reject it rather than mispricing the basket. Only an
+            // oracle can return zero here; the 1:1 branch is NORMALIZED_ONE.
+            if (baseRate == 0) revert InvalidRate(token);
             // Read decimals once and rescale the rate to a per-native-unit basis, so nothing downstream
-            // needs decimals. A 1:1 token starts from NORMALIZED_ONE; an oracle-priced token (its flag bit
-            // set) uses one getRate() reading. Applying the one per-unit rate to both balances keeps the
-            // two totals from disagreeing on price or scale.
-            uint8 decimals = ERC20(token).decimals();
-            uint256 baseRate = _hasOracleFlag(flags, i) ? _readRate(token, tokenOracles[token]) : NORMALIZED_ONE;
-            uint256 rate = _unitRate(baseRate, decimals);
+            // needs decimals.
+            uint256 rate = _unitRate(baseRate, ERC20(token).decimals());
 
             // Capture the subsidy token's per-unit rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
 
+            // Applying the one per-unit rate to both balances keeps the two totals from disagreeing on price or scale.
             totalBefore += _referenceValue(balanceBefore, rate);
             totalAfter += _referenceValue(balanceAfter, rate);
         }
@@ -454,17 +457,6 @@ contract EquivalentExchangeUManager is UManager {
         manager.manageVaultWithMerkleVerification(
             calls.manageProofs, calls.decodersAndSanitizers, calls.targets, calls.targetData, calls.values
         );
-    }
-
-    /**
-     * @notice Reads a token's reference-asset price from its oracle, reverting on a zero rate.
-     * @param token Basket token being priced (used only for the revert reason).
-     * @param oracle Rate provider for `token`.
-     * @return rate Reference-asset price of one whole `token`, scaled to `NORMALIZED_DECIMALS`.
-     */
-    function _readRate(address token, IRateProvider oracle) internal view returns (uint256 rate) {
-        rate = oracle.getRate();
-        if (rate == 0) revert InvalidRate(token);
     }
 
     /**
