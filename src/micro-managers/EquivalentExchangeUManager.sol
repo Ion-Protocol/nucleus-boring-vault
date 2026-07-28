@@ -11,26 +11,35 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 /**
  * @title EquivalentExchangeUManager
  * @notice UManager that executes a batch of merkle-verified BoringVault actions
- *         and enforces that the aggregate USD value of a stored basket of tokens
- *         does not decrease.
- * @dev Basket tokens are valued in USD. Most tokens are expected to be USD-denominated and are treated
- *      as worth $1 per whole token after decimal normalization. A token may instead be flagged as
- *      oracle-priced, in which case its per-whole-token USD price is read from an `IRateProvider` at
- *      execution time and applied to its balance. The same oracle conversion is used when paying the
- *      subsidy in a non-USD token.
+ *         and enforces that the aggregate value of a stored basket of tokens,
+ *         measured in a common reference asset, does not decrease.
+ * @dev Basket tokens are valued in a single reference asset and carried internally as 18-decimal fixed
+ *      point (`NORMALIZED_DECIMALS`), where `NORMALIZED_ONE` represents one whole unit of the reference
+ *      asset. Most tokens are expected to be worth one reference unit per whole token and are treated as
+ *      1:1 after decimal normalization, requiring no oracle. A token may instead be flagged as
+ *      oracle-priced, in which case its per-whole-token price in the reference asset is read from an
+ *      `IRateProvider` at execution time and applied to its balance. The same conversion is used when
+ *      paying the subsidy in an oracle-priced token.
  *
  *      Which basket tokens are oracle-priced is recorded as a bitmap (`oracleFlags`): bit `i` is set iff
- *      the basket token at index `i` (in `basketTokens` order) is oracle-priced. A fully USD basket
- *      therefore requires no oracle lookups.
+ *      the basket token at index `i` (in `basketTokens` order) is oracle-priced. A basket of only 1:1
+ *      tokens (such as USD stablecoins) therefore requires no oracle lookups.
  *
  *      Subsidy, if required, is pulled from an approval-based subsidy payer. The subsidy payer must
  *      pre-approve the UManager to spend the subsidy token; if the approved/available amount is
  *      insufficient, the call reverts.
  *
  *      Oracle security assumptions:
- *      - Each oracle is an `IRateProvider` returning the token's price in USD scaled to
- *        `NORMALIZED_DECIMALS` (1e18 == $1.00). The owner is responsible for configuring oracles that
- *        perform their own staleness and sanity checks and that cannot be manipulated within a block.
+ *      - The whole basket must be denominated in a single, consistent reference asset: every 1:1 token
+ *        must actually be worth one reference unit per whole token, and every oracle must return its
+ *        token's price in that same reference asset. The reference asset is whatever unit the operator
+ *        standardizes on -- USD, ETH, or anything else -- and is never named on-chain. Mixing units --
+ *        e.g. treating USD-pegged tokens as 1:1 while an oracle returns an ETH-denominated price --
+ *        compares unlike quantities and corrupts the value invariant.
+ *      - Each oracle is an `IRateProvider` returning the token's price in the reference asset scaled to
+ *        `NORMALIZED_DECIMALS` (1e18 == one reference unit). The owner is responsible for configuring
+ *        oracles that perform their own staleness and sanity checks and that cannot be manipulated within
+ *        a block.
  *      - A reverting or zero-returning oracle causes `execute` to revert, which is preferable to
  *        valuing a basket token incorrectly.
  */
@@ -41,11 +50,12 @@ contract EquivalentExchangeUManager is UManager {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeCast for uint256;
 
-    /// @notice Decimal scale used for normalizing token amounts and expressing USD value.
+    /// @notice Fixed-point decimal scale used for normalizing token amounts and expressing value in
+    /// the reference asset.
     uint256 internal constant NORMALIZED_DECIMALS = 18;
 
-    /// @notice One whole unit of normalized (USD) value, i.e. 10**NORMALIZED_DECIMALS. Equal to $1.00 of
-    /// normalized value and to one whole token of a normalized balance.
+    /// @notice One whole unit of normalized value, i.e. 10**NORMALIZED_DECIMALS. Equal to one
+    /// whole unit of the reference asset and to one whole token of a normalized balance.
     uint256 internal constant NORMALIZED_ONE = 10 ** NORMALIZED_DECIMALS;
 
     /// @notice Maximum number of basket tokens. Bounded by the width of `oracleFlags` (256 bits), so every
@@ -55,17 +65,18 @@ contract EquivalentExchangeUManager is UManager {
     /// @notice Selector for increaseAllowance(address,uint256).
     bytes4 internal constant INCREASE_ALLOWANCE_SELECTOR = 0x39509351;
 
-    /// @notice Basket tokens whose aggregate USD value this UManager preserves across an `execute` batch.
+    /// @notice Basket tokens whose aggregate reference-asset value this UManager preserves across an
+    /// `execute` batch.
     EnumerableSet.AddressSet internal basketTokens;
 
     /// @notice Bitmap of which basket tokens are oracle-priced: bit `i` is set iff the token at index `i`
-    /// in `basketTokens` is priced through an oracle rather than treated as a 1:1 USD asset.
+    /// in `basketTokens` is priced through an oracle rather than treated as a 1:1 token.
     /// @dev Indices align with `basketTokens.values()`; `setBasketTokens` rebuilds both together.
     bytes32 internal oracleFlags;
 
-    /// @notice Maps a basket token to the rate provider used to convert its balance to USD.
+    /// @notice Maps a basket token to the rate provider used to convert its balance to the reference asset.
     /// @dev `oracleFlags`, not this mapping, is the source of truth for whether a token is oracle-priced.
-    /// Entries are read only when a token's flag bit is set, so USD tokens never hit the mapping, and it is
+    /// Entries are read only when a token's flag bit is set, so 1:1 tokens never hit the mapping, and it is
     /// allowed to be "dirty": stale entries left behind when the basket changes are never read.
     mapping(address => IRateProvider) internal tokenOracles;
 
@@ -92,11 +103,11 @@ contract EquivalentExchangeUManager is UManager {
     );
 
     /**
-     * @notice A basket token together with its USD price source.
+     * @notice A basket token together with its reference-asset price source.
      * @param token The basket token.
-     * @param oracle Rate provider returning `token`'s price in USD scaled to `NORMALIZED_DECIMALS`
-     * (1e18 == $1.00). The zero address marks `token` as a 1:1 USD asset, priced by decimal
-     * normalization alone with no oracle lookup.
+     * @param oracle Rate provider returning `token`'s price in the reference asset scaled to
+     * `NORMALIZED_DECIMALS` (1e18 == one reference unit). The zero address marks `token` as a 1:1 token,
+     * priced by decimal normalization alone with no oracle lookup.
      */
     struct BasketToken {
         ERC20 token;
@@ -124,10 +135,10 @@ contract EquivalentExchangeUManager is UManager {
     constructor(address _owner, address _manager, address _boringVault) UManager(_owner, _manager, _boringVault) { }
 
     /**
-     * @notice Sets the basket of tokens used for accounting, along with each token's USD price source.
+     * @notice Sets the basket of tokens used for accounting, along with each token's reference-asset price source.
      * @dev The basket is exactly the set of tokens whose balance changes `execute` checks, and defines the
      * order `allowableTokenDelta` (and the `oracleFlags` bitmap) bind to. A token with a zero `oracle` is
-     * treated as a 1:1 USD asset; a token with a non-zero `oracle` is priced through it. Duplicate token
+     * treated as a 1:1 token; a token with a non-zero `oracle` is priced through it. Duplicate token
      * addresses are rejected so the stored basket is an exact, order-preserving image of the input.
      * @param tokens Basket tokens and their price sources. At most `MAX_BASKET_TOKENS` entries.
      * @custom:access OWNER_ROLE / MULTISIG_ROLE should be granted authority.
@@ -167,7 +178,7 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Returns the basket tokens, each with its USD price source, in stored order.
+     * @notice Returns the basket tokens, each with its reference-asset price source, in stored order.
      */
     function getBasketTokens() external view returns (BasketToken[] memory tokens) {
         address[] memory values = basketTokens.values();
@@ -192,17 +203,19 @@ contract EquivalentExchangeUManager is UManager {
     /**
      * @notice Executes a batch of merkle-verified BoringVault actions, enforces a per-token bound on
      *         each basket token's balance change over the batch, and enforces that the vault's aggregate
-     *         basket value (in USD) does not decrease (topping up any shortfall from the subsidy payer).
+     *         basket value (in the reference asset) does not decrease (topping up any shortfall from the
+     *         subsidy payer).
      * @dev `allowableTokenDelta` must be exactly as long as the basket, so every basket token is bounded. Movement is
      *      measured over the batch ONLY; the subsidy pulled afterwards is not counted against any bound.
      *
-     *      Each token's USD value is its decimal-normalized balance for USD assets, or that balance priced
-     *      through the token's oracle for oracle-priced assets. A token's oracle rate is read once and
+     *      Each token's value is its decimal-normalized balance for 1:1 tokens, or that balance priced
+     *      through the token's oracle for oracle-priced tokens. A token's oracle rate is read once and
      *      applied to both the before and after balances, so the two totals cannot disagree on price.
      *
      *      Subsidy, if needed, is pulled from the indicated subsidy payer using ERC20 transferFrom; the
-     *      payer must have approved the UManager. The amount pulled is the aggregate USD shortfall,
-     *      converted to the subsidy token (through its oracle when non-USD) and rounded up.
+     *      payer must have approved the UManager. The amount pulled is the aggregate shortfall (in the
+     *      reference asset), converted to the subsidy token (through its oracle when oracle-priced) and
+     *      rounded up.
      * @param calls Batch of merkle-verified BoringVault actions to execute.
      * @param subsidyPayer Address that provides the subsidy tokens via approval.
      * @param subsidyToken Token to use as subsidy. Must be a basket token.
@@ -275,8 +288,8 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Checks each basket token's balance delta and totals the vault's basket value, in USD, both
-     *         before and after the batch.
+     * @notice Checks each basket token's balance delta and totals the vault's basket value, in the
+     *         reference asset, both before and after the batch.
      * @dev Factored out of `execute` purely to stay under the stack limit. Each oracle-priced token (per
      * the `oracleFlags` bitmap) has its rate read once and applied to both balances, so the two totals
      * cannot disagree on price.
@@ -284,9 +297,9 @@ contract EquivalentExchangeUManager is UManager {
      * @param beforeBalances Pre-batch vault balances, parallel to `tokens`.
      * @param allowableTokenDelta Minimum signed balance change tolerated for each token, parallel to `tokens`.
      * @param subsidyToken The token a subsidy would be paid in, whose rate is captured for `_coverShortfall`.
-     * @return totalBefore Aggregate USD value of the basket before the batch.
-     * @return totalAfter Aggregate USD value of the basket after the batch.
-     * @return subsidyRate The bitmap-gated rate used to value `subsidyToken` (NORMALIZED_ONE if it is a USD asset).
+     * @return totalBefore Aggregate reference-asset value of the basket before the batch.
+     * @return totalAfter Aggregate reference-asset value of the basket after the batch.
+     * @return subsidyRate The bitmap-gated rate used to value `subsidyToken` (NORMALIZED_ONE if it is a 1:1 token).
      */
     function _checkAndValueBasket(
         address[] memory tokens,
@@ -308,8 +321,8 @@ contract EquivalentExchangeUManager is UManager {
             _checkTokenDelta(token, balanceBefore, balanceAfter, allowableTokenDelta[i]);
 
             // A token's decimals are unlikely to change mid-execution, but a single decimals() read values
-            // both balances, so the two totals cannot disagree on scale. A USD asset is priced at
-            // rate == NORMALIZED_ONE; an oracle-priced asset (its flag bit set) uses one getRate() reading
+            // both balances, so the two totals cannot disagree on scale. A 1:1 token is priced at
+            // rate == NORMALIZED_ONE; an oracle-priced token (its flag bit set) uses one getRate() reading
             // applied to both balances.
             uint8 decimals = ERC20(token).decimals();
             uint256 rate = _hasOracleFlag(flags, i) ? _readRate(token, tokenOracles[token]) : NORMALIZED_ONE;
@@ -317,23 +330,24 @@ contract EquivalentExchangeUManager is UManager {
             // Capture the subsidy token's rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
 
-            totalBefore += _valueInUsd(balanceBefore, decimals, rate);
-            totalAfter += _valueInUsd(balanceAfter, decimals, rate);
+            totalBefore += _referenceValue(balanceBefore, decimals, rate);
+            totalAfter += _referenceValue(balanceAfter, decimals, rate);
         }
     }
 
     /**
-     * @notice Covers a normalized (USD) shortfall by transferring subsidy from the
+     * @notice Covers a normalized (reference-asset) shortfall by transferring subsidy from the
      *         subsidy payer to the vault.
      * @dev The subsidy token must be a basket token. The payer must have a
      *      sufficient balance and approval to cover the shortfall.
-     * @param shortfall Shortfall in normalized (USD) units.
+     * @param shortfall Shortfall in normalized (reference-asset) units.
      * @param subsidyPayer Address that provides the subsidy tokens via approval.
      * @param subsidyToken Token to use as subsidy.
-     * @param rate USD price of one whole `subsidyToken` scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
-     * a USD asset). Supplied by `_checkAndValueBasket` so the subsidy is priced exactly as the shortfall was.
+     * @param rate Reference-asset price of one whole `subsidyToken` scaled to NORMALIZED_DECIMALS
+     * (NORMALIZED_ONE for a 1:1 token). Supplied by `_checkAndValueBasket` so the subsidy is priced exactly
+     * as the shortfall was.
      * @return subsidyAmount Amount of subsidy transferred, in the subsidy token's native units.
-     * @return subsidyAmountNormalized Total normalized (USD) value of subsidy transferred.
+     * @return subsidyAmountNormalized Total normalized (reference-asset) value of subsidy transferred.
      */
     function _coverShortfall(
         uint256 shortfall,
@@ -350,18 +364,19 @@ contract EquivalentExchangeUManager is UManager {
         uint256 allowance = subsidyToken.allowance(subsidyPayer, address(this));
         uint256 available = balance < allowance ? balance : allowance;
 
-        // Guard in USD terms. Because the guard uses the same flooring conversion as pricing and
-        // `_usdValueToTokenAmount` rounds up, `available`'s USD value >= shortfall implies the converted
-        // subsidyAmount <= available. So the transfer below can never pull more than is available.
-        if (_valueInUsd(available, decimals, rate) < shortfall) revert InsufficientSubsidy();
+        // Guard in reference-asset terms. Because the guard uses the same flooring conversion as pricing
+        // and `_referenceValueToTokenAmount` rounds up, `available`'s reference-asset value >= shortfall
+        // implies the converted subsidyAmount <= available. So the transfer below can never pull more than
+        // is available.
+        if (_referenceValue(available, decimals, rate) < shortfall) revert InsufficientSubsidy();
 
-        subsidyAmount = _usdValueToTokenAmount(shortfall, decimals, rate);
+        subsidyAmount = _referenceValueToTokenAmount(shortfall, decimals, rate);
 
         subsidyToken.safeTransferFrom(subsidyPayer, boringVault, subsidyAmount);
 
-        // Re-value the actual amount transferred for accounting. The round-up in `_usdValueToTokenAmount`
-        // guarantees this is >= shortfall, so the value invariant holds.
-        subsidyAmountNormalized = _valueInUsd(subsidyAmount, decimals, rate);
+        // Re-value the actual amount transferred for accounting. The round-up in
+        // `_referenceValueToTokenAmount` guarantees this is >= shortfall, so the value invariant holds.
+        subsidyAmountNormalized = _referenceValue(subsidyAmount, decimals, rate);
     }
 
     /**
@@ -444,10 +459,10 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Reads a token's USD price from its oracle, reverting on a zero rate.
+     * @notice Reads a token's reference-asset price from its oracle, reverting on a zero rate.
      * @param token Basket token being priced (used only for the revert reason).
      * @param oracle Rate provider for `token`.
-     * @return rate USD price of one whole `token`, scaled to `NORMALIZED_DECIMALS`.
+     * @return rate Reference-asset price of one whole `token`, scaled to `NORMALIZED_DECIMALS`.
      */
     function _readRate(address token, IRateProvider oracle) internal view returns (uint256 rate) {
         rate = oracle.getRate();
@@ -455,32 +470,42 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Values a token balance in normalized (USD) units.
-     * @dev One whole token is worth `rate` (USD scaled to NORMALIZED_DECIMALS) and spans `10 ** decimals`
-     * native units, so its USD value is `balance * rate / 10 ** decimals`, multiplying before dividing and
-     * flooring. A 1:1 USD asset is the case `rate == NORMALIZED_ONE`.
+     * @notice Values a token balance in normalized (reference-asset) units.
+     * @dev One whole token is worth `rate` (reference asset scaled to NORMALIZED_DECIMALS) and spans
+     * `10 ** decimals` native units, so its value is `balance * rate / 10 ** decimals`, multiplying before
+     * dividing and flooring. A 1:1 token is the case `rate == NORMALIZED_ONE`.
      * @param balance Token balance in native units.
      * @param decimals Token decimals.
-     * @param rate USD price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for a USD asset).
-     * @return USD value scaled to NORMALIZED_DECIMALS.
+     * @param rate Reference-asset price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
+     * a 1:1 token).
+     * @return Reference-asset value scaled to NORMALIZED_DECIMALS.
      */
-    function _valueInUsd(uint256 balance, uint8 decimals, uint256 rate) internal pure returns (uint256) {
+    function _referenceValue(uint256 balance, uint8 decimals, uint256 rate) internal pure returns (uint256) {
         return balance.mulDivDown(rate, 10 ** decimals);
     }
 
     /**
-     * @notice Converts a normalized (USD) value to a token's native units, rounding up so the result is
-     *         never worth less than the input value.
-     * @dev Inverse of `_valueInUsd`: `amount = ceil(usdValue * 10 ** decimals / rate)`. Rounding up
-     * guarantees re-pricing the result covers at least `usdValue`, so the subsidy can never under-cover. A
-     * 1:1 USD asset is the case `rate == NORMALIZED_ONE`.
-     * @param usdValue Value in normalized (USD) units.
+     * @notice Converts a normalized (reference-asset) value to a token's native units, rounding up so the
+     *         result is never worth less than the input value.
+     * @dev Inverse of `_referenceValue`: `amount = ceil(referenceValue * 10 ** decimals / rate)`. Rounding
+     * up guarantees re-pricing the result covers at least `referenceValue`, so the subsidy can never
+     * under-cover. A 1:1 token is the case `rate == NORMALIZED_ONE`.
+     * @param referenceValue Value in normalized (reference-asset) units.
      * @param decimals Token decimals.
-     * @param rate USD price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for a USD asset).
+     * @param rate Reference-asset price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
+     * a 1:1 token).
      * @return Token amount in native units.
      */
-    function _usdValueToTokenAmount(uint256 usdValue, uint8 decimals, uint256 rate) internal pure returns (uint256) {
-        return usdValue.mulDivUp(10 ** decimals, rate);
+    function _referenceValueToTokenAmount(
+        uint256 referenceValue,
+        uint8 decimals,
+        uint256 rate
+    )
+        internal
+        pure
+        returns (uint256)
+    {
+        return referenceValue.mulDivUp(10 ** decimals, rate);
     }
 
     /**
