@@ -197,14 +197,14 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
     }
 
     function test_Execute_SubsidyRoundsUpAndIsUncapped() external {
-        // Subsidize with a 6-decimal token so _denormalize's round-up is observable. Nothing caps the
-        // subsidy beyond the shortfall it covers, so the rounded-up over-pull is accepted, not rejected.
+        // Subsidize with a 6-decimal token so the subsidy conversion's round-up is observable. Nothing caps
+        // the subsidy beyond the shortfall it covers, so the rounded-up over-pull is accepted, not rejected.
         usdc.mint(payer, 1000e6);
         vm.prank(payer);
         usdc.approve(address(uManager), type(uint256).max);
 
         // Engineer a shortfall of exactly 1e12 + 1 normalized units. It is NOT a multiple of the USDC
-        // 1e12 scale, so _denormalize rounds it up from ~1 native unit to 2 (= 2e12 normalized).
+        // 1e12 scale, so the subsidy conversion rounds it up from ~1 native unit to 2 (= 2e12 normalized).
         uint256 shortfall = 1e12 + 1;
         uint256 amountOut = 1000e18 - shortfall; // vault ends 1e12+1 short of value-neutral
         EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapCalls(1000e6, 1000e6, amountOut);

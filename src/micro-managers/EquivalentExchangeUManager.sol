@@ -286,7 +286,7 @@ contract EquivalentExchangeUManager is UManager {
      * @param subsidyToken The token a subsidy would be paid in, whose rate is captured for `_coverShortfall`.
      * @return totalBefore Aggregate USD value of the basket before the batch.
      * @return totalAfter Aggregate USD value of the basket after the batch.
-     * @return subsidyRate The bitmap-gated rate used to value `subsidyToken` (0 if it is a USD asset).
+     * @return subsidyRate The bitmap-gated rate used to value `subsidyToken` (NORMALIZED_ONE if it is a USD asset).
      */
     function _checkAndValueBasket(
         address[] memory tokens,
@@ -307,12 +307,12 @@ contract EquivalentExchangeUManager is UManager {
 
             _checkTokenDelta(token, balanceBefore, balanceAfter, allowableTokenDelta[i]);
 
-            // A token's decimals are unlikely to change mid-execution, but a single decimals() read
-            // normalizes both balances, so the two totals cannot disagree on scale. rate == 0 marks a 1:1
-            // USD asset; an oracle-priced asset (its flag bit set) is priced with one getRate() reading
+            // A token's decimals are unlikely to change mid-execution, but a single decimals() read values
+            // both balances, so the two totals cannot disagree on scale. A USD asset is priced at
+            // rate == NORMALIZED_ONE; an oracle-priced asset (its flag bit set) uses one getRate() reading
             // applied to both balances.
             uint8 decimals = ERC20(token).decimals();
-            uint256 rate = _hasOracleFlag(flags, i) ? _readRate(token, tokenOracles[token]) : 0;
+            uint256 rate = _hasOracleFlag(flags, i) ? _readRate(token, tokenOracles[token]) : NORMALIZED_ONE;
 
             // Capture the subsidy token's rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
@@ -330,8 +330,8 @@ contract EquivalentExchangeUManager is UManager {
      * @param shortfall Shortfall in normalized (USD) units.
      * @param subsidyPayer Address that provides the subsidy tokens via approval.
      * @param subsidyToken Token to use as subsidy.
-     * @param rate USD price of one whole `subsidyToken` scaled to NORMALIZED_DECIMALS, or 0 for a USD
-     * asset. Supplied by `_checkAndValueBasket` so the subsidy is priced exactly as the shortfall was.
+     * @param rate USD price of one whole `subsidyToken` scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
+     * a USD asset). Supplied by `_checkAndValueBasket` so the subsidy is priced exactly as the shortfall was.
      * @return subsidyAmount Amount of subsidy transferred, in the subsidy token's native units.
      * @return subsidyAmountNormalized Total normalized (USD) value of subsidy transferred.
      */
@@ -456,35 +456,31 @@ contract EquivalentExchangeUManager is UManager {
 
     /**
      * @notice Values a token balance in normalized (USD) units.
-     * @dev `rate == 0` is the sentinel for a 1:1 USD asset, whose decimal-normalized balance already is
-     * its USD value. Otherwise the normalized balance is priced by `rate` (USD per whole token, scaled to
-     * NORMALIZED_DECIMALS), multiplying before dividing and flooring the result.
+     * @dev One whole token is worth `rate` (USD scaled to NORMALIZED_DECIMALS) and spans `10 ** decimals`
+     * native units, so its USD value is `balance * rate / 10 ** decimals`, multiplying before dividing and
+     * flooring. A 1:1 USD asset is the case `rate == NORMALIZED_ONE`.
      * @param balance Token balance in native units.
      * @param decimals Token decimals.
-     * @param rate USD price of one whole token scaled to NORMALIZED_DECIMALS, or 0 for a USD asset.
+     * @param rate USD price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for a USD asset).
      * @return USD value scaled to NORMALIZED_DECIMALS.
      */
     function _valueInUsd(uint256 balance, uint8 decimals, uint256 rate) internal pure returns (uint256) {
-        uint256 normalized = _normalize(balance, decimals);
-        if (rate == 0) return normalized;
-        return normalized.mulDivDown(rate, NORMALIZED_ONE);
+        return balance.mulDivDown(rate, 10 ** decimals);
     }
 
     /**
      * @notice Converts a normalized (USD) value to a token's native units, rounding up so the result is
      *         never worth less than the input value.
-     * @dev `rate == 0` denormalizes directly (USD asset). Otherwise the USD value is first converted to a
-     * normalized token amount, rounding up, then denormalized (which also rounds up).
+     * @dev Inverse of `_valueInUsd`: `amount = ceil(usdValue * 10 ** decimals / rate)`. Rounding up
+     * guarantees re-pricing the result covers at least `usdValue`, so the subsidy can never under-cover. A
+     * 1:1 USD asset is the case `rate == NORMALIZED_ONE`.
      * @param usdValue Value in normalized (USD) units.
      * @param decimals Token decimals.
-     * @param rate USD price of one whole token scaled to NORMALIZED_DECIMALS, or 0 for a USD asset.
+     * @param rate USD price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for a USD asset).
      * @return Token amount in native units.
      */
     function _usdValueToTokenAmount(uint256 usdValue, uint8 decimals, uint256 rate) internal pure returns (uint256) {
-        if (rate == 0) return _denormalize(usdValue, decimals);
-        // ceil(usdValue * NORMALIZED_ONE / rate): normalized token amount whose USD value is >= usdValue.
-        uint256 normalizedToken = usdValue.mulDivUp(NORMALIZED_ONE, rate);
-        return _denormalize(normalizedToken, decimals);
+        return usdValue.mulDivUp(10 ** decimals, rate);
     }
 
     /**
@@ -500,29 +496,6 @@ contract EquivalentExchangeUManager is UManager {
      */
     function _setOracleFlag(bytes32 flags, uint256 index) internal pure returns (bytes32) {
         return bytes32(uint256(flags) | (uint256(1) << index));
-    }
-
-    /**
-     * @notice Rescales an amount to NORMALIZED_DECIMALS (18).
-     */
-    function _normalize(uint256 amount, uint8 decimals) internal pure returns (uint256) {
-        if (decimals <= NORMALIZED_DECIMALS) {
-            return amount * (10 ** (NORMALIZED_DECIMALS - decimals));
-        }
-        return amount / (10 ** (decimals - NORMALIZED_DECIMALS));
-    }
-
-    /**
-     * @notice Rescales an amount from NORMALIZED_DECIMALS (18) to a token's
-     *         native decimals, rounding up to avoid underestimating.
-     */
-    function _denormalize(uint256 normalizedAmount, uint8 decimals) internal pure returns (uint256) {
-        if (decimals <= NORMALIZED_DECIMALS) {
-            // ceil(normalizedAmount / factor) so denormalization never underestimates.
-            uint256 factor = 10 ** (NORMALIZED_DECIMALS - decimals);
-            return normalizedAmount.mulDivUp(1, factor);
-        }
-        return normalizedAmount * (10 ** (decimals - NORMALIZED_DECIMALS));
     }
 
 }

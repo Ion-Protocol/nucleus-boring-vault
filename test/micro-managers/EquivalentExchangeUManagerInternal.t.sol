@@ -4,20 +4,12 @@ pragma solidity 0.8.21;
 import { Test } from "@forge-std/Test.sol";
 import { EquivalentExchangeUManager } from "src/micro-managers/EquivalentExchangeUManager.sol";
 
-/// @notice Exposes EquivalentExchangeUManager's internal pure helpers for direct testing.
+/// @notice Exposes EquivalentExchangeUManager's internal pure valuation helpers for direct testing.
 contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
 
     // The UManager constructor only stores the manager/boringVault addresses and wires up Auth,
-    // none of which the pure normalization helpers depend on, so dummy addresses are sufficient.
+    // none of which the pure valuation helpers depend on, so dummy addresses are sufficient.
     constructor() EquivalentExchangeUManager(address(this), address(this), address(this)) { }
-
-    function normalize(uint256 amount, uint8 decimals) external pure returns (uint256) {
-        return _normalize(amount, decimals);
-    }
-
-    function denormalize(uint256 normalizedAmount, uint8 decimals) external pure returns (uint256) {
-        return _denormalize(normalizedAmount, decimals);
-    }
 
     function valueInUsd(uint256 balance, uint8 decimals, uint256 rate) external pure returns (uint256) {
         return _valueInUsd(balance, decimals, rate);
@@ -31,111 +23,35 @@ contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
 
 contract EquivalentExchangeUManagerInternal is Test {
 
+    // One whole unit of normalized (USD) value, i.e. $1.00. Equal to the rate passed for a 1:1 USD asset.
+    uint256 internal constant USD_RATE = 1e18;
+
     EquivalentExchangeUManagerExternal internal harness;
 
     function setUp() external {
         harness = new EquivalentExchangeUManagerExternal();
     }
 
-    // ============================== _normalize ==============================
+    // ============================== _valueInUsd: USD assets (rate == NORMALIZED_ONE) ==============================
 
-    function test_Normalize_SixDecimals() external view {
-        assertEq(harness.normalize(1_000_000, 6), 1e18);
-        assertEq(harness.normalize(1, 6), 1e12);
+    // A USD asset is priced at rate == NORMALIZED_ONE, which reduces valuation to rescaling the balance to
+    // 18 decimals.
+    function test_ValueInUsd_UsdRateRescalesToEighteenDecimals() external view {
+        assertEq(harness.valueInUsd(1_000_000, 6, USD_RATE), 1e18);
+        assertEq(harness.valueInUsd(1, 6, USD_RATE), 1e12);
+        assertEq(harness.valueInUsd(1e18, 18, USD_RATE), 1e18);
+        assertEq(harness.valueInUsd(1, 18, USD_RATE), 1);
+        assertEq(harness.valueInUsd(1e24, 24, USD_RATE), 1e18);
+        // Balances not aligned to 10**(24-18) are truncated (floored) when rescaled down.
+        assertEq(harness.valueInUsd(1_000_000_000_000_000_000_100_000, 24, USD_RATE), 1_000_000_000_000_000_000);
     }
 
-    function test_Normalize_EighteenDecimals() external view {
-        assertEq(harness.normalize(1e18, 18), 1e18);
-        assertEq(harness.normalize(1, 18), 1);
+    function test_ValueInUsd_ZeroBalanceIsZero() external view {
+        assertEq(harness.valueInUsd(0, 6, USD_RATE), 0);
+        assertEq(harness.valueInUsd(0, 8, 2000e18), 0);
     }
 
-    function test_Normalize_TwentyFourDecimals() external view {
-        assertEq(harness.normalize(1e24, 24), 1e18);
-        // Values not aligned to 10**(24-18) are truncated during normalization.
-        assertEq(harness.normalize(1_000_000_000_000_000_000_100_000, 24), 1_000_000_000_000_000_000);
-    }
-
-    function test_Normalize_ZeroAmount() external view {
-        assertEq(harness.normalize(0, 6), 0);
-        assertEq(harness.normalize(0, 18), 0);
-        assertEq(harness.normalize(0, 24), 0);
-    }
-
-    // ============================== _denormalize ==============================
-
-    function test_Denormalize_SixDecimals() external view {
-        assertEq(harness.denormalize(1e18, 6), 1_000_000);
-        // Non-zero normalized amounts below one 6-decimal unit round up.
-        assertEq(harness.denormalize(100_000, 6), 1);
-    }
-
-    function test_Denormalize_EighteenDecimals() external view {
-        assertEq(harness.denormalize(1e18, 18), 1e18);
-        assertEq(harness.denormalize(1, 18), 1);
-    }
-
-    function test_Denormalize_TwentyFourDecimals() external view {
-        assertEq(harness.denormalize(1e18, 24), 1e24);
-        assertEq(harness.denormalize(1, 24), 1e6);
-    }
-
-    function test_Denormalize_ZeroAmount() external view {
-        assertEq(harness.denormalize(0, 6), 0);
-        assertEq(harness.denormalize(0, 18), 0);
-        assertEq(harness.denormalize(0, 24), 0);
-    }
-
-    // A non-zero shortfall that does not divide evenly into the token's units must round up so the
-    // subsidy never underestimates what is owed.
-    function test_Denormalize_RoundsUp() external view {
-        // 1.5 units of a 6-decimal token (1.5e12 normalized) must round up to 2 native units.
-        assertEq(harness.denormalize(1_500_000_000_000, 6), 2);
-        // One wei above a whole unit rounds up to the next unit.
-        assertEq(harness.denormalize(1e12 + 1, 6), 2);
-        // Non-zero normalized amounts below one unit round up.
-        assertEq(harness.denormalize(999_999, 6), 1);
-        assertEq(harness.denormalize(1, 6), 1);
-    }
-
-    // ============================== round-trip properties ==============================
-
-    // denormalize (round up) then normalize must never underestimate the original normalized amount.
-    // This is the property _coverShortfall relies on to keep the value invariant intact.
-    function testFuzz_DenormalizeThenNormalize_NoUnderestimate(uint256 shortfall, uint8 decimals) external view {
-        decimals = uint8(bound(decimals, 0, 30));
-        // Keep the shortfall small enough that denormalization cannot overflow for large decimals.
-        shortfall = bound(shortfall, 0, 1e30);
-
-        uint256 nativeAmount = harness.denormalize(shortfall, decimals);
-        uint256 renormalized = harness.normalize(nativeAmount, decimals);
-
-        // For decimals <= 18, denormalize rounds up so renormalized >= shortfall.
-        // For decimals > 18, denormalize scales up exactly and normalize scales back down exactly.
-        if (decimals <= 18) {
-            assertGe(renormalized, shortfall);
-        } else {
-            assertEq(renormalized, shortfall);
-        }
-    }
-
-    // normalize then denormalize must return at least the original native amount (never loses funds
-    // owed) for tokens with <= 18 decimals, where normalization is lossless.
-    function testFuzz_NormalizeThenDenormalize_LosslessUnder18(uint256 amount, uint8 decimals) external view {
-        decimals = uint8(bound(decimals, 0, 18));
-        amount = bound(amount, 0, 1e30);
-
-        uint256 normalized = harness.normalize(amount, decimals);
-        assertEq(harness.denormalize(normalized, decimals), amount);
-    }
-
-    // ============================== _valueInUsd ==============================
-
-    // A zero rate is the 1:1 USD sentinel: value is just the decimal-normalized balance.
-    function test_ValueInUsd_ZeroRateIsNormalizedBalance() external view {
-        assertEq(harness.valueInUsd(1_000_000, 6, 0), 1e18);
-        assertEq(harness.valueInUsd(1e18, 18, 0), 1e18);
-        assertEq(harness.valueInUsd(0, 6, 0), 0);
-    }
+    // ============================== _valueInUsd: oracle-priced assets ==============================
 
     // A non-USD asset is priced by its oracle rate (USD per whole token, 18-dec).
     function test_ValueInUsd_PricesByRate() external view {
@@ -143,22 +59,35 @@ contract EquivalentExchangeUManagerInternal is Test {
         assertEq(harness.valueInUsd(1e8, 8, 2000e18), 2000e18);
         // 3 whole 18-decimal tokens at $0.50 -> $1.50.
         assertEq(harness.valueInUsd(3e18, 18, 0.5e18), 1.5e18);
-        // A $1 rate reproduces the USD (rate == 0) result.
-        assertEq(harness.valueInUsd(1_000_000, 6, 1e18), 1e18);
+        // A $1 rate reproduces the USD-asset result.
+        assertEq(harness.valueInUsd(1_000_000, 6, USD_RATE), 1e18);
     }
 
-    function test_ValueInUsd_ZeroBalanceIsZero() external view {
-        assertEq(harness.valueInUsd(0, 8, 2000e18), 0);
+    // ============================== _usdValueToTokenAmount: USD assets (rate == NORMALIZED_ONE)
+    // ==============================
+
+    // A USD asset (rate == NORMALIZED_ONE) rescales the USD value back to native units, rounding up.
+    function test_UsdValueToTokenAmount_UsdRateRescales() external view {
+        assertEq(harness.usdValueToTokenAmount(1e18, 6, USD_RATE), 1_000_000);
+        assertEq(harness.usdValueToTokenAmount(1e18, 18, USD_RATE), 1e18);
+        assertEq(harness.usdValueToTokenAmount(1e18, 24, USD_RATE), 1e24);
+        assertEq(harness.usdValueToTokenAmount(1, 24, USD_RATE), 1e6);
     }
 
-    // ============================== _usdValueToTokenAmount ==============================
-
-    // A zero rate denormalizes directly (USD asset), rounding up like _denormalize.
-    function test_UsdValueToTokenAmount_ZeroRateDenormalizes() external view {
-        assertEq(harness.usdValueToTokenAmount(1e18, 6, 0), 1_000_000);
-        // Non-zero amounts below one 6-decimal unit round up.
-        assertEq(harness.usdValueToTokenAmount(100_000, 6, 0), 1);
+    // A non-zero USD value that does not divide evenly into whole native units must round up so the subsidy
+    // never underestimates what is owed.
+    function test_UsdValueToTokenAmount_UsdRateRoundsUp() external view {
+        // 1.5 units of a 6-decimal token (1.5e12 normalized) must round up to 2 native units.
+        assertEq(harness.usdValueToTokenAmount(1_500_000_000_000, 6, USD_RATE), 2);
+        // One wei above a whole unit rounds up to the next unit.
+        assertEq(harness.usdValueToTokenAmount(1e12 + 1, 6, USD_RATE), 2);
+        // Non-zero normalized amounts below one unit round up.
+        assertEq(harness.usdValueToTokenAmount(999_999, 6, USD_RATE), 1);
+        assertEq(harness.usdValueToTokenAmount(100_000, 6, USD_RATE), 1);
+        assertEq(harness.usdValueToTokenAmount(1, 6, USD_RATE), 1);
     }
+
+    // ============================== _usdValueToTokenAmount: oracle-priced assets ==============================
 
     // Converting USD to a non-USD token amount is the inverse of pricing, rounding up.
     function test_UsdValueToTokenAmount_ConvertsByRate() external view {
@@ -178,8 +107,11 @@ contract EquivalentExchangeUManagerInternal is Test {
         assertGe(harness.valueInUsd(amount, 18, 3e18), 1e18);
     }
 
+    // ============================== round-trip property ==============================
+
     // Round-trip property the subsidy path relies on: converting a USD value to a token amount (round up)
-    // then re-pricing it must never fall short of the original USD value, so the value invariant holds.
+    // then re-pricing it must never fall short of the original USD value, so the value invariant holds. The
+    // rate range spans the USD asset (NORMALIZED_ONE) and sane oracle prices ($0.0001 .. $1,000,000).
     function testFuzz_UsdValueToTokenAmount_NeverUnderCovers(
         uint256 usdValue,
         uint8 decimals,
@@ -190,7 +122,6 @@ contract EquivalentExchangeUManagerInternal is Test {
     {
         decimals = uint8(bound(decimals, 0, 18));
         usdValue = bound(usdValue, 0, 1e30);
-        // Restrict to sane, non-zero USD-per-token prices ($0.0001 .. $1,000,000).
         rate = bound(rate, 1e14, 1e24);
 
         uint256 tokenAmount = harness.usdValueToTokenAmount(usdValue, decimals, rate);
