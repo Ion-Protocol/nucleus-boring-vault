@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import { UManager, ERC20 } from "src/micro-managers/UManager.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -36,6 +37,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 contract EquivalentExchangeUManager is UManager {
 
     using SafeTransferLib for ERC20;
+    using FixedPointMathLib for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeCast for uint256;
 
@@ -465,7 +467,7 @@ contract EquivalentExchangeUManager is UManager {
     function _valueInUsd(uint256 balance, uint8 decimals, uint256 rate) internal pure returns (uint256) {
         uint256 normalized = _normalize(balance, decimals);
         if (rate == 0) return normalized;
-        return (normalized * rate) / NORMALIZED_ONE;
+        return normalized.mulDivDown(rate, NORMALIZED_ONE);
     }
 
     /**
@@ -481,7 +483,7 @@ contract EquivalentExchangeUManager is UManager {
     function _usdValueToTokenAmount(uint256 usdValue, uint8 decimals, uint256 rate) internal pure returns (uint256) {
         if (rate == 0) return _denormalize(usdValue, decimals);
         // ceil(usdValue * NORMALIZED_ONE / rate): normalized token amount whose USD value is >= usdValue.
-        uint256 normalizedToken = ((usdValue * NORMALIZED_ONE) + rate - 1) / rate;
+        uint256 normalizedToken = usdValue.mulDivUp(NORMALIZED_ONE, rate);
         return _denormalize(normalizedToken, decimals);
     }
 
@@ -516,8 +518,9 @@ contract EquivalentExchangeUManager is UManager {
      */
     function _denormalize(uint256 normalizedAmount, uint8 decimals) internal pure returns (uint256) {
         if (decimals <= NORMALIZED_DECIMALS) {
+            // ceil(normalizedAmount / factor) so denormalization never underestimates.
             uint256 factor = 10 ** (NORMALIZED_DECIMALS - decimals);
-            return (normalizedAmount + factor - 1) / factor;
+            return normalizedAmount.mulDivUp(1, factor);
         }
         return normalizedAmount * (10 ** (decimals - NORMALIZED_DECIMALS));
     }
