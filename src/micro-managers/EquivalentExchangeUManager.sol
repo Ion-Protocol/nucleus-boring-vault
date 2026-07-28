@@ -299,7 +299,8 @@ contract EquivalentExchangeUManager is UManager {
      * @param subsidyToken The token a subsidy would be paid in, whose rate is captured for `_coverShortfall`.
      * @return totalBefore Aggregate reference-asset value of the basket before the batch.
      * @return totalAfter Aggregate reference-asset value of the basket after the batch.
-     * @return subsidyRate The bitmap-gated rate used to value `subsidyToken` (NORMALIZED_ONE if it is a 1:1 token).
+     * @return subsidyRate The per-native-unit rate `subsidyToken` was valued at (its decimals already
+     * applied), so `_coverShortfall` prices the subsidy identically to the shortfall.
      */
     function _checkAndValueBasket(
         address[] memory tokens,
@@ -320,18 +321,19 @@ contract EquivalentExchangeUManager is UManager {
 
             _checkTokenDelta(token, balanceBefore, balanceAfter, allowableTokenDelta[i]);
 
-            // A token's decimals are unlikely to change mid-execution, but a single decimals() read values
-            // both balances, so the two totals cannot disagree on scale. A 1:1 token is priced at
-            // rate == NORMALIZED_ONE; an oracle-priced token (its flag bit set) uses one getRate() reading
-            // applied to both balances.
+            // Read decimals once and rescale the rate to a per-native-unit basis, so nothing downstream
+            // needs decimals. A 1:1 token starts from NORMALIZED_ONE; an oracle-priced token (its flag bit
+            // set) uses one getRate() reading. Applying the one per-unit rate to both balances keeps the
+            // two totals from disagreeing on price or scale.
             uint8 decimals = ERC20(token).decimals();
-            uint256 rate = _hasOracleFlag(flags, i) ? _readRate(token, tokenOracles[token]) : NORMALIZED_ONE;
+            uint256 baseRate = _hasOracleFlag(flags, i) ? _readRate(token, tokenOracles[token]) : NORMALIZED_ONE;
+            uint256 rate = _unitRate(baseRate, decimals);
 
-            // Capture the subsidy token's rate as it is valued, so `_coverShortfall` can reuse it.
+            // Capture the subsidy token's per-unit rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
 
-            totalBefore += _referenceValue(balanceBefore, decimals, rate);
-            totalAfter += _referenceValue(balanceAfter, decimals, rate);
+            totalBefore += _referenceValue(balanceBefore, rate);
+            totalAfter += _referenceValue(balanceAfter, rate);
         }
     }
 
@@ -343,9 +345,7 @@ contract EquivalentExchangeUManager is UManager {
      * @param shortfall Shortfall in normalized (reference-asset) units.
      * @param subsidyPayer Address that provides the subsidy tokens via approval.
      * @param subsidyToken Token to use as subsidy.
-     * @param rate Reference-asset price of one whole `subsidyToken` scaled to NORMALIZED_DECIMALS
-     * (NORMALIZED_ONE for a 1:1 token). Supplied by `_checkAndValueBasket` so the subsidy is priced exactly
-     * as the shortfall was.
+     * @param rate Per-native-unit reference-asset rate for `subsidyToken` (its decimals already applied).
      * @return subsidyAmount Amount of subsidy transferred, in the subsidy token's native units.
      * @return subsidyAmountNormalized Total normalized (reference-asset) value of subsidy transferred.
      */
@@ -358,8 +358,6 @@ contract EquivalentExchangeUManager is UManager {
         internal
         returns (uint256 subsidyAmount, uint256 subsidyAmountNormalized)
     {
-        uint8 decimals = subsidyToken.decimals();
-
         uint256 balance = subsidyToken.balanceOf(subsidyPayer);
         uint256 allowance = subsidyToken.allowance(subsidyPayer, address(this));
         uint256 available = balance < allowance ? balance : allowance;
@@ -368,15 +366,15 @@ contract EquivalentExchangeUManager is UManager {
         // and `_referenceValueToTokenAmount` rounds up, `available`'s reference-asset value >= shortfall
         // implies the converted subsidyAmount <= available. So the transfer below can never pull more than
         // is available.
-        if (_referenceValue(available, decimals, rate) < shortfall) revert InsufficientSubsidy();
+        if (_referenceValue(available, rate) < shortfall) revert InsufficientSubsidy();
 
-        subsidyAmount = _referenceValueToTokenAmount(shortfall, decimals, rate);
+        subsidyAmount = _referenceValueToTokenAmount(shortfall, rate);
 
         subsidyToken.safeTransferFrom(subsidyPayer, boringVault, subsidyAmount);
 
         // Re-value the actual amount transferred for accounting. The round-up in
         // `_referenceValueToTokenAmount` guarantees this is >= shortfall, so the value invariant holds.
-        subsidyAmountNormalized = _referenceValue(subsidyAmount, decimals, rate);
+        subsidyAmountNormalized = _referenceValue(subsidyAmount, rate);
     }
 
     /**
@@ -470,42 +468,47 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Values a token balance in normalized (reference-asset) units.
-     * @dev One whole token is worth `rate` (reference asset scaled to NORMALIZED_DECIMALS) and spans
-     * `10 ** decimals` native units, so its value is `balance * rate / 10 ** decimals`, multiplying before
-     * dividing and flooring. A 1:1 token is the case `rate == NORMALIZED_ONE`.
-     * @param balance Token balance in native units.
-     * @param decimals Token decimals.
+     * @notice Rescales a per-whole-token rate to a per-native-unit rate, so decimals are consumed once and
+     *         the valuation helpers work from a single per-unit rate.
+     * @dev Lossless multiply for `decimals <= NORMALIZED_DECIMALS` (all common tokens); the larger-decimals
+     * divide branch can floor, which only understates value and over-pulls subsidy -- both safe.
      * @param rate Reference-asset price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
      * a 1:1 token).
+     * @param decimals Token decimals.
+     * @return Reference-asset value of one native token unit, scaled to NORMALIZED_DECIMALS.
+     */
+    function _unitRate(uint256 rate, uint8 decimals) internal pure returns (uint256) {
+        if (decimals <= NORMALIZED_DECIMALS) {
+            return rate * (10 ** (NORMALIZED_DECIMALS - decimals));
+        }
+        return rate / (10 ** (decimals - NORMALIZED_DECIMALS));
+    }
+
+    /**
+     * @notice Values a token balance in normalized (reference-asset) units.
+     * @dev `rate` is the reference-asset value of one native token unit (its decimals already applied by
+     * `_unitRate`), so the balance is worth `balance * rate / NORMALIZED_ONE`, multiplying before dividing
+     * and flooring.
+     * @param balance Token balance in native units.
+     * @param rate Reference-asset value of one native token unit, scaled to NORMALIZED_DECIMALS.
      * @return Reference-asset value scaled to NORMALIZED_DECIMALS.
      */
-    function _referenceValue(uint256 balance, uint8 decimals, uint256 rate) internal pure returns (uint256) {
-        return balance.mulDivDown(rate, 10 ** decimals);
+    function _referenceValue(uint256 balance, uint256 rate) internal pure returns (uint256) {
+        return balance.mulDivDown(rate, NORMALIZED_ONE);
     }
 
     /**
      * @notice Converts a normalized (reference-asset) value to a token's native units, rounding up so the
      *         result is never worth less than the input value.
-     * @dev Inverse of `_referenceValue`: `amount = ceil(referenceValue * 10 ** decimals / rate)`. Rounding
+     * @dev Inverse of `_referenceValue`: `amount = ceil(referenceValue * NORMALIZED_ONE / rate)`. Rounding
      * up guarantees re-pricing the result covers at least `referenceValue`, so the subsidy can never
-     * under-cover. A 1:1 token is the case `rate == NORMALIZED_ONE`.
+     * under-cover.
      * @param referenceValue Value in normalized (reference-asset) units.
-     * @param decimals Token decimals.
-     * @param rate Reference-asset price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
-     * a 1:1 token).
+     * @param rate Reference-asset value of one native token unit, scaled to NORMALIZED_DECIMALS.
      * @return Token amount in native units.
      */
-    function _referenceValueToTokenAmount(
-        uint256 referenceValue,
-        uint8 decimals,
-        uint256 rate
-    )
-        internal
-        pure
-        returns (uint256)
-    {
-        return referenceValue.mulDivUp(10 ** decimals, rate);
+    function _referenceValueToTokenAmount(uint256 referenceValue, uint256 rate) internal pure returns (uint256) {
+        return referenceValue.mulDivUp(NORMALIZED_ONE, rate);
     }
 
     /**
