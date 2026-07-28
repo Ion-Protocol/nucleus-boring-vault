@@ -138,7 +138,6 @@ contract EquivalentExchangeUManager is UManager {
         for (uint256 i = existingLength; i > 0; --i) {
             basketTokens.remove(basketTokens.at(i - 1));
         }
-        delete oracleFlags;
 
         uint256 newLength = tokens.length;
         // Each basket index must map to a distinct bit of `oracleFlags`.
