@@ -158,13 +158,22 @@ contract DeployBoringVaultAndManager is BaseScript {
         // ~$1 and need no oracle; PAXG is priced through the Chainlink adapter above.
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](3);
         basket[0] = EquivalentExchangeUManager.BasketToken({
-            token: ERC20(USDC), oracle: IRateProvider(address(0)), rateDecimals: 0
+            token: ERC20(USDC),
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
-            token: ERC20(USDG), oracle: IRateProvider(address(0)), rateDecimals: 0
+            token: ERC20(USDG),
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
         });
         basket[2] = EquivalentExchangeUManager.BasketToken({
-            token: ERC20(PAXG), oracle: IRateProvider(address(paxgUsdOracle)), rateDecimals: PAXG_USD_RATE_DECIMALS
+            token: ERC20(PAXG),
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(paxgUsdOracle)), rateDecimals: PAXG_USD_RATE_DECIMALS
+            })
         });
         equivalentExchangeUManager.setBasketTokens(basket);
 

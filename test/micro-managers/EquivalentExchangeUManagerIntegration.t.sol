@@ -787,11 +787,22 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
     ///         (oracle-priced at PAXG_USD_PRICE, 8-dec) }, matching DeployBoringVaultAndManager.
     function _setProductionBasket() internal {
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](3);
-        basket[0] =
-            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[1] =
-            EquivalentExchangeUManager.BasketToken({ token: usdg, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[2] = EquivalentExchangeUManager.BasketToken({ token: paxg, oracle: paxgUsdOracle, rateDecimals: 8 });
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: usdg,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[2] = EquivalentExchangeUManager.BasketToken({
+            token: paxg,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: paxgUsdOracle, rateDecimals: 8 })
+        });
         uManager.setBasketTokens(basket);
     }
 

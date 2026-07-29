@@ -103,7 +103,10 @@ contract EEUManagerDeployWiringTest is Test {
         //     strategist EOA is rejected. Uses a trivial 1-token basket. ---
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](1);
         basket[0] = EquivalentExchangeUManager.BasketToken({
-            token: ERC20(address(boringVault)), oracle: IRateProvider(address(0)), rateDecimals: 0
+            token: ERC20(address(boringVault)),
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
         });
 
         vm.prank(strategistEOA);
@@ -138,10 +141,16 @@ contract EEUManagerDeployWiringTest is Test {
         // still the owner here, so the owner-gated setBasketTokens succeeds.
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
         basket[0] = EquivalentExchangeUManager.BasketToken({
-            token: ERC20(address(usd)), oracle: IRateProvider(address(0)), rateDecimals: 0
+            token: ERC20(address(usd)),
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
-            token: ERC20(address(gold)), oracle: IRateProvider(address(goldOracle)), rateDecimals: 18
+            token: ERC20(address(gold)),
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(goldOracle)), rateDecimals: 18
+            })
         });
         // The deploy step asserts each non-zero oracle is live before setting; assert the same invariant.
         assertGt(goldOracle.getRate(), 0, "oracle must be live at deploy time");
@@ -157,8 +166,8 @@ contract EEUManagerDeployWiringTest is Test {
         assertEq(stored.length, 2, "basket length persisted");
         assertTrue(uManager.isBasketToken(ERC20(address(usd))), "usd persisted");
         assertTrue(uManager.isBasketToken(ERC20(address(gold))), "gold persisted");
-        assertEq(address(stored[1].oracle), address(goldOracle), "gold oracle persisted");
-        assertEq(stored[1].rateDecimals, 18, "gold rateDecimals persisted");
+        assertEq(address(stored[1].config.rateProvider), address(goldOracle), "gold oracle persisted");
+        assertEq(stored[1].config.rateDecimals, 18, "gold rateDecimals persisted");
 
         // After the handoff, only the multisig can change the basket.
         EquivalentExchangeUManager.BasketToken[] memory empty = new EquivalentExchangeUManager.BasketToken[](0);
