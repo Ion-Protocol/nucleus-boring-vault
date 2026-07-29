@@ -87,5 +87,11 @@
     "feeRecipient": "0x0000000000417626Ef34D62C4DC189b021603f2F",
     "minimumOrderSize": "1000000000000000000",
     "processorAddress": "0x00000000004F96C07B83e86600D86F0000000000"
+  },
+  "equivalentExchangeUManager": {
+    "deploy": false,
+    "basketTokens": [],
+    "basketOracles": [],
+    "basketRateDecimals": []
   }
 }

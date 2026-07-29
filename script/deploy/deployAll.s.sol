@@ -22,6 +22,7 @@ import { DeployDistributorCodeDepositor } from "./single/09_DeployDistributorCod
 import { DeployWithdrawQueueAndFeeModule } from "./single/10_DeployWithdrawQueueAndFeeModule.s.sol";
 import { SetAuthorityAndTransferOwnerships } from "./single/11_SetAuthorityAndTransferOwnerships.s.sol";
 import { DeployGenericDecoderAndSanitizer } from "./single/12_DeployGenericDecoderAndSanitizer.s.sol";
+import { DeployEquivalentExchangeUManager } from "./single/13_DeployEquivalentExchangeUManager.s.sol";
 
 import { ConfigReader, IAuthority } from "../ConfigReader.s.sol";
 import { console } from "forge-std/console.sol";
@@ -74,6 +75,9 @@ contract DeployAll is BaseScript {
             mainConfig.distributorCodeDepositor.toHexString().write(OUTPUT_JSON_PATH, ".distributorCodeDepositor");
         }
         mainConfig.genericDecoderAndSanitizer.toHexString().write(OUTPUT_JSON_PATH, ".genericDecoderAndSanitizer");
+        if (mainConfig.equivalentExchangeUManagerDeploy) {
+            mainConfig.equivalentExchangeUManager.toHexString().write(OUTPUT_JSON_PATH, ".equivalentExchangeUManager");
+        }
     }
 
     function _deploy(ConfigReader.Config memory config) public override returns (address) {
@@ -115,6 +119,16 @@ contract DeployAll is BaseScript {
 
         config.withdrawQueue = new DeployWithdrawQueueAndFeeModule().deploy(config);
         console.log("Withdraw Queue: ", config.withdrawQueue);
+
+        // Deploy the EquivalentExchangeUManager BEFORE SetAuthorityAndTransferOwnerships: it grants itself
+        // STRATEGIST_ROLE on the RolesAuthority, which requires the broadcaster to still own that authority.
+        // Step 11 below transfers RolesAuthority ownership to the multisig, so ordering here is load-bearing.
+        if (config.equivalentExchangeUManagerDeploy) {
+            config.equivalentExchangeUManager = new DeployEquivalentExchangeUManager().deploy(config);
+            console.log("Equivalent Exchange UManager: ", config.equivalentExchangeUManager);
+        } else {
+            console.log("Equivalent Exchange UManager Not Deployed");
+        }
 
         new SetAuthorityAndTransferOwnerships().deploy(config);
         console.log("Set Authority And Transfer Ownerships Complete");
