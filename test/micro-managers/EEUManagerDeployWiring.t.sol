@@ -19,8 +19,9 @@ contract WiringMockERC20 is ERC20 {
 }
 
 /// @notice Reproduces the exact authority wiring performed by
-///         script/deploy/single/13_DeployEquivalentExchangeUManager.s.sol (plus the manager capability
-///         from 07_DeployRolesAuthority) and asserts the resulting access matrix.
+///         script/deploy/DeployBoringVaultAndManager.s.sol (which deploys the vault, manager, and
+///         EquivalentExchangeUManager together and grants STRATEGIST_ROLE) and asserts the resulting
+///         access matrix.
 contract EEUManagerDeployWiringTest is Test {
 
     uint8 internal constant STRATEGIST_ROLE = 1; // matches src/helper/Constants.sol
@@ -48,7 +49,7 @@ contract EEUManagerDeployWiringTest is Test {
         );
         rolesAuthority.setUserRole(strategistEOA, STRATEGIST_ROLE, true);
 
-        // --- Exactly what step 13 does ---
+        // --- Exactly what DeployBoringVaultAndManager does for the UManager ---
         EquivalentExchangeUManager uManager =
             new EquivalentExchangeUManager(broadcaster, address(manager), address(boringVault));
         uManager.setAuthority(rolesAuthority);
@@ -114,9 +115,9 @@ contract EEUManagerDeployWiringTest is Test {
         assertTrue(uManager.isBasketToken(ERC20(address(boringVault))), "basket set by multisig");
     }
 
-    /// @notice Reproduces step 13's config-driven basket path: the basket is set while the broadcaster
-    ///         still owns the UManager (before the ownership transfer), and must persist afterward. Mixes a
-    ///         1:1 token and an oracle-priced token, mirroring `_configureBasketIfProvided`.
+    /// @notice Covers the inline-basket pattern the DeployBoringVaultAndManager TODO points at: a basket set
+    ///         while the broadcaster still owns the UManager (before the ownership transfer) must persist
+    ///         afterward. Mixes a 1:1 token and an oracle-priced token.
     function test_deployWiring_configuredBasketPersistsAfterOwnershipTransfer() external {
         address broadcaster = makeAddr("broadcaster");
         address multisig = makeAddr("multisig");

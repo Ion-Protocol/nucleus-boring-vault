@@ -5,6 +5,5 @@
     "teller": "",
     "rolesAuthority": "",
     "freezeListBeforeTransferHook": "",
-    "genericDecoderAndSanitizer": "",
-    "equivalentExchangeUManager": ""
+    "genericDecoderAndSanitizer": ""
 }

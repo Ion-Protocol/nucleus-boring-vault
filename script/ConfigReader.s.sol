@@ -80,16 +80,6 @@ library ConfigReader {
         address withdrawQueueProcessorAddress;
         address freezeListBeforeTransferHook;
         address genericDecoderAndSanitizer;
-        bool equivalentExchangeUManagerDeploy;
-        address equivalentExchangeUManager;
-        // Optional accounting basket for the EquivalentExchangeUManager, stored as parallel arrays for the
-        // same reason as the fee arrays above (0.8.21 cannot copy a memory struct array into storage during
-        // the `mainConfig = config` assignment in deployAll). Indices line up: basketTokens[i] is priced by
-        // basketOracles[i] (the zero address marks a 1:1 token) whose getRate() output carries
-        // basketRateDecimals[i] decimals. All three arrays must be the same length.
-        address[] equivalentExchangeUManagerBasketTokens;
-        address[] equivalentExchangeUManagerBasketOracles;
-        uint256[] equivalentExchangeUManagerBasketRateDecimals;
     }
 
     function toConfig(string memory _config, string memory _chainConfig) internal view returns (Config memory config) {
@@ -184,25 +174,6 @@ library ConfigReader {
 
         // Reading from the 'freezeListBeforeTransferHook' section
         config.freezeListBeforeTransferHook = _config.readAddress(".freezeListBeforeTransferHook.address");
-
-        // Reading from the optional 'equivalentExchangeUManager' section. Defaults to not deploying so
-        // existing configs that omit the key are unaffected.
-        config.equivalentExchangeUManagerDeploy = _config.readBoolOr(".equivalentExchangeUManager.deploy", false);
-        // Optional basket, keyed by parallel arrays. All default to empty, so a deploy-only UManager (no
-        // basket wired at deploy time) needs no basket keys at all.
-        config.equivalentExchangeUManagerBasketTokens =
-            _config.readAddressArrayOr(".equivalentExchangeUManager.basketTokens", new address[](0));
-        config.equivalentExchangeUManagerBasketOracles =
-            _config.readAddressArrayOr(".equivalentExchangeUManager.basketOracles", new address[](0));
-        config.equivalentExchangeUManagerBasketRateDecimals =
-            _config.readUintArrayOr(".equivalentExchangeUManager.basketRateDecimals", new uint256[](0));
-        require(
-            config.equivalentExchangeUManagerBasketTokens.length
-                    == config.equivalentExchangeUManagerBasketOracles.length
-                && config.equivalentExchangeUManagerBasketTokens.length
-                    == config.equivalentExchangeUManagerBasketRateDecimals.length,
-            "ConfigReader: equivalentExchangeUManager basket arrays length mismatch"
-        );
 
         // Reading from the 'chainConfig' section
         config.balancerVault = _chainConfig.readAddress(".balancerVault");
