@@ -145,10 +145,18 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
 
         // Basket = { USDC, DAI }, both treated 1:1 with USD after decimal normalization (no oracle).
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] =
-            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[1] =
-            EquivalentExchangeUManager.BasketToken({ token: dai, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: dai,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
         uManager.setBasketTokens(basket);
 
         // Deltas bind to basket tokens by position, so every test's bounds are written against this exact
@@ -517,9 +525,16 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         MockRateProvider gold8Oracle = new MockRateProvider(2000e8);
 
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] =
-            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: gold8Oracle, rateDecimals: 8 });
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: gold,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: gold8Oracle, rateDecimals: 8 })
+        });
         uManager.setBasketTokens(basket);
 
         // Swap $1000 USDC for exactly $1000 of gold (5e7 GLD at $2000/token): value-neutral, no subsidy --
@@ -546,10 +561,20 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         MockRateProvider gold8Oracle = new MockRateProvider(2000e8); // $2000, 8-dec
 
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](3);
-        basket[0] =
-            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[1] = EquivalentExchangeUManager.BasketToken({ token: dai, oracle: daiOracle, rateDecimals: 18 });
-        basket[2] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: gold8Oracle, rateDecimals: 8 });
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: dai,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: daiOracle, rateDecimals: 18 })
+        });
+        basket[2] = EquivalentExchangeUManager.BasketToken({
+            token: gold,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: gold8Oracle, rateDecimals: 8 })
+        });
         uManager.setBasketTokens(basket);
 
         // Vault already holds 1000e6 USDC from setUp; add 500 DAI and 1 GLD.
@@ -622,10 +647,18 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         // (not deleted), but its oracleFlags bit is now clear, so gold must be priced 1:1 in USD
         // everywhere -- including when it is the subsidy token, which is what this test pins.
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] =
-            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[1] =
-            EquivalentExchangeUManager.BasketToken({ token: gold, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: gold,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
         uManager.setBasketTokens(basket);
 
         // Swap $1000 USDC for only $999 of gold priced 1:1 (999e8 GLD): a $1 shortfall subsidized in gold.
@@ -822,9 +855,16 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
     /// @notice Reconfigures the basket to { USDC (1:1 USD), GLD (oracle-priced) }, in that order.
     function _setUsdcGoldBasket() internal {
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] =
-            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
-        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: goldOracle, rateDecimals: 18 });
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: gold,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: goldOracle, rateDecimals: 18 })
+        });
         uManager.setBasketTokens(basket);
     }
 
