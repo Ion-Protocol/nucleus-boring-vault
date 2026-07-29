@@ -83,7 +83,7 @@ contract EquivalentExchangeUManager is UManager {
     /// @dev `oracleFlags`, not this mapping, is the source of truth for whether a token is oracle-priced.
     /// Entries are read only when a token's flag bit is set, so 1:1 tokens never hit the mapping, and it is
     /// allowed to be "dirty": stale entries left behind when the basket changes are never read.
-    mapping(address => OracleConfig) internal tokenOracles;
+    mapping(address => RateProviderConfig) internal tokenOracles;
 
     error EmptyBasket();
     error BasketTooLarge();
@@ -109,29 +109,30 @@ contract EquivalentExchangeUManager is UManager {
     );
 
     /**
-     * @notice A basket token together with its reference-asset price source.
-     * @param token The basket token.
-     * @param oracle Rate provider returning `token`'s whole-token price in the reference asset. The zero
-     * address marks `token` as a 1:1 token, priced by decimal normalization alone with no oracle lookup.
-     * @param rateDecimals Number of decimals the `oracle`'s `getRate()` output carries, used to rescale it
-     * to `NORMALIZED_DECIMALS`. For example a Chainlink-backed provider is typically 8. Ignored (and may be
-     * left 0) when `oracle` is the zero address.
+     * @notice A rate provider together with the number of decimals its `getRate()` output carries.
+     * @dev The two fields pack into a single storage slot (160 + 8 bits), so an entry costs one slot. Used
+     * both as the stored configuration for an oracle-priced basket token (`tokenOracles`) and as the price
+     * source field of `BasketToken`.
+     * @param rateProvider Rate provider returning the token's whole-token price in the reference asset.
+     * @param rateDecimals Number of decimals the `rateProvider`'s `getRate()` output carries.
      */
-    struct BasketToken {
-        ERC20 token;
-        IRateProvider oracle;
+    struct RateProviderConfig {
+        IRateProvider rateProvider;
         uint8 rateDecimals;
     }
 
     /**
-     * @notice Stored oracle configuration for an oracle-priced basket token.
-     * @dev The two fields pack into a single storage slot (160 + 8 bits), so an entry costs one slot.
-     * @param oracle Rate provider returning the token's whole-token price in the reference asset.
-     * @param rateDecimals Number of decimals the `oracle`'s `getRate()` output carries.
+     * @notice A basket token together with its reference-asset price source.
+     * @param token The basket token.
+     * @param config Price source for `token`. A zero `config.rateProvider` marks `token` as a 1:1 token,
+     * priced by decimal normalization alone with no oracle lookup; `config.rateDecimals` is then ignored
+     * (and may be left 0). Otherwise `token` is priced through the provider, whose `getRate()` output carries
+     * `config.rateDecimals` decimals (e.g. 8 for a Chainlink-backed provider), rescaled to
+     * `NORMALIZED_DECIMALS`.
      */
-    struct OracleConfig {
-        IRateProvider oracle;
-        uint8 rateDecimals;
+    struct BasketToken {
+        ERC20 token;
+        RateProviderConfig config;
     }
 
     /**
@@ -184,13 +185,16 @@ contract EquivalentExchangeUManager is UManager {
             // add() returns false when the token is already present in the set.
             if (!basketTokens.add(token)) revert DuplicateToken(token);
 
-            IRateProvider oracle = tokens[i].oracle;
-            uint8 rateDecimals = tokens[i].rateDecimals;
-            // An oracle and its rate decimals must be set together: a priced token needs its decimals, and
-            // a 1:1 token must not carry stray decimals -- either mismatch signals a config mistake.
-            if ((address(oracle) == address(0)) != (rateDecimals == 0)) revert OracleDecimalsMismatch(token);
-            if (address(oracle) != address(0)) {
-                tokenOracles[token] = OracleConfig({ oracle: oracle, rateDecimals: rateDecimals });
+            RateProviderConfig calldata config = tokens[i].config;
+            IRateProvider rateProvider = config.rateProvider;
+            // A rate provider and its rate decimals must be set together: a priced token needs its decimals,
+            // and a 1:1 token must not carry stray decimals -- either mismatch signals a config mistake.
+            if ((address(rateProvider) == address(0)) != (config.rateDecimals == 0)) {
+                revert OracleDecimalsMismatch(token);
+            }
+            if (address(rateProvider) != address(0)) {
+                // Direct calldata -> storage copy of both packed fields.
+                tokenOracles[token] = config;
                 flags = _setOracleFlag(flags, i);
             }
         }
@@ -210,10 +214,9 @@ contract EquivalentExchangeUManager is UManager {
         uint256 length = values.length;
         tokens = new BasketToken[](length);
         for (uint256 i; i < length; ++i) {
-            (IRateProvider oracle, uint8 rateDecimals) = _hasOracleFlag(flags, i)
-                ? (tokenOracles[values[i]].oracle, tokenOracles[values[i]].rateDecimals)
-                : (IRateProvider(address(0)), 0);
-            tokens[i] = BasketToken({ token: ERC20(values[i]), oracle: oracle, rateDecimals: rateDecimals });
+            RateProviderConfig memory config =
+                _hasOracleFlag(flags, i) ? tokenOracles[values[i]] : RateProviderConfig(IRateProvider(address(0)), 0);
+            tokens[i] = BasketToken({ token: ERC20(values[i]), config: config });
         }
     }
 
@@ -351,9 +354,9 @@ contract EquivalentExchangeUManager is UManager {
             uint256 baseRate = NORMALIZED_ONE;
             uint8 rateDecimals = uint8(NORMALIZED_DECIMALS);
             if (_hasOracleFlag(flags, i)) {
-                OracleConfig storage config = tokenOracles[token];
+                RateProviderConfig storage config = tokenOracles[token];
                 rateDecimals = config.rateDecimals;
-                baseRate = config.oracle.getRate();
+                baseRate = config.rateProvider.getRate();
                 // A zero rate cannot value the token, so reject it rather than mispricing the basket.
                 if (baseRate == 0) revert InvalidRate(token);
             }
