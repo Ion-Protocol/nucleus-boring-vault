@@ -36,10 +36,13 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *        standardizes on -- USD, ETH, or anything else -- and is never named on-chain. Mixing units --
  *        e.g. treating USD-pegged tokens as 1:1 while an oracle returns an ETH-denominated price --
  *        compares unlike quantities and corrupts the value invariant.
- *      - Each oracle is an `IRateProvider` returning the token's price in the reference asset scaled to
- *        `NORMALIZED_DECIMALS` (1e18 == one reference unit). The owner is responsible for configuring
- *        oracles that perform their own staleness and sanity checks and that cannot be manipulated within
- *        a block.
+ *      - Each oracle is an `IRateProvider` returning the token's whole-token price in the reference asset,
+ *        scaled to the `rateDecimals` recorded for it (the contract rescales that to `NORMALIZED_DECIMALS`).
+ *        The owner must record the correct `rateDecimals` -- `IRateProvider` exposes no `decimals()` to
+ *        read -- and must configure oracles that return a single positive `uint256` price, perform their
+ *        own staleness and sanity checks, and cannot be manipulated within a block. A raw Chainlink feed
+ *        does not satisfy this (a signed tuple, no staleness guard); wrap it in an adapter such as
+ *        `EthPerTokenRateProvider`.
  *      - A reverting or zero-returning oracle causes `execute` to revert, which is preferable to
  *        valuing a basket token incorrectly.
  */
@@ -74,16 +77,19 @@ contract EquivalentExchangeUManager is UManager {
     /// @dev Indices align with `basketTokens.values()`; `setBasketTokens` rebuilds both together.
     bytes32 internal oracleFlags;
 
-    /// @notice Maps a basket token to the rate provider used to convert its balance to the reference asset.
+    /// @notice Maps a basket token to its oracle configuration: the rate provider used to convert its
+    /// balance to the reference asset, packed with the number of decimals that provider's `getRate()`
+    /// output carries (the provider itself exposes no `decimals()`). See `_packOracle`/`_unpackOracle`.
     /// @dev `oracleFlags`, not this mapping, is the source of truth for whether a token is oracle-priced.
     /// Entries are read only when a token's flag bit is set, so 1:1 tokens never hit the mapping, and it is
     /// allowed to be "dirty": stale entries left behind when the basket changes are never read.
-    mapping(address => IRateProvider) internal tokenOracles;
+    mapping(address => bytes32) internal tokenOracles;
 
     error EmptyBasket();
     error BasketTooLarge();
     error DuplicateToken(address token);
     error TokenNotInBasket();
+    error OracleDecimalsMismatch(address token);
     error InvalidRate(address token);
     error InsufficientSubsidy();
     error DanglingApproval();
@@ -105,13 +111,16 @@ contract EquivalentExchangeUManager is UManager {
     /**
      * @notice A basket token together with its reference-asset price source.
      * @param token The basket token.
-     * @param oracle Rate provider returning `token`'s price in the reference asset scaled to
-     * `NORMALIZED_DECIMALS` (1e18 == one reference unit). The zero address marks `token` as a 1:1 token,
-     * priced by decimal normalization alone with no oracle lookup.
+     * @param oracle Rate provider returning `token`'s whole-token price in the reference asset. The zero
+     * address marks `token` as a 1:1 token, priced by decimal normalization alone with no oracle lookup.
+     * @param rateDecimals Number of decimals the `oracle`'s `getRate()` output carries, used to rescale it
+     * to `NORMALIZED_DECIMALS`. For example a Chainlink-backed provider is typically 8. Ignored (and may be
+     * left 0) when `oracle` is the zero address.
      */
     struct BasketToken {
         ERC20 token;
         IRateProvider oracle;
+        uint8 rateDecimals;
     }
 
     /**
@@ -165,8 +174,12 @@ contract EquivalentExchangeUManager is UManager {
             if (!basketTokens.add(token)) revert DuplicateToken(token);
 
             IRateProvider oracle = tokens[i].oracle;
+            uint8 rateDecimals = tokens[i].rateDecimals;
+            // An oracle and its rate decimals must be set together: a priced token needs its decimals, and
+            // a 1:1 token must not carry stray decimals -- either mismatch signals a config mistake.
+            if ((address(oracle) == address(0)) != (rateDecimals == 0)) revert OracleDecimalsMismatch(token);
             if (address(oracle) != address(0)) {
-                tokenOracles[token] = oracle;
+                tokenOracles[token] = _packOracle(oracle, rateDecimals);
                 flags = _setOracleFlag(flags, i);
             }
         }
@@ -186,10 +199,9 @@ contract EquivalentExchangeUManager is UManager {
         uint256 length = values.length;
         tokens = new BasketToken[](length);
         for (uint256 i; i < length; ++i) {
-            tokens[i] = BasketToken({
-                token: ERC20(values[i]),
-                oracle: _hasOracleFlag(flags, i) ? tokenOracles[values[i]] : IRateProvider(address(0))
-            });
+            (IRateProvider oracle, uint8 rateDecimals) =
+                _hasOracleFlag(flags, i) ? _unpackOracle(tokenOracles[values[i]]) : (IRateProvider(address(0)), 0);
+            tokens[i] = BasketToken({ token: ERC20(values[i]), oracle: oracle, rateDecimals: rateDecimals });
         }
     }
 
@@ -321,20 +333,26 @@ contract EquivalentExchangeUManager is UManager {
 
             _checkTokenDelta(token, balanceBefore, balanceAfter, allowableTokenDelta[i]);
 
-            // A 1:1 token starts from NORMALIZED_ONE; an oracle-priced token (its flag bit set) uses one getRate()
-            // reading.
-            uint256 baseRate = _hasOracleFlag(flags, i) ? tokenOracles[token].getRate() : NORMALIZED_ONE;
-            // A zero rate cannot value the token, so reject it rather than mispricing the basket. Only an
-            // oracle can return zero here; the 1:1 branch is NORMALIZED_ONE.
-            if (baseRate == 0) revert InvalidRate(token);
-            // Read decimals once and rescale the rate to a per-native-unit basis, so nothing downstream
-            // needs decimals.
-            uint256 rate = _unitRate(baseRate, ERC20(token).decimals());
+            // A 1:1 token is worth one reference unit per whole token, i.e. NORMALIZED_ONE at
+            // NORMALIZED_DECIMALS. An oracle-priced token (its flag bit set) uses one getRate() reading,
+            // scaled to whatever decimals the provider was configured with.
+            uint256 baseRate = NORMALIZED_ONE;
+            uint8 rateDecimals = uint8(NORMALIZED_DECIMALS);
+            if (_hasOracleFlag(flags, i)) {
+                IRateProvider oracle;
+                (oracle, rateDecimals) = _unpackOracle(tokenOracles[token]);
+                baseRate = oracle.getRate();
+                // A zero rate cannot value the token, so reject it rather than mispricing the basket.
+                if (baseRate == 0) revert InvalidRate(token);
+            }
+            // Fold the oracle's own precision and the token's decimals into one per-native-unit rate, so
+            // nothing downstream needs either. Applying the one rate to both balances keeps the two totals
+            // from disagreeing on price or scale.
+            uint256 rate = _unitRate(baseRate, rateDecimals, ERC20(token).decimals());
 
             // Capture the subsidy token's per-unit rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
 
-            // Applying the one per-unit rate to both balances keeps the two totals from disagreeing on price or scale.
             totalBefore += _referenceValue(balanceBefore, rate);
             totalAfter += _referenceValue(balanceAfter, rate);
         }
@@ -460,20 +478,46 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Rescales a per-whole-token rate to a per-native-unit rate, so decimals are consumed once and
-     *         the valuation helpers work from a single per-unit rate.
-     * @dev Lossless multiply for `decimals <= NORMALIZED_DECIMALS` (all common tokens); the larger-decimals
-     * divide branch can floor, which only understates value and over-pulls subsidy -- both safe.
-     * @param rate Reference-asset price of one whole token scaled to NORMALIZED_DECIMALS (NORMALIZED_ONE for
-     * a 1:1 token).
-     * @param decimals Token decimals.
+     * @notice Converts an oracle rate into a per-native-unit rate, accounting for both the oracle's output
+     *         precision and the token's decimals in a single power-of-ten rescale.
+     * @dev The oracle reports a whole-token price scaled to `rateDecimals`; one whole token spans
+     * `10 ** tokenDecimals` native units. Restating that as the reference-asset value of one native unit at
+     * NORMALIZED_DECIMALS is a rescale by `2 * NORMALIZED_DECIMALS - rateDecimals - tokenDecimals`: a
+     * lossless multiply when that exponent is >= 0 (the common case, e.g. 8-dec rate + 6-to-18-dec token),
+     * else a divide that can floor -- which only understates value and over-pulls subsidy, both safe.
+     * @param rate Whole-token price from the oracle, scaled to `rateDecimals` (NORMALIZED_ONE with
+     * `rateDecimals == NORMALIZED_DECIMALS` for a 1:1 token).
+     * @param rateDecimals Decimals of `rate`.
+     * @param tokenDecimals Token decimals.
      * @return Reference-asset value of one native token unit, scaled to NORMALIZED_DECIMALS.
      */
-    function _unitRate(uint256 rate, uint8 decimals) internal pure returns (uint256) {
-        if (decimals <= NORMALIZED_DECIMALS) {
-            return rate * (10 ** (NORMALIZED_DECIMALS - decimals));
+    function _unitRate(uint256 rate, uint8 rateDecimals, uint8 tokenDecimals) internal pure returns (uint256) {
+        // The net power of ten is `grow - shrink`. `shrink` strips the two input scales: the oracle's own
+        // precision (`rateDecimals`) and the token's decimals (converting whole token -> native unit).
+        // `grow` adds back two factors of NORMALIZED_DECIMALS: one to express the result at 18 decimals,
+        // one to pre-cancel the NORMALIZED_ONE that `_referenceValue` divides by afterward.
+        uint256 shrink = uint256(rateDecimals) + tokenDecimals;
+        uint256 grow = 2 * NORMALIZED_DECIMALS;
+        if (shrink <= grow) {
+            return rate * (10 ** (grow - shrink));
         }
-        return rate / (10 ** (decimals - NORMALIZED_DECIMALS));
+        return rate / (10 ** (shrink - grow));
+    }
+
+    /**
+     * @notice Packs a rate provider and its output decimals into one storage word.
+     * @dev Address occupies the low 160 bits; `rateDecimals` sits in the next 8. Inverse of `_unpackOracle`.
+     */
+    function _packOracle(IRateProvider oracle, uint8 rateDecimals) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(address(oracle))) | (uint256(rateDecimals) << 160));
+    }
+
+    /**
+     * @notice Unpacks a rate provider and its output decimals from one storage word.
+     */
+    function _unpackOracle(bytes32 packed) internal pure returns (IRateProvider oracle, uint8 rateDecimals) {
+        oracle = IRateProvider(address(uint160(uint256(packed))));
+        rateDecimals = uint8(uint256(packed) >> 160);
     }
 
     /**

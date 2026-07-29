@@ -41,10 +41,11 @@ contract EquivalentExchangeUManagerTest is Test {
 
     /// @notice Wraps a token as a 1:1 USD basket entry (no oracle).
     function _usd(ERC20 token) internal pure returns (EquivalentExchangeUManager.BasketToken memory) {
-        return EquivalentExchangeUManager.BasketToken({ token: token, oracle: IRateProvider(address(0)) });
+        return
+            EquivalentExchangeUManager.BasketToken({ token: token, oracle: IRateProvider(address(0)), rateDecimals: 0 });
     }
 
-    /// @notice Wraps a token as an oracle-priced basket entry.
+    /// @notice Wraps a token as an oracle-priced basket entry. rateDecimals fixed at 18 for these config tests.
     function _priced(
         ERC20 token,
         IRateProvider oracle
@@ -53,7 +54,7 @@ contract EquivalentExchangeUManagerTest is Test {
         pure
         returns (EquivalentExchangeUManager.BasketToken memory)
     {
-        return EquivalentExchangeUManager.BasketToken({ token: token, oracle: oracle });
+        return EquivalentExchangeUManager.BasketToken({ token: token, oracle: oracle, rateDecimals: 18 });
     }
 
     function _empty() internal pure returns (EquivalentExchangeUManager.BasketToken[] memory) {
@@ -230,9 +231,35 @@ contract EquivalentExchangeUManagerTest is Test {
         assertEq(stored.length, 2);
         assertEq(address(stored[0].token), address(tokenA));
         assertEq(address(stored[0].oracle), address(0));
+        assertEq(stored[0].rateDecimals, 0);
         assertEq(address(stored[1].token), address(tokenB));
         assertEq(address(stored[1].oracle), address(oracleA));
+        assertEq(stored[1].rateDecimals, 18);
         assertTrue(uManager.isBasketToken(tokenB));
+    }
+
+    function test_SetBasketTokens_RevertWhen_OracleSetButRateDecimalsZero() external {
+        // A priced token with no rate decimals is a config mistake (the rate would be scaled wrong).
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = EquivalentExchangeUManager.BasketToken({ token: tokenA, oracle: oracleA, rateDecimals: 0 });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(EquivalentExchangeUManager.OracleDecimalsMismatch.selector, address(tokenA))
+        );
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_RevertWhen_RateDecimalsSetButNoOracle() external {
+        // A 1:1 token carrying stray rate decimals is a config mistake; decimals only apply with an oracle.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = EquivalentExchangeUManager.BasketToken({
+            token: tokenA, oracle: IRateProvider(address(0)), rateDecimals: 8
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(EquivalentExchangeUManager.OracleDecimalsMismatch.selector, address(tokenA))
+        );
+        uManager.setBasketTokens(tokens);
     }
 
     function test_SetBasketTokens_DropsOracleWhenTokenRemoved() external {

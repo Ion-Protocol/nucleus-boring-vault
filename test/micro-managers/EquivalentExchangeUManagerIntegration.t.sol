@@ -136,8 +136,10 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
 
         // Basket = { USDC, DAI }, both treated 1:1 with USD after decimal normalization (no oracle).
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] = EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)) });
-        basket[1] = EquivalentExchangeUManager.BasketToken({ token: dai, oracle: IRateProvider(address(0)) });
+        basket[0] =
+            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[1] =
+            EquivalentExchangeUManager.BasketToken({ token: dai, oracle: IRateProvider(address(0)), rateDecimals: 0 });
         uManager.setBasketTokens(basket);
 
         // Deltas bind to basket tokens by position, so every test's bounds are written against this exact
@@ -484,6 +486,68 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         assertEq(gold.balanceOf(address(boringVault)), 5e7, "vault received gold");
     }
 
+    function test_Execute_OraclePricedSwap_EightDecimalOracle_ValueNeutral() external {
+        // A Chainlink-style oracle reports $2000 as an 8-decimal number (2000e8). Declaring rateDecimals = 8
+        // must value gold identically to the 18-decimal oracle: the contract rescales 8 -> 18 internally.
+        MockRateProvider gold8Oracle = new MockRateProvider(2000e8);
+
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
+        basket[0] =
+            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: gold8Oracle, rateDecimals: 8 });
+        uManager.setBasketTokens(basket);
+
+        // Swap $1000 USDC for exactly $1000 of gold (5e7 GLD at $2000/token): value-neutral, no subsidy --
+        // the same outcome as the 18-decimal oracle case.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 5e7);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 1000e18, 1000e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
+
+        assertEq(subsidyAmount, 0, "value-neutral 8-dec oracle swap pulls no subsidy");
+        assertEq(gold.balanceOf(address(boringVault)), 5e7, "vault received gold valued via the 8-dec oracle");
+    }
+
+    function test_Execute_MixedBasket_HeterogeneousRateDecimals() external {
+        // One valuation pass over three tokens that differ in BOTH token decimals and oracle config:
+        //   - USDC: 1:1, no oracle, 6-dec token
+        //   - DAI:  oracle @ 18-dec rate, 18-dec token, priced at $1
+        //   - GLD:  oracle @ 8-dec rate,  8-dec token,  priced at $2000
+        // Each token must be valued from its own rateDecimals; a bug that reused one token's decimals for
+        // another would throw off the aggregate, which this pins via the Executed event.
+        MockRateProvider daiOracle = new MockRateProvider(1e18); // $1, 18-dec
+        MockRateProvider gold8Oracle = new MockRateProvider(2000e8); // $2000, 8-dec
+
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](3);
+        basket[0] =
+            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[1] = EquivalentExchangeUManager.BasketToken({ token: dai, oracle: daiOracle, rateDecimals: 18 });
+        basket[2] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: gold8Oracle, rateDecimals: 8 });
+        uManager.setBasketTokens(basket);
+
+        // Vault already holds 1000e6 USDC from setUp; add 500 DAI and 1 GLD.
+        dai.mint(address(boringVault), 500e18);
+        gold.mint(address(boringVault), 1e8);
+
+        // Expected value = $1000 (USDC) + $500 (DAI) + $2000 (GLD) = $3500, each token via its own decimals.
+        int256[] memory deltas = new int256[](3);
+        deltas[0] = type(int256).min;
+        deltas[1] = type(int256).min;
+        deltas[2] = type(int256).min;
+
+        // Empty batch: a no-op that changes no balances, so value is neutral and no subsidy is pulled. The
+        // point is the valuation of the heterogeneous basket, reported in the totals below.
+        EquivalentExchangeUManager.ManageCalls memory calls;
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 3500e18, 3500e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdc, deltas);
+        assertEq(subsidyAmount, 0, "value-neutral no-op pulls no subsidy");
+    }
+
     function test_Execute_OraclePricedSwap_ShortfallCoveredByUsdSubsidy() external {
         _setUsdcGoldBasket();
 
@@ -533,8 +597,10 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         // (not deleted), but its oracleFlags bit is now clear, so gold must be priced 1:1 in USD
         // everywhere -- including when it is the subsidy token, which is what this test pins.
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] = EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)) });
-        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: IRateProvider(address(0)) });
+        basket[0] =
+            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[1] =
+            EquivalentExchangeUManager.BasketToken({ token: gold, oracle: IRateProvider(address(0)), rateDecimals: 0 });
         uManager.setBasketTokens(basket);
 
         // Swap $1000 USDC for only $999 of gold priced 1:1 (999e8 GLD): a $1 shortfall subsidized in gold.
@@ -567,8 +633,9 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
     /// @notice Reconfigures the basket to { USDC (1:1 USD), GLD (oracle-priced) }, in that order.
     function _setUsdcGoldBasket() internal {
         EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
-        basket[0] = EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)) });
-        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: goldOracle });
+        basket[0] =
+            EquivalentExchangeUManager.BasketToken({ token: usdc, oracle: IRateProvider(address(0)), rateDecimals: 0 });
+        basket[1] = EquivalentExchangeUManager.BasketToken({ token: gold, oracle: goldOracle, rateDecimals: 18 });
         uManager.setBasketTokens(basket);
     }
 

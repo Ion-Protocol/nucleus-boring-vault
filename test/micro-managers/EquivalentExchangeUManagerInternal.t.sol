@@ -12,13 +12,14 @@ contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
     constructor() EquivalentExchangeUManager(address(this), address(this), address(this)) { }
 
     // Compose _unitRate with the value helpers exactly as the contract does, so the (decimals, rate) inputs
-    // stay intuitive in tests while exercising the real per-unit-rate helpers.
+    // stay intuitive in tests while exercising the real per-unit-rate helpers. `rate` is an 18-decimal
+    // price here, so its rateDecimals is NORMALIZED_DECIMALS.
     function referenceValue(uint256 balance, uint8 decimals, uint256 rate) external pure returns (uint256) {
-        return _referenceValue(balance, _unitRate(rate, decimals));
+        return _referenceValue(balance, _unitRate(rate, uint8(NORMALIZED_DECIMALS), decimals));
     }
 
     function referenceValueToTokenAmount(uint256 value, uint8 decimals, uint256 rate) external pure returns (uint256) {
-        return _referenceValueToTokenAmount(value, _unitRate(rate, decimals));
+        return _referenceValueToTokenAmount(value, _unitRate(rate, uint8(NORMALIZED_DECIMALS), decimals));
     }
 
 }
