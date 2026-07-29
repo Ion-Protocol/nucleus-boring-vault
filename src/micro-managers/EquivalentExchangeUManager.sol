@@ -78,12 +78,12 @@ contract EquivalentExchangeUManager is UManager {
     bytes32 internal oracleFlags;
 
     /// @notice Maps a basket token to its oracle configuration: the rate provider used to convert its
-    /// balance to the reference asset, packed with the number of decimals that provider's `getRate()`
-    /// output carries (the provider itself exposes no `decimals()`). See `_packOracle`/`_unpackOracle`.
+    /// balance to the reference asset, together with the number of decimals that provider's `getRate()`
+    /// output carries (the provider itself exposes no `decimals()`). Both fields share one storage slot.
     /// @dev `oracleFlags`, not this mapping, is the source of truth for whether a token is oracle-priced.
     /// Entries are read only when a token's flag bit is set, so 1:1 tokens never hit the mapping, and it is
     /// allowed to be "dirty": stale entries left behind when the basket changes are never read.
-    mapping(address => bytes32) internal tokenOracles;
+    mapping(address => OracleConfig) internal tokenOracles;
 
     error EmptyBasket();
     error BasketTooLarge();
@@ -119,6 +119,17 @@ contract EquivalentExchangeUManager is UManager {
      */
     struct BasketToken {
         ERC20 token;
+        IRateProvider oracle;
+        uint8 rateDecimals;
+    }
+
+    /**
+     * @notice Stored oracle configuration for an oracle-priced basket token.
+     * @dev The two fields pack into a single storage slot (160 + 8 bits), so an entry costs one slot.
+     * @param oracle Rate provider returning the token's whole-token price in the reference asset.
+     * @param rateDecimals Number of decimals the `oracle`'s `getRate()` output carries.
+     */
+    struct OracleConfig {
         IRateProvider oracle;
         uint8 rateDecimals;
     }
@@ -179,7 +190,7 @@ contract EquivalentExchangeUManager is UManager {
             // a 1:1 token must not carry stray decimals -- either mismatch signals a config mistake.
             if ((address(oracle) == address(0)) != (rateDecimals == 0)) revert OracleDecimalsMismatch(token);
             if (address(oracle) != address(0)) {
-                tokenOracles[token] = _packOracle(oracle, rateDecimals);
+                tokenOracles[token] = OracleConfig({ oracle: oracle, rateDecimals: rateDecimals });
                 flags = _setOracleFlag(flags, i);
             }
         }
@@ -199,8 +210,9 @@ contract EquivalentExchangeUManager is UManager {
         uint256 length = values.length;
         tokens = new BasketToken[](length);
         for (uint256 i; i < length; ++i) {
-            (IRateProvider oracle, uint8 rateDecimals) =
-                _hasOracleFlag(flags, i) ? _unpackOracle(tokenOracles[values[i]]) : (IRateProvider(address(0)), 0);
+            (IRateProvider oracle, uint8 rateDecimals) = _hasOracleFlag(flags, i)
+                ? (tokenOracles[values[i]].oracle, tokenOracles[values[i]].rateDecimals)
+                : (IRateProvider(address(0)), 0);
             tokens[i] = BasketToken({ token: ERC20(values[i]), oracle: oracle, rateDecimals: rateDecimals });
         }
     }
@@ -339,9 +351,9 @@ contract EquivalentExchangeUManager is UManager {
             uint256 baseRate = NORMALIZED_ONE;
             uint8 rateDecimals = uint8(NORMALIZED_DECIMALS);
             if (_hasOracleFlag(flags, i)) {
-                IRateProvider oracle;
-                (oracle, rateDecimals) = _unpackOracle(tokenOracles[token]);
-                baseRate = oracle.getRate();
+                OracleConfig storage config = tokenOracles[token];
+                rateDecimals = config.rateDecimals;
+                baseRate = config.oracle.getRate();
                 // A zero rate cannot value the token, so reject it rather than mispricing the basket.
                 if (baseRate == 0) revert InvalidRate(token);
             }
@@ -502,22 +514,6 @@ contract EquivalentExchangeUManager is UManager {
             return rate * (10 ** (grow - shrink));
         }
         return rate / (10 ** (shrink - grow));
-    }
-
-    /**
-     * @notice Packs a rate provider and its output decimals into one storage word.
-     * @dev Address occupies the low 160 bits; `rateDecimals` sits in the next 8. Inverse of `_unpackOracle`.
-     */
-    function _packOracle(IRateProvider oracle, uint8 rateDecimals) internal pure returns (bytes32) {
-        return bytes32(uint256(uint160(address(oracle))) | (uint256(rateDecimals) << 160));
-    }
-
-    /**
-     * @notice Unpacks a rate provider and its output decimals from one storage word.
-     */
-    function _unpackOracle(bytes32 packed) internal pure returns (IRateProvider oracle, uint8 rateDecimals) {
-        oracle = IRateProvider(address(uint160(uint256(packed))));
-        rateDecimals = uint8(uint256(packed) >> 160);
     }
 
     /**
