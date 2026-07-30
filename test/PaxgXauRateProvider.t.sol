@@ -100,14 +100,15 @@ contract PaxgXauRateProviderTest is Test {
         );
     }
 
-    /// @notice getRate returns XAU/PAXG scaled to 18 decimals.
+    /// @notice getRate returns XAU per PAXG scaled to 18 decimals.
     function testGetRate() external {
         uint256 rate = rateProvider.getRate();
-        // rate = xau(8) * 10^18 / paxg(8) = 3400e8 * 1e18 / 3390e8
-        uint256 expected = uint256(3400e8) * (10 ** RATE_DECIMALS) / uint256(3390e8);
+        // rate = paxg(8) * 10^18 / xau(8) = 3390e8 * 1e18 / 3400e8
+        uint256 expected = uint256(3390e8) * (10 ** RATE_DECIMALS) / uint256(3400e8);
         assertEq(rate, expected);
-        // Sanity: PAXG worth slightly more than one ounce of gold-per-token here, ~1.00295e18.
-        assertGt(rate, 10 ** RATE_DECIMALS);
+        // Sanity: PAXG ($3390) trades below one ounce of gold ($3400), so it is worth slightly
+        // less than 1 XAU here, ~0.99706e18.
+        assertLt(rate, 10 ** RATE_DECIMALS);
     }
 
     /// @notice Output precision is exactly 18 decimals (PAXG token decimals).
@@ -127,8 +128,8 @@ contract PaxgXauRateProviderTest is Test {
             MAX_STALE
         );
         assertEq(provider.RATE_DECIMALS(), 6);
-        // rate = xau(8) * 10^6 / paxg(8)
-        assertEq(provider.getRate(), uint256(3400e8) * (10 ** 6) / uint256(3390e8));
+        // rate = paxg(8) * 10^6 / xau(8)
+        assertEq(provider.getRate(), uint256(3390e8) * (10 ** 6) / uint256(3400e8));
     }
 
     /// @notice When both feeds report the same USD price, the rate is exactly 1e18.
@@ -212,7 +213,7 @@ contract PaxgXauRateProviderTest is Test {
         );
     }
 
-    /// @notice The rate scales monotonically with the XAU/PAXG price ratio.
+    /// @notice The rate scales monotonically with the PAXG/XAU price ratio.
     function testFuzzGetRate(uint256 xau, uint256 paxg) external {
         // Constrain to realistic 8-decimal USD prices in [$1, $1,000,000] to avoid overflow/zero.
         xau = bound(xau, 1e8, 1_000_000e8);
@@ -220,7 +221,7 @@ contract PaxgXauRateProviderTest is Test {
         xauUsdFeed.setAnswer(int256(xau));
         paxgUsdFeed.setAnswer(int256(paxg));
 
-        uint256 expected = xau * (10 ** RATE_DECIMALS) / paxg;
+        uint256 expected = paxg * (10 ** RATE_DECIMALS) / xau;
         assertEq(rateProvider.getRate(), expected);
     }
 

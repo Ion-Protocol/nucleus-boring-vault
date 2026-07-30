@@ -16,7 +16,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *  troy ounce of gold. Neither Chainlink feed prices PAXG directly against gold, so this contract
  *  derives the cross-rate:
  *
- *      getRate() = XAU per PAXG = (XAU/USD) / (PAXG/USD)
+ *      getRate() = XAU per PAXG = (PAXG/USD) / (XAU/USD)
  *
  *  The USD numeraire cancels, leaving the number of troy ounces of gold that one PAXG token is
  *  worth (nominally ~1.0). Because both underlying feeds report USD prices with the same precision,
@@ -48,13 +48,13 @@ contract PaxgXauRateProvider is IRateProvider {
 
     /**
      * @notice The Chainlink price feed that returns the value of PAXG in USD denomination.
-     * @dev This is the denominator of the cross-rate.
+     * @dev This is the numerator of the cross-rate.
      */
     IPriceFeed public immutable PAXG_USD_FEED;
 
     /**
      * @notice The Chainlink price feed that returns the value of gold (XAU) in USD denomination.
-     * @dev This is the numerator of the cross-rate.
+     * @dev This is the denominator of the cross-rate.
      */
     IPriceFeed public immutable XAU_USD_FEED;
 
@@ -127,8 +127,8 @@ contract PaxgXauRateProvider is IRateProvider {
 
         // Both feeds report USD prices with CHAINLINK_DECIMALS precision, so the USD numeraire and the
         // shared feed precision cancel. Multiply before dividing to preserve precision.
-        // rate(RATE_DECIMALS) = xauUsd(8) * 10^RATE_DECIMALS / paxgUsd(8)
-        rate = (_xauUsd.toUint256() * (10 ** RATE_DECIMALS)) / _paxgUsd.toUint256();
+        // rate(RATE_DECIMALS) = paxgUsd(8) * 10^RATE_DECIMALS / xauUsd(8)
+        rate = (_paxgUsd.toUint256() * (10 ** RATE_DECIMALS)) / _xauUsd.toUint256();
     }
 
     /**
