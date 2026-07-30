@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
 import { IFeeModule, IERC20 } from "src/interfaces/IFeeModule.sol";
@@ -19,7 +19,6 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  *
  * The oracle and supported deposit asset are immutable. To change either, deploy a new module and point
  * the depositor at it via its setFeeModule path; this module holds no admin surface of its own.
- * @custom:security-contact security@molecularlabs.io
  */
 contract PaxgDynamicDepositFeeModule is IFeeModule {
 
