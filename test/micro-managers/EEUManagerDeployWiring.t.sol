@@ -105,7 +105,7 @@ contract EEUManagerDeployWiringTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: ERC20(address(boringVault)),
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
 
@@ -143,13 +143,13 @@ contract EEUManagerDeployWiringTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: ERC20(address(usd)),
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: ERC20(address(gold)),
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(goldOracle)), rateDecimals: 18
+                isPeggedToken: false, rateProvider: IRateProvider(address(goldOracle)), rateDecimals: 18
             })
         });
         // The deploy step asserts each non-zero oracle is live before setting; assert the same invariant.

@@ -160,19 +160,21 @@ contract DeployBoringVaultAndManager is BaseScript {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: ERC20(USDC),
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: ERC20(USDG),
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[2] = EquivalentExchangeUManager.BasketToken({
             token: ERC20(PAXG),
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(paxgUsdOracle)), rateDecimals: PAXG_USD_RATE_DECIMALS
+                isPeggedToken: false,
+                rateProvider: IRateProvider(address(paxgUsdOracle)),
+                rateDecimals: PAXG_USD_RATE_DECIMALS
             })
         });
         equivalentExchangeUManager.setBasketTokens(basket);

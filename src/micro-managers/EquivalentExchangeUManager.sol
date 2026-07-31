@@ -89,7 +89,7 @@ contract EquivalentExchangeUManager is UManager {
     error BasketTooLarge();
     error DuplicateToken(address token);
     error TokenNotInBasket();
-    error OracleDecimalsMismatch(address token);
+    error InvalidRateProviderConfig(address token);
     error InvalidRate(address token);
     error InsufficientSubsidy();
     error DanglingApproval();
@@ -109,14 +109,17 @@ contract EquivalentExchangeUManager is UManager {
     );
 
     /**
-     * @notice A rate provider together with the number of decimals its `getRate()` output carries.
-     * @dev The two fields pack into a single storage slot (160 + 8 bits), so an entry costs one slot. Used
-     * both as the stored configuration for an oracle-priced basket token (`tokenOracles`) and as the price
-     * source field of `BasketToken`.
-     * @param rateProvider Rate provider returning the token's whole-token price in the reference asset.
-     * @param rateDecimals Number of decimals the `rateProvider`'s `getRate()` output carries.
+     * @notice A basket token's price source. Packs into one storage slot (8 + 160 + 8 bits).
+     * @dev `setBasketTokens` enforces consistency between `isPeggedToken` and the other fields, so a
+     * forgotten oracle can never be silently read as 1:1.
+     * @param isPeggedToken True for a 1:1 token (no oracle); false when a `rateProvider` and `rateDecimals` are
+     * supplied.
+     * @param rateProvider Provider returning the token's whole-token price in the reference asset; zero for a
+     * pegged token.
+     * @param rateDecimals Decimals of `rateProvider`'s `getRate()` output; zero for a pegged token.
      */
     struct RateProviderConfig {
+        bool isPeggedToken;
         IRateProvider rateProvider;
         uint8 rateDecimals;
     }
@@ -124,11 +127,7 @@ contract EquivalentExchangeUManager is UManager {
     /**
      * @notice A basket token together with its reference-asset price source.
      * @param token The basket token.
-     * @param config Price source for `token`. A zero `config.rateProvider` marks `token` as a 1:1 token,
-     * priced by decimal normalization alone with no oracle lookup; `config.rateDecimals` is then ignored
-     * (and may be left 0). Otherwise `token` is priced through the provider, whose `getRate()` output carries
-     * `config.rateDecimals` decimals (e.g. 8 for a Chainlink-backed provider), rescaled to
-     * `NORMALIZED_DECIMALS`.
+     * @param config Price source for `token`; see `RateProviderConfig`.
      */
     struct BasketToken {
         ERC20 token;
@@ -158,9 +157,9 @@ contract EquivalentExchangeUManager is UManager {
     /**
      * @notice Sets the basket of tokens used for accounting, along with each token's reference-asset price source.
      * @dev The basket is exactly the set of tokens whose balance changes `execute` checks, and defines the
-     * order `allowableTokenDelta` (and the `oracleFlags` bitmap) bind to. A token with a zero `oracle` is
-     * treated as a 1:1 token; a token with a non-zero `oracle` is priced through it. Duplicate token
-     * addresses are rejected so the stored basket is an exact, order-preserving image of the input.
+     * order `allowableTokenDelta` (and the `oracleFlags` bitmap) bind to. A token whose config declares
+     * `isPeggedToken` is treated as a 1:1 token; otherwise it is priced through its `rateProvider`. Duplicate
+     * token addresses are rejected so the stored basket is an exact, order-preserving image of the input.
      * @param tokens Basket tokens and their price sources. At most `MAX_BASKET_TOKENS` entries.
      * @custom:access OWNER_ROLE / MULTISIG_ROLE should be granted authority.
      */
@@ -187,13 +186,17 @@ contract EquivalentExchangeUManager is UManager {
 
             RateProviderConfig calldata config = tokens[i].config;
             IRateProvider rateProvider = config.rateProvider;
-            // A rate provider and its rate decimals must be set together: a priced token needs its decimals,
-            // and a 1:1 token must not carry stray decimals -- either mismatch signals a config mistake.
-            if ((address(rateProvider) == address(0)) != (config.rateDecimals == 0)) {
-                revert OracleDecimalsMismatch(token);
+            bool isPegged = config.isPeggedToken;
+
+            // `isPeggedToken` must agree with both oracle fields: "pegged", "no rate provider", and "no rate
+            // decimals" must all hold together or all be false together. Requiring the flag to be explicit
+            // means a forgotten oracle can never be silently treated as a 1:1 token.
+            if ((isPegged != (address(rateProvider) == address(0))) || (isPegged != (config.rateDecimals == 0))) {
+                revert InvalidRateProviderConfig(token);
             }
-            if (address(rateProvider) != address(0)) {
-                // Direct calldata -> storage copy of both packed fields.
+
+            if (!isPegged) {
+                // Direct calldata -> storage copy of all packed fields.
                 tokenOracles[token] = config;
                 flags = _setOracleFlag(flags, i);
             }
@@ -214,8 +217,9 @@ contract EquivalentExchangeUManager is UManager {
         uint256 length = values.length;
         tokens = new BasketToken[](length);
         for (uint256 i; i < length; ++i) {
-            RateProviderConfig memory config =
-                _hasOracleFlag(flags, i) ? tokenOracles[values[i]] : RateProviderConfig(IRateProvider(address(0)), 0);
+            RateProviderConfig memory config = _hasOracleFlag(flags, i)
+                ? tokenOracles[values[i]]
+                : RateProviderConfig(true, IRateProvider(address(0)), 0);
             tokens[i] = BasketToken({ token: ERC20(values[i]), config: config });
         }
     }

@@ -148,13 +148,13 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: dai,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         uManager.setBasketTokens(basket);
@@ -528,12 +528,14 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: gold,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: gold8Oracle, rateDecimals: 8 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: gold8Oracle, rateDecimals: 8
+            })
         });
         uManager.setBasketTokens(basket);
 
@@ -564,16 +566,20 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: dai,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: daiOracle, rateDecimals: 18 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: daiOracle, rateDecimals: 18
+            })
         });
         basket[2] = EquivalentExchangeUManager.BasketToken({
             token: gold,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: gold8Oracle, rateDecimals: 8 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: gold8Oracle, rateDecimals: 8
+            })
         });
         uManager.setBasketTokens(basket);
 
@@ -650,13 +656,13 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: gold,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         uManager.setBasketTokens(basket);
@@ -790,18 +796,20 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: usdg,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[2] = EquivalentExchangeUManager.BasketToken({
             token: paxg,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: paxgUsdOracle, rateDecimals: 8 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: paxgUsdOracle, rateDecimals: 8
+            })
         });
         uManager.setBasketTokens(basket);
     }
@@ -869,12 +877,14 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: gold,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: goldOracle, rateDecimals: 18 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: goldOracle, rateDecimals: 18
+            })
         });
         uManager.setBasketTokens(basket);
     }
