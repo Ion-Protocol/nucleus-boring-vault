@@ -15,7 +15,7 @@ contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
     // stay intuitive in tests while exercising the real per-unit-rate helpers. `rate` is an 18-decimal
     // price here, so its rateDecimals is NORMALIZED_DECIMALS.
     function referenceValue(uint256 balance, uint8 decimals, uint256 rate) external pure returns (uint256) {
-        return _referenceValue(balance, _unitRate(rate, uint8(NORMALIZED_DECIMALS), decimals));
+        return _tokenAmountToReferenceValue(balance, _unitRate(rate, uint8(NORMALIZED_DECIMALS), decimals));
     }
 
     function referenceValueToTokenAmount(uint256 value, uint8 decimals, uint256 rate) external pure returns (uint256) {
@@ -36,7 +36,7 @@ contract EquivalentExchangeUManagerInternal is Test {
         harness = new EquivalentExchangeUManagerExternal();
     }
 
-    // ============================== _referenceValue: 1:1 tokens (rate == NORMALIZED_ONE)
+    // ============================== _tokenAmountToReferenceValue: 1:1 tokens (rate == NORMALIZED_ONE)
     // ==============================
 
     // A 1:1 token is priced at rate == NORMALIZED_ONE, which reduces valuation to rescaling the balance to
@@ -56,7 +56,7 @@ contract EquivalentExchangeUManagerInternal is Test {
         assertEq(harness.referenceValue(0, 8, 2000e18), 0);
     }
 
-    // ============================== _referenceValue: oracle-priced tokens ==============================
+    // ============================== _tokenAmountToReferenceValue: oracle-priced tokens ==============================
 
     // A non-1:1 token is priced by its oracle rate (reference asset per whole token, 18-dec).
     function test_ReferenceValue_PricesByRate() external view {

@@ -368,8 +368,8 @@ contract EquivalentExchangeUManager is UManager {
             // Capture the subsidy token's per-unit rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
 
-            totalBefore += _referenceValue(balanceBefore, rate);
-            totalAfter += _referenceValue(balanceAfter, rate);
+            totalBefore += _tokenAmountToReferenceValue(balanceBefore, rate);
+            totalAfter += _tokenAmountToReferenceValue(balanceAfter, rate);
         }
     }
 
@@ -402,7 +402,7 @@ contract EquivalentExchangeUManager is UManager {
         // and `_referenceValueToTokenAmount` rounds up, `available`'s reference-asset value >= shortfall
         // implies the converted subsidyAmount <= available. So the transfer below can never pull more than
         // is available.
-        if (_referenceValue(available, rate) < shortfall) revert InsufficientSubsidy();
+        if (_tokenAmountToReferenceValue(available, rate) < shortfall) revert InsufficientSubsidy();
 
         subsidyAmount = _referenceValueToTokenAmount(shortfall, rate);
 
@@ -410,7 +410,7 @@ contract EquivalentExchangeUManager is UManager {
 
         // Re-value the actual amount transferred for accounting. The round-up in
         // `_referenceValueToTokenAmount` guarantees this is >= shortfall, so the value invariant holds.
-        subsidyAmountNormalized = _referenceValue(subsidyAmount, rate);
+        subsidyAmountNormalized = _tokenAmountToReferenceValue(subsidyAmount, rate);
     }
 
     /**
@@ -510,7 +510,7 @@ contract EquivalentExchangeUManager is UManager {
         // The net power of ten is `grow - shrink`. `shrink` strips the two input scales: the oracle's own
         // precision (`rateDecimals`) and the token's decimals (converting whole token -> native unit).
         // `grow` adds back two factors of NORMALIZED_DECIMALS: one to express the result at 18 decimals,
-        // one to pre-cancel the NORMALIZED_ONE that `_referenceValue` divides by afterward.
+        // one to pre-cancel the NORMALIZED_ONE that `_tokenAmountToReferenceValue` divides by afterward.
         uint256 shrink = uint256(rateDecimals) + tokenDecimals;
         uint256 grow = 2 * NORMALIZED_DECIMALS;
         if (shrink <= grow) {
@@ -528,14 +528,14 @@ contract EquivalentExchangeUManager is UManager {
      * @param rate Reference-asset value of one native token unit, scaled to NORMALIZED_DECIMALS.
      * @return Reference-asset value scaled to NORMALIZED_DECIMALS.
      */
-    function _referenceValue(uint256 balance, uint256 rate) internal pure returns (uint256) {
+    function _tokenAmountToReferenceValue(uint256 balance, uint256 rate) internal pure returns (uint256) {
         return balance.mulDivDown(rate, NORMALIZED_ONE);
     }
 
     /**
      * @notice Converts a normalized (reference-asset) value to a token's native units, rounding up so the
      *         result is never worth less than the input value.
-     * @dev Inverse of `_referenceValue`: `amount = ceil(referenceValue * NORMALIZED_ONE / rate)`. Rounding
+     * @dev Inverse of `_tokenAmountToReferenceValue`: `amount = ceil(referenceValue * NORMALIZED_ONE / rate)`. Rounding
      * up guarantees re-pricing the result covers at least `referenceValue`, so the subsidy can never
      * under-cover.
      * @param referenceValue Value in normalized (reference-asset) units.
