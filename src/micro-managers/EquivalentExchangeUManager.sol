@@ -195,7 +195,7 @@ contract EquivalentExchangeUManager is UManager {
             if (address(rateProvider) != address(0)) {
                 // Direct calldata -> storage copy of both packed fields.
                 tokenOracles[token] = config;
-                flags = _setOracleFlag(flags, i);
+                flags = _withOracleFlag(flags, i);
             }
         }
         oracleFlags = flags;
@@ -554,10 +554,11 @@ contract EquivalentExchangeUManager is UManager {
     }
 
     /**
-     * @notice Sets the oracle-priced bit for `index` in an `oracleFlags` value.
-     * @dev `index` is always < MAX_BASKET_TOKENS (256), so the shift stays in range.
+     * @notice Returns a copy of `flags` with the oracle-priced bit for `index` turned on.
+     * @dev Pure bitmap transform returning a new value; performs no storage write. `index` is always
+     * < MAX_BASKET_TOKENS (256), so the shift stays in range.
      */
-    function _setOracleFlag(bytes32 flags, uint256 index) internal pure returns (bytes32) {
+    function _withOracleFlag(bytes32 flags, uint256 index) internal pure returns (bytes32) {
         return bytes32(uint256(flags) | (uint256(1) << index));
     }
 
