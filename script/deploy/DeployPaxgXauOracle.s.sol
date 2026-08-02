@@ -22,8 +22,8 @@ contract DeployPaxgXauOracle is BaseScript {
     bytes32 constant SALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f005555555555555555550901;
 
     // Chainlink Ethereum mainnet feeds. Verify against docs.chain.link before broadcasting.
-    address constant PAXG_USD_FEED = 0x9695e0114e12C0d3A3636fAb5A18e6b737529023;
-    address constant XAU_USD_FEED = 0x214ED9da11d2B7c8F2C47AC8ffBe6F7f5BC44a55;
+    address constant PAXG_USD_FEED = 0x9944D86CEB9160aF5C5feB251FD671923323f8C3;
+    address constant XAU_USD_FEED = 0x214eD9Da11D2fbe465a6fc601a91E62EbEc1a0D6;
 
     // PAXG token (18 decimals); its decimals define the oracle's output precision.
     address constant PAXG_TOKEN = 0x45804880De22913dAFE09f4980848ECE6EcbAf78;
