@@ -65,6 +65,8 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
 
     uint8 internal constant FEED_DECIMALS = 8;
     uint256 internal constant PEG_PRICE = 1e18;
+    uint256 internal constant FIXED_FEE_BPS = 10; // 0.10%
+    uint256 internal constant BPS_DIVISOR = 10_000;
     uint256 internal constant MAX_STALE = 1 days;
     uint256 internal constant NOW = 1_753_000_000;
 
@@ -92,7 +94,7 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
             MAX_STALE
         );
 
-        module = new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)));
+        module = new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), FIXED_FEE_BPS);
     }
 
     /// @dev Sets the PAXG:XAU market price by moving the PAXG/USD feed, holding XAU/USD at $3400.
@@ -108,23 +110,62 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
     }
 
     /// @dev Independent reference implementation of the fee (plain division + explicit round-up), used to
-    /// cross-check the module's solmate mulDivUp without re-using its code path.
+    /// cross-check the module's solmate mulDivUp without re-using its code path. Sums the dynamic depeg fee
+    /// and the fixed bps fee, then caps the total at the order amount.
     function _expectedFee(uint256 amount, uint256 price) internal pure returns (uint256) {
-        if (price <= PEG_PRICE) return 0;
-        uint256 num = amount * (price - PEG_PRICE);
-        uint256 f = num / price;
-        if (num % price != 0) f++;
-        return f;
+        // Dynamic depeg component: (p - 1)/p rounded up, zero at or below peg.
+        uint256 dynamicFee = 0;
+        if (price > PEG_PRICE) {
+            uint256 num = amount * (price - PEG_PRICE);
+            dynamicFee = num / price;
+            if (num % price != 0) dynamicFee++;
+        }
+        // Fixed component: FIXED_FEE_BPS of the amount, rounded up.
+        uint256 fnum = amount * FIXED_FEE_BPS;
+        uint256 fixedFee = fnum / BPS_DIVISOR;
+        if (fnum % BPS_DIVISOR != 0) fixedFee++;
+
+        uint256 total = dynamicFee + fixedFee;
+        return total > amount ? amount : total;
     }
 
     function testConstructorRejectsZeroRateProvider() external {
         vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(0)), IERC20(address(paxg)));
+        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(0)), IERC20(address(paxg)), FIXED_FEE_BPS);
     }
 
     function testConstructorRejectsZeroPaxg() external {
         vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(0)));
+        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(0)), FIXED_FEE_BPS);
+    }
+
+    /// @notice A fixed fee above 100% (BPS_DIVISOR) is rejected at construction.
+    function testConstructorRejectsFixedFeeBpsAboveMax() external {
+        vm.expectRevert(
+            abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidFixedFeeBps.selector, BPS_DIVISOR + 1)
+        );
+        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), BPS_DIVISOR + 1);
+    }
+
+    /// @notice A fixed fee of exactly 100% (BPS_DIVISOR) is allowed (boundary).
+    function testConstructorAcceptsFixedFeeBpsAtMax() external {
+        PaxgDynamicWithdrawFeeModule m =
+            new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), BPS_DIVISOR);
+        assertEq(m.FIXED_FEE_BPS(), BPS_DIVISOR);
+    }
+
+    /// @notice The fixed fee bps is stored and exposed as set at construction.
+    function testFixedFeeBpsIsSet() external view {
+        assertEq(module.FIXED_FEE_BPS(), FIXED_FEE_BPS);
+    }
+
+    /// @notice A different bps scales the fixed fee accordingly (e.g. 100 bps => 1%).
+    function testNonDefaultFixedFeeBps() external {
+        PaxgDynamicWithdrawFeeModule m =
+            new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), 100);
+        _setPaxgXauPrice(PEG_PRICE);
+        // At peg only the fixed fee applies: 100e18 * 100 / 10_000 = 1e18 (100 bps = 1%).
+        assertEq(m.calculateOfferFees(100e18, IERC20(address(shares)), IERC20(address(paxg)), address(0xBEEF)), 1e18);
     }
 
     /// @notice PEG_PRICE must equal 10**(rate provider decimals); a mismatch would silently mis-scale fees.
@@ -139,24 +180,25 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
         module.calculateOfferFees(1e18, IERC20(address(shares)), IERC20(address(other)), address(0xBEEF));
     }
 
-    /// @notice At peg (p = 1) the withdraw fee is zero.
-    function testNoFeeAtPeg() external {
+    /// @notice At peg (p = 1) the dynamic component is zero, so only the fixed 10 bps fee applies.
+    function testOnlyFixedFeeAtPeg() external {
         _setPaxgXauPrice(PEG_PRICE);
-        assertEq(_fee(100e18), 0);
+        // 100 shares * 10 / 10_000 = 0.1 shares
+        assertEq(_fee(100e18), 0.1e18);
     }
 
-    /// @notice Below peg (p < 1) the withdraw fee is zero — pegged valuation already favors the vault.
-    function testNoFeeBelowPeg() external {
+    /// @notice Below peg (p < 1) the dynamic component is zero, so only the fixed 10 bps fee applies.
+    function testOnlyFixedFeeBelowPeg() external {
         _setPaxgXauPrice(0.95e18);
-        assertEq(_fee(100e18), 0);
+        assertEq(_fee(100e18), 0.1e18);
     }
 
-    /// @notice Above peg the fee is (p - 1)/p, taken in shares, so the withdrawer is paid out at max(1, p).
+    /// @notice Above peg the fee is the dynamic (p - 1)/p plus the fixed 10 bps, taken in shares.
     function testFeeAbovePeg() external {
-        // p = 2.0  =>  fee fraction = (2 - 1)/2 = 50%
+        // p = 2.0  =>  dynamic fraction = (2 - 1)/2 = 50%
         _setPaxgXauPrice(2e18);
-        // 100 shares * 0.5 = 50 shares
-        assertEq(_fee(100e18), 50e18);
+        // dynamic: 100 * 0.5 = 50 shares; fixed: 100 * 10/10_000 = 0.1 shares
+        assertEq(_fee(100e18), 50.1e18);
     }
 
     /// @notice A small premium charges the exact (p - 1)/p fraction (cross-checked against a reference impl).
@@ -165,11 +207,20 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
         assertEq(_fee(100e18), _expectedFee(100e18, 1.02e18));
     }
 
-    /// @notice The residual always rounds in the vault's favor (fee rounds up).
+    /// @notice The residual always rounds in the vault's favor (both fee components round up).
     function testFeeRoundsUpInVaultFavor() external {
-        // amount = 3 wei, p = 2.0: exact fee = 3 * 1e18 / 2e18 = 1.5, mulDivUp rounds up to 2.
+        // amount = 3 wei, p = 2.0: dynamic = ceil(3 * 1e18 / 2e18) = ceil(1.5) = 2; fixed = ceil(3 * 10 /
+        // 10_000) = 1; sum = 3, capped at the 3-wei amount.
         _setPaxgXauPrice(2e18);
-        assertEq(_fee(3), 2);
+        assertEq(_fee(3), 3);
+    }
+
+    /// @notice A larger order shows the dynamic round-up alongside a nonzero fixed fee without the cap binding.
+    function testFeeWithNonzeroFixedComponent() external {
+        // amount = 3000 wei, p = 2.0: dynamic = ceil(3000 * 1e18 / 2e18) = 1500; fixed = ceil(3000 * 10 /
+        // 10_000) = 3; sum = 1503 < amount.
+        _setPaxgXauPrice(2e18);
+        assertEq(_fee(3000), 1503);
     }
 
     /// @notice A stale oracle reverts the fee calculation (which reverts the whole processOrders batch).
@@ -186,23 +237,33 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
     function testFeeBelowAmountAtExtremePremium() external {
         _setPaxgXauPrice(100e18); // PAXG priced at 100 XAU (absurd, for bound-checking)
         uint256 fee = _fee(100e18);
-        assertEq(fee, _expectedFee(100e18, 100e18)); // = 99e18
+        // dynamic = 99e18, fixed = 0.1e18  =>  99.1e18, still below the 100e18 amount.
+        assertEq(fee, _expectedFee(100e18, 100e18));
+        assertEq(fee, 99.1e18);
         assertLt(fee, 100e18);
     }
 
-    /// @notice Rounding boundary: the fee rounds UP to equal the amount only when amount < p, i.e. an order
-    /// smaller than the price itself (~1 wei at realistic p). WithdrawQueue.minimumOrderSize rejects such
-    /// orders on submission, so this is unreachable in a real deployment without a garbage price; it is
-    /// pinned here purely to document the rounding math. If it did occur, the queue refunds the order.
-    function testDustOrderFeeCanEqualAmount() external {
-        _setPaxgXauPrice(2e18); // exact fraction 0.5
-        // amount = 1 wei (< p): exact fee 0.5, rounds up to 1 == amount.
-        assertEq(_fee(1), 1);
-        // amount = 2 wei (>= p): payout floor(2e18/2e18) = 1 is positive, so the fee stays below the amount.
-        assertLt(_fee(2), 2);
+    /// @notice At the boundary where the dynamic fraction plus the fixed fee reach exactly 100%, the fee
+    /// equals the amount (cap is a no-op here but confirms the total is well-formed).
+    function testFeeEqualsAmountAtFullFraction() external {
+        // p = 1000: dynamic fraction = 999/1000 = 99.9%; adding the fixed 0.1% reaches exactly 100e18.
+        _setPaxgXauPrice(1000e18);
+        assertEq(_fee(100e18), 100e18);
     }
 
-    /// @notice Fee never exceeds the order amount for any in-range price, and is zero at/below peg.
+    /// @notice On dust orders the round-up on both fee components can sum past the amount; the cap clamps
+    /// the fee to the amount. WithdrawQueue.minimumOrderSize rejects such orders on submission, so this is
+    /// unreachable in a real deployment; it is pinned here purely to document the cap and rounding math.
+    function testDustOrderFeeCappedAtAmount() external {
+        _setPaxgXauPrice(2e18); // dynamic fraction 0.5
+        // amount = 1 wei: dynamic ceil(0.5) = 1, fixed ceil(1 * 10 / 10_000) = 1, sum = 2, capped to 1.
+        assertEq(_fee(1), 1);
+        // amount = 2 wei: dynamic ceil(2e18/2e18) = 1, fixed ceil(2 * 10 / 10_000) = 1, sum = 2 == amount.
+        assertEq(_fee(2), 2);
+    }
+
+    /// @notice Fee never exceeds the order amount for any in-range price, is always positive (the fixed fee
+    /// guarantees it), and collapses to just the fixed component at/below peg.
     function testFuzzFeeBounds(uint256 amount, uint256 price) external {
         amount = bound(amount, 1, 1e30);
         price = bound(price, 1, 1000e18); // PAXG:XAU in (0, 1000]
@@ -214,10 +275,16 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
 
         uint256 fee = _fee(amount);
         assertEq(fee, _expectedFee(amount, onchainPrice));
-        // <= not <: rounding up can lift a dust order's fee to exactly the amount (see testDustOrderFeeCanEqualAmount).
+        // <= not <: rounding up plus the fixed fee can lift the fee to exactly the amount (or the cap binds).
         assertLe(fee, amount);
+        // The fixed fee (bps > 0) makes the fee strictly positive for any order of at least 1 wei.
+        assertGt(fee, 0);
         if (onchainPrice <= PEG_PRICE) {
-            assertEq(fee, 0);
+            // Dynamic component is zero, so the fee is exactly the (capped) fixed fee.
+            uint256 fnum = amount * FIXED_FEE_BPS;
+            uint256 expectedFixed = fnum / BPS_DIVISOR + (fnum % BPS_DIVISOR == 0 ? 0 : 1);
+            if (expectedFixed > amount) expectedFixed = amount;
+            assertEq(fee, expectedFixed);
         }
     }
 
