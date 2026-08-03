@@ -11,8 +11,9 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  * pricing error favors existing shareholders rather than the depositor.
  * @dev The accountant quotes PAXG at its pegged price (1 PAXG = 1 XAU) in both directions. This module
  * charges a deposit fee equal to the shortfall between that peg and PAXG's market value in gold, so the
- * depositor is effectively credited at min(1, p) XAU per PAXG, where p is the market PAXG:XAU rate. When
- * PAXG trades at or above peg (p >= 1) the fee is zero — the pegged valuation already favors the vault.
+ * depositor is effectively credited at min(1, marketPrice) XAU per PAXG, where marketPrice is the market
+ * PAXG:XAU rate. When PAXG trades at or above peg (marketPrice >= 1) the fee is zero — the pegged valuation
+ * already favors the vault.
  *
  * The fee is taken in PAXG (the offer asset). The consuming DistributorCodeDepositor deducts it from the
  * deposit amount before minting and routes it to the fee recipient (the vault), so it accrues to NAV.
@@ -70,7 +71,8 @@ contract PaxgDynamicDepositFeeModule is IFeeModule {
 
     /**
      * @notice Calculate the PAXG-denominated deposit fee for an order.
-     * @dev feeAmount = amount * (1 - min(1, p)) where p is the market PAXG:XAU rate. Rounds up so the
+     * @dev feeAmount = amount * (1 - min(1, marketPrice)) where marketPrice is the market PAXG:XAU rate. Rounds up so
+     * the
      * residual always favors the vault. Reverts if the offer asset is not PAXG, the want asset is not
      * SHARES, or the oracle reports stale data.
      * @param amount PAXG deposit amount.
@@ -93,12 +95,14 @@ contract PaxgDynamicDepositFeeModule is IFeeModule {
         if (address(wantAsset) != address(SHARES)) revert InvalidWantAsset(address(wantAsset));
 
         // Market PAXG:XAU rate (XAU per PAXG), 18-decimal fixed point. Reverts on stale feeds.
-        uint256 price = RATE_PROVIDER.getRate();
+        uint256 marketPrice = RATE_PROVIDER.getRate();
 
-        // effectivePrice = min(peg, p): never credit PAXG above peg. When p >= peg the fee fraction is zero.
-        uint256 effectivePrice = price < PEG_PRICE ? price : PEG_PRICE;
+        // effectivePrice = min(peg, marketPrice): never credit PAXG above peg. When marketPrice >= peg the fee fraction
+        // is zero.
+        uint256 effectivePrice = marketPrice < PEG_PRICE ? marketPrice : PEG_PRICE;
 
-        // feeFraction = 1 - min(1, p), denominated against the peg. mulDivUp rounds the fee up, in the vault's favor.
+        // feeFraction = 1 - min(1, marketPrice), denominated against the peg. mulDivUp rounds the fee up, in the
+        // vault's favor.
         feeAmount = amount.mulDivUp(PEG_PRICE - effectivePrice, PEG_PRICE);
     }
 

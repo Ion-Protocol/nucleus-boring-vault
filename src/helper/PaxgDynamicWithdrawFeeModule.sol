@@ -12,8 +12,9 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  * @dev The accountant quotes PAXG at its pegged price (1 PAXG = 1 XAU) in both directions. This module
  * charges a withdraw fee with two components:
  *   1. A dynamic depeg fee equal to the excess of PAXG's market value in gold over the peg, so the
- *      withdrawer is effectively paid out at max(1, p) XAU per PAXG, where p is the market PAXG:XAU rate.
- *      When PAXG trades at or below peg (p <= 1) this component is zero - the pegged valuation already
+ *      withdrawer is effectively paid out at max(1, marketPrice) XAU per PAXG, where marketPrice is the
+ *      market PAXG:XAU rate. When PAXG trades at or below peg (marketPrice <= 1) this component is zero - the
+ *      pegged valuation already
  *      favors the vault.
  *   2. A fixed fee of FIXED_FEE_BPS basis points, charged on every withdrawal regardless of price.
  * The two components are summed and the total is capped at the order amount so the fee can never exceed
@@ -95,8 +96,8 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
     /**
      * @notice Calculate the share-denominated withdraw fee for an order.
      * @dev feeAmount = min(amount, dynamicFee + fixedFee), where:
-     *   - dynamicFee = amount * (p - 1) / p when p > 1, else 0 (p is the market PAXG:XAU rate, denominated
-     *     against p so the fraction is always < 1); and
+     *   - dynamicFee = amount * (marketPrice - 1) / marketPrice when marketPrice > 1, else 0 (marketPrice is
+     *     the market PAXG:XAU rate, denominated against it so the fraction is always < 1); and
      *   - fixedFee = amount * FIXED_FEE_BPS / BPS_DIVISOR, a flat fee charged on every withdrawal.
      * The total is capped at the order amount. Reverts if the offer asset is not SHARES, the want asset is
      * not PAXG, or the rate provider reports stale data.
@@ -124,14 +125,15 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
         // RATE_PROVIDER (PaxgXauRateProvider) reverts on a stale feed. Because WithdrawQueue.processOrders
         // calls this in a loop outside its try/catch, one stale read reverts the whole batch.
         // The backend must pause processing during stale/volatile windows.
-        uint256 price = RATE_PROVIDER.getRate();
+        uint256 marketPrice = RATE_PROVIDER.getRate();
 
-        // effectivePrice = max(peg, p): never pay PAXG out above peg. When p <= peg the fee fraction is zero
-        // (numerator below is 0), so the branch collapses and no dynamic fee is taken.
-        uint256 effectivePrice = price > PEG_PRICE ? price : PEG_PRICE;
+        // effectivePrice = max(peg, marketPrice): never pay PAXG out at a valuation below peg. When
+        // marketPrice <= peg the fee fraction is zero (numerator below is 0), so the branch collapses and no
+        // dynamic fee is taken.
+        uint256 effectivePrice = marketPrice > PEG_PRICE ? marketPrice : PEG_PRICE;
 
-        // Dynamic depeg fee: takes the fraction (p - 1) / p of the amount, evaluated against effectivePrice
-        // (not the peg), so nothing is taken at/below peg. mulDivUp rounds up, in the vault's favor
+        // Dynamic depeg fee: takes the fraction (marketPrice - 1) / marketPrice of the amount, evaluated against
+        // effectivePrice (not the peg), so nothing is taken at/below peg. mulDivUp rounds up, in the vault's favor
         // (withdrawer receives slightly less).
         //
         // There is no user-set max-fee or per-order slippage backstop on withdrawals: the fee scales directly
@@ -146,7 +148,7 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
 
         feeAmount = dynamicFee + fixedFee;
 
-        // Never withhold more shares than the order offers. For any realistic price (p ~ 1) the two
+        // Never withhold more shares than the order offers. For any realistic marketPrice (~ 1) the two
         // components sum well below the amount; the cap only binds at an extreme premium (the dynamic
         // fraction approaching 1) or on dust orders where round-up dominates. Capping preserves the
         // fee <= amount invariant the WithdrawQueue relies on.
