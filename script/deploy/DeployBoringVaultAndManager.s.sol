@@ -39,9 +39,8 @@ contract DeployBoringVaultAndManager is BaseScript {
     IPriceFeed constant PAXG_USD_FEED = IPriceFeed(0x9944D86CEB9160aF5C5feB251FD671923323f8C3);
     string constant PAXG_USD_DESCRIPTION = "PAXG / USD"; // must byte-match PAXG_USD_FEED.description()
     uint8 constant PAXG_USD_RATE_DECIMALS = 8; // feed decimals; also the basket rateDecimals for PAXG
-    // TODO: confirm against the feed's published heartbeat before mainnet; too small reverts getRate() on
-    // normal calls, too large accepts stale prices. 90000s == 24h heartbeat + 1h buffer.
-    uint256 constant PAXG_USD_MAX_STALENESS = 90_000;
+    // The Chainlink PAXG/USD feed's heartbeat is 86400s (24h); we add 100s to account for block delay.
+    uint256 constant PAXG_USD_MAX_STALENESS = 86_500;
 
     function run() public broadcast {
         // Every hardcoded address below (USDC, USDG, PAXG, the PAXG/USD feed, BALANCER_VAULT) is
