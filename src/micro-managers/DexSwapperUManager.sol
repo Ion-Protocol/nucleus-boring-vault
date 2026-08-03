@@ -11,7 +11,7 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
  * Required Merkle Root Leaves
  * - ERC20 approves with `router` spender.
  * - IUniswapV3Router.exactInput(params), with all desired paths.
- * @custom:security-contact security@molecularlabs.io
+ * @custom:security-contact security@paxoslabs.com
  */
 contract DexSwapperUManager is UManager {
 
