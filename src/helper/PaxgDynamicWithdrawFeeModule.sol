@@ -121,27 +121,23 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
 
         // Market PAXG:XAU rate (XAU per PAXG), 18-decimal fixed point.
         //
-        // RISK (accepted): getRate() reverts on a stale/unavailable feed. WithdrawQueue.processOrders calls
-        // this inside a sequential loop, OUTSIDE its try/catch, so a single stale read reverts the ENTIRE
-        // batch. The orders are not lost - they remain queued and process once the feed is fresh - but no
-        // order in that batch can settle until then. This is the queue-blocking failure the no-slippage
-        // decision (KPD 1) was wary of; it is accepted on the basis that the backend pauses withdrawal
-        // processing during stale/volatile windows rather than pushing batches that will revert.
+        // RATE_PROVIDER (PaxgXauRateProvider) reverts on a stale feed. Because WithdrawQueue.processOrders
+        // calls this in a loop outside its try/catch, one stale read reverts the whole batch.
+        // The backend must pause processing during stale/volatile windows.
         uint256 price = RATE_PROVIDER.getRate();
 
         // effectivePrice = max(peg, p): never pay PAXG out above peg. When p <= peg the fee fraction is zero
-        // (numerator below is 0), so the branch collapses and no fee is taken.
+        // (numerator below is 0), so the branch collapses and no dynamic fee is taken.
         uint256 effectivePrice = price > PEG_PRICE ? price : PEG_PRICE;
 
         // Dynamic depeg fee: takes the fraction (p - 1) / p of the amount, evaluated against effectivePrice
         // (not the peg), so nothing is taken at/below peg. mulDivUp rounds up, in the vault's favor
         // (withdrawer receives slightly less).
         //
-        // RISK (accepted): there is no max-fee bound and no per-order slippage backstop on withdrawals
-        // (KPD 1). Whatever price the oracle reports is applied verbatim. A wrong-but-plausible reading
-        // (e.g. a transient depeg or a feed glitch that stays under the staleness threshold) silently
-        // overcharges the withdrawer, and nothing on-chain catches it. Accepted per project decision;
-        // the only mitigation is the offchain worst-case threshold / processing pause, not this contract.
+        // There is no user-set max-fee or per-order slippage backstop on withdrawals: the fee scales directly
+        // with the reported PAXG:XAU premium, so a genuine market depeg charges the withdrawer the full
+        // premium (bounded only by the order amount, above which WithdrawQueue refunds the order). The
+        // backend can mitigate this by processing only when market prices are reasonably close to peg.
         uint256 dynamicFee = amount.mulDivUp(effectivePrice - PEG_PRICE, effectivePrice);
 
         // Fixed fee: takes the fraction FIXED_FEE_BPS / BPS_DIVISOR of the amount, charged unconditionally
