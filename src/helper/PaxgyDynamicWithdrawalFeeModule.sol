@@ -6,7 +6,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 
 /**
- * @title PaxgDynamicWithdrawFeeModule
+ * @title PaxgyDynamicWithdrawalFeeModule
  * @notice Withdraw fee module that values PAXG asymmetrically at the vault boundary so that any PAXG:XAU
  * pricing error favors remaining shareholders rather than the withdrawer.
  * @dev The accountant quotes PAXG at its pegged price (1 PAXG = 1 XAU) in both directions. This module
@@ -29,7 +29,7 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  * The immutables bind the module to one vault; this module holds no admin surface. To change any of them,
  * deploy a new module and repoint the queue via setFeeModule.
  */
-contract PaxgDynamicWithdrawFeeModule is IFeeModule {
+contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
 
     using FixedPointMathLib for uint256;
 

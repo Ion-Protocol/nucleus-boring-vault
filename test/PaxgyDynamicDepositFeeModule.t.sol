@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { Test } from "@forge-std/Test.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { PaxgDynamicDepositFeeModule } from "src/helper/PaxgDynamicDepositFeeModule.sol";
+import { PaxgyDynamicDepositFeeModule } from "src/helper/PaxgyDynamicDepositFeeModule.sol";
 import { PaxgXauRateProvider } from "src/oracles/PaxgXauRateProvider.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { IPriceFeed } from "src/interfaces/IPriceFeed.sol";
@@ -61,7 +61,7 @@ contract MockPriceFeed is IPriceFeed {
 
 }
 
-contract PaxgDynamicDepositFeeModuleTest is Test {
+contract PaxgyDynamicDepositFeeModuleTest is Test {
 
     uint8 internal constant FEED_DECIMALS = 8;
     uint256 internal constant PEG_PRICE = 1e18;
@@ -73,7 +73,7 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
     MockToken internal paxg;
     MockToken internal shares;
     PaxgXauRateProvider internal oracle;
-    PaxgDynamicDepositFeeModule internal module;
+    PaxgyDynamicDepositFeeModule internal module;
 
     function setUp() external {
         vm.warp(NOW);
@@ -92,7 +92,7 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
             MAX_STALE
         );
 
-        module = new PaxgDynamicDepositFeeModule(
+        module = new PaxgyDynamicDepositFeeModule(
             IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares))
         );
     }
@@ -109,18 +109,18 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
     }
 
     function testConstructorRejectsZeroOracle() external {
-        vm.expectRevert(PaxgDynamicDepositFeeModule.ZeroAddress.selector);
-        new PaxgDynamicDepositFeeModule(IRateProvider(address(0)), IERC20(address(paxg)), IERC20(address(shares)));
+        vm.expectRevert(PaxgyDynamicDepositFeeModule.ZeroAddress.selector);
+        new PaxgyDynamicDepositFeeModule(IRateProvider(address(0)), IERC20(address(paxg)), IERC20(address(shares)));
     }
 
     function testConstructorRejectsZeroPaxg() external {
-        vm.expectRevert(PaxgDynamicDepositFeeModule.ZeroAddress.selector);
-        new PaxgDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(0)), IERC20(address(shares)));
+        vm.expectRevert(PaxgyDynamicDepositFeeModule.ZeroAddress.selector);
+        new PaxgyDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(0)), IERC20(address(shares)));
     }
 
     function testConstructorRejectsZeroShares() external {
-        vm.expectRevert(PaxgDynamicDepositFeeModule.ZeroAddress.selector);
-        new PaxgDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(0)));
+        vm.expectRevert(PaxgyDynamicDepositFeeModule.ZeroAddress.selector);
+        new PaxgyDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(0)));
     }
 
     /// @notice PEG_PRICE must equal 10**(rate provider decimals); the fee math assumes the oracle's
@@ -132,14 +132,14 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
     /// @notice A non-PAXG offer asset reverts rather than being priced.
     function testRevertsOnNonPaxgOfferAsset() external {
         MockToken other = new MockToken("Other", "OTH", 18);
-        vm.expectRevert(abi.encodeWithSelector(PaxgDynamicDepositFeeModule.InvalidOfferAsset.selector, address(other)));
+        vm.expectRevert(abi.encodeWithSelector(PaxgyDynamicDepositFeeModule.InvalidOfferAsset.selector, address(other)));
         module.calculateOfferFees(1e18, IERC20(address(other)), IERC20(address(shares)), address(0xBEEF));
     }
 
     /// @notice A want asset other than the bound share token reverts, keeping the module to its one vault.
     function testRevertsOnNonSharesWantAsset() external {
         MockToken other = new MockToken("Other", "OTH", 18);
-        vm.expectRevert(abi.encodeWithSelector(PaxgDynamicDepositFeeModule.InvalidWantAsset.selector, address(other)));
+        vm.expectRevert(abi.encodeWithSelector(PaxgyDynamicDepositFeeModule.InvalidWantAsset.selector, address(other)));
         module.calculateOfferFees(1e18, IERC20(address(paxg)), IERC20(address(other)), address(0xBEEF));
     }
 

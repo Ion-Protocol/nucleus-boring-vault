@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import { Test } from "@forge-std/Test.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { PaxgDynamicWithdrawFeeModule } from "src/helper/PaxgDynamicWithdrawFeeModule.sol";
+import { PaxgyDynamicWithdrawalFeeModule } from "src/helper/PaxgyDynamicWithdrawalFeeModule.sol";
 import { PaxgXauRateProvider } from "src/oracles/PaxgXauRateProvider.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { IPriceFeed } from "src/interfaces/IPriceFeed.sol";
@@ -61,7 +61,7 @@ contract MockPriceFeed is IPriceFeed {
 
 }
 
-contract PaxgDynamicWithdrawFeeModuleTest is Test {
+contract PaxgyDynamicWithdrawalFeeModuleTest is Test {
 
     uint8 internal constant FEED_DECIMALS = 8;
     uint256 internal constant PEG_PRICE = 1e18;
@@ -75,7 +75,7 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
     MockToken internal paxg;
     MockToken internal shares;
     PaxgXauRateProvider internal oracle;
-    PaxgDynamicWithdrawFeeModule internal module;
+    PaxgyDynamicWithdrawalFeeModule internal module;
 
     function setUp() external {
         vm.warp(NOW);
@@ -94,7 +94,7 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
             MAX_STALE
         );
 
-        module = new PaxgDynamicWithdrawFeeModule(
+        module = new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), FIXED_FEE_BPS
         );
     }
@@ -132,22 +132,22 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
     }
 
     function testConstructorRejectsZeroRateProvider() external {
-        vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(
+        vm.expectRevert(PaxgyDynamicWithdrawalFeeModule.ZeroAddress.selector);
+        new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(0)), IERC20(address(paxg)), IERC20(address(shares)), FIXED_FEE_BPS
         );
     }
 
     function testConstructorRejectsZeroPaxg() external {
-        vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(
+        vm.expectRevert(PaxgyDynamicWithdrawalFeeModule.ZeroAddress.selector);
+        new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(oracle)), IERC20(address(0)), IERC20(address(shares)), FIXED_FEE_BPS
         );
     }
 
     function testConstructorRejectsZeroShares() external {
-        vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(
+        vm.expectRevert(PaxgyDynamicWithdrawalFeeModule.ZeroAddress.selector);
+        new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(0)), FIXED_FEE_BPS
         );
     }
@@ -155,16 +155,16 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
     /// @notice A fixed fee above 100% (BPS_DIVISOR) is rejected at construction.
     function testConstructorRejectsFixedFeeBpsAboveMax() external {
         vm.expectRevert(
-            abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidFixedFeeBps.selector, BPS_DIVISOR + 1)
+            abi.encodeWithSelector(PaxgyDynamicWithdrawalFeeModule.InvalidFixedFeeBps.selector, BPS_DIVISOR + 1)
         );
-        new PaxgDynamicWithdrawFeeModule(
+        new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), BPS_DIVISOR + 1
         );
     }
 
     /// @notice A fixed fee of exactly 100% (BPS_DIVISOR) is allowed (boundary).
     function testConstructorAcceptsFixedFeeBpsAtMax() external {
-        PaxgDynamicWithdrawFeeModule m = new PaxgDynamicWithdrawFeeModule(
+        PaxgyDynamicWithdrawalFeeModule m = new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), BPS_DIVISOR
         );
         assertEq(m.FIXED_FEE_BPS(), BPS_DIVISOR);
@@ -177,7 +177,7 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
 
     /// @notice A different bps scales the fixed fee accordingly (e.g. 100 bps => 1%).
     function testNonDefaultFixedFeeBps() external {
-        PaxgDynamicWithdrawFeeModule m = new PaxgDynamicWithdrawFeeModule(
+        PaxgyDynamicWithdrawalFeeModule m = new PaxgyDynamicWithdrawalFeeModule(
             IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), 100
         );
         _setPaxgXauPrice(PEG_PRICE);
@@ -193,14 +193,18 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
     /// @notice A non-PAXG want asset reverts rather than being priced.
     function testRevertsOnNonPaxgWantAsset() external {
         MockToken other = new MockToken("Other", "OTH", 18);
-        vm.expectRevert(abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidWantAsset.selector, address(other)));
+        vm.expectRevert(
+            abi.encodeWithSelector(PaxgyDynamicWithdrawalFeeModule.InvalidWantAsset.selector, address(other))
+        );
         module.calculateOfferFees(1e18, IERC20(address(shares)), IERC20(address(other)), address(0xBEEF));
     }
 
     /// @notice An offer asset other than the bound share token reverts, keeping the module to its one vault.
     function testRevertsOnNonSharesOfferAsset() external {
         MockToken other = new MockToken("Other", "OTH", 18);
-        vm.expectRevert(abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidOfferAsset.selector, address(other)));
+        vm.expectRevert(
+            abi.encodeWithSelector(PaxgyDynamicWithdrawalFeeModule.InvalidOfferAsset.selector, address(other))
+        );
         module.calculateOfferFees(1e18, IERC20(address(other)), IERC20(address(paxg)), address(0xBEEF));
     }
 

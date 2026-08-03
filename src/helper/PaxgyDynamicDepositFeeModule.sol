@@ -6,7 +6,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 
 /**
- * @title PaxgDynamicDepositFeeModule
+ * @title PaxgyDynamicDepositFeeModule
  * @notice Deposit fee module that values PAXG asymmetrically at the vault boundary so that any PAXG:XAU
  * pricing error favors existing shareholders rather than the depositor.
  * @dev The accountant quotes PAXG at its pegged price (1 PAXG = 1 XAU) in both directions. This module
@@ -21,7 +21,7 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  * The immutables bind the module to one vault; this module holds no admin surface. To change any of them,
  * deploy a new module and repoint the depositor via setFeeModule.
  */
-contract PaxgDynamicDepositFeeModule is IFeeModule {
+contract PaxgyDynamicDepositFeeModule is IFeeModule {
 
     using FixedPointMathLib for uint256;
 
