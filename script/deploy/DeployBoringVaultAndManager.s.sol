@@ -49,7 +49,6 @@ contract DeployBoringVaultAndManager is BaseScript {
         // any other chain rather than deploying a basket around the wrong tokens.
         require(block.chainid == 1, "DeployBoringVaultAndManager: Ethereum mainnet only");
 
-        address STRATEGIST_ADDRESS = getMultisig();
         // deploy a roles authority
         RolesAuthority rolesAuthority = RolesAuthority(
             CREATEX.deployCreate3(
@@ -102,7 +101,10 @@ contract DeployBoringVaultAndManager is BaseScript {
         );
 
         rolesAuthority.setUserRole(address(managerWithMerkleVerification), MANAGER_ROLE, true);
-        rolesAuthority.setUserRole(STRATEGIST_ADDRESS, STRATEGIST_ROLE, true);
+        // TODO: uncomment STRATEGIST_ADDRESS and the setUserRole call below to grant STRATEGIST_ROLE before
+        // mainnet.
+        // address STRATEGIST_ADDRESS = address(0);
+        // rolesAuthority.setUserRole(STRATEGIST_ADDRESS, STRATEGIST_ROLE, true);
 
         // Deploy the EquivalentExchangeUManager that drives this vault through the merkle-verification
         // manager. Deployed owned by the broadcaster so its authority can be wired here before it is handed
