@@ -44,7 +44,7 @@ contract EquivalentExchangeUManagerTest is Test {
         return EquivalentExchangeUManager.BasketToken({
             token: token,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
     }
@@ -60,7 +60,9 @@ contract EquivalentExchangeUManagerTest is Test {
     {
         return EquivalentExchangeUManager.BasketToken({
             token: token,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: oracle, rateDecimals: 18 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: oracle, rateDecimals: 18
+            })
         });
     }
 
@@ -246,31 +248,69 @@ contract EquivalentExchangeUManagerTest is Test {
     }
 
     function test_SetBasketTokens_RevertWhen_OracleSetButRateDecimalsZero() external {
-        // A priced token with no rate decimals is a config mistake (the rate would be scaled wrong).
+        // A priced token (isPeggedToken: false) with no rate decimals is a config mistake (the rate would be
+        // scaled wrong).
         EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
         tokens[0] = EquivalentExchangeUManager.BasketToken({
             token: tokenA,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: oracleA, rateDecimals: 0 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: oracleA, rateDecimals: 0
+            })
         });
 
         vm.expectRevert(
-            abi.encodeWithSelector(EquivalentExchangeUManager.OracleDecimalsMismatch.selector, address(tokenA))
+            abi.encodeWithSelector(EquivalentExchangeUManager.InvalidRateProviderConfig.selector, address(tokenA))
         );
         uManager.setBasketTokens(tokens);
     }
 
     function test_SetBasketTokens_RevertWhen_RateDecimalsSetButNoOracle() external {
-        // A 1:1 token carrying stray rate decimals is a config mistake; decimals only apply with an oracle.
+        // A pegged token (isPeggedToken: true) carrying stray rate decimals is a config mistake; decimals only
+        // apply with an oracle.
         EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
         tokens[0] = EquivalentExchangeUManager.BasketToken({
             token: tokenA,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 8
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 8
             })
         });
 
         vm.expectRevert(
-            abi.encodeWithSelector(EquivalentExchangeUManager.OracleDecimalsMismatch.selector, address(tokenA))
+            abi.encodeWithSelector(EquivalentExchangeUManager.InvalidRateProviderConfig.selector, address(tokenA))
+        );
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_RevertWhen_PeggedButOracleProvided() external {
+        // isPeggedToken must be false when an oracle + decimals are supplied; a mismatched flag is rejected so
+        // a priced token can never be mislabeled as 1:1.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = EquivalentExchangeUManager.BasketToken({
+            token: tokenA,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: true, rateProvider: oracleA, rateDecimals: 18
+            })
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(EquivalentExchangeUManager.InvalidRateProviderConfig.selector, address(tokenA))
+        );
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_RevertWhen_NotPeggedButNoOracle() external {
+        // isPeggedToken must be true when no oracle is supplied; declaring a token priced while leaving its
+        // fields zero is rejected so a forgotten oracle can never be silently treated as 1:1.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = EquivalentExchangeUManager.BasketToken({
+            token: tokenA,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(EquivalentExchangeUManager.InvalidRateProviderConfig.selector, address(tokenA))
         );
         uManager.setBasketTokens(tokens);
     }

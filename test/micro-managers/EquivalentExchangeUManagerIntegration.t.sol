@@ -100,6 +100,15 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
     /// @notice Gold oracle price used across the oracle tests: $2000 per whole token.
     uint256 internal constant GOLD_USD_PRICE = 2000e18;
 
+    // Production basket (mirrors DeployBoringVaultAndManager): USDC + USDG (1:1 USD, 6-dec) and PAXG
+    // (18-dec, oracle-priced in USD through an 8-dec Chainlink-style feed).
+    MockERC20 internal usdg; // 6 decimals, 1:1 USD
+    MockERC20 internal paxg; // 18 decimals, oracle-priced
+    MockRateProvider internal paxgUsdOracle; // USD per whole PAXG, 8-dec (Chainlink-style)
+
+    /// @notice PAXG oracle price used across the production-basket tests: $4000 per whole token, 8-dec.
+    uint256 internal constant PAXG_USD_PRICE = 4000e8;
+
     address internal payer = makeAddr("subsidyPayer");
 
     function setUp() external {
@@ -139,13 +148,13 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: dai,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         uManager.setBasketTokens(basket);
@@ -173,6 +182,22 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         gold.mint(payer, 1000e8);
         vm.prank(payer);
         gold.approve(address(uManager), type(uint256).max);
+
+        // Production basket tokens. Created here but NOT added to the default basket; the production tests
+        // call _setProductionBasket(). Seed swap-route liquidity and fund the payer for subsidy. USDG/PAXG
+        // are untouched by every other test, so this is purely additive.
+        usdg = new MockERC20("Global Dollar", "USDG", 6);
+        paxg = new MockERC20("Pax Gold", "PAXG", 18);
+        paxgUsdOracle = new MockRateProvider(PAXG_USD_PRICE);
+
+        usdg.mint(address(mockSwap), 1_000_000e6);
+        paxg.mint(address(mockSwap), 1_000_000e18);
+        usdg.mint(payer, 1_000_000e6);
+        paxg.mint(payer, 1000e18);
+        vm.startPrank(payer);
+        usdg.approve(address(uManager), type(uint256).max);
+        paxg.approve(address(uManager), type(uint256).max);
+        vm.stopPrank();
     }
 
     // ============================== happy paths ==============================
@@ -503,12 +528,14 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: gold,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: gold8Oracle, rateDecimals: 8 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: gold8Oracle, rateDecimals: 8
+            })
         });
         uManager.setBasketTokens(basket);
 
@@ -539,16 +566,20 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: dai,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: daiOracle, rateDecimals: 18 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: daiOracle, rateDecimals: 18
+            })
         });
         basket[2] = EquivalentExchangeUManager.BasketToken({
             token: gold,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: gold8Oracle, rateDecimals: 8 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: gold8Oracle, rateDecimals: 8
+            })
         });
         uManager.setBasketTokens(basket);
 
@@ -625,13 +656,13 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: gold,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         uManager.setBasketTokens(basket);
@@ -661,7 +692,184 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
     }
 
+    // ==================== production basket (USDC + USDG + PAXG), mirrors deploy ====================
+    // Two 1:1 USD stablecoins (6-dec) plus PAXG (18-dec) priced through an 8-dec Chainlink-style USD oracle.
+    // Confirms every token is valued correctly in USD and that stablecoin<->PAXG transfers preserve value or
+    // pull correctly-priced subsidy. PAXG's 18 decimals exercise the rate/decimal folding differently from
+    // the 8-decimal gold used above. Math at $4000/PAXG: 1 PAXG == $4000; 1e6 USDC == 1e6 USDG == $1.
+
+    function test_Paxg_ValuesFullBasketInUsd() external {
+        _setProductionBasket();
+
+        // Vault: 1000 USDC (from setUp) + 1000 USDG + 1 PAXG => $1000 + $1000 + $4000 = $6000.
+        usdg.mint(address(boringVault), 1000e6);
+        paxg.mint(address(boringVault), 1e18);
+
+        // Empty batch: pure valuation, no movement, no subsidy.
+        EquivalentExchangeUManager.ManageCalls memory calls;
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 6000e18, 6000e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdc, _wideProductionDeltas());
+        assertEq(subsidyAmount, 0, "value-neutral valuation pulls no subsidy");
+    }
+
+    function test_Paxg_StableToPaxg_ValueNeutral_NoSubsidy() external {
+        _setProductionBasket();
+
+        // Vault holds 1000e6 USDC ($1000). Swap it for $1000 of PAXG == 0.25 PAXG (25e16) at $4000.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapTokens(usdc, paxg, 1000e6, 1000e6, 25e16);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 1000e18, 1000e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdc, _wideProductionDeltas());
+
+        assertEq(subsidyAmount, 0, "value-neutral USDC->PAXG swap pulls no subsidy");
+        assertEq(usdc.balanceOf(address(boringVault)), 0, "vault USDC spent");
+        assertEq(paxg.balanceOf(address(boringVault)), 25e16, "vault received 0.25 PAXG");
+    }
+
+    function test_Paxg_PaxgToStable_ValueNeutral_NoSubsidy() external {
+        _setProductionBasket();
+
+        // Vault also holds 1000e6 USDC ($1000) from setUp, unchanged across the swap. Give it 1 PAXG ($4000)
+        // and swap that for $4000 of USDG (4000e6). before: $1000 + $0 + $4000; after: $1000 + $4000 + $0.
+        paxg.mint(address(boringVault), 1e18);
+
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapTokens(paxg, usdg, 1e18, 1e18, 4000e6);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdg, 5000e18, 5000e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdg, _wideProductionDeltas());
+
+        assertEq(subsidyAmount, 0, "value-neutral PAXG->USDG swap pulls no subsidy");
+        assertEq(paxg.balanceOf(address(boringVault)), 0, "vault PAXG spent");
+        assertEq(usdg.balanceOf(address(boringVault)), 4000e6, "vault received 4000 USDG");
+    }
+
+    function test_Paxg_StableToStable_OneForOne_NoSubsidy() external {
+        _setProductionBasket();
+
+        // 1000 USDC -> 1000 USDG: both 1:1 USD, value-neutral, no oracle involved.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapTokens(usdc, usdg, 1000e6, 1000e6, 1000e6);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), usdc, 1000e18, 1000e18, 0, 0);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, usdc, _wideProductionDeltas());
+
+        assertEq(subsidyAmount, 0, "1:1 stablecoin swap pulls no subsidy");
+        assertEq(usdg.balanceOf(address(boringVault)), 1000e6, "vault received USDG");
+    }
+
+    function test_Paxg_Shortfall_CoveredByPaxgSubsidy() external {
+        _setProductionBasket();
+
+        // Give the vault $4000 of USDC total: 1000 (setUp) + 3000 more.
+        usdc.mint(address(boringVault), 3000e6);
+
+        // Swap $4000 USDC for only 0.999 PAXG ($3996): a $4 shortfall, subsidized in PAXG through the same
+        // oracle. $4 / $4000 == 0.001 PAXG == 1e15 native units.
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapTokens(usdc, paxg, 4000e6, 4000e6, 999e15);
+
+        uint256 payerPaxgBefore = paxg.balanceOf(payer);
+
+        vm.expectEmit(true, true, true, true, address(uManager));
+        emit Executed(address(this), paxg, 4000e18, 4000e18, 1e15, 4e18);
+
+        uint256 subsidyAmount = uManager.execute(calls, payer, paxg, _wideProductionDeltas());
+
+        assertEq(subsidyAmount, 1e15, "subsidy is 0.001 PAXG in native units");
+        assertEq(paxg.balanceOf(address(boringVault)), 999e15 + 1e15, "vault made whole: 0.999 + 0.001 PAXG");
+        assertEq(payerPaxgBefore - paxg.balanceOf(payer), 1e15, "payer spent exactly the converted PAXG");
+    }
+
     // ============================== helpers ==============================
+
+    /// @notice Reconfigures the basket to the deployed layout { USDC (1:1 USD), USDG (1:1 USD), PAXG
+    ///         (oracle-priced at PAXG_USD_PRICE, 8-dec) }, matching DeployBoringVaultAndManager.
+    function _setProductionBasket() internal {
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](3);
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: usdg,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[2] = EquivalentExchangeUManager.BasketToken({
+            token: paxg,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: paxgUsdOracle, rateDecimals: 8
+            })
+        });
+        uManager.setBasketTokens(basket);
+    }
+
+    /// @notice Wide (non-binding) bounds for the 3-token production basket.
+    function _wideProductionDeltas() internal pure returns (int256[] memory d) {
+        d = new int256[](3);
+        d[0] = type(int256).min;
+        d[1] = type(int256).min;
+        d[2] = type(int256).min;
+    }
+
+    /// @notice Generic approve+swap route for an arbitrary basket pair, gating both leaves under a fresh root.
+    function _approveAndSwapTokens(
+        ERC20 tokenIn,
+        ERC20 tokenOut,
+        uint256 approveAmount,
+        uint256 amountIn,
+        uint256 amountOut
+    )
+        internal
+        returns (EquivalentExchangeUManager.ManageCalls memory)
+    {
+        ManageLeaf[] memory leafs = new ManageLeaf[](2);
+
+        leafs[0] = ManageLeaf(address(tokenIn), false, "approve(address,uint256)", new address[](1));
+        leafs[0].argumentAddresses[0] = address(mockSwap);
+
+        leafs[1] =
+            ManageLeaf(address(mockSwap), false, "swap(address,address,uint256,uint256,address)", new address[](3));
+        leafs[1].argumentAddresses[0] = address(tokenIn);
+        leafs[1].argumentAddresses[1] = address(tokenOut);
+        leafs[1].argumentAddresses[2] = address(boringVault);
+
+        bytes32[][] memory tree = _generateMerkleTree(leafs);
+        manager.setManageRoot(address(uManager), tree[tree.length - 1][0]);
+        bytes32[][] memory proofs = _getProofsUsingTree(leafs, tree);
+
+        return _batch(
+            _actions(
+                _mc(
+                    proofs[0],
+                    address(tokenIn),
+                    abi.encodeWithSelector(ERC20.approve.selector, address(mockSwap), approveAmount)
+                ),
+                _mc(
+                    proofs[1],
+                    address(mockSwap),
+                    abi.encodeWithSelector(
+                        MockSwap.swap.selector,
+                        address(tokenIn),
+                        address(tokenOut),
+                        amountIn,
+                        amountOut,
+                        address(boringVault)
+                    )
+                )
+            )
+        );
+    }
 
     /// @notice Reconfigures the basket to { USDC (1:1 USD), GLD (oracle-priced) }, in that order.
     function _setUsdcGoldBasket() internal {
@@ -669,12 +877,14 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         basket[0] = EquivalentExchangeUManager.BasketToken({
             token: usdc,
             config: EquivalentExchangeUManager.RateProviderConfig({
-                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
             })
         });
         basket[1] = EquivalentExchangeUManager.BasketToken({
             token: gold,
-            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: goldOracle, rateDecimals: 18 })
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: goldOracle, rateDecimals: 18
+            })
         });
         uManager.setBasketTokens(basket);
     }
