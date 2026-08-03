@@ -56,7 +56,7 @@ jobs:
         with:
           check_filenames: true
           ignore_words_list: we,amountIn,aNumber,totalIn,re-declared
-          skip: ./.git,./lib,./certora,./audit,./package-lock.json,./bun.lock
+          skip: ./.git,./lib,./certora,./audit,./bun.lock
 
   solhint:
     runs-on: ${{ matrix.os }}
@@ -71,10 +71,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Bun is not preinstalled on GitHub-hosted runners; it must be set up
+      # explicitly, unlike node/npm/yarn which ship with the image.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Run solhint
         run: |
-          yarn install
-          yarn solhint
+          bun install --frozen-lockfile && bun run solhint
 
   slither:
     runs-on: ${{ matrix.os }}
@@ -88,6 +94,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -107,6 +118,9 @@ jobs:
         with:
           version: stable
 
+      # node_modules is required to compile: remappings.txt maps
+      # @layerzerolabs/ into node_modules/, so forge cannot resolve imports
+      # without it.
       - name: Run Slither
         run: |
-          npm i && forge install && slither src
+          bun install --frozen-lockfile && forge install && slither src

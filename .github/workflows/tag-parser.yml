@@ -22,10 +22,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "16"
+          node-version: "20"
+
+      # Bun is not preinstalled on GitHub-hosted runners. It is used only as the
+      # package manager here; tag_parse.js still runs under node.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm install pocketbase keccak256
+        run: bun install --frozen-lockfile
+
+      # npm generates the Prisma client via @prisma/client's postinstall, but
+      # bun does not run postinstall for untrusted deps, so do it explicitly.
+      - name: Generate Prisma client
+        run: bun run db:generate
 
       - name: Setup Foundry
         uses: foundry-rs/foundry-toolchain@v1
