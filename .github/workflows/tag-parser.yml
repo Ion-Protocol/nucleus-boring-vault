@@ -46,7 +46,9 @@ jobs:
 
       - name: Run tag parser for all files
         env:
-          POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
+          # Consumed by prisma/schema.prisma's datasource block, which
+          # tag_parse.js resolves lazily on its first query.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           # Process all files
           echo "Processing all DecodersAndSanitizers files"
