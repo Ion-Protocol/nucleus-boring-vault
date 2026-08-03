@@ -60,6 +60,10 @@ jobs:
 
   solhint:
     runs-on: ${{ matrix.os }}
+    # Least privilege: this job only lints. contents:read is the minimum
+    # actions/checkout needs, and it drops the repo default of read/write.
+    permissions:
+      contents: read
     strategy:
       matrix:
         os:
