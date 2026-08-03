@@ -3,13 +3,14 @@ pragma solidity 0.8.21;
 
 import { Test } from "@forge-std/Test.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { EquivalentExchangeUManager } from "src/micro-managers/EquivalentExchangeUManager.sol";
 
 /// @notice Unit tests for EquivalentExchangeUManager's external/public surface.
 contract EquivalentExchangeUManagerTest is Test {
 
     // Re-declared so the test can build the expected event for vm.expectEmit.
-    event BasketTokensUpdated(ERC20[] tokens);
+    event BasketTokensUpdated(EquivalentExchangeUManager.BasketToken[] tokens);
 
     EquivalentExchangeUManager internal uManager;
 
@@ -17,6 +18,9 @@ contract EquivalentExchangeUManagerTest is Test {
     ERC20 internal tokenB;
     ERC20 internal tokenC;
     ERC20 internal tokenD;
+
+    IRateProvider internal oracleA;
+    IRateProvider internal oracleB;
 
     function setUp() external {
         // owner = this test contract; with no Authority set, only the owner passes requiresAuth.
@@ -27,26 +31,67 @@ contract EquivalentExchangeUManagerTest is Test {
         tokenB = ERC20(makeAddr("tokenB"));
         tokenC = ERC20(makeAddr("tokenC"));
         tokenD = ERC20(makeAddr("tokenD"));
+
+        // These accessor/bookkeeping tests never call getRate(), so codeless stand-ins are sufficient.
+        oracleA = IRateProvider(makeAddr("oracleA"));
+        oracleB = IRateProvider(makeAddr("oracleB"));
     }
 
     // ============================== helpers ==============================
 
-    function _arr(ERC20 t0) internal pure returns (ERC20[] memory a) {
-        a = new ERC20[](1);
-        a[0] = t0;
+    /// @notice Wraps a token as a 1:1 USD basket entry (no oracle).
+    function _usd(ERC20 token) internal pure returns (EquivalentExchangeUManager.BasketToken memory) {
+        return EquivalentExchangeUManager.BasketToken({
+            token: token,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
     }
 
-    function _arr(ERC20 t0, ERC20 t1) internal pure returns (ERC20[] memory a) {
-        a = new ERC20[](2);
-        a[0] = t0;
-        a[1] = t1;
+    /// @notice Wraps a token as an oracle-priced basket entry. rateDecimals fixed at 18 for these config tests.
+    function _priced(
+        ERC20 token,
+        IRateProvider oracle
+    )
+        internal
+        pure
+        returns (EquivalentExchangeUManager.BasketToken memory)
+    {
+        return EquivalentExchangeUManager.BasketToken({
+            token: token,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: oracle, rateDecimals: 18 })
+        });
     }
 
-    function _arr(ERC20 t0, ERC20 t1, ERC20 t2) internal pure returns (ERC20[] memory a) {
-        a = new ERC20[](3);
-        a[0] = t0;
-        a[1] = t1;
-        a[2] = t2;
+    function _empty() internal pure returns (EquivalentExchangeUManager.BasketToken[] memory) {
+        return new EquivalentExchangeUManager.BasketToken[](0);
+    }
+
+    function _arr(ERC20 t0) internal pure returns (EquivalentExchangeUManager.BasketToken[] memory a) {
+        a = new EquivalentExchangeUManager.BasketToken[](1);
+        a[0] = _usd(t0);
+    }
+
+    function _arr(ERC20 t0, ERC20 t1) internal pure returns (EquivalentExchangeUManager.BasketToken[] memory a) {
+        a = new EquivalentExchangeUManager.BasketToken[](2);
+        a[0] = _usd(t0);
+        a[1] = _usd(t1);
+    }
+
+    function _arr(
+        ERC20 t0,
+        ERC20 t1,
+        ERC20 t2
+    )
+        internal
+        pure
+        returns (EquivalentExchangeUManager.BasketToken[] memory a)
+    {
+        a = new EquivalentExchangeUManager.BasketToken[](3);
+        a[0] = _usd(t0);
+        a[1] = _usd(t1);
+        a[2] = _usd(t2);
     }
 
     // ============================== setBasketTokens: happy paths ==============================
@@ -54,12 +99,12 @@ contract EquivalentExchangeUManagerTest is Test {
     function test_SetBasketTokens_StoresTokensInOrder() external {
         uManager.setBasketTokens(_arr(tokenA, tokenB, tokenC));
 
-        address[] memory stored = uManager.getBasketTokens();
+        EquivalentExchangeUManager.BasketToken[] memory stored = uManager.getBasketTokens();
         assertEq(stored.length, 3);
         // EnumerableSet preserves insertion order when there have been no removals.
-        assertEq(stored[0], address(tokenA));
-        assertEq(stored[1], address(tokenB));
-        assertEq(stored[2], address(tokenC));
+        assertEq(address(stored[0].token), address(tokenA));
+        assertEq(address(stored[1].token), address(tokenB));
+        assertEq(address(stored[2].token), address(tokenC));
 
         assertTrue(uManager.isBasketToken(tokenA));
         assertTrue(uManager.isBasketToken(tokenB));
@@ -70,12 +115,12 @@ contract EquivalentExchangeUManagerTest is Test {
     function test_SetBasketTokens_ReplacesPreviousBasket() external {
         uManager.setBasketTokens(_arr(tokenA, tokenB, tokenC));
 
-        // Overwrite with a disjoint set; exercises the backwards-removal loop that clears the old set.
+        // Overwrite with a disjoint set; exercises the removal loop that clears the old set.
         uManager.setBasketTokens(_arr(tokenD));
 
-        address[] memory stored = uManager.getBasketTokens();
+        EquivalentExchangeUManager.BasketToken[] memory stored = uManager.getBasketTokens();
         assertEq(stored.length, 1);
-        assertEq(stored[0], address(tokenD));
+        assertEq(address(stored[0].token), address(tokenD));
 
         // All previous tokens must be gone.
         assertFalse(uManager.isBasketToken(tokenA));
@@ -95,15 +140,10 @@ contract EquivalentExchangeUManagerTest is Test {
         assertEq(uManager.getBasketTokens().length, 2);
     }
 
-    // The three tests below empty baskets of size 1, 2, and 3 by re-setting to an empty array, which
-    // runs only the internal removal loop. This guards the backwards-iteration fix: an earlier forward
-    // iteration over a cached length broke for size >= 2, because EnumerableSet.remove swaps-and-pops so
-    // at(i) shifts and eventually reads out of bounds as the set shrinks.
-
     function test_SetBasketTokens_EmptiesSizeOneBasket() external {
         uManager.setBasketTokens(_arr(tokenA));
 
-        uManager.setBasketTokens(new ERC20[](0));
+        uManager.setBasketTokens(_empty());
 
         assertEq(uManager.getBasketTokens().length, 0);
         assertFalse(uManager.isBasketToken(tokenA));
@@ -112,7 +152,7 @@ contract EquivalentExchangeUManagerTest is Test {
     function test_SetBasketTokens_EmptiesSizeTwoBasket() external {
         uManager.setBasketTokens(_arr(tokenA, tokenB));
 
-        uManager.setBasketTokens(new ERC20[](0));
+        uManager.setBasketTokens(_empty());
 
         assertEq(uManager.getBasketTokens().length, 0);
         assertFalse(uManager.isBasketToken(tokenA));
@@ -122,7 +162,7 @@ contract EquivalentExchangeUManagerTest is Test {
     function test_SetBasketTokens_EmptiesSizeThreeBasket() external {
         uManager.setBasketTokens(_arr(tokenA, tokenB, tokenC));
 
-        uManager.setBasketTokens(new ERC20[](0));
+        uManager.setBasketTokens(_empty());
 
         assertEq(uManager.getBasketTokens().length, 0);
         assertFalse(uManager.isBasketToken(tokenA));
@@ -132,18 +172,161 @@ contract EquivalentExchangeUManagerTest is Test {
 
     function test_SetBasketTokens_RevertWhen_DuplicateToken() external {
         // Duplicates in the input are rejected rather than silently collapsed.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](3);
+        tokens[0] = _usd(tokenA);
+        tokens[1] = _usd(tokenA);
+        tokens[2] = _usd(tokenB);
+
         vm.expectRevert(abi.encodeWithSelector(EquivalentExchangeUManager.DuplicateToken.selector, address(tokenA)));
-        uManager.setBasketTokens(_arr(tokenA, tokenA, tokenB));
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_RevertWhen_DuplicateTokenDiffersOnlyByOracle() external {
+        // The same address as USD and as oracle-priced is still a duplicate address and must be rejected.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](2);
+        tokens[0] = _usd(tokenA);
+        tokens[1] = _priced(tokenA, oracleA);
+
+        vm.expectRevert(abi.encodeWithSelector(EquivalentExchangeUManager.DuplicateToken.selector, address(tokenA)));
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_RevertWhen_BasketTooLarge() external {
+        // One past the bitmap width (256) has no flag bit to bind to, so it is rejected.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](257);
+        for (uint256 i; i < 257; ++i) {
+            tokens[i] = _usd(ERC20(address(uint160(i + 1))));
+        }
+
+        vm.expectRevert(EquivalentExchangeUManager.BasketTooLarge.selector);
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_AllowsMaxBasketSize() external {
+        // Exactly the bitmap width (256) is allowed; the last token maps to bit 255.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](256);
+        for (uint256 i; i < 256; ++i) {
+            tokens[i] = _usd(ERC20(address(uint160(i + 1))));
+        }
+
+        uManager.setBasketTokens(tokens);
+        assertEq(uManager.getBasketTokens().length, 256);
     }
 
     function test_SetBasketTokens_IdempotentWhenReapplyingSameSet() external {
         uManager.setBasketTokens(_arr(tokenA, tokenB));
         uManager.setBasketTokens(_arr(tokenA, tokenB));
 
-        address[] memory stored = uManager.getBasketTokens();
+        EquivalentExchangeUManager.BasketToken[] memory stored = uManager.getBasketTokens();
         assertEq(stored.length, 2);
-        assertEq(stored[0], address(tokenA));
-        assertEq(stored[1], address(tokenB));
+        assertEq(address(stored[0].token), address(tokenA));
+        assertEq(address(stored[1].token), address(tokenB));
+    }
+
+    // ============================== setBasketTokens: oracle config ==============================
+
+    function test_SetBasketTokens_StoresOracleForPricedToken() external {
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](2);
+        tokens[0] = _usd(tokenA);
+        tokens[1] = _priced(tokenB, oracleA);
+
+        uManager.setBasketTokens(tokens);
+
+        // getBasketTokens is the source of truth: a USD token pairs with the zero oracle, an oracle-priced
+        // token with its provider, in stored order.
+        EquivalentExchangeUManager.BasketToken[] memory stored = uManager.getBasketTokens();
+        assertEq(stored.length, 2);
+        assertEq(address(stored[0].token), address(tokenA));
+        assertEq(address(stored[0].config.rateProvider), address(0));
+        assertEq(stored[0].config.rateDecimals, 0);
+        assertEq(address(stored[1].token), address(tokenB));
+        assertEq(address(stored[1].config.rateProvider), address(oracleA));
+        assertEq(stored[1].config.rateDecimals, 18);
+        assertTrue(uManager.isBasketToken(tokenB));
+    }
+
+    function test_SetBasketTokens_RevertWhen_OracleSetButRateDecimalsZero() external {
+        // A priced token with no rate decimals is a config mistake (the rate would be scaled wrong).
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = EquivalentExchangeUManager.BasketToken({
+            token: tokenA,
+            config: EquivalentExchangeUManager.RateProviderConfig({ rateProvider: oracleA, rateDecimals: 0 })
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(EquivalentExchangeUManager.OracleDecimalsMismatch.selector, address(tokenA))
+        );
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_RevertWhen_RateDecimalsSetButNoOracle() external {
+        // A 1:1 token carrying stray rate decimals is a config mistake; decimals only apply with an oracle.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = EquivalentExchangeUManager.BasketToken({
+            token: tokenA,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                rateProvider: IRateProvider(address(0)), rateDecimals: 8
+            })
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(EquivalentExchangeUManager.OracleDecimalsMismatch.selector, address(tokenA))
+        );
+        uManager.setBasketTokens(tokens);
+    }
+
+    function test_SetBasketTokens_DropsOracleWhenTokenRemoved() external {
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](1);
+        tokens[0] = _priced(tokenB, oracleA);
+        uManager.setBasketTokens(tokens);
+        assertEq(address(uManager.getBasketTokens()[0].config.rateProvider), address(oracleA));
+
+        // Replacing the basket without tokenB must drop it entirely, oracle included.
+        uManager.setBasketTokens(_arr(tokenA));
+        EquivalentExchangeUManager.BasketToken[] memory stored = uManager.getBasketTokens();
+        assertEq(stored.length, 1);
+        assertEq(address(stored[0].token), address(tokenA));
+        assertEq(address(stored[0].config.rateProvider), address(0));
+        assertFalse(uManager.isBasketToken(tokenB));
+    }
+
+    function test_SetBasketTokens_UpdatesOracleForSameToken() external {
+        EquivalentExchangeUManager.BasketToken[] memory first = new EquivalentExchangeUManager.BasketToken[](1);
+        first[0] = _priced(tokenB, oracleA);
+        uManager.setBasketTokens(first);
+        assertEq(address(uManager.getBasketTokens()[0].config.rateProvider), address(oracleA));
+
+        // Re-set the same token with a different oracle; the stored pairing must reflect the latest provider.
+        EquivalentExchangeUManager.BasketToken[] memory second = new EquivalentExchangeUManager.BasketToken[](1);
+        second[0] = _priced(tokenB, oracleB);
+        uManager.setBasketTokens(second);
+        assertEq(address(uManager.getBasketTokens()[0].config.rateProvider), address(oracleB));
+    }
+
+    function test_SetBasketTokens_DropsOracleWhenTokenBecomesUsd() external {
+        EquivalentExchangeUManager.BasketToken[] memory first = new EquivalentExchangeUManager.BasketToken[](1);
+        first[0] = _priced(tokenB, oracleA);
+        uManager.setBasketTokens(first);
+
+        // Same token re-added as a USD asset must no longer report an oracle: the stale provider must not
+        // be inherited.
+        uManager.setBasketTokens(_arr(tokenB));
+        assertEq(address(uManager.getBasketTokens()[0].config.rateProvider), address(0));
+    }
+
+    function test_SetBasketTokens_OracleFlagsBindByPosition() external {
+        // Only the middle token is oracle-priced: the flag must attach to index 1, not leak to its
+        // neighbors.
+        EquivalentExchangeUManager.BasketToken[] memory tokens = new EquivalentExchangeUManager.BasketToken[](3);
+        tokens[0] = _usd(tokenA);
+        tokens[1] = _priced(tokenB, oracleA);
+        tokens[2] = _usd(tokenC);
+        uManager.setBasketTokens(tokens);
+
+        EquivalentExchangeUManager.BasketToken[] memory stored = uManager.getBasketTokens();
+        assertEq(address(stored[0].config.rateProvider), address(0));
+        assertEq(address(stored[1].config.rateProvider), address(oracleA));
+        assertEq(address(stored[2].config.rateProvider), address(0));
     }
 
     // ============================== setBasketTokens: events ==============================
@@ -214,8 +397,6 @@ contract EquivalentExchangeUManagerTest is Test {
 
     function test_Execute_RevertWhen_DeltaLengthDoesNotMatchBasket() external {
         // Bounds bind to basket tokens by position, so only an exactly basket-length array is accepted.
-        // Too few leaves a token unbounded; too many carries a bound with no token to bind to. The
-        // one-token basket puts both cases one step either side of the sole valid length.
         uManager.setBasketTokens(_arr(tokenA));
 
         vm.expectRevert(EquivalentExchangeUManager.TokenDeltaLengthMismatch.selector);
