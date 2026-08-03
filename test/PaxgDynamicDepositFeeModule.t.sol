@@ -92,7 +92,9 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
             MAX_STALE
         );
 
-        module = new PaxgDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)));
+        module = new PaxgDynamicDepositFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares))
+        );
     }
 
     /// @dev Sets the PAXG:XAU market price by moving the PAXG/USD feed, holding XAU/USD at $3400.
@@ -108,12 +110,17 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
 
     function testConstructorRejectsZeroOracle() external {
         vm.expectRevert(PaxgDynamicDepositFeeModule.ZeroAddress.selector);
-        new PaxgDynamicDepositFeeModule(IRateProvider(address(0)), IERC20(address(paxg)));
+        new PaxgDynamicDepositFeeModule(IRateProvider(address(0)), IERC20(address(paxg)), IERC20(address(shares)));
     }
 
     function testConstructorRejectsZeroPaxg() external {
         vm.expectRevert(PaxgDynamicDepositFeeModule.ZeroAddress.selector);
-        new PaxgDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(0)));
+        new PaxgDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(0)), IERC20(address(shares)));
+    }
+
+    function testConstructorRejectsZeroShares() external {
+        vm.expectRevert(PaxgDynamicDepositFeeModule.ZeroAddress.selector);
+        new PaxgDynamicDepositFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(0)));
     }
 
     /// @notice PEG_PRICE must equal 10**(rate provider decimals); the fee math assumes the oracle's
@@ -127,6 +134,13 @@ contract PaxgDynamicDepositFeeModuleTest is Test {
         MockToken other = new MockToken("Other", "OTH", 18);
         vm.expectRevert(abi.encodeWithSelector(PaxgDynamicDepositFeeModule.InvalidOfferAsset.selector, address(other)));
         module.calculateOfferFees(1e18, IERC20(address(other)), IERC20(address(shares)), address(0xBEEF));
+    }
+
+    /// @notice A want asset other than the bound share token reverts, keeping the module to its one vault.
+    function testRevertsOnNonSharesWantAsset() external {
+        MockToken other = new MockToken("Other", "OTH", 18);
+        vm.expectRevert(abi.encodeWithSelector(PaxgDynamicDepositFeeModule.InvalidWantAsset.selector, address(other)));
+        module.calculateOfferFees(1e18, IERC20(address(paxg)), IERC20(address(other)), address(0xBEEF));
     }
 
     /// @notice At peg (p = 1) the deposit fee is zero.

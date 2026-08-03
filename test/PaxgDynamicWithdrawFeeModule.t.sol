@@ -94,7 +94,9 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
             MAX_STALE
         );
 
-        module = new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), FIXED_FEE_BPS);
+        module = new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), FIXED_FEE_BPS
+        );
     }
 
     /// @dev Sets the PAXG:XAU market price by moving the PAXG/USD feed, holding XAU/USD at $3400.
@@ -131,12 +133,23 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
 
     function testConstructorRejectsZeroRateProvider() external {
         vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(0)), IERC20(address(paxg)), FIXED_FEE_BPS);
+        new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(0)), IERC20(address(paxg)), IERC20(address(shares)), FIXED_FEE_BPS
+        );
     }
 
     function testConstructorRejectsZeroPaxg() external {
         vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
-        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(0)), FIXED_FEE_BPS);
+        new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(0)), IERC20(address(shares)), FIXED_FEE_BPS
+        );
+    }
+
+    function testConstructorRejectsZeroShares() external {
+        vm.expectRevert(PaxgDynamicWithdrawFeeModule.ZeroAddress.selector);
+        new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(0)), FIXED_FEE_BPS
+        );
     }
 
     /// @notice A fixed fee above 100% (BPS_DIVISOR) is rejected at construction.
@@ -144,13 +157,16 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidFixedFeeBps.selector, BPS_DIVISOR + 1)
         );
-        new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), BPS_DIVISOR + 1);
+        new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), BPS_DIVISOR + 1
+        );
     }
 
     /// @notice A fixed fee of exactly 100% (BPS_DIVISOR) is allowed (boundary).
     function testConstructorAcceptsFixedFeeBpsAtMax() external {
-        PaxgDynamicWithdrawFeeModule m =
-            new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), BPS_DIVISOR);
+        PaxgDynamicWithdrawFeeModule m = new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), BPS_DIVISOR
+        );
         assertEq(m.FIXED_FEE_BPS(), BPS_DIVISOR);
     }
 
@@ -161,8 +177,9 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
 
     /// @notice A different bps scales the fixed fee accordingly (e.g. 100 bps => 1%).
     function testNonDefaultFixedFeeBps() external {
-        PaxgDynamicWithdrawFeeModule m =
-            new PaxgDynamicWithdrawFeeModule(IRateProvider(address(oracle)), IERC20(address(paxg)), 100);
+        PaxgDynamicWithdrawFeeModule m = new PaxgDynamicWithdrawFeeModule(
+            IRateProvider(address(oracle)), IERC20(address(paxg)), IERC20(address(shares)), 100
+        );
         _setPaxgXauPrice(PEG_PRICE);
         // At peg only the fixed fee applies: 100e18 * 100 / 10_000 = 1e18 (100 bps = 1%).
         assertEq(m.calculateOfferFees(100e18, IERC20(address(shares)), IERC20(address(paxg)), address(0xBEEF)), 1e18);
@@ -178,6 +195,13 @@ contract PaxgDynamicWithdrawFeeModuleTest is Test {
         MockToken other = new MockToken("Other", "OTH", 18);
         vm.expectRevert(abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidWantAsset.selector, address(other)));
         module.calculateOfferFees(1e18, IERC20(address(shares)), IERC20(address(other)), address(0xBEEF));
+    }
+
+    /// @notice An offer asset other than the bound share token reverts, keeping the module to its one vault.
+    function testRevertsOnNonSharesOfferAsset() external {
+        MockToken other = new MockToken("Other", "OTH", 18);
+        vm.expectRevert(abi.encodeWithSelector(PaxgDynamicWithdrawFeeModule.InvalidOfferAsset.selector, address(other)));
+        module.calculateOfferFees(1e18, IERC20(address(other)), IERC20(address(paxg)), address(0xBEEF));
     }
 
     /// @notice At peg (p = 1) the dynamic component is zero, so only the fixed 10 bps fee applies.

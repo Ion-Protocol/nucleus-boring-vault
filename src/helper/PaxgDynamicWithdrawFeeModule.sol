@@ -25,8 +25,8 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  * the offchain NAV calculation must treat vault-held shares as nonexistent (excluded from both total
  * value and total supply). That accounting is a deployment/queue concern, out of scope for this module.
  *
- * The rate provider and supported withdraw asset are immutable. To change either, deploy a new module and
- * point the queue at it via its setFeeModule path; this module holds no admin surface of its own.
+ * The immutables bind the module to one vault; this module holds no admin surface. To change any of them,
+ * deploy a new module and repoint the queue via setFeeModule.
  */
 contract PaxgDynamicWithdrawFeeModule is IFeeModule {
 
@@ -57,6 +57,12 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
     IERC20 public immutable PAXG;
 
     /**
+     * @notice The vault share token (BoringVault). The order's offer asset must equal it, binding the module
+     * to the one vault whose accountant pegs PAXG to XAU 1:1. Any other offer asset reverts.
+     */
+    IERC20 public immutable SHARES;
+
+    /**
      * @notice Fixed withdrawal fee, in basis points, charged on every withdrawal in addition to the dynamic
      * depeg fee. Set once at construction so the fixed fee rate cannot be changed after deployment.
      * Bounded to BPS_DIVISOR (100%) at construction.
@@ -65,20 +71,24 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
 
     error ZeroAddress();
     error InvalidFixedFeeBps(uint256 fixedFeeBps);
+    error InvalidOfferAsset(address offerAsset);
     error InvalidWantAsset(address wantAsset);
 
     /**
      * @notice Initialize the module.
      * @param _rateProvider PAXG:XAU rate provider (XAU per PAXG, 18-decimal fixed point, PEG_PRICE = 1.0).
      * @param _paxg The PAXG token this module is authorized to price.
+     * @param _shares The vault share token (BoringVault) that withdrawals from this vault offer.
      * @param _fixedFeeBps Fixed fee in basis points, charged on every withdrawal. Must be <= BPS_DIVISOR.
      */
-    constructor(IRateProvider _rateProvider, IERC20 _paxg, uint256 _fixedFeeBps) {
+    constructor(IRateProvider _rateProvider, IERC20 _paxg, IERC20 _shares, uint256 _fixedFeeBps) {
         if (address(_rateProvider) == address(0)) revert ZeroAddress();
         if (address(_paxg) == address(0)) revert ZeroAddress();
+        if (address(_shares) == address(0)) revert ZeroAddress();
         if (_fixedFeeBps > BPS_DIVISOR) revert InvalidFixedFeeBps(_fixedFeeBps);
         RATE_PROVIDER = _rateProvider;
         PAXG = _paxg;
+        SHARES = _shares;
         FIXED_FEE_BPS = _fixedFeeBps;
     }
 
@@ -88,15 +98,16 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
      *   - dynamicFee = amount * (p - 1) / p when p > 1, else 0 (p is the market PAXG:XAU rate, denominated
      *     against p so the fraction is always < 1); and
      *   - fixedFee = amount * FIXED_FEE_BPS / BPS_DIVISOR, a flat fee charged on every withdrawal.
-     * The total is capped at the order amount. Reverts if wantAsset is not PAXG, or (via the rate provider)
-     * on stale data.
+     * The total is capped at the order amount. Reverts if the offer asset is not SHARES, the want asset is
+     * not PAXG, or the rate provider reports stale data.
      * @param amount Share amount being offered by the order.
+     * @param offerAsset Must equal SHARES.
      * @param wantAsset Must equal PAXG.
      * @return feeAmount Fee to withhold, denominated in shares.
      */
     function calculateOfferFees(
         uint256 amount,
-        IERC20, /* offerAsset */
+        IERC20 offerAsset,
         IERC20 wantAsset,
         address /* receiver */
     )
@@ -105,6 +116,7 @@ contract PaxgDynamicWithdrawFeeModule is IFeeModule {
         override
         returns (uint256 feeAmount)
     {
+        if (address(offerAsset) != address(SHARES)) revert InvalidOfferAsset(address(offerAsset));
         if (address(wantAsset) != address(PAXG)) revert InvalidWantAsset(address(wantAsset));
 
         // Market PAXG:XAU rate (XAU per PAXG), 18-decimal fixed point.

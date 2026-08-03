@@ -17,8 +17,8 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
  * The fee is taken in PAXG (the offer asset). The consuming DistributorCodeDepositor deducts it from the
  * deposit amount before minting and routes it to the fee recipient (the vault), so it accrues to NAV.
  *
- * The oracle and supported deposit asset are immutable. To change either, deploy a new module and point
- * the depositor at it via its setFeeModule path; this module holds no admin surface of its own.
+ * The immutables bind the module to one vault; this module holds no admin surface. To change any of them,
+ * deploy a new module and repoint the depositor via setFeeModule.
  */
 contract PaxgDynamicDepositFeeModule is IFeeModule {
 
@@ -43,34 +43,45 @@ contract PaxgDynamicDepositFeeModule is IFeeModule {
      */
     IERC20 public immutable PAXG;
 
+    /**
+     * @notice The vault share token (BoringVault). The order's want asset must equal it, binding the module
+     * to the one vault whose accountant pegs PAXG to XAU 1:1. Any other want asset reverts.
+     */
+    IERC20 public immutable SHARES;
+
     error ZeroAddress();
     error InvalidOfferAsset(address offerAsset);
+    error InvalidWantAsset(address wantAsset);
 
     /**
      * @notice Initialize the module.
      * @param _oracle PAXG:XAU rate provider (XAU per PAXG, 18-decimal fixed point, PEG_PRICE = 1.0).
      * @param _paxg The PAXG token this module is authorized to price.
+     * @param _shares The vault share token (BoringVault) that deposits into this vault mint.
      */
-    constructor(IRateProvider _oracle, IERC20 _paxg) {
+    constructor(IRateProvider _oracle, IERC20 _paxg, IERC20 _shares) {
         if (address(_oracle) == address(0)) revert ZeroAddress();
         if (address(_paxg) == address(0)) revert ZeroAddress();
+        if (address(_shares) == address(0)) revert ZeroAddress();
         RATE_PROVIDER = _oracle;
         PAXG = _paxg;
+        SHARES = _shares;
     }
 
     /**
      * @notice Calculate the PAXG-denominated deposit fee for an order.
      * @dev feeAmount = amount * (1 - min(1, p)) where p is the market PAXG:XAU rate. Rounds up so the
-     * residual always favors the vault. Reverts if the offer asset is not PAXG, or (via the oracle) on
-     * stale price data.
+     * residual always favors the vault. Reverts if the offer asset is not PAXG, the want asset is not
+     * SHARES, or the oracle reports stale data.
      * @param amount PAXG deposit amount.
      * @param offerAsset Must equal PAXG.
+     * @param wantAsset Must equal SHARES.
      * @return feeAmount Fee to withhold, denominated in PAXG.
      */
     function calculateOfferFees(
         uint256 amount,
         IERC20 offerAsset,
-        IERC20, /* wantAsset */
+        IERC20 wantAsset,
         address /* receiver */
     )
         external
@@ -79,6 +90,7 @@ contract PaxgDynamicDepositFeeModule is IFeeModule {
         returns (uint256 feeAmount)
     {
         if (address(offerAsset) != address(PAXG)) revert InvalidOfferAsset(address(offerAsset));
+        if (address(wantAsset) != address(SHARES)) revert InvalidWantAsset(address(wantAsset));
 
         // Market PAXG:XAU rate (XAU per PAXG), 18-decimal fixed point. Reverts on stale feeds.
         uint256 price = RATE_PROVIDER.getRate();
