@@ -171,6 +171,13 @@ contract PaxgXauRateProviderTest is Test {
         rateProvider.getRate();
     }
 
+    /// @notice A zero XAU answer reverts on division by zero in the cross-rate.
+    function testZeroAnswerReverts() external {
+        xauUsdFeed.setAnswer(0);
+        vm.expectRevert();
+        rateProvider.getRate();
+    }
+
     /// @notice Constructor rejects a PAXG feed whose description does not match.
     function testConstructorRejectsWrongPaxgDescription() external {
         MockPriceFeed badFeed = new MockPriceFeed(FEED_DECIMALS, "WRONG / USD", int256(3390e8), NOW);
