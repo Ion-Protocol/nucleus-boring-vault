@@ -446,6 +446,16 @@ contract EquivalentExchangeUManagerTest is Test {
         uManager.execute(_noCalls(), makeAddr("payer"), tokenA, _zeroDeltas(2));
     }
 
+    function test_Execute_RevertWhen_SubsidyPayerIsBoringVault() external {
+        uManager.setBasketTokens(_arr(tokenA));
+
+        // boringVault was set to address(this) in setUp. Paying the subsidy from the vault itself would be a
+        // self-transfer that leaves the balance unchanged while inflating the accounting, so it must revert.
+        // The guard fires before any balance is read, so the codeless dummy basket token is never called.
+        vm.expectRevert(EquivalentExchangeUManager.InvalidSubsidyPayer.selector);
+        uManager.execute(_noCalls(), address(this), tokenA, _zeroDeltas(1));
+    }
+
     // ============================== isBasketToken ==============================
 
     function test_IsBasketToken_TrueForMember() external {

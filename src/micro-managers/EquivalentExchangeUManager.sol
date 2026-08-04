@@ -92,6 +92,7 @@ contract EquivalentExchangeUManager is UManager {
     error InvalidRateProviderConfig(address token);
     error InvalidRate(address token);
     error InsufficientSubsidy();
+    error InvalidSubsidyPayer();
     error DanglingApproval();
     error TokenDeltaLengthMismatch();
     error TokenDeltaViolation(
@@ -279,6 +280,10 @@ contract EquivalentExchangeUManager is UManager {
         if (basketLength == 0) revert EmptyBasket();
         if (!basketTokens.contains(address(subsidyToken))) revert TokenNotInBasket();
         if (allowableTokenDelta.length != basketLength) revert TokenDeltaLengthMismatch();
+        // The subsidy must be new value from outside the vault. If the payer were the vault itself, the
+        // transferFrom in _coverShortfall would be a self-transfer that leaves the balance unchanged while
+        // the accounting credits it to totalAfter, letting the value invariant pass without any real subsidy.
+        if (subsidyPayer == boringVault) revert InvalidSubsidyPayer();
 
         // Snapshot the pre-batch balances the delta bounds are measured against. Normalizing/pricing is
         // deferred to the post-batch loop, which reads each token's decimals and oracle anyway.
