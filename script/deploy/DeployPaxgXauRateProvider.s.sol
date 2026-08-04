@@ -16,7 +16,7 @@ using StdJson for string;
  * gated to chain id 1. The constructor validates each feed's `description()`, so a mistyped feed
  * address will cause the deployment to revert rather than silently wire the wrong source.
  */
-contract DeployPaxgXauOracle is BaseScript {
+contract DeployPaxgXauRateProvider is BaseScript {
 
     // Deployer protected: 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f
     bytes32 constant SALT = 0x12341eD9cb38Ae1b15016c6eD9F88e247f2AF76f005555555555555555550901;
@@ -63,18 +63,18 @@ contract DeployPaxgXauOracle is BaseScript {
 
         // Output precision must be 18: the fee modules and accountant compare getRate() against a hardcoded
         // 1e18 peg, so any other precision silently mis-scales every downstream fee.
-        require(oracle.RATE_DECIMALS() == 18, "DeployPaxgXauOracle: RATE_DECIMALS != 18");
+        require(oracle.RATE_DECIMALS() == 18, "DeployPaxgXauRateProvider: RATE_DECIMALS != 18");
 
         // Stored feed addresses must match the constants (guards against a swapped or edited constant that
         // still happens to share a description).
-        require(address(oracle.PAXG_USD_FEED()) == PAXG_USD_FEED, "DeployPaxgXauOracle: PAXG/USD feed mismatch");
-        require(address(oracle.XAU_USD_FEED()) == XAU_USD_FEED, "DeployPaxgXauOracle: XAU/USD feed mismatch");
+        require(address(oracle.PAXG_USD_FEED()) == PAXG_USD_FEED, "DeployPaxgXauRateProvider: PAXG/USD feed mismatch");
+        require(address(oracle.XAU_USD_FEED()) == XAU_USD_FEED, "DeployPaxgXauRateProvider: XAU/USD feed mismatch");
 
         // The composite rate must be live and sane. This exercises the staleness and positivity guards
         // against the real feeds, and the band catches gross scaling/wiring errors: PAXG is backed 1:1 by
         // one troy ounce of gold, so XAU per PAXG sits within ~10% of 1e18 in any normal market.
         uint256 rate = oracle.getRate();
-        require(rate >= 0.9e18 && rate <= 1.1e18, "DeployPaxgXauOracle: getRate() outside sane band");
+        require(rate >= 0.9e18 && rate <= 1.1e18, "DeployPaxgXauRateProvider: getRate() outside sane band");
 
         console2.log("PaxgXauRateProvider: ", rateProvider);
         console2.log("  getRate(): ", rate);
