@@ -5,63 +5,8 @@ import { Test } from "@forge-std/Test.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { PaxgXauRateProvider } from "src/oracles/PaxgXauRateProvider.sol";
 import { IPriceFeed } from "src/interfaces/IPriceFeed.sol";
-
-/**
- * @notice Minimal ERC20 used only to expose a configurable `decimals()` at construction.
- */
-contract MockToken is ERC20 {
-
-    constructor(uint8 decimals_) ERC20("PAX Gold", "PAXG", decimals_) { }
-
-}
-
-/**
- * @notice Minimal configurable Chainlink-style price feed used to drive the composite oracle
- * deterministically, without relying on a live fork or RPC.
- */
-contract MockPriceFeed is IPriceFeed {
-
-    uint8 internal _decimals;
-    string internal _description;
-    int256 internal _answer;
-    uint256 internal _updatedAt;
-
-    constructor(uint8 decimals_, string memory description_, int256 answer_, uint256 updatedAt_) {
-        _decimals = decimals_;
-        _description = description_;
-        _answer = answer_;
-        _updatedAt = updatedAt_;
-    }
-
-    function setAnswer(int256 answer_) external {
-        _answer = answer_;
-    }
-
-    function setUpdatedAt(uint256 updatedAt_) external {
-        _updatedAt = updatedAt_;
-    }
-
-    function decimals() external view returns (uint8) {
-        return _decimals;
-    }
-
-    function description() external view returns (string memory) {
-        return _description;
-    }
-
-    function latestRoundData()
-        external
-        view
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
-    {
-        return (0, _answer, 0, _updatedAt, 0);
-    }
-
-    function getDataFeedId() external pure returns (bytes32) {
-        return bytes32(0);
-    }
-
-}
+import { MockPriceFeed } from "test/mocks/MockPriceFeed.sol";
+import { MockToken } from "test/mocks/MockToken.sol";
 
 contract PaxgXauRateProviderTest is Test {
 
@@ -84,7 +29,7 @@ contract PaxgXauRateProviderTest is Test {
         paxgUsdFeed = new MockPriceFeed(FEED_DECIMALS, "PAXG / USD", int256(3390e8), NOW);
         xauUsdFeed = new MockPriceFeed(FEED_DECIMALS, "XAU / USD", int256(3400e8), NOW);
         // PAXG is an 18-decimal token; the oracle reads RATE_DECIMALS from it at construction.
-        paxgToken = new MockToken(RATE_DECIMALS);
+        paxgToken = new MockToken("PAX Gold", "PAXG", RATE_DECIMALS);
 
         rateProvider = _deploy();
     }
@@ -118,7 +63,7 @@ contract PaxgXauRateProviderTest is Test {
 
     /// @notice RATE_DECIMALS is read from the PAXG token at construction, not hardcoded.
     function testRateDecimalsFollowsToken() external {
-        MockToken sixDecimalToken = new MockToken(6);
+        MockToken sixDecimalToken = new MockToken("PAX Gold", "PAXG", 6);
         PaxgXauRateProvider provider = new PaxgXauRateProvider(
             "PAXG / USD",
             "XAU / USD",

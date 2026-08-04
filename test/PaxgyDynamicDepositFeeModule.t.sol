@@ -8,58 +8,8 @@ import { PaxgyDynamicDepositFeeModule } from "src/helper/PaxgyDynamicDepositFeeM
 import { PaxgXauRateProvider } from "src/oracles/PaxgXauRateProvider.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { IPriceFeed } from "src/interfaces/IPriceFeed.sol";
-
-/**
- * @notice Minimal ERC20 exposing a configurable `decimals()`; also stands in for the PAXG deposit token.
- */
-contract MockToken is ERC20 {
-
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_, decimals_) { }
-
-}
-
-/**
- * @notice Minimal configurable Chainlink-style feed, matching the one used in the oracle's own tests.
- */
-contract MockPriceFeed is IPriceFeed {
-
-    uint8 internal _decimals;
-    string internal _description;
-    int256 internal _answer;
-    uint256 internal _updatedAt;
-
-    constructor(uint8 decimals_, string memory description_, int256 answer_, uint256 updatedAt_) {
-        _decimals = decimals_;
-        _description = description_;
-        _answer = answer_;
-        _updatedAt = updatedAt_;
-    }
-
-    function setAnswer(int256 answer_) external {
-        _answer = answer_;
-    }
-
-    function setUpdatedAt(uint256 updatedAt_) external {
-        _updatedAt = updatedAt_;
-    }
-
-    function decimals() external view returns (uint8) {
-        return _decimals;
-    }
-
-    function description() external view returns (string memory) {
-        return _description;
-    }
-
-    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
-        return (0, _answer, 0, _updatedAt, 0);
-    }
-
-    function getDataFeedId() external pure returns (bytes32) {
-        return bytes32(0);
-    }
-
-}
+import { MockPriceFeed } from "test/mocks/MockPriceFeed.sol";
+import { MockToken } from "test/mocks/MockToken.sol";
 
 contract PaxgyDynamicDepositFeeModuleTest is Test {
 
