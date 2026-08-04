@@ -220,7 +220,7 @@ contract PaxgXauRateProviderTest is Test {
         );
     }
 
-    /// @notice The rate scales monotonically with the PAXG/XAU price ratio.
+    /// @notice getRate() equals the intended formula (and stays overflow-free) across the realistic range.
     function testFuzzGetRate(uint256 xau, uint256 paxg) external {
         // Constrain to realistic 8-decimal USD prices in [$1, $1,000,000] to avoid overflow/zero.
         xau = bound(xau, 1e8, 1_000_000e8);
@@ -230,6 +230,29 @@ contract PaxgXauRateProviderTest is Test {
 
         uint256 expected = paxg * (10 ** RATE_DECIMALS) / xau;
         assertEq(rateProvider.getRate(), expected);
+    }
+
+    /// @notice The rate scales monotonically with the PAXG/XAU price ratio: raising PAXG/USD never lowers the
+    /// rate, and raising XAU/USD never raises it. Non-strict (>=/<=) because integer division can leave the
+    /// rate unchanged across a small price move.
+    function testFuzzGetRateMonotonic(uint256 xau, uint256 paxg, uint256 bump) external {
+        // Leave headroom below the max so the bumped prices stay within the realistic range.
+        xau = bound(xau, 1e8, 500_000e8);
+        paxg = bound(paxg, 1e8, 500_000e8);
+        bump = bound(bump, 1, 500_000e8);
+
+        xauUsdFeed.setAnswer(int256(xau));
+        paxgUsdFeed.setAnswer(int256(paxg));
+        uint256 base = rateProvider.getRate();
+
+        // Raising PAXG/USD (numerator) must not decrease the rate.
+        paxgUsdFeed.setAnswer(int256(paxg + bump));
+        assertGe(rateProvider.getRate(), base, "higher PAXG lowered rate");
+
+        // Raising XAU/USD (denominator), with PAXG restored, must not increase the rate.
+        paxgUsdFeed.setAnswer(int256(paxg));
+        xauUsdFeed.setAnswer(int256(xau + bump));
+        assertLe(rateProvider.getRate(), base, "higher XAU raised rate");
     }
 
 }

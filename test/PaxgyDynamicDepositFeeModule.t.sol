@@ -184,9 +184,18 @@ contract PaxgyDynamicDepositFeeModuleTest is Test {
 
     /// @notice The residual always rounds in the vault's favor (fee rounds up).
     function testFeeRoundsUpInVaultFavor() external {
-        // Choose a price and amount whose exact fee is fractional so rounding is observable.
-        _setPaxgXauPrice(0.999999999999999999e18); // 1 - p = 1 wei fraction
-        // amount = 3 wei: 3 * 1 / 1e18 = 0 exactly, mulDivUp rounds the nonzero remainder up to 1.
+        // Pick a price just below peg so the exact fee on a tiny amount is a sub-wei fraction.
+        _setPaxgXauPrice(0.999999999999999999e18);
+
+        // _setPaxgXauPrice moves the underlying PAXG/USD feed, and the oracle floors when deriving the
+        // cross-rate, so the reported price is not the value passed above. Read it back rather than
+        // restating hand arithmetic: here getRate() returns 0.999999999997058823e18, i.e. a shortfall of
+        // 2_941_177 wei below peg.
+        uint256 shortfall = PEG_PRICE - oracle.getRate();
+
+        // amount = 3 wei: 3 * shortfall = 8_823_531 < 1e18, so the exact fee floors to 0 and mulDivUp
+        // rounds the nonzero remainder up to 1.
+        assertEq((3 * shortfall) / PEG_PRICE, 0);
         assertEq(_fee(3), 1);
     }
 
