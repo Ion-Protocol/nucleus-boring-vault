@@ -692,6 +692,35 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
     }
 
+    function test_Execute_RevertWhen_UnitRateFloorsToZero() external {
+        // Distinct from the baseRate == 0 case above: here the oracle reports a NONZERO rate, but folding it
+        // with the token/rate decimals floors the per-unit rate to zero. Gold is 8-decimal; configuring the
+        // basket with rateDecimals = 36 makes shrink = 36 + 8 = 44 > 36 = 2 * NORMALIZED_DECIMALS, so
+        // _unitRate divides by 10**8. A baseRate of 1 (nonzero, so the raw-rate guard passes) floors to 0.
+        MockRateProvider tinyUnitRateOracle = new MockRateProvider(1);
+        EquivalentExchangeUManager.BasketToken[] memory basket = new EquivalentExchangeUManager.BasketToken[](2);
+        basket[0] = EquivalentExchangeUManager.BasketToken({
+            token: usdc,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: true, rateProvider: IRateProvider(address(0)), rateDecimals: 0
+            })
+        });
+        basket[1] = EquivalentExchangeUManager.BasketToken({
+            token: gold,
+            config: EquivalentExchangeUManager.RateProviderConfig({
+                isPeggedToken: false, rateProvider: tinyUnitRateOracle, rateDecimals: 36
+            })
+        });
+        uManager.setBasketTokens(basket);
+
+        EquivalentExchangeUManager.ManageCalls memory calls = _approveAndSwapUsdcForGold(1000e6, 1000e6, 5e7);
+
+        // The raw rate (1) is nonzero, but the folded unit rate floors to 0, so the dedicated unit-rate guard
+        // rejects gold rather than silently valuing it at zero.
+        vm.expectRevert(abi.encodeWithSelector(EquivalentExchangeUManager.InvalidRate.selector, address(gold)));
+        uManager.execute(calls, payer, usdc, _wideUsdcGoldDeltas());
+    }
+
     // ==================== production basket (USDC + USDG + PAXG), mirrors deploy ====================
     // Two 1:1 USD stablecoins (6-dec) plus PAXG (18-dec) priced through an 8-dec Chainlink-style USD oracle.
     // Confirms every token is valued correctly in USD and that stablecoin<->PAXG transfers preserve value or

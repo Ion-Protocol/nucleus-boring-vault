@@ -373,6 +373,11 @@ contract EquivalentExchangeUManager is UManager {
             // nothing downstream needs either. Applying the one rate to both balances keeps the two totals
             // from disagreeing on price or scale.
             uint256 rate = _unitRate(baseRate, rateDecimals, ERC20(token).decimals());
+            // Even a nonzero baseRate can produce a zero unit rate: when rateDecimals + tokenDecimals exceeds
+            // 2 * NORMALIZED_DECIMALS, _unitRate divides and can floor to zero for a small enough baseRate. A
+            // zero unit rate would value this token at zero in both totals, silently dropping it from the
+            // aggregate value invariant, so reject it here rather than misprice the basket.
+            if (rate == 0) revert InvalidRate(token);
 
             // Capture the subsidy token's per-unit rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
