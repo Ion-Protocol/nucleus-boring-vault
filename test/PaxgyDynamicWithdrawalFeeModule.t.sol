@@ -112,7 +112,7 @@ contract PaxgyDynamicWithdrawalFeeModuleTest is Test {
     }
 
     /// @dev Independent reference implementation of the fee (plain division + explicit round-up), used to
-    /// cross-check the module's solmate mulDivUp without re-using its code path. Sums the dynamic depeg fee
+    /// cross-check the module's solmate mulDivUp without reusing its code path. Sums the dynamic depeg fee
     /// and the fixed bps fee, then caps the total at the order amount.
     function _expectedFee(uint256 amount, uint256 price) internal pure returns (uint256) {
         // Dynamic depeg component: (p - 1)/p rounded up, zero at or below peg.
