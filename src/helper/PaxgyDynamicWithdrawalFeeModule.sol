@@ -43,7 +43,7 @@ contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
     /**
      * @notice Basis-point denominator. 10_000 bps = 100%.
      */
-    uint256 private constant BPS_DIVISOR = 10_000;
+    uint256 internal constant BPS_DIVISOR = 10_000;
 
     /**
      * @notice Rate provider reporting the market PAXG:XAU rate (XAU per PAXG), in 18-decimal fixed point
