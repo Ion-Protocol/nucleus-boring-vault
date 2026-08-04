@@ -15,7 +15,7 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 import { IUniswapV3Router } from "src/interfaces/IUniswapV3Router.sol";
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { DexAggregatorUManager, RateLimitUManager } from "src/micro-managers/DexAggregatorUManager.sol";
+import { DexAggregatorUManager } from "src/micro-managers/DexAggregatorUManager.sol";
 import { PriceRouter } from "src/interfaces/PriceRouter.sol";
 import { AggregationRouterV5 } from "src/interfaces/AggregationRouterV5.sol";
 
@@ -106,9 +106,6 @@ contract DexAggregatorUManagerTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
         rolesAuthority.setUserRole(address(boringVault), BORING_VAULT_ROLE, true);
         rolesAuthority.setUserRole(vault, BALANCER_VAULT_ROLE, true);
-
-        dexAggregatorUManager.setPeriod(300);
-        dexAggregatorUManager.setAllowedCallsPerPeriod(10);
     }
 
     function testDexAggregatorUManager() external {
@@ -153,14 +150,6 @@ contract DexAggregatorUManagerTest is Test, MainnetAddresses {
 
         assertEq(WETH.allowance(address(boringVault), aggregationRouterV5), 0, "Allowance should have been revoked.");
 
-        uint256 swapCount = dexAggregatorUManager.callCountPerPeriod(block.timestamp % 300);
-        assertEq(swapCount, 1, "Swap count should have been incremented.");
-
-        // Check rate limit reverts.
-        dexAggregatorUManager.setAllowedCallsPerPeriod(1);
-        vm.expectRevert(abi.encodeWithSelector(RateLimitUManager.RateLimitUManager__CallCountExceeded.selector));
-        dexAggregatorUManager.swapWith1Inch(manageProofs, decodersAndSanitizers, WETH, 100e18, WEETH, swapData);
-
         // uManager should also be able to revoke approvals to router.
         manageLeafs = new ManageLeaf[](1);
         manageLeafs[0] = leafs[0];
@@ -185,20 +174,6 @@ contract DexAggregatorUManagerTest is Test, MainnetAddresses {
             abi.encodeWithSelector(DexAggregatorUManager.DexAggregatorUManager__NewSlippageTooLarge.selector)
         );
         dexAggregatorUManager.setAllowedSlippage(0.1001e4);
-    }
-
-    function testsetPeriod() external {
-        dexAggregatorUManager.setPeriod(900);
-
-        assertEq(dexAggregatorUManager.period(), 900, "Swap period should have been updated.");
-    }
-
-    function testsetAllowedCallsPerPeriod() external {
-        dexAggregatorUManager.setAllowedCallsPerPeriod(20);
-
-        assertEq(
-            dexAggregatorUManager.allowedCallsPerPeriod(), 20, "Allowed swaps per period should have been updated."
-        );
     }
 
     // ========================================= HELPER FUNCTIONS =========================================

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { RateLimitUManager } from "src/micro-managers/RateLimitUManager.sol";
+import { UManager } from "src/micro-managers/UManager.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { IUniswapV3Router } from "src/interfaces/IUniswapV3Router.sol";
@@ -15,7 +15,7 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
  * - IUniswapV3Router.exactInput(params), with all desired paths.
  * @custom:security-contact security@molecularlabs.io
  */
-contract DexSwapperUManager is RateLimitUManager {
+contract DexSwapperUManager is UManager {
 
     using FixedPointMathLib for uint256;
 
@@ -77,7 +77,7 @@ contract DexSwapperUManager is RateLimitUManager {
         address _balancerVault,
         address _priceRouter
     )
-        RateLimitUManager(_owner, _manager, _boringVault)
+        UManager(_owner, _manager, _boringVault)
     {
         router = IUniswapV3Router(_router);
         balancerVault = BalancerVault(_balancerVault);
@@ -120,7 +120,6 @@ contract DexSwapperUManager is RateLimitUManager {
     )
         external
         requiresAuth
-        enforceRateLimit
     {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);
@@ -203,7 +202,6 @@ contract DexSwapperUManager is RateLimitUManager {
     )
         external
         requiresAuth
-        enforceRateLimit
     {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);
@@ -282,7 +280,6 @@ contract DexSwapperUManager is RateLimitUManager {
     )
         external
         requiresAuth
-        enforceRateLimit
     {
         address[] memory targets = new address[](2);
         bytes[] memory targetData = new bytes[](2);

@@ -15,7 +15,7 @@ import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 import { IUniswapV3Router } from "src/interfaces/IUniswapV3Router.sol";
 import { DecoderCustomTypes } from "src/interfaces/DecoderCustomTypes.sol";
 import { RolesAuthority, Authority } from "@solmate/auth/authorities/RolesAuthority.sol";
-import { DexSwapperUManager, RateLimitUManager } from "src/micro-managers/DexSwapperUManager.sol";
+import { DexSwapperUManager } from "src/micro-managers/DexSwapperUManager.sol";
 import { PriceRouter } from "src/interfaces/PriceRouter.sol";
 
 import { Test, stdStorage, StdStorage, stdError, console } from "@forge-std/Test.sol";
@@ -105,9 +105,6 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
         rolesAuthority.setUserRole(address(boringVault), BORING_VAULT_ROLE, true);
         rolesAuthority.setUserRole(vault, BALANCER_VAULT_ROLE, true);
-
-        dexSwapperUManager.setPeriod(300);
-        dexSwapperUManager.setAllowedCallsPerPeriod(10);
     }
 
     function testSwapWithUniswapV3() external {
@@ -144,9 +141,6 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
 
         // This swap is acceptable.
         dexSwapperUManager.swapWithUniswapV3(manageProofs, decodersAndSanitizers, path, fees, 10e18, 0, block.timestamp);
-
-        uint256 swapCount = dexSwapperUManager.callCountPerPeriod(block.timestamp % 300);
-        assertEq(swapCount, 1, "Swap count should have been incremented.");
 
         // But if strategist tries to perform a high slippage swap it reverts.
         vm.expectRevert(abi.encodeWithSelector(DexSwapperUManager.DexSwapperUManager__Slippage.selector));
@@ -270,58 +264,6 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
         // Call should revert.
         vm.expectRevert(abi.encodeWithSelector(DexSwapperUManager.DexSwapperUManager__NewSlippageTooLarge.selector));
         dexSwapperUManager.setAllowedSlippage(0.1001e4);
-    }
-
-    function testsetPeriod() external {
-        dexSwapperUManager.setPeriod(900);
-
-        assertEq(dexSwapperUManager.period(), 900, "Swap period should have been updated.");
-    }
-
-    function testsetAllowedCallsPerPeriod() external {
-        dexSwapperUManager.setAllowedCallsPerPeriod(20);
-
-        assertEq(dexSwapperUManager.allowedCallsPerPeriod(), 20, "Allowed swaps per period should have been updated.");
-    }
-
-    function testRateLimitRevert() external {
-        // Set allowed swaps per period to zero.
-        dexSwapperUManager.setAllowedCallsPerPeriod(0);
-
-        deal(address(WEETH), address(boringVault), 10_000e18);
-        // Make sure the vault can
-        // swap weETH -> wETH
-        ManageLeaf[] memory leafs = new ManageLeaf[](8);
-        leafs[0] = ManageLeaf(address(WEETH), false, "approve(address,uint256)", new address[](1));
-        leafs[0].argumentAddresses[0] = uniV3Router;
-        leafs[1] =
-            ManageLeaf(uniV3Router, false, "exactInput((bytes,address,uint256,uint256,uint256))", new address[](3));
-        leafs[1].argumentAddresses[0] = address(WEETH);
-        leafs[1].argumentAddresses[1] = address(WETH);
-        leafs[1].argumentAddresses[2] = address(boringVault);
-
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
-
-        manager.setManageRoot(address(dexSwapperUManager), manageTree[manageTree.length - 1][0]);
-
-        ManageLeaf[] memory manageLeafs = new ManageLeaf[](2);
-        manageLeafs[0] = leafs[0];
-        manageLeafs[1] = leafs[1];
-        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
-
-        address[] memory decodersAndSanitizers = new address[](2);
-        decodersAndSanitizers[0] = rawDataDecoderAndSanitizer;
-        decodersAndSanitizers[1] = rawDataDecoderAndSanitizer;
-
-        ERC20[] memory path = new ERC20[](2);
-        path[0] = WEETH;
-        path[1] = WETH;
-        uint24[] memory fees = new uint24[](1);
-        fees[0] = 500;
-
-        // Rate limit set to zero, so call reverts.
-        vm.expectRevert(abi.encodeWithSelector(RateLimitUManager.RateLimitUManager__CallCountExceeded.selector));
-        dexSwapperUManager.swapWithUniswapV3(manageProofs, decodersAndSanitizers, path, fees, 10e18, 0, block.timestamp);
     }
 
     // ========================================= HELPER FUNCTIONS =========================================
