@@ -190,6 +190,25 @@ contract PaxgyDynamicWithdrawalFeeModuleTest is Test {
         assertEq(module.PEG_PRICE(), 10 ** uint256(oracle.RATE_DECIMALS()));
     }
 
+    /// @notice The constructor rejects a provider whose rate precision does not match PEG_PRICE, since the
+    /// dynamic depeg fee compares getRate() directly against the 1e18 peg.
+    function testConstructorRejectsRateProviderDecimalsMismatch() external {
+        // A 6-decimal PAXG makes the provider report RATE_DECIMALS = 6, so 10**6 != PEG_PRICE.
+        MockToken paxg6 = new MockToken("PAX Gold", "PAXG", 6);
+        PaxgXauRateProvider badOracle = new PaxgXauRateProvider(
+            "PAXG / USD",
+            "XAU / USD",
+            ERC20(address(paxg6)),
+            IPriceFeed(address(paxgUsdFeed)),
+            IPriceFeed(address(xauUsdFeed)),
+            MAX_STALE
+        );
+        vm.expectRevert(abi.encodeWithSelector(PaxgyDynamicWithdrawalFeeModule.InvalidRateProviderDecimals.selector, 6));
+        new PaxgyDynamicWithdrawalFeeModule(
+            IRateProvider(address(badOracle)), IERC20(address(paxg)), IERC20(address(shares)), FIXED_FEE_BPS
+        );
+    }
+
     /// @notice A non-PAXG want asset reverts rather than being priced.
     function testRevertsOnNonPaxgWantAsset() external {
         MockToken other = new MockToken("Other", "OTH", 18);

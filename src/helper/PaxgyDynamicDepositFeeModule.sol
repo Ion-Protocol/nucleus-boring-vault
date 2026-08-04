@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { IFeeModule, IERC20 } from "src/interfaces/IFeeModule.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { PaxgXauRateProvider } from "src/oracles/PaxgXauRateProvider.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 
 /**
@@ -51,6 +52,7 @@ contract PaxgyDynamicDepositFeeModule is IFeeModule {
     IERC20 public immutable SHARES;
 
     error ZeroAddress();
+    error InvalidRateProviderDecimals(uint8 rateDecimals);
     error InvalidOfferAsset(address offerAsset);
     error InvalidWantAsset(address wantAsset);
 
@@ -59,11 +61,17 @@ contract PaxgyDynamicDepositFeeModule is IFeeModule {
      * @param _oracle PAXG:XAU rate provider (XAU per PAXG, 18-decimal fixed point, PEG_PRICE = 1.0).
      * @param _paxg The PAXG token this module is authorized to price.
      * @param _shares The vault share token (BoringVault) that deposits into this vault mint.
+     * @dev Reverts unless the provider's rate precision equals PEG_PRICE. The fee math compares getRate()
+     * directly against the hardcoded 1e18 peg, so a provider whose RATE_DECIMALS != 18 would mis-scale every
+     * fee. RATE_DECIMALS is not fixed at 18 (it is read from the PAXG token at the provider's construction),
+     * so this invariant is enforced here rather than assumed.
      */
     constructor(IRateProvider _oracle, IERC20 _paxg, IERC20 _shares) {
         if (address(_oracle) == address(0)) revert ZeroAddress();
         if (address(_paxg) == address(0)) revert ZeroAddress();
         if (address(_shares) == address(0)) revert ZeroAddress();
+        uint8 rateDecimals = PaxgXauRateProvider(address(_oracle)).RATE_DECIMALS();
+        if (10 ** rateDecimals != PEG_PRICE) revert InvalidRateProviderDecimals(rateDecimals);
         RATE_PROVIDER = _oracle;
         PAXG = _paxg;
         SHARES = _shares;

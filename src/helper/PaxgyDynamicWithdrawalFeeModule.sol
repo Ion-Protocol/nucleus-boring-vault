@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { IFeeModule, IERC20 } from "src/interfaces/IFeeModule.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { PaxgXauRateProvider } from "src/oracles/PaxgXauRateProvider.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 
 /**
@@ -71,6 +72,7 @@ contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
     uint256 public immutable FIXED_FEE_BPS;
 
     error ZeroAddress();
+    error InvalidRateProviderDecimals(uint8 rateDecimals);
     error InvalidFixedFeeBps(uint256 fixedFeeBps);
     error InvalidOfferAsset(address offerAsset);
     error InvalidWantAsset(address wantAsset);
@@ -81,12 +83,19 @@ contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
      * @param _paxg The PAXG token this module is authorized to price.
      * @param _shares The vault share token (BoringVault) that withdrawals from this vault offer.
      * @param _fixedFeeBps Fixed fee in basis points, charged on every withdrawal. Must be <= BPS_DIVISOR.
+     * @dev Reverts unless the provider's rate precision equals PEG_PRICE. The dynamic depeg fee compares
+     * getRate() directly against the hardcoded 1e18 peg, so a provider whose RATE_DECIMALS != 18 would
+     * mis-scale the fee (a lower-precision provider clamps effectivePrice to the peg and zeroes the depeg
+     * fee entirely). RATE_DECIMALS is not fixed at 18 (it is read from the PAXG token at the provider's
+     * construction), so this invariant is enforced here rather than assumed.
      */
     constructor(IRateProvider _rateProvider, IERC20 _paxg, IERC20 _shares, uint256 _fixedFeeBps) {
         if (address(_rateProvider) == address(0)) revert ZeroAddress();
         if (address(_paxg) == address(0)) revert ZeroAddress();
         if (address(_shares) == address(0)) revert ZeroAddress();
         if (_fixedFeeBps > BPS_DIVISOR) revert InvalidFixedFeeBps(_fixedFeeBps);
+        uint8 rateDecimals = PaxgXauRateProvider(address(_rateProvider)).RATE_DECIMALS();
+        if (10 ** rateDecimals != PEG_PRICE) revert InvalidRateProviderDecimals(rateDecimals);
         RATE_PROVIDER = _rateProvider;
         PAXG = _paxg;
         SHARES = _shares;
