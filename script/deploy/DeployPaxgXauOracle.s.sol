@@ -31,7 +31,8 @@ contract DeployPaxgXauOracle is BaseScript {
     string constant PAXG_USD_DESCRIPTION = "PAXG / USD";
     string constant XAU_USD_DESCRIPTION = "XAU / USD";
 
-    uint256 constant MAX_TIME_FROM_LAST_UPDATE = 1 days;
+    // The Chainlink PAXG/USD feed's heartbeat is 86400s (24h); we add 100s to account for block delay.
+    uint256 constant MAX_TIME_FROM_LAST_UPDATE = 86_500;
 
     function run() public broadcast {
         if (block.chainid != 1) {
