@@ -164,17 +164,31 @@ contract PaxgXauRateProviderTest is Test {
         rateProvider.getRate();
     }
 
-    /// @notice A negative feed answer reverts via SafeCast.
-    function testNegativeAnswerReverts() external {
+    /// @notice A negative XAU answer is rejected as invalid price data.
+    function testNegativeXauAnswerReverts() external {
         xauUsdFeed.setAnswer(-1);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(PaxgXauRateProvider.InvalidPrice.selector, int256(-1)));
         rateProvider.getRate();
     }
 
-    /// @notice A zero XAU answer reverts on division by zero in the cross-rate.
-    function testZeroAnswerReverts() external {
+    /// @notice A zero XAU answer is rejected as invalid price data (would otherwise divide by zero).
+    function testZeroXauAnswerReverts() external {
         xauUsdFeed.setAnswer(0);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(PaxgXauRateProvider.InvalidPrice.selector, int256(0)));
+        rateProvider.getRate();
+    }
+
+    /// @notice A negative PAXG answer is rejected as invalid price data.
+    function testNegativePaxgAnswerReverts() external {
+        paxgUsdFeed.setAnswer(-1);
+        vm.expectRevert(abi.encodeWithSelector(PaxgXauRateProvider.InvalidPrice.selector, int256(-1)));
+        rateProvider.getRate();
+    }
+
+    /// @notice A zero PAXG answer is rejected as invalid price data (would otherwise silently zero the rate).
+    function testZeroPaxgAnswerReverts() external {
+        paxgUsdFeed.setAnswer(0);
+        vm.expectRevert(abi.encodeWithSelector(PaxgXauRateProvider.InvalidPrice.selector, int256(0)));
         rateProvider.getRate();
     }
 

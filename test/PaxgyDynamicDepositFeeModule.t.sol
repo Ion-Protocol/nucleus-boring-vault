@@ -217,9 +217,13 @@ contract PaxgyDynamicDepositFeeModuleTest is Test {
     }
 
     /// @notice Fee is monotonic and never exceeds the deposit amount for any in-range price.
+    /// @dev The lower bound is 0.01e18 (1% of peg), not near-zero: _setPaxgXauPrice derives the PAXG/USD
+    /// feed answer as price * 3400e8 / 1e18, which floors to 0 for price < ~2.94e6, and the oracle now
+    /// rejects a non-positive answer with InvalidPrice. 0.01e18 stays well clear of that floor while still
+    /// exercising deep sub-peg depegs.
     function testFuzzFeeBounds(uint256 amount, uint256 price) external {
         amount = bound(amount, 1, 1e30);
-        price = bound(price, 1, 3e18); // PAXG:XAU in (0, 3]
+        price = bound(price, 0.01e18, 3e18); // PAXG:XAU in [0.01, 3]
         _setPaxgXauPrice(price);
 
         uint256 fee = _fee(amount);

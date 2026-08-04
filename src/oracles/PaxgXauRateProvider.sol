@@ -35,6 +35,7 @@ contract PaxgXauRateProvider is IRateProvider {
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
     error InvalidPriceFeedDecimals(uint8 priceFeedDecimals);
     error InvalidDescription();
+    error InvalidPrice(int256 price);
 
     /**
      * @notice The description of the PAXG/USD price feed. ex) PAXG / USD
@@ -119,11 +120,16 @@ contract PaxgXauRateProvider is IRateProvider {
         if (block.timestamp - lastUpdatedAtXau > MAX_TIME_FROM_LAST_UPDATE) {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtXau);
         }
+        // A non-positive answer is invalid data: the toUint256() cast below would reject a negative value,
+        // and a zero denominator (xau leg) would divide by zero while a zero numerator (paxg leg) would
+        // silently zero the rate. Reject both feeds explicitly before casting.
+        if (_xauUsd <= 0) revert InvalidPrice(_xauUsd);
 
         (, int256 _paxgUsd,, uint256 lastUpdatedAtPaxg,) = PAXG_USD_FEED.latestRoundData();
         if (block.timestamp - lastUpdatedAtPaxg > MAX_TIME_FROM_LAST_UPDATE) {
             revert MaxTimeFromLastUpdatePassed(block.timestamp, lastUpdatedAtPaxg);
         }
+        if (_paxgUsd <= 0) revert InvalidPrice(_paxgUsd);
 
         // Both feeds report USD prices with CHAINLINK_DECIMALS precision, so the USD numeraire and the
         // shared feed precision cancel. Multiply before dividing to preserve precision.
