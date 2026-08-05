@@ -4,7 +4,6 @@ pragma solidity 0.8.21;
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
-import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { IGPv2Settlement } from "src/interfaces/IGPv2Settlement.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
@@ -29,23 +28,26 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *
  *      Pricing safety: CoW settles asynchronously, so there is no post-trade balance invariant to lean on.
  *      The order's `buyAmount` is the only on-chain protection against a bad fill, validated here against a
- *      floor derived from an `IRateProvider` oracle: `buyAmount >= fairRate * sellAmount * (1 - maxSlippage)`.
+ *      floor derived from an `IRateProvider` oracle: `buyAmount >= fairRate * sellAmount * (1 - maxSlippageBps)`.
  *
- *      Oracle security assumptions (the rate provider is supplied by the caller, so this is load-bearing):
- *      - The provider address is constrained OUTSIDE this contract, by the decoder/sanitizer and merkle root
- *        that gate the vault's `placeOrder` call: the merkle tree only authorizes calls whose `rateProvider`
- *        -- alongside `sellToken`/`buyToken` -- matches a vetted leaf, so a strategist cannot substitute a
- *        provider returning a near-zero rate. The decoder for `placeOrder` MUST therefore sanitize the
- *        `rateProvider`, `sellToken`, and `buyToken` addresses; if it does not, the rate is unconstrained and
- *        the sell token can be drained. This contract still defends in depth by rejecting a zero rate and
- *        enforcing the slippage floor.
+ *      Oracle security assumptions (both the rate provider AND the slippage are caller-supplied, so this is
+ *      load-bearing):
+ *      - `rateProvider` and `maxSlippageBps` are constrained OUTSIDE this contract, by the decoder/sanitizer and
+ *        merkle root that gate the vault's `placeOrder` call: the merkle tree only authorizes calls matching a
+ *        vetted leaf. The decoder for `placeOrder` MUST pin the `rateProvider`, `sellToken`, and `buyToken`
+ *        addresses AND the `maxSlippageBps` value. Otherwise a strategist could pass a near-zero-rate provider or
+ *        a 100% `maxSlippageBps` -- either drives the floor to zero -- and drain the sell token. NOTE the
+ *        asymmetry: an address-sanitizing decoder pins the addresses by default, but `maxSlippageBps` is a
+ *        numeric field the decoder must be written to include explicitly. This contract only defends in depth
+ *        (rejecting a zero rate, requiring `maxSlippageBps <= 100%`); it does NOT itself cap how loose the floor
+ *        may be.
  *      - `getRate()` must return the fair price of one whole `sellToken` denominated in whole `buyToken`,
  *        scaled to 18 decimals (WAD), as a single positive `uint256`. It must perform its own staleness and
  *        sanity checks and be unmanipulable within a block (wrap raw Chainlink feeds in an adapter such as
  *        `EthPerTokenRateProvider`). A reverting or zero-returning provider reverts the order, which is
  *        preferable to mispricing it.
  */
-contract CowSwapHelper is Auth {
+contract CowSwapHelper {
 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -76,10 +78,13 @@ contract CowSwapHelper is Auth {
      * @param buyToken Token to buy; proceeds are always sent to the BoringVault.
      * @param sellAmount Amount of `sellToken` to offer.
      * @param buyAmount Minimum buy amount; must satisfy the oracle-derived floor for the given provider.
-     * @param validTo Order expiry (unix seconds); must be in the future and within `maxOrderValidity`.
-     * @param appData Off-chain metadata hash; must equal `allowedAppData`.
+     * @param validTo Order expiry (unix seconds); must be in the future. Not otherwise bounded -- a stale
+     * order can be cancelled at will via `cancelOrder`.
      * @param rateProvider Oracle returning the 18-decimal (WAD) `buyToken`-per-`sellToken` rate. Constrained
      * by the decoder/merkle root that gates `placeOrder`, not by any in-contract approval.
+     * @param maxSlippageBps Tolerated slippage below the oracle's fair rate, in basis points. Caller-supplied
+     * and, like `rateProvider`, MUST be pinned by the `placeOrder` decoder/merkle leaf -- but note a numeric
+     * field is not pinned by a default address-only sanitizer, so the decoder must include it explicitly.
      */
     struct OrderParams {
         ERC20 sellToken;
@@ -87,92 +92,50 @@ contract CowSwapHelper is Auth {
         uint256 sellAmount;
         uint256 buyAmount;
         uint32 validTo;
-        bytes32 appData;
         IRateProvider rateProvider;
+        uint256 maxSlippageBps;
     }
-
-    /// @notice Maximum tolerated slippage below the oracle's fair rate, in basis points.
-    uint256 internal maxSlippageBps;
-
-    /// @notice Maximum lifetime an order's `validTo` may extend past `block.timestamp`.
-    uint256 internal maxOrderValidity;
-
-    /// @notice The only `appData` value orders may carry; pins settlement hooks to a vetted value.
-    bytes32 internal allowedAppData;
 
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
     error ZeroAmount();
-    error InvalidAppData();
     error OrderExpired();
-    error ValidityTooLong();
     error DanglingApproval(address token);
     error InvalidRate(address rateProvider);
     error InvalidSlippage();
     error ZeroAddress();
+    error NotBoringVault();
 
-    event MaxSlippageUpdated(uint256 maxSlippageBps);
-    event MaxOrderValidityUpdated(uint256 maxOrderValidity);
-    event AllowedAppDataUpdated(bytes32 allowedAppData);
     event OrderPlaced(
         address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
     );
     event OrderCancelled(bytes orderUid);
     event FundsReturned(address indexed token, uint256 amount);
 
+    /// @notice Restricts a function to the BoringVault, i.e. calls routed through
+    /// `ManagerWithMerkleVerification`. This is the contract's entire access model now that it has no admin
+    /// surface: the merkle root gates which order calls the vault may make, and this check ensures nobody
+    /// else can reach these functions directly.
+    modifier onlyBoringVault() {
+        if (msg.sender != boringVault) revert NotBoringVault();
+        _;
+    }
+
     /**
      * @notice Deploys the helper and caches the settlement immutables.
-     * @param _owner Owner for `Auth`.
-     * @param _authority Authority for `Auth`.
-     * @param _boringVault The BoringVault whose funds this helper trades and returns to.
+     * @param _boringVault The BoringVault whose funds this helper trades and returns to, and the only
+     * permitted caller of the order functions.
      * @param _settlement The CoW settlement contract.
-     * @param _maxSlippageBps Initial slippage tolerance below the oracle rate, in basis points.
-     * @param _maxOrderValidity Initial cap on order lifetime.
      */
-    constructor(
-        address _owner,
-        Authority _authority,
-        address _boringVault,
-        address _settlement,
-        uint256 _maxSlippageBps,
-        uint256 _maxOrderValidity
-    )
-        Auth(_owner, _authority)
-    {
+    constructor(address _boringVault, address _settlement) {
         // receiver is hardcoded to boringVault when building orders; a zero vault would silently route
         // proceeds to the order owner (this helper) under CoW's RECEIVER_SAME_AS_OWNER marker.
         if (_boringVault == address(0)) revert ZeroAddress();
-        if (_maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
 
         boringVault = _boringVault;
         settlement = IGPv2Settlement(_settlement);
         vaultRelayer = IGPv2Settlement(_settlement).vaultRelayer();
         domainSeparator = IGPv2Settlement(_settlement).domainSeparator();
-        maxSlippageBps = _maxSlippageBps;
-        maxOrderValidity = _maxOrderValidity;
     }
-
-    //============================== ADMIN ===============================
-
-    /// @notice Sets the slippage tolerance below the oracle rate. Callable by OWNER_ROLE / MULTISIG_ROLE.
-    function setMaxSlippage(uint256 _maxSlippageBps) external requiresAuth {
-        if (_maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
-        maxSlippageBps = _maxSlippageBps;
-        emit MaxSlippageUpdated(_maxSlippageBps);
-    }
-
-    /// @notice Sets the cap on order lifetime. Callable by OWNER_ROLE / MULTISIG_ROLE.
-    function setMaxOrderValidity(uint256 _maxOrderValidity) external requiresAuth {
-        maxOrderValidity = _maxOrderValidity;
-        emit MaxOrderValidityUpdated(_maxOrderValidity);
-    }
-
-    /// @notice Sets the only permitted `appData`. Callable by OWNER_ROLE / MULTISIG_ROLE.
-    function setAllowedAppData(bytes32 _allowedAppData) external requiresAuth {
-        allowedAppData = _allowedAppData;
-        emit AllowedAppDataUpdated(_allowedAppData);
-    }
-
-    //============================== STRATEGIST ===============================
 
     /**
      * @notice Pulls the sell token from the vault, approves the relayer, and pre-signs the order with the
@@ -180,12 +143,12 @@ contract CowSwapHelper is Auth {
      * @dev Intended to be called by the BoringVault through `ManagerWithMerkleVerification`. The vault must
      *      have granted this helper an allowance of exactly `sellAmount` for `sellToken`; any residual
      *      allowance after the pull reverts, mirroring `EquivalentExchange`. The relayer approval overwrites
-     *      any prior allowance, so this assumes one live order per sell token at a time. Callable by
-     *      STRATEGIST-authorized callers (the vault).
+     *      any prior allowance, so this assumes one live order per sell token at a time. Callable only by the
+     *      BoringVault; which orders are permitted is gated upstream by the merkle root.
      * @param params Raw order fields; see `OrderParams`.
      * @return orderUid The pre-signed order UID.
      */
-    function placeOrder(OrderParams calldata params) external requiresAuth returns (bytes memory orderUid) {
+    function placeOrder(OrderParams calldata params) external onlyBoringVault returns (bytes memory orderUid) {
         // Helper is the order owner (so it can be the setPreSignature caller); vault stays the receiver.
         orderUid = _buildAndValidateOrderUid(params, address(this));
 
@@ -208,11 +171,11 @@ contract CowSwapHelper is Auth {
 
     /**
      * @notice Cancels a previously pre-signed order by clearing the helper's signature for its UID.
-     * @dev Called directly (no merkle routing) because the helper is the order owner. Callable by
-     *      STRATEGIST-authorized callers.
+     * @dev Triggered by the BoringVault (routed through `ManagerWithMerkleVerification`). `setPreSignature`
+     *      still succeeds because the order's owner is this helper, which is the account calling it.
      * @param orderUid The UID to revoke.
      */
-    function cancelOrder(bytes calldata orderUid) external requiresAuth {
+    function cancelOrder(bytes calldata orderUid) external onlyBoringVault {
         settlement.setPreSignature(orderUid, false);
         emit OrderCancelled(orderUid);
     }
@@ -220,10 +183,10 @@ contract CowSwapHelper is Auth {
     /**
      * @notice Sweeps the helper's entire balance of `token` back to the BoringVault.
      * @dev The custody cost of this design: residual sell tokens from an expired, unfilled, or partially
-     *      filled order sit in the helper until this is called. Callable by STRATEGIST-authorized callers.
+     *      filled order sit in the helper until this is called. Callable only by the BoringVault.
      * @param token Token to return to the vault.
      */
-    function returnToVault(ERC20 token) external requiresAuth {
+    function returnToVault(ERC20 token) external onlyBoringVault {
         uint256 balance = token.balanceOf(address(this));
         if (balance != 0) {
             token.safeTransfer(boringVault, balance);
@@ -231,19 +194,19 @@ contract CowSwapHelper is Auth {
         }
     }
 
-    //============================== INTERNAL ===============================
-
     /**
-     * @notice Validates `params` against the oracle-derived price floor and the order-lifetime bound, then
-     *         builds the canonical order (forcing all safety-critical fields) and returns its UID.
+     * @notice Validates `params` against the oracle-derived price floor, then builds the canonical order
+     *         (forcing all safety-critical fields) and returns its UID.
      * @dev Every field folded into the digest is either validated (`sellToken`/`buyToken`/`sellAmount`/
-     *      `buyAmount`/`validTo`/`appData`) or forced to a safe constant (`receiver`, `feeAmount`, `kind`,
+     *      `buyAmount`/`validTo`/`maxSlippageBps`) or forced to a safe constant (`receiver`, `appData`, `feeAmount`,
+     * `kind`,
      *      `partiallyFillable`, balance kinds), so nothing reaches the signed order unchecked. `owner` is the
-     *      helper (it must be the `setPreSignature` caller); `receiver` is always the vault.
+     *      helper (it must be the `setPreSignature` caller); `receiver` is always the vault; `appData` is
+     *      always empty, so no settlement hooks can ride along.
      *
      *      Price freshness is NOT checked here -- the rate provider is responsible for its own staleness
-     *      guard (see the contract-level oracle assumptions). This function only bounds the order's own
-     *      lifetime via `validTo`/`maxOrderValidity`.
+     *      guard (see the contract-level oracle assumptions). `validTo` is only required to be in the future;
+     *      a stale live order is handled by cancelling it, not by an on-chain lifetime cap.
      *
      *      The floor scales with `sellAmount`, so a larger sell simply requires a proportionally larger
      *      `buyAmount` -- selling more can never mean accepting a worse rate.
@@ -260,9 +223,11 @@ contract CowSwapHelper is Auth {
         returns (bytes memory orderUid)
     {
         if (params.sellAmount == 0 || params.buyAmount == 0) revert ZeroAmount();
-        if (params.appData != allowedAppData) revert InvalidAppData();
         if (params.validTo <= block.timestamp) revert OrderExpired();
-        if (params.validTo > block.timestamp + maxOrderValidity) revert ValidityTooLong();
+        // maxSlippageBps is caller-supplied and must be pinned by the placeOrder decoder/merkle leaf (see
+        // contract notes). This bound only prevents the underflow below and a nonsensical >100% slippage; it
+        // does NOT stop a merkle-authorized caller from choosing a loose floor.
+        if (params.maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
 
         // The rate provider is constrained by the decoder/merkle root that gates placeOrder, not here. Read
         // the fair sell->buy rate once (18-decimal WAD, whole buyToken per whole sellToken) and reject a zero
@@ -270,13 +235,13 @@ contract CowSwapHelper is Auth {
         uint256 rate18 = params.rateProvider.getRate();
         if (rate18 == 0) revert InvalidRate(address(params.rateProvider));
 
-        // Enforce buyAmount >= fairRate * sellAmount * (1 - maxSlippage), comparing at 18 decimals. Every
+        // Enforce buyAmount >= fairRate * sellAmount * (1 - maxSlippageBps), comparing at 18 decimals. Every
         // step rounds up so the minimum favors the vault.
         uint256 sellNormalized = CowSwapOrderLib.normalize(params.sellAmount, params.sellToken.decimals());
         uint256 buyNormalized = CowSwapOrderLib.normalize(params.buyAmount, params.buyToken.decimals());
 
         uint256 fairBuyNormalized = sellNormalized.mulDivUp(rate18, WAD);
-        uint256 minBuyNormalized = fairBuyNormalized.mulDivUp(BPS_DENOMINATOR - maxSlippageBps, BPS_DENOMINATOR);
+        uint256 minBuyNormalized = fairBuyNormalized.mulDivUp(BPS_DENOMINATOR - params.maxSlippageBps, BPS_DENOMINATOR);
         if (buyNormalized < minBuyNormalized) revert PriceTooLow(buyNormalized, minBuyNormalized);
 
         CowSwapOrderLib.Data memory order = CowSwapOrderLib.Data({
@@ -286,7 +251,8 @@ contract CowSwapHelper is Auth {
             sellAmount: params.sellAmount,
             buyAmount: params.buyAmount,
             validTo: params.validTo,
-            appData: params.appData,
+            // Empty appData: cannot encode settlement hooks, so no arbitrary calls ride along.
+            appData: bytes32(0),
             feeAmount: 0,
             kind: CowSwapOrderLib.KIND_SELL,
             partiallyFillable: false,
