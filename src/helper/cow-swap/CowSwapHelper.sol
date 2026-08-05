@@ -6,6 +6,7 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { IGPv2Settlement } from "src/interfaces/IGPv2Settlement.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
 
 /**
@@ -28,15 +29,32 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *
  *      Pricing safety: CoW settles asynchronously, so there is no post-trade balance invariant to lean on.
  *      The order's `buyAmount` is the only on-chain protection against a bad fill, validated here against a
- *      governance-set, periodically-refreshed `minPrice` floor that the strategist can meet but not undercut.
+ *      floor derived from an `IRateProvider` oracle: `buyAmount >= fairRate * sellAmount * (1 - maxSlippage)`.
+ *
+ *      Oracle security assumptions (the rate provider is supplied by the caller, so this is load-bearing):
+ *      - The provider address is constrained OUTSIDE this contract, by the decoder/sanitizer and merkle root
+ *        that gate the vault's `placeOrder` call: the merkle tree only authorizes calls whose `rateProvider`
+ *        -- alongside `sellToken`/`buyToken` -- matches a vetted leaf, so a strategist cannot substitute a
+ *        provider returning a near-zero rate. The decoder for `placeOrder` MUST therefore sanitize the
+ *        `rateProvider`, `sellToken`, and `buyToken` addresses; if it does not, the rate is unconstrained and
+ *        the sell token can be drained. This contract still defends in depth by rejecting a zero rate and
+ *        enforcing the slippage floor.
+ *      - `getRate()` must return the fair price of one whole `sellToken` denominated in whole `buyToken`,
+ *        scaled to 18 decimals (WAD), as a single positive `uint256`. It must perform its own staleness and
+ *        sanity checks and be unmanipulable within a block (wrap raw Chainlink feeds in an adapter such as
+ *        `EthPerTokenRateProvider`). A reverting or zero-returning provider reverts the order, which is
+ *        preferable to mispricing it.
  */
 contract CowSwapHelper is Auth {
 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
-    /// @notice Fixed-point scale (1e18) that `minPrice` values and normalized amounts are expressed in.
-    uint256 internal constant PRICE_ONE = 1e18;
+    /// @notice Fixed-point scale (1e18) that normalized amounts and 18-decimal rates are expressed in.
+    uint256 internal constant WAD = 1e18;
+
+    /// @notice Basis-point denominator for the slippage bound.
+    uint256 internal constant BPS_DENOMINATOR = 10_000;
 
     /// @notice The BoringVault this helper serves: the source of sell tokens and the `receiver` of proceeds.
     address internal immutable boringVault;
@@ -51,25 +69,17 @@ contract CowSwapHelper is Auth {
     bytes32 internal immutable domainSeparator;
 
     /**
-     * @notice A governance-set minimum execution price for a `(sellToken, buyToken)` pair.
-     * @param price Minimum whole buy-tokens per whole sell-token, 18-decimal fixed point. Non-zero.
-     * @param updatedAt Timestamp of the last refresh; drives the staleness guard and the enabled check.
-     */
-    struct MinPrice {
-        uint192 price;
-        uint64 updatedAt;
-    }
-
-    /**
      * @notice Raw order fields supplied by the strategist (via the vault). Safety-critical fields
      *         (`receiver`, `kind`, `partiallyFillable`, balance kinds) are forced to safe constants on
      *         rebuild and so are absent here.
-     * @param sellToken Token to sell (must be an enabled pair with `buyToken`).
+     * @param sellToken Token to sell.
      * @param buyToken Token to buy; proceeds are always sent to the BoringVault.
      * @param sellAmount Amount of `sellToken` to offer.
-     * @param buyAmount Minimum buy amount; must satisfy the stored `minPrice` floor.
+     * @param buyAmount Minimum buy amount; must satisfy the oracle-derived floor for the given provider.
      * @param validTo Order expiry (unix seconds); must be in the future and within `maxOrderValidity`.
      * @param appData Off-chain metadata hash; must equal `allowedAppData`.
+     * @param rateProvider Oracle returning the 18-decimal (WAD) `buyToken`-per-`sellToken` rate. Constrained
+     * by the decoder/merkle root that gates `placeOrder`, not by any in-contract approval.
      */
     struct OrderParams {
         ERC20 sellToken;
@@ -78,13 +88,11 @@ contract CowSwapHelper is Auth {
         uint256 buyAmount;
         uint32 validTo;
         bytes32 appData;
+        IRateProvider rateProvider;
     }
 
-    /// @notice Minimum execution price per pair, keyed by `keccak256(abi.encode(sellToken, buyToken))`.
-    mapping(bytes32 => MinPrice) internal minPrices;
-
-    /// @notice Maximum age a `minPrice` may reach before `placeOrder` rejects it as stale.
-    uint256 internal maxPriceAge;
+    /// @notice Maximum tolerated slippage below the oracle's fair rate, in basis points.
+    uint256 internal maxSlippageBps;
 
     /// @notice Maximum lifetime an order's `validTo` may extend past `block.timestamp`.
     uint256 internal maxOrderValidity;
@@ -92,18 +100,17 @@ contract CowSwapHelper is Auth {
     /// @notice The only `appData` value orders may carry; pins settlement hooks to a vetted value.
     bytes32 internal allowedAppData;
 
-    error PairNotEnabled(address sellToken, address buyToken);
-    error StalePrice(address sellToken, address buyToken);
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
     error ZeroAmount();
     error InvalidAppData();
     error OrderExpired();
     error ValidityTooLong();
-    error InvalidPrice();
     error DanglingApproval(address token);
+    error InvalidRate(address rateProvider);
+    error InvalidSlippage();
+    error ZeroAddress();
 
-    event MinPriceUpdated(address indexed sellToken, address indexed buyToken, uint256 price, uint256 updatedAt);
-    event MaxPriceAgeUpdated(uint256 maxPriceAge);
+    event MaxSlippageUpdated(uint256 maxSlippageBps);
     event MaxOrderValidityUpdated(uint256 maxOrderValidity);
     event AllowedAppDataUpdated(bytes32 allowedAppData);
     event OrderPlaced(
@@ -118,7 +125,7 @@ contract CowSwapHelper is Auth {
      * @param _authority Authority for `Auth`.
      * @param _boringVault The BoringVault whose funds this helper trades and returns to.
      * @param _settlement The CoW settlement contract.
-     * @param _maxPriceAge Initial staleness bound for min prices.
+     * @param _maxSlippageBps Initial slippage tolerance below the oracle rate, in basis points.
      * @param _maxOrderValidity Initial cap on order lifetime.
      */
     constructor(
@@ -126,39 +133,31 @@ contract CowSwapHelper is Auth {
         Authority _authority,
         address _boringVault,
         address _settlement,
-        uint256 _maxPriceAge,
+        uint256 _maxSlippageBps,
         uint256 _maxOrderValidity
     )
         Auth(_owner, _authority)
     {
+        // receiver is hardcoded to boringVault when building orders; a zero vault would silently route
+        // proceeds to the order owner (this helper) under CoW's RECEIVER_SAME_AS_OWNER marker.
+        if (_boringVault == address(0)) revert ZeroAddress();
+        if (_maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
+
         boringVault = _boringVault;
         settlement = IGPv2Settlement(_settlement);
         vaultRelayer = IGPv2Settlement(_settlement).vaultRelayer();
         domainSeparator = IGPv2Settlement(_settlement).domainSeparator();
-        maxPriceAge = _maxPriceAge;
+        maxSlippageBps = _maxSlippageBps;
         maxOrderValidity = _maxOrderValidity;
     }
 
     //============================== ADMIN ===============================
 
-    /**
-     * @notice Sets (and timestamps) the minimum execution price for a pair, enabling it for trading.
-     * @dev This is the periodic on-chain price refresh the async model depends on. Callable by
-     *      OWNER_ROLE / MULTISIG_ROLE.
-     * @param sellToken Sell side of the pair.
-     * @param buyToken Buy side of the pair.
-     * @param price Minimum whole buy-tokens per whole sell-token, 18-decimal fixed point. Non-zero.
-     */
-    function setMinPrice(address sellToken, address buyToken, uint192 price) external requiresAuth {
-        if (price == 0) revert InvalidPrice();
-        minPrices[_pairKey(sellToken, buyToken)] = MinPrice({ price: price, updatedAt: uint64(block.timestamp) });
-        emit MinPriceUpdated(sellToken, buyToken, price, block.timestamp);
-    }
-
-    /// @notice Sets the staleness bound applied to min prices. Callable by OWNER_ROLE / MULTISIG_ROLE.
-    function setMaxPriceAge(uint256 _maxPriceAge) external requiresAuth {
-        maxPriceAge = _maxPriceAge;
-        emit MaxPriceAgeUpdated(_maxPriceAge);
+    /// @notice Sets the slippage tolerance below the oracle rate. Callable by OWNER_ROLE / MULTISIG_ROLE.
+    function setMaxSlippage(uint256 _maxSlippageBps) external requiresAuth {
+        if (_maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
+        maxSlippageBps = _maxSlippageBps;
+        emit MaxSlippageUpdated(_maxSlippageBps);
     }
 
     /// @notice Sets the cap on order lifetime. Callable by OWNER_ROLE / MULTISIG_ROLE.
@@ -232,23 +231,22 @@ contract CowSwapHelper is Auth {
         }
     }
 
-    //============================== VIEW ===============================
-
-    /// @notice Returns the stored min price and last-update time for a pair.
-    function getMinPrice(address sellToken, address buyToken) external view returns (uint192 price, uint64 updatedAt) {
-        MinPrice memory mp = minPrices[_pairKey(sellToken, buyToken)];
-        return (mp.price, mp.updatedAt);
-    }
-
     //============================== INTERNAL ===============================
 
     /**
-     * @notice Validates `params` against the stored price floor and freshness/lifetime bounds, then builds
-     *         the canonical order (forcing all safety-critical fields) and returns its UID.
+     * @notice Validates `params` against the oracle-derived price floor and the order-lifetime bound, then
+     *         builds the canonical order (forcing all safety-critical fields) and returns its UID.
      * @dev Every field folded into the digest is either validated (`sellToken`/`buyToken`/`sellAmount`/
      *      `buyAmount`/`validTo`/`appData`) or forced to a safe constant (`receiver`, `feeAmount`, `kind`,
      *      `partiallyFillable`, balance kinds), so nothing reaches the signed order unchecked. `owner` is the
      *      helper (it must be the `setPreSignature` caller); `receiver` is always the vault.
+     *
+     *      Price freshness is NOT checked here -- the rate provider is responsible for its own staleness
+     *      guard (see the contract-level oracle assumptions). This function only bounds the order's own
+     *      lifetime via `validTo`/`maxOrderValidity`.
+     *
+     *      The floor scales with `sellAmount`, so a larger sell simply requires a proportionally larger
+     *      `buyAmount` -- selling more can never mean accepting a worse rate.
      * @param params Raw order fields.
      * @param owner The account to embed as the order owner (and thus the `setPreSignature` caller).
      * @return orderUid The reconstructed UID.
@@ -266,17 +264,19 @@ contract CowSwapHelper is Auth {
         if (params.validTo <= block.timestamp) revert OrderExpired();
         if (params.validTo > block.timestamp + maxOrderValidity) revert ValidityTooLong();
 
-        MinPrice memory mp = minPrices[_pairKey(address(params.sellToken), address(params.buyToken))];
-        if (mp.updatedAt == 0) revert PairNotEnabled(address(params.sellToken), address(params.buyToken));
-        if (block.timestamp - mp.updatedAt > maxPriceAge) {
-            revert StalePrice(address(params.sellToken), address(params.buyToken));
-        }
+        // The rate provider is constrained by the decoder/merkle root that gates placeOrder, not here. Read
+        // the fair sell->buy rate once (18-decimal WAD, whole buyToken per whole sellToken) and reject a zero
+        // rate rather than pricing the order at zero.
+        uint256 rate18 = params.rateProvider.getRate();
+        if (rate18 == 0) revert InvalidRate(address(params.rateProvider));
 
-        // Enforce buyAmount >= sellAmount * minPrice, comparing both sides at 18 decimals. The minimum is
-        // rounded up so any rounding favors the vault.
+        // Enforce buyAmount >= fairRate * sellAmount * (1 - maxSlippage), comparing at 18 decimals. Every
+        // step rounds up so the minimum favors the vault.
         uint256 sellNormalized = CowSwapOrderLib.normalize(params.sellAmount, params.sellToken.decimals());
         uint256 buyNormalized = CowSwapOrderLib.normalize(params.buyAmount, params.buyToken.decimals());
-        uint256 minBuyNormalized = sellNormalized.mulDivUp(mp.price, PRICE_ONE);
+
+        uint256 fairBuyNormalized = sellNormalized.mulDivUp(rate18, WAD);
+        uint256 minBuyNormalized = fairBuyNormalized.mulDivUp(BPS_DENOMINATOR - maxSlippageBps, BPS_DENOMINATOR);
         if (buyNormalized < minBuyNormalized) revert PriceTooLow(buyNormalized, minBuyNormalized);
 
         CowSwapOrderLib.Data memory order = CowSwapOrderLib.Data({
@@ -296,11 +296,6 @@ contract CowSwapHelper is Auth {
 
         bytes32 digest = CowSwapOrderLib.hash(order, domainSeparator);
         orderUid = CowSwapOrderLib.packOrderUid(digest, owner, params.validTo);
-    }
-
-    /// @notice Derives the storage key for a `(sellToken, buyToken)` price entry.
-    function _pairKey(address sellToken, address buyToken) internal pure returns (bytes32) {
-        return keccak256(abi.encode(sellToken, buyToken));
     }
 
 }
