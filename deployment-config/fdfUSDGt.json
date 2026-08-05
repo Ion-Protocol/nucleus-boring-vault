@@ -35,14 +35,14 @@
       "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8"
     ],
-    "withdrawAssetFlatFees":    [0, 0, 0],
+    "withdrawAssetFlatFees":    [0, 800000, 800000],
     "withdrawAssetPercentFees": [0, 5, 0],
     "depositAssets": [
       "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
       "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8"
     ],
-    "depositAssetFlatFees":    [0, 0, 0],
+    "depositAssetFlatFees":    [0, 800000, 800000],
     "depositAssetPercentFees": [0, 5, 0],
     "dvnIfNoDefault": {
       "required": [
