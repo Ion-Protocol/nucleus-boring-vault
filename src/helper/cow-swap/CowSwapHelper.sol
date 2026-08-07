@@ -147,7 +147,7 @@ contract CowSwapHelper {
      * @return orderUid The pre-signed order UID.
      */
     function placeOrder(OrderParams calldata params) external onlyBoringVault returns (bytes memory orderUid) {
-        orderUid = _buildAndValidateOrderUid(params, address(this));
+        orderUid = _buildAndValidateOrderUid(params);
 
         // Move the sell token from the vault into this helper.
         params.sellToken.safeTransferFrom(boringVault, address(this), params.sellAmount);
@@ -197,17 +197,9 @@ contract CowSwapHelper {
      * @dev Every field folded into the digest is either validated or forced to a safe constant, so nothing
      *      reaches the signed order unchecked.
      * @param params Raw order fields.
-     * @param owner The account to embed as the order owner (and thus the `setPreSignature` caller).
      * @return orderUid The reconstructed UID.
      */
-    function _buildAndValidateOrderUid(
-        OrderParams calldata params,
-        address owner
-    )
-        internal
-        view
-        returns (bytes memory orderUid)
-    {
+    function _buildAndValidateOrderUid(OrderParams calldata params) internal view returns (bytes memory orderUid) {
         if (params.sellAmount == 0 || params.buyAmount == 0) revert ZeroAmount();
         if (params.validTo <= block.timestamp) revert OrderExpired();
         if (params.maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
@@ -241,7 +233,9 @@ contract CowSwapHelper {
         });
 
         bytes32 digest = CowSwapOrderLib.hash(order, domainSeparator);
-        orderUid = CowSwapOrderLib.packOrderUid(digest, owner, params.validTo);
+        // Owner is always this helper: `setPreSignature` requires `owner == msg.sender`, and the helper is the
+        // caller, so it must own the order.
+        orderUid = CowSwapOrderLib.packOrderUid(digest, address(this), params.validTo);
     }
 
 }
