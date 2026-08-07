@@ -70,7 +70,7 @@ contract CowSwapHelper {
 
     /**
      * @notice Raw order fields supplied by the strategist (via the vault). Some safety-critical fields
-     *         (`receiver`, `kind`, `partiallyFillable`, balance kinds) are forced to safe constants on
+     *         (`receiver`, `kind`, balance kinds) are forced to safe constants on
      *         rebuild and so are absent here.
      * @param sellToken Token to sell.
      * @param buyToken Token to buy; proceeds are always sent to the BoringVault.
@@ -78,6 +78,10 @@ contract CowSwapHelper {
      * @param buyAmount Minimum buy amount; must satisfy the oracle-derived floor for the given provider.
      * @param validTo Order expiry (unix timestamp); must be in the future. Not otherwise bounded - a stale
      * order can be cancelled at will via `cancelOrder`.
+     * @param partiallyFillable Whether the order may be filled in multiple parts. CoW enforces the same
+     * `buyAmount / sellAmount` limit price on every partial fill (rounding the executed buy amount up, in the
+     * vault's favor), so the oracle floor validated here protects each fill regardless of this flag; residual
+     * sell tokens from an incomplete order are swept back with `returnToVault`.
      * @param rateProvider Oracle returning the `buyToken`-per-`sellToken` rate, scaled to `rateDecimals`
      * decimals.
      * @param rateDecimals Fixed-point decimals the oracle's rate is expressed in; used as the divisor when
@@ -90,6 +94,7 @@ contract CowSwapHelper {
         uint256 sellAmount;
         uint256 buyAmount;
         uint32 validTo;
+        bool partiallyFillable;
         IRateProvider rateProvider;
         uint8 rateDecimals;
         uint256 maxSlippageBps;
@@ -227,7 +232,7 @@ contract CowSwapHelper {
             appData: bytes32(0),
             feeAmount: 0,
             kind: CowSwapOrderLib.KIND_SELL,
-            partiallyFillable: false,
+            partiallyFillable: params.partiallyFillable,
             sellTokenBalance: CowSwapOrderLib.BALANCE_ERC20,
             buyTokenBalance: CowSwapOrderLib.BALANCE_ERC20
         });
