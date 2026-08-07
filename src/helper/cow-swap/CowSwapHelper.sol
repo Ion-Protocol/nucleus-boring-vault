@@ -100,6 +100,12 @@ contract CowSwapHelper {
         uint256 maxSlippageBps;
     }
 
+    event OrderPlaced(
+        address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
+    );
+    event OrderCancelled(bytes orderUid);
+    event FundsReturned(address indexed token, uint256 amount);
+
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
     error ZeroAmount();
     error OrderExpired();
@@ -108,12 +114,6 @@ contract CowSwapHelper {
     error InvalidSlippage();
     error ZeroAddress();
     error NotBoringVault();
-
-    event OrderPlaced(
-        address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
-    );
-    event OrderCancelled(bytes orderUid);
-    event FundsReturned(address indexed token, uint256 amount);
 
     /// @notice Restricts a function to the BoringVault, i.e. calls routed through
     /// `ManagerWithMerkleVerification`.
