@@ -215,8 +215,14 @@ contract CowSwapHelper {
         uint256 rate = params.rateProvider.getRate();
         if (rate == 0) revert InvalidRate(address(params.rateProvider));
 
-        uint256 sellNormalized = CowSwapOrderLib.normalize(params.sellAmount, params.sellToken.decimals());
-        uint256 buyNormalized = CowSwapOrderLib.normalize(params.buyAmount, params.buyToken.decimals());
+        // Normalize both amounts to 18 decimals so the whole-token `rate` can bridge them. Rounding is
+        // directional and always conservative for the vault: the sell amount rounds UP (a larger effective sell
+        // raises the floor) and the buy amount rounds DOWN (a smaller effective buy makes the floor harder to
+        // clear). Scaling UP (<= 18 decimals) is exact, so rounding only bites for tokens with > 18 decimals.
+        uint256 sellNormalized =
+            _normalize({ amount: params.sellAmount, decimals: params.sellToken.decimals(), roundUp: true });
+        uint256 buyNormalized =
+            _normalize({ amount: params.buyAmount, decimals: params.buyToken.decimals(), roundUp: false });
 
         // `rate` is buyToken-per-sellToken in `rateDecimals` fixed-point, so dividing the 18-decimal sell amount
         // by 10 ** rateDecimals yields the fair buy amount back in 18-decimal terms, comparable to buyNormalized.
@@ -246,6 +252,26 @@ contract CowSwapHelper {
         // Owner is always this helper: `setPreSignature` requires `owner == msg.sender`, and the helper is the
         // caller, so it must own the order.
         orderUid = CowSwapOrderLib.packOrderUid(digest, address(this), params.validTo);
+    }
+
+    /**
+     * @notice Rescales a native token amount to 18 decimals so amounts in different token decimals can be
+     *         compared against the whole-token oracle rate.
+     * @dev Scaling up (`decimals <= 18`) is an exact multiply. Scaling down (`decimals > 18`) loses precision,
+     *      so the caller chooses the rounding direction that stays conservative for the vault: the sell amount
+     *      rounds up and the buy amount rounds down (see `_buildAndValidateOrderUid`). Rounding is therefore
+     *      only reachable for the exotic case of tokens with more than 18 decimals.
+     * @param amount Amount in the token's native units.
+     * @param decimals The token's decimals.
+     * @param roundUp When scaling down, round up if true, down if false. Ignored when scaling up (exact).
+     * @return The amount rescaled to 18 decimals.
+     */
+    function _normalize(uint256 amount, uint8 decimals, bool roundUp) internal pure returns (uint256) {
+        if (decimals <= 18) {
+            return amount * (10 ** (18 - decimals));
+        }
+        uint256 divisor = 10 ** (decimals - 18);
+        return roundUp ? amount.mulDivUp(1, divisor) : amount / divisor;
     }
 
 }

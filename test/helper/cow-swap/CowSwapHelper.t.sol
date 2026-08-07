@@ -343,6 +343,66 @@ contract CowSwapHelperTest is Test {
     }
 
     // ------------------------------------------------------------------------
+    // placeOrder — >18-decimal rounding (directional, conservative for the vault)
+    // ------------------------------------------------------------------------
+
+    /// @dev Sell token with 19 decimals: the sell amount must round UP, tightening the floor. With sellAmount
+    ///      = 15 (divisor 10), sellNormalized rounds 1.5 -> 2, so a 1-unit buy is rejected where a round-DOWN
+    ///      implementation (the old truncating one) would have accepted it. This is the truncation fix.
+    function test_placeOrder_sellSideRoundsUp() external {
+        MockERC20 sell19 = new MockERC20("Sell19", "S19", 19);
+        MockERC20 buy18 = new MockERC20("Buy18", "B18", 18);
+        rateProvider.setRate(1e18); // 1:1 in whole tokens
+
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.sellToken = ERC20(address(sell19));
+        p.buyToken = ERC20(address(buy18));
+        p.sellAmount = 15; // normalizes to ceil(15 / 10) = 2 (round up)
+
+        // buyAmount = 1 -> buyNormalized 1 < floor 2 -> rejected (would pass under the old round-down).
+        p.buyAmount = 1;
+        _fundAndApproveToken(sell19, p.sellAmount);
+        _expectPriceTooLow(p);
+        vm.prank(boringVault);
+        helper.placeOrder(p);
+
+        // buyAmount = 2 -> buyNormalized 2 >= floor 2 -> accepted.
+        p.buyAmount = 2;
+        _fundAndApproveToken(sell19, p.sellAmount);
+        vm.prank(boringVault);
+        helper.placeOrder(p);
+        assertTrue(settlement.isSigned(_expectedUid(p)), "order at the rounded-up floor clears");
+    }
+
+    /// @dev Buy token with 19 decimals: the buy amount must round DOWN, keeping the floor conservative. With a
+    ///      floor of 1e18 normalized, buyAmount = 1e19 - 5 rounds down to 1e18 - 1 and is rejected, whereas a
+    ///      round-UP implementation would have accepted it.
+    function test_placeOrder_buySideRoundsDown() external {
+        MockERC20 sell18 = new MockERC20("Sell18", "S18", 18);
+        MockERC20 buy19 = new MockERC20("Buy19", "B19", 19);
+        rateProvider.setRate(1e18); // 1:1 in whole tokens
+
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.sellToken = ERC20(address(sell18));
+        p.buyToken = ERC20(address(buy19));
+        p.sellAmount = 1e18; // sellNormalized 1e18 -> floor 1e18
+
+        // buyAmount = 1e19 - 5 -> buyNormalized floor((1e19 - 5) / 10) = 1e18 - 1 < floor -> rejected.
+        p.buyAmount = 1e19 - 5;
+        _fundAndApproveToken(sell18, p.sellAmount);
+        _expectPriceTooLow(p);
+        vm.prank(boringVault);
+        helper.placeOrder(p);
+
+        // buyAmount = 1e19 -> buyNormalized 1e18 >= floor 1e18 -> accepted.
+        p.buyAmount = 1e19;
+        _fundAndApproveToken(sell18, p.sellAmount);
+        vm.prank(boringVault);
+        helper.placeOrder(p);
+        assertTrue(settlement.isSigned(_expectedUid(p)), "order at the rounded-down floor clears");
+    }
+
+    // ------------------------------------------------------------------------
     // cancelOrder
     // ------------------------------------------------------------------------
 
@@ -416,7 +476,7 @@ contract CowSwapHelperTest is Test {
         p.maxSlippageBps = slippageBps;
 
         // Reproduce the helper's floor math (both tokens: 18 and 6 decimals via normalize).
-        uint256 sellNormalized = CowSwapOrderLib.normalize(sellAmount, 18);
+        uint256 sellNormalized = _normalize(sellAmount, 18, true);
         uint256 fairBuyNormalized = sellNormalized.mulDivUp(rate, 1e18);
         uint256 minBuyNormalized = fairBuyNormalized.mulDivUp(BPS_DENOMINATOR - slippageBps, BPS_DENOMINATOR);
 
@@ -431,7 +491,7 @@ contract CowSwapHelperTest is Test {
 
         // One 6-decimal unit below the floor must fail (its normalized value drops below minBuyNormalized).
         // Guard buyAtFloor > 1 so buyAmount stays >= 1 and we isolate the floor check from the ZeroAmount check.
-        if (buyAtFloor > 1 && CowSwapOrderLib.normalize(buyAtFloor - 1, 6) < minBuyNormalized) {
+        if (buyAtFloor > 1 && _normalize(buyAtFloor - 1, 6, false) < minBuyNormalized) {
             p.buyAmount = buyAtFloor - 1;
             _fundAndApprove(p.sellAmount);
             _expectPriceTooLow(p);
@@ -458,10 +518,11 @@ contract CowSwapHelperTest is Test {
         });
     }
 
-    /// @dev Recomputes the helper's normalized price floor for `p` (mirrors `_buildAndValidateOrderUid`).
+    /// @dev Recomputes the helper's normalized price floor for `p` (mirrors `_buildAndValidateOrderUid`): the
+    ///      sell amount rounds up, the buy amount rounds down.
     function _floorNormalized(CowSwapHelper.OrderParams memory p) internal view returns (uint256) {
         uint256 rate = rateProvider.getRate();
-        uint256 sellNormalized = CowSwapOrderLib.normalize(p.sellAmount, p.sellToken.decimals());
+        uint256 sellNormalized = _normalize(p.sellAmount, p.sellToken.decimals(), true);
         uint256 fairBuyNormalized = sellNormalized.mulDivUp(rate, 10 ** p.rateDecimals);
         return fairBuyNormalized.mulDivUp(BPS_DENOMINATOR - p.maxSlippageBps, BPS_DENOMINATOR);
     }
@@ -470,15 +531,29 @@ contract CowSwapHelperTest is Test {
     ///      Values are computed before arming so no stray call consumes the cheatcode.
     function _expectPriceTooLow(CowSwapHelper.OrderParams memory p) internal {
         uint256 minBuyNormalized = _floorNormalized(p);
-        uint256 buyNormalized = CowSwapOrderLib.normalize(p.buyAmount, p.buyToken.decimals());
+        uint256 buyNormalized = _normalize(p.buyAmount, p.buyToken.decimals(), false);
         vm.expectRevert(abi.encodeWithSelector(CowSwapHelper.PriceTooLow.selector, buyNormalized, minBuyNormalized));
+    }
+
+    /// @dev Test-local mirror of the helper's private `_normalize` (directional rounding to 18 decimals).
+    function _normalize(uint256 amount, uint8 decimals, bool roundUp) internal pure returns (uint256) {
+        if (decimals <= 18) {
+            return amount * (10 ** (18 - decimals));
+        }
+        uint256 divisor = 10 ** (decimals - 18);
+        return roundUp ? FixedPointMathLib.mulDivUp(amount, 1, divisor) : amount / divisor;
     }
 
     /// @dev Mints `amount` of the default sell token to the vault and approves exactly that to the helper.
     function _fundAndApprove(uint256 amount) internal {
-        sellToken.mint(boringVault, amount);
+        _fundAndApproveToken(sellToken, amount);
+    }
+
+    /// @dev Mints `amount` of `token` to the vault and approves exactly that to the helper.
+    function _fundAndApproveToken(MockERC20 token, uint256 amount) internal {
+        token.mint(boringVault, amount);
         vm.prank(boringVault);
-        sellToken.approve(address(helper), amount);
+        token.approve(address(helper), amount);
     }
 
     /// @dev Reconstructs the canonical order UID the helper should produce for `p`.

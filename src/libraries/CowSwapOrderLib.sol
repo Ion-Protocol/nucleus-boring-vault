@@ -114,17 +114,4 @@ library CowSwapOrderLib {
         orderUid = abi.encodePacked(orderDigest, owner, validTo);
     }
 
-    /**
-     * @notice Rescales a native token amount to 18 decimals for cross-decimal price comparison.
-     * @param amount Amount in the token's native units.
-     * @param decimals The token's decimals.
-     * @return The amount scaled to 18 decimals.
-     */
-    function normalize(uint256 amount, uint8 decimals) internal pure returns (uint256) {
-        if (decimals <= 18) {
-            return amount * (10 ** (18 - decimals));
-        }
-        return amount / (10 ** (decimals - 18));
-    }
-
 }
