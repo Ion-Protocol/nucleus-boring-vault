@@ -36,7 +36,7 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *        merkle root that gate the vault's `placeOrder` call: the merkle tree only authorizes calls matching a
  *        vetted leaf. The decoder for `placeOrder` MUST pin the `rateProvider`, `sellToken`, and `buyToken`
  *        addresses AND the `maxSlippageBps` value. Otherwise a strategist could pass a near-zero-rate provider or
- *        a 100% `maxSlippageBps` -- either drives the floor to zero -- and drain the sell token. NOTE the
+ *        a 100% `maxSlippageBps` - either drives the floor to zero - and drain the sell token. NOTE the
  *        asymmetry: an address-sanitizing decoder pins the addresses by default, but `maxSlippageBps` is a
  *        numeric field the decoder must be written to include explicitly. This contract only defends in depth
  *        (rejecting a zero rate, requiring `maxSlippageBps <= 100%`); it does NOT itself cap how loose the floor
@@ -78,13 +78,12 @@ contract CowSwapHelper {
      * @param buyToken Token to buy; proceeds are always sent to the BoringVault.
      * @param sellAmount Amount of `sellToken` to offer.
      * @param buyAmount Minimum buy amount; must satisfy the oracle-derived floor for the given provider.
-     * @param validTo Order expiry (unix seconds); must be in the future. Not otherwise bounded -- a stale
+     * @param validTo Order expiry (unix timestamp); must be in the future. Not otherwise bounded - a stale
      * order can be cancelled at will via `cancelOrder`.
      * @param rateProvider Oracle returning the 18-decimal (WAD) `buyToken`-per-`sellToken` rate. Constrained
      * by the decoder/merkle root that gates `placeOrder`, not by any in-contract approval.
      * @param maxSlippageBps Tolerated slippage below the oracle's fair rate, in basis points. Caller-supplied
-     * and, like `rateProvider`, MUST be pinned by the `placeOrder` decoder/merkle leaf -- but note a numeric
-     * field is not pinned by a default address-only sanitizer, so the decoder must include it explicitly.
+     * and, like `rateProvider`, MUST be pinned by the `placeOrder` decoder/merkle leaf.
      */
     struct OrderParams {
         ERC20 sellToken;
@@ -112,9 +111,7 @@ contract CowSwapHelper {
     event FundsReturned(address indexed token, uint256 amount);
 
     /// @notice Restricts a function to the BoringVault, i.e. calls routed through
-    /// `ManagerWithMerkleVerification`. This is the contract's entire access model now that it has no admin
-    /// surface: the merkle root gates which order calls the vault may make, and this check ensures nobody
-    /// else can reach these functions directly.
+    /// `ManagerWithMerkleVerification`.
     modifier onlyBoringVault() {
         if (msg.sender != boringVault) revert NotBoringVault();
         _;
@@ -143,17 +140,16 @@ contract CowSwapHelper {
      *         helper as owner and the vault as receiver.
      * @dev Intended to be called by the BoringVault through `ManagerWithMerkleVerification`. The vault must
      *      have granted this helper an allowance of exactly `sellAmount` for `sellToken`; any residual
-     *      allowance after the pull reverts, mirroring `EquivalentExchange`. The relayer approval overwrites
+     *      allowance after the pull reverts. The relayer approval overwrites
      *      any prior allowance, so this assumes one live order per sell token at a time. Callable only by the
      *      BoringVault; which orders are permitted is gated upstream by the merkle root.
      * @param params Raw order fields; see `OrderParams`.
      * @return orderUid The pre-signed order UID.
      */
     function placeOrder(OrderParams calldata params) external onlyBoringVault returns (bytes memory orderUid) {
-        // Helper is the order owner (so it can be the setPreSignature caller); vault stays the receiver.
         orderUid = _buildAndValidateOrderUid(params, address(this));
 
-        // Move the sell token from the vault into the helper, since the relayer will pull from the owner.
+        // Move the sell token from the vault into this helper.
         params.sellToken.safeTransferFrom(boringVault, address(this), params.sellAmount);
         if (params.sellToken.allowance(boringVault, address(this)) != 0) {
             revert DanglingApproval(address(params.sellToken));
@@ -162,7 +158,7 @@ contract CowSwapHelper {
         // Approve the relayer to pull the sell token at settlement.
         params.sellToken.safeApprove(vaultRelayer, params.sellAmount);
 
-        // Authorize the order on-chain; owner packed into the UID is this helper == msg.sender.
+        // Authorize the order on-chain.
         settlement.setPreSignature(orderUid, true);
 
         emit OrderPlaced(
@@ -198,19 +194,8 @@ contract CowSwapHelper {
     /**
      * @notice Validates `params` against the oracle-derived price floor, then builds the canonical order
      *         (forcing all safety-critical fields) and returns its UID.
-     * @dev Every field folded into the digest is either validated (`sellToken`/`buyToken`/`sellAmount`/
-     *      `buyAmount`/`validTo`/`maxSlippageBps`) or forced to a safe constant (`receiver`, `appData`, `feeAmount`,
-     * `kind`,
-     *      `partiallyFillable`, balance kinds), so nothing reaches the signed order unchecked. `owner` is the
-     *      helper (it must be the `setPreSignature` caller); `receiver` is always the vault; `appData` is
-     *      always empty, so no settlement hooks can ride along.
-     *
-     *      Price freshness is NOT checked here -- the rate provider is responsible for its own staleness
-     *      guard (see the contract-level oracle assumptions). `validTo` is only required to be in the future;
-     *      a stale live order is handled by cancelling it, not by an on-chain lifetime cap.
-     *
-     *      The floor scales with `sellAmount`, so a larger sell simply requires a proportionally larger
-     *      `buyAmount` -- selling more can never mean accepting a worse rate.
+     * @dev Every field folded into the digest is either validated or forced to a safe constant, so nothing
+     *      reaches the signed order unchecked.
      * @param params Raw order fields.
      * @param owner The account to embed as the order owner (and thus the `setPreSignature` caller).
      * @return orderUid The reconstructed UID.
@@ -225,19 +210,11 @@ contract CowSwapHelper {
     {
         if (params.sellAmount == 0 || params.buyAmount == 0) revert ZeroAmount();
         if (params.validTo <= block.timestamp) revert OrderExpired();
-        // maxSlippageBps is caller-supplied and must be pinned by the placeOrder decoder/merkle leaf (see
-        // contract notes). This bound only prevents the underflow below and a nonsensical >100% slippage; it
-        // does NOT stop a merkle-authorized caller from choosing a loose floor.
         if (params.maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
 
-        // The rate provider is constrained by the decoder/merkle root that gates placeOrder, not here. Read
-        // the fair sell->buy rate once (18-decimal WAD, whole buyToken per whole sellToken) and reject a zero
-        // rate rather than pricing the order at zero.
         uint256 rate18 = params.rateProvider.getRate();
         if (rate18 == 0) revert InvalidRate(address(params.rateProvider));
 
-        // Enforce buyAmount >= fairRate * sellAmount * (1 - maxSlippageBps), comparing at 18 decimals. Every
-        // step rounds up so the minimum favors the vault.
         uint256 sellNormalized = CowSwapOrderLib.normalize(params.sellAmount, params.sellToken.decimals());
         uint256 buyNormalized = CowSwapOrderLib.normalize(params.buyAmount, params.buyToken.decimals());
 
