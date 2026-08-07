@@ -30,30 +30,28 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *      The order's `buyAmount` is the only on-chain protection against a bad fill, validated here against a
  *      floor derived from an `IRateProvider` oracle: `buyAmount >= fairRate * sellAmount * (1 - maxSlippageBps)`.
  *
- *      Oracle security assumptions (both the rate provider AND the slippage are caller-supplied, so this is
- *      load-bearing):
- *      - `rateProvider` and `maxSlippageBps` are constrained OUTSIDE this contract, by the decoder/sanitizer and
- *        merkle root that gate the vault's `placeOrder` call: the merkle tree only authorizes calls matching a
- *        vetted leaf. The decoder for `placeOrder` MUST pin the `rateProvider`, `sellToken`, and `buyToken`
- *        addresses AND the `maxSlippageBps` value. Otherwise a strategist could pass a near-zero-rate provider or
- *        a 100% `maxSlippageBps` - either drives the floor to zero - and drain the sell token. NOTE the
- *        asymmetry: an address-sanitizing decoder pins the addresses by default, but `maxSlippageBps` is a
- *        numeric field the decoder must be written to include explicitly. This contract only defends in depth
- *        (rejecting a zero rate, requiring `maxSlippageBps <= 100%`); it does NOT itself cap how loose the floor
- *        may be.
+ *      Oracle security assumptions (the rate provider, its decimals, and the slippage are all caller-supplied,
+ *      so this is load-bearing):
+ *      - `rateProvider`, `rateDecimals`, and `maxSlippageBps` are constrained OUTSIDE this contract, by the
+ *        decoder/sanitizer and merkle root that gate the vault's `placeOrder` call: the merkle tree only
+ *        authorizes calls matching a vetted leaf. The decoder for `placeOrder` MUST pin the `rateProvider`,
+ *        `sellToken`, and `buyToken` addresses AND the `rateDecimals` and `maxSlippageBps` values. Otherwise a
+ *        strategist could pass a near-zero-rate provider, an oversized `rateDecimals` (inflating the divisor so
+ *        the fair amount collapses to zero), or a 100% `maxSlippageBps` - each drives the floor to zero - and
+ *        drain the sell token. NOTE the asymmetry: an address-sanitizing decoder pins the addresses by default,
+ *        but `rateDecimals` and `maxSlippageBps` are numeric fields the decoder must be written to include
+ *        explicitly. This contract only defends in depth (rejecting a zero rate, requiring
+ *        `maxSlippageBps <= 100%`); it does NOT itself cap how loose the floor may be.
  *      - `getRate()` must return the fair price of one whole `sellToken` denominated in whole `buyToken`,
- *        scaled to 18 decimals (WAD), as a single positive `uint256`. It must perform its own staleness and
- *        sanity checks and be unmanipulable within a block (wrap raw Chainlink feeds in an adapter such as
- *        `EthPerTokenRateProvider`). A reverting or zero-returning provider reverts the order, which is
- *        preferable to mispricing it.
+ *        scaled to `rateDecimals` fixed-point decimals, as a single positive `uint256`; `rateDecimals` must
+ *        match the provider's actual scale. It must perform its own staleness and sanity checks and be
+ *        unmanipulable within a block (wrap raw Chainlink feeds in an adapter such as `EthPerTokenRateProvider`).
+ *        A reverting or zero-returning provider reverts the order, which is preferable to mispricing it.
  */
 contract CowSwapHelper {
 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
-
-    /// @notice Fixed-point scale (1e18) that normalized amounts and 18-decimal rates are expressed in.
-    uint256 internal constant WAD = 1e18;
 
     /// @notice Basis-point denominator for the slippage bound.
     uint256 internal constant BPS_DENOMINATOR = 10_000;
@@ -71,7 +69,7 @@ contract CowSwapHelper {
     bytes32 internal immutable domainSeparator;
 
     /**
-     * @notice Raw order fields supplied by the strategist (via the vault). Safety-critical fields
+     * @notice Raw order fields supplied by the strategist (via the vault). Some safety-critical fields
      *         (`receiver`, `kind`, `partiallyFillable`, balance kinds) are forced to safe constants on
      *         rebuild and so are absent here.
      * @param sellToken Token to sell.
@@ -80,10 +78,11 @@ contract CowSwapHelper {
      * @param buyAmount Minimum buy amount; must satisfy the oracle-derived floor for the given provider.
      * @param validTo Order expiry (unix timestamp); must be in the future. Not otherwise bounded - a stale
      * order can be cancelled at will via `cancelOrder`.
-     * @param rateProvider Oracle returning the 18-decimal (WAD) `buyToken`-per-`sellToken` rate. Constrained
-     * by the decoder/merkle root that gates `placeOrder`, not by any in-contract approval.
-     * @param maxSlippageBps Tolerated slippage below the oracle's fair rate, in basis points. Caller-supplied
-     * and, like `rateProvider`, MUST be pinned by the `placeOrder` decoder/merkle leaf.
+     * @param rateProvider Oracle returning the `buyToken`-per-`sellToken` rate, scaled to `rateDecimals`
+     * decimals.
+     * @param rateDecimals Fixed-point decimals the oracle's rate is expressed in; used as the divisor when
+     * mapping the sell amount through the rate. Caller-supplied and, like `rateProvider`.
+     * @param maxSlippageBps Tolerated slippage below the oracle's fair rate, in basis points.
      */
     struct OrderParams {
         ERC20 sellToken;
@@ -92,6 +91,7 @@ contract CowSwapHelper {
         uint256 buyAmount;
         uint32 validTo;
         IRateProvider rateProvider;
+        uint8 rateDecimals;
         uint256 maxSlippageBps;
     }
 
@@ -212,13 +212,15 @@ contract CowSwapHelper {
         if (params.validTo <= block.timestamp) revert OrderExpired();
         if (params.maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
 
-        uint256 rate18 = params.rateProvider.getRate();
-        if (rate18 == 0) revert InvalidRate(address(params.rateProvider));
+        uint256 rate = params.rateProvider.getRate();
+        if (rate == 0) revert InvalidRate(address(params.rateProvider));
 
         uint256 sellNormalized = CowSwapOrderLib.normalize(params.sellAmount, params.sellToken.decimals());
         uint256 buyNormalized = CowSwapOrderLib.normalize(params.buyAmount, params.buyToken.decimals());
 
-        uint256 fairBuyNormalized = sellNormalized.mulDivUp(rate18, WAD);
+        // `rate` is buyToken-per-sellToken in `rateDecimals` fixed-point, so dividing the 18-decimal sell amount
+        // by 10 ** rateDecimals yields the fair buy amount back in 18-decimal terms, comparable to buyNormalized.
+        uint256 fairBuyNormalized = sellNormalized.mulDivUp(rate, 10 ** params.rateDecimals);
         uint256 minBuyNormalized = fairBuyNormalized.mulDivUp(BPS_DENOMINATOR - params.maxSlippageBps, BPS_DENOMINATOR);
         if (buyNormalized < minBuyNormalized) revert PriceTooLow(buyNormalized, minBuyNormalized);
 

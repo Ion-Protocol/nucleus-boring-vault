@@ -10,22 +10,27 @@ import { CowSwapHelper } from "src/helper/cow-swap/CowSwapHelper.sol";
  *         For each supported call it returns the argument values that the manager folds into the merkle leaf,
  *         so that only strategist actions matching an authorized leaf can execute.
  * @dev `CowSwapHelper` enforces a price floor on the orders it places, but it computes that floor
- *      using the `rateProvider` and `maxSlippageBps` its caller supplies.
+ *      using the `rateProvider`, `rateDecimals`, and `maxSlippageBps` its caller supplies.
  *
  *      `sellAmount`, `buyAmount`, and `validTo` are deliberately left unpinned, as the helper's floor check
  *      ties `buyAmount` to `sellAmount` through the pinned oracle.
  */
 abstract contract CowSwapHelperDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
-    // @desc Place a CoW order via CowSwapHelper. Pins the sell/buy tokens, the rate provider, and the numeric
-    //       slippage bound; the per-order amounts and expiry are left free.
+    // @desc Place a CoW order via CowSwapHelper. Pins the sell/buy tokens, the rate provider, the rate's
+    //       decimals, and the numeric slippage bound; the per-order amounts and expiry are left free.
     // @tag sellToken:address:token the vault is selling
     // @tag buyToken:address:token the vault is buying
     // @tag rateProvider:address:oracle the price floor is derived from
+    // @tag rateDecimals:uint8:fixed-point decimals the oracle rate is expressed in
     // @tag maxSlippageBps:uint256:tolerated slippage below the oracle rate, in basis points
     function placeOrder(CowSwapHelper.OrderParams calldata params) external pure returns (bytes memory addressesFound) {
         addressesFound = abi.encodePacked(
-            address(params.sellToken), address(params.buyToken), address(params.rateProvider), params.maxSlippageBps
+            address(params.sellToken),
+            address(params.buyToken),
+            address(params.rateProvider),
+            params.rateDecimals,
+            params.maxSlippageBps
         );
     }
 
