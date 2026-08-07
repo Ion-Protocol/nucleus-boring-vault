@@ -12,9 +12,8 @@ import { CowSwapHelper } from "src/helper/cow-swap/CowSwapHelper.sol";
  * @dev `CowSwapHelper` enforces a price floor on the orders it places, but it computes that floor
  *      using the `rateProvider` and `maxSlippageBps` its caller supplies.
  *
- *      `sellAmount`, `buyAmount`, and `validTo` are deliberately left unpinned, as the helper's floor check ties
- * `buyAmount` to
- *      `sellAmount` through the pinned oracle.
+ *      `sellAmount`, `buyAmount`, and `validTo` are deliberately left unpinned, as the helper's floor check
+ *      ties `buyAmount` to `sellAmount` through the pinned oracle.
  */
 abstract contract CowSwapHelperDecoderAndSanitizer is BaseDecoderAndSanitizer {
 
