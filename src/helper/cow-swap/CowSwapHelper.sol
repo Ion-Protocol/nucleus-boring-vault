@@ -130,6 +130,7 @@ contract CowSwapHelper {
         // receiver is hardcoded to boringVault when building orders; a zero vault would silently route
         // proceeds to the order owner (this helper) under CoW's RECEIVER_SAME_AS_OWNER marker.
         if (_boringVault == address(0)) revert ZeroAddress();
+        if (_settlement == address(0)) revert ZeroAddress();
 
         boringVault = _boringVault;
         settlement = IGPv2Settlement(_settlement);
