@@ -137,6 +137,9 @@ contract CowSwapHelper {
         boringVault = _boringVault;
         settlement = IGPv2Settlement(_settlement);
         vaultRelayer = IGPv2Settlement(_settlement).vaultRelayer();
+        // Safe to cache: although the domain separator encodes chainId, the settlement computes it once in its
+        // own constructor and stores it as an immutable - it is never recomputed, even across a chain split - so
+        // for a fixed settlement address the value is frozen and always matches what `setPreSignature` checks.
         domainSeparator = IGPv2Settlement(_settlement).domainSeparator();
     }
 
@@ -230,6 +233,8 @@ contract CowSwapHelper {
             validTo: params.validTo,
             // Empty appData: cannot encode settlement hooks, so no arbitrary calls ride along.
             appData: bytes32(0),
+            // feeAmount is a legacy field: CoW now charges fees inside the settlement clearing prices, so
+            // signed orders always carry a zero fee.
             feeAmount: 0,
             kind: CowSwapOrderLib.KIND_SELL,
             partiallyFillable: params.partiallyFillable,
