@@ -1,13 +1,13 @@
 {
   "nameEntropy": "PAXGy",
-  "base": "0x45804880De22913dAFE09f4980848ECE6EcbAf78",
-  "protocolAdmin": "0x0000000000417626Ef34D62C4DC189b021603f2F",
+  "base": "0x130493BCD68Ca6aE7b15566A757Bd6699D73467D",
+  "protocolAdmin": "0xDeAd6b0F53b7B529003EDbd612b336561DE56A02",
   "boringVaultAndBaseDecimals": "18",
   "boringVault": {
     "boringVaultName": "PAXGy",
     "boringVaultSymbol": "PAXGy",
     "beforeTransferHookAddress": "0x2e30D7903f69063be7B5C5B374648dc9Fc7FB7Ee",
-    "address": "0x0000000000000000000000000000000000000000"
+    "address": "0xe69f6866f37FD90B34454304877Ad34e4bAE1B12"
   },
   "freezeListBeforeTransferHook": {
     "address": "0x0000000000000000000000000000000000000000"
