@@ -19,13 +19,6 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *      *helper*, so the vault must move the sell token into the helper before settlement. The helper holds
  *      that balance for the order's whole lifetime.
  *
- *      Consequences of the helper holding funds:
- *      - The helper is a second custodian with its own access control; it is no longer true that all vault
- *        assets live in the BoringVault.
- *      - `receiver` is set to the vault, so *filled* proceeds go straight to the vault with no withdrawal
- *        step. But an expired / unfilled / partially-filled order leaves residual sell tokens stranded in
- *        the helper, which must be swept back with `returnToVault`.
- *
  *      Pricing safety: CoW settles asynchronously, so there is no post-trade balance invariant to lean on.
  *      The order's `buyAmount` is the only on-chain protection against a bad fill, validated here against a
  *      floor derived from an `IRateProvider` oracle: `buyAmount >= fairRate * sellAmount * (1 - maxSlippageBps)`.
