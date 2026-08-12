@@ -53,9 +53,8 @@ contract DexSwapperUManagerTest is Test, MainnetAddresses {
         rawDataDecoderAndSanitizer =
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
 
-        dexSwapperUManager = new DexSwapperUManager(
-            address(this), address(manager), address(boringVault), uniV3Router, vault, address(priceRouter)
-        );
+        dexSwapperUManager =
+            new DexSwapperUManager(address(this), address(manager), uniV3Router, vault, address(priceRouter));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
         boringVault.setAuthority(rolesAuthority);

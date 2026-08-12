@@ -164,7 +164,7 @@ contract EquivalentExchangeUManager is UManager {
         uint256[] values;
     }
 
-    constructor(address _owner, address _manager, address _boringVault) UManager(_owner, _manager, _boringVault) { }
+    constructor(address _owner, address _manager) UManager(_owner, _manager) { }
 
     /**
      * @notice Sets the basket of tokens used for accounting, along with each token's reference-asset price source.

@@ -114,7 +114,7 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
     function setUp() external {
         boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
         manager = new ManagerWithMerkleVerification(address(this), address(boringVault), address(0));
-        uManager = new EquivalentExchangeUManager(address(this), address(manager), address(boringVault));
+        uManager = new EquivalentExchangeUManager(address(this), address(manager));
         rawDataDecoderAndSanitizer = address(new MockDecoderAndSanitizer(address(boringVault)));
         mockSwap = new MockSwap();
 

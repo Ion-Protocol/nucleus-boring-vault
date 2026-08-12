@@ -49,15 +49,7 @@ contract DexAggregatorUManager is UManager {
      */
     PriceRouter internal immutable priceRouter;
 
-    constructor(
-        address _owner,
-        address _manager,
-        address _boringVault,
-        address _router,
-        address _priceRouter
-    )
-        UManager(_owner, _manager, _boringVault)
-    {
+    constructor(address _owner, address _manager, address _router, address _priceRouter) UManager(_owner, _manager) {
         router = AggregationRouterV5(_router);
         priceRouter = PriceRouter(_priceRouter);
     }

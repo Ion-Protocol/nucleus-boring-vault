@@ -123,7 +123,7 @@ contract DeployBoringVaultAndManager is BaseScript {
                 SALT_EQUIVALENT_EXCHANGE_UMANAGER,
                 abi.encodePacked(
                     type(EquivalentExchangeUManager).creationCode,
-                    abi.encode(broadcaster, address(managerWithMerkleVerification), address(boringVault))
+                    abi.encode(broadcaster, address(managerWithMerkleVerification))
                 )
             )
         );

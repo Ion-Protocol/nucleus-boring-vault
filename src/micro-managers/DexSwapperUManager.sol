@@ -72,12 +72,11 @@ contract DexSwapperUManager is UManager {
     constructor(
         address _owner,
         address _manager,
-        address _boringVault,
         address _router,
         address _balancerVault,
         address _priceRouter
     )
-        UManager(_owner, _manager, _boringVault)
+        UManager(_owner, _manager)
     {
         router = IUniswapV3Router(_router);
         balancerVault = BalancerVault(_balancerVault);

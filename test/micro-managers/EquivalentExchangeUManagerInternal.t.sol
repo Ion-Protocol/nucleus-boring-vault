@@ -3,13 +3,14 @@ pragma solidity 0.8.21;
 
 import { Test } from "@forge-std/Test.sol";
 import { EquivalentExchangeUManager } from "src/micro-managers/EquivalentExchangeUManager.sol";
+import { MockManagerWithVault } from "./mocks/MockManagerWithVault.sol";
 
 /// @notice Exposes EquivalentExchangeUManager's internal pure valuation helpers for direct testing.
 contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
 
-    // The UManager constructor only stores the manager/boringVault addresses and wires up Auth,
-    // none of which the pure valuation helpers depend on, so dummy addresses are sufficient.
-    constructor() EquivalentExchangeUManager(address(this), address(this), address(this)) { }
+    // The UManager constructor only wires up Auth and reads manager.vault(); the pure valuation helpers
+    // depend on neither, so a mock manager returning a dummy vault is sufficient.
+    constructor() EquivalentExchangeUManager(address(this), address(new MockManagerWithVault(address(0)))) { }
 
     // Compose _unitRate with the value helpers exactly as the contract does, so the (decimals, rate) inputs
     // stay intuitive in tests while exercising the real per-unit-rate helpers. `rate` is an 18-decimal

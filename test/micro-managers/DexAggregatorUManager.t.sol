@@ -54,9 +54,8 @@ contract DexAggregatorUManagerTest is Test, MainnetAddresses {
         rawDataDecoderAndSanitizer =
             address(new EtherFiLiquidDecoderAndSanitizer(address(boringVault), uniswapV3NonFungiblePositionManager));
 
-        dexAggregatorUManager = new DexAggregatorUManager(
-            address(this), address(manager), address(boringVault), aggregationRouterV5, address(priceRouter)
-        );
+        dexAggregatorUManager =
+            new DexAggregatorUManager(address(this), address(manager), aggregationRouterV5, address(priceRouter));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
         boringVault.setAuthority(rolesAuthority);
