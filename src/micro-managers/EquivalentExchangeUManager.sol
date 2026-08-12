@@ -32,6 +32,10 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *      through should therefore be a basket token. (The dangling-approval check is the one place non-basket
  *      tokens are inspected, and only for leftover allowances.)
  *
+ *      Fee-on-transfer basket tokens are unsupported: _coverShortfall credits the subsidy at the amount it
+ *      sends, not the smaller amount the vault actually receives, so a transfer fee on the subsidy token would
+ *      let the value invariant pass while leaving the vault short.
+ *
  *      Subsidy, if required, is pulled from an approval-based subsidy payer. The subsidy payer must
  *      pre-approve the UManager to spend the subsidy token; if the approved/available amount is
  *      insufficient, the call reverts.
@@ -278,9 +282,9 @@ contract EquivalentExchangeUManager is UManager {
         requiresAuth
         returns (uint256 subsidyAmount)
     {
-        // Read the basket once into memory. The set should not change mid-execution, but snapshotting it
-        // guarantees every loop below indexes the same tokens, so `allowableTokenDelta[i]`, `tokens[i]` and
-        // the `oracleFlags` bit `i` can never drift out of alignment.
+        // Read the basket once into memory. The loops index tokens, allowableTokenDelta and oracleFlags by
+        // the same i, so any configuration that could update the basket or its oracles mid-execution would be
+        // invalid.
         address[] memory tokens = basketTokens.values();
         uint256 basketLength = tokens.length;
 
@@ -519,7 +523,8 @@ contract EquivalentExchangeUManager is UManager {
      * `10 ** tokenDecimals` native units. Restating that as the reference-asset value of one native unit at
      * NORMALIZED_DECIMALS is a rescale by `2 * NORMALIZED_DECIMALS - rateDecimals - tokenDecimals`: a
      * lossless multiply when that exponent is >= 0 (the common case, e.g. 8-dec rate + 6-to-18-dec token),
-     * else a divide that can floor -- which only understates value and over-pulls subsidy, both safe.
+     * else a divide that can floor. Flooring only triggers when rateDecimals + tokenDecimals > 36, beyond any
+     * supported token, and a rate that floors to zero is rejected by the InvalidRate guard.
      * @param rate Whole-token price from the oracle, scaled to `rateDecimals` (NORMALIZED_ONE with
      * `rateDecimals == NORMALIZED_DECIMALS` for a 1:1 token).
      * @param rateDecimals Decimals of `rate`.
