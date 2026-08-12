@@ -80,6 +80,10 @@ contract EquivalentExchangeUManager is UManager {
     /// @notice Selector for increaseAllowance(address,uint256).
     bytes4 internal constant INCREASE_ALLOWANCE_SELECTOR = 0x39509351;
 
+    /// @notice Selector for increaseApproval(address,uint256), a non-standard allowance-raising variant some
+    /// older tokens expose instead of increaseAllowance. Same (spender, amount) layout.
+    bytes4 internal constant INCREASE_APPROVAL_SELECTOR = 0xd73dd623;
+
     /// @notice Basket tokens whose aggregate reference-asset value this UManager preserves across an
     /// `execute` batch.
     EnumerableSet.AddressSet internal basketTokens;
@@ -487,10 +491,10 @@ contract EquivalentExchangeUManager is UManager {
 
             // Length check is >= 68 because some token contracts (e.g., compiled
             // with older Solidity versions) may tolerate trailing calldata on
-            // low-level calls rather than reverting. approve(address,uint256) and
-            // increaseAllowance(address,uint256) both require 4 + 32 + 32 = 68
-            // bytes at minimum.  Flash loan calls are also not affected by this
-            // check because they require 132+ bytes.
+            // low-level calls rather than reverting. approve, increaseAllowance
+            // and increaseApproval all take (address,uint256), so they require
+            // 4 + 32 + 32 = 68 bytes at minimum. Flash loan calls are also not
+            // affected by this check because they require 132+ bytes.
             if (targetData.length < 68) continue;
 
             bytes4 selector = bytes4(targetData[0:4]);
@@ -499,10 +503,13 @@ contract EquivalentExchangeUManager is UManager {
             // approvals.
             if (selector == BalancerVault.flashLoan.selector) revert FlashLoanInBatch();
 
-            if (selector != ERC20.approve.selector && selector != INCREASE_ALLOWANCE_SELECTOR) continue;
+            if (
+                selector != ERC20.approve.selector && selector != INCREASE_ALLOWANCE_SELECTOR
+                    && selector != INCREASE_APPROVAL_SELECTOR
+            ) continue;
 
             // Spender is the first argument (offset 4, zero-padded address), amount the second; this layout
-            // is identical for approve and increaseAllowance.
+            // is identical for approve, increaseAllowance and increaseApproval.
             (address spender, uint256 amount) = abi.decode(targetData[4:68], (address, uint256));
             // A zero-amount approval cannot create a dangling allowance. This only skips the current call;
             // any other non-zero approval to the same token and spender is still checked.

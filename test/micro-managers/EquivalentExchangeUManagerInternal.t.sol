@@ -6,6 +6,22 @@ import { EquivalentExchangeUManager } from "src/micro-managers/EquivalentExchang
 import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 import { MockManagerWithVault } from "./mocks/MockManagerWithVault.sol";
 
+/// @notice ERC20 stub whose allowance() returns a fixed value, for exercising the dangling-approval check
+///         without a full token/merkle setup.
+contract MockFixedAllowanceToken {
+
+    uint256 internal immutable value;
+
+    constructor(uint256 _value) {
+        value = _value;
+    }
+
+    function allowance(address, address) external view returns (uint256) {
+        return value;
+    }
+
+}
+
 /// @notice Exposes EquivalentExchangeUManager's internal pure valuation helpers for direct testing.
 contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
 
@@ -154,8 +170,20 @@ contract EquivalentExchangeUManagerInternal is Test {
     /// @dev Builds a single-call batch with the given target calldata; only targets/targetData are read by
     /// the checks, so the other parallel arrays are left empty.
     function _oneCall(bytes memory data) internal pure returns (EquivalentExchangeUManager.ManageCalls memory calls) {
+        return _oneCallTo(address(0xBEEF), data);
+    }
+
+    /// @dev As `_oneCall`, but with an explicit target so the allowance read hits a chosen token.
+    function _oneCallTo(
+        address target,
+        bytes memory data
+    )
+        internal
+        pure
+        returns (EquivalentExchangeUManager.ManageCalls memory calls)
+    {
         calls.targets = new address[](1);
-        calls.targets[0] = address(0xBEEF);
+        calls.targets[0] = target;
         calls.targetData = new bytes[](1);
         calls.targetData[0] = data;
     }
@@ -173,9 +201,26 @@ contract EquivalentExchangeUManagerInternal is Test {
 
     /// @notice A benign call (neither flashLoan nor a nonzero approval) passes the checks.
     function test_EnforceCalldataChecks_AllowsBenignCall() external view {
-        // transfer(address,uint256) — not flashLoan, not approve/increaseAllowance.
+        // transfer(address,uint256) — not flashLoan, not approve/increaseAllowance/increaseApproval.
         bytes memory data = abi.encodeWithSelector(bytes4(0xa9059cbb), address(0xCAFE), uint256(1));
         harness.enforceCalldataChecks(_oneCall(data));
+    }
+
+    /// @notice increaseApproval(address,uint256) shares approve's layout; a leftover allowance from it is
+    /// caught just like approve/increaseAllowance.
+    function test_EnforceCalldataChecks_RevertsOnDanglingIncreaseApproval() external {
+        address token = address(new MockFixedAllowanceToken(1)); // nonzero remaining allowance => dangling
+        bytes memory data = abi.encodeWithSelector(bytes4(0xd73dd623), address(0xBEEF), uint256(100));
+
+        vm.expectRevert(EquivalentExchangeUManager.DanglingApproval.selector);
+        harness.enforceCalldataChecks(_oneCallTo(token, data));
+    }
+
+    /// @notice An increaseApproval that ends at zero allowance passes.
+    function test_EnforceCalldataChecks_AllowsResetIncreaseApproval() external {
+        address token = address(new MockFixedAllowanceToken(0)); // allowance reset by end of batch
+        bytes memory data = abi.encodeWithSelector(bytes4(0xd73dd623), address(0xBEEF), uint256(100));
+        harness.enforceCalldataChecks(_oneCallTo(token, data));
     }
 
 }
