@@ -382,15 +382,18 @@ contract EquivalentExchangeUManager is UManager {
                 // A zero rate cannot value the token, so reject it rather than mispricing the basket.
                 if (baseRate == 0) revert InvalidRate(token);
             }
+            uint8 tokenDecimals = ERC20(token).decimals();
+            // Reject any config whose rate would need flooring: when rateDecimals + tokenDecimals exceeds
+            // 2 * NORMALIZED_DECIMALS, _unitRate takes its divide branch and loses precision, which is not
+            // conservative across a mixed basket. Bounding the sum keeps valuation on _unitRate's lossless
+            // multiply branch. Realistic configs (<= 18-dec oracle, <= 18-dec token) never hit this, and with
+            // baseRate > 0 the resulting rate is then always > 0.
+            if (uint256(rateDecimals) + tokenDecimals > 2 * NORMALIZED_DECIMALS) revert InvalidRate(token);
+
             // Fold the oracle's own precision and the token's decimals into one per-native-unit rate, so
             // nothing downstream needs either. Applying the one rate to both balances keeps the two totals
             // from disagreeing on price or scale.
-            uint256 rate = _unitRate(baseRate, rateDecimals, ERC20(token).decimals());
-            // Even a nonzero baseRate can produce a zero unit rate: when rateDecimals + tokenDecimals exceeds
-            // 2 * NORMALIZED_DECIMALS, _unitRate divides and can floor to zero for a small enough baseRate. A
-            // zero unit rate would value this token at zero in both totals, silently dropping it from the
-            // aggregate value invariant, so reject it here rather than misprice the basket.
-            if (rate == 0) revert InvalidRate(token);
+            uint256 rate = _unitRate(baseRate, rateDecimals, tokenDecimals);
 
             // Capture the subsidy token's per-unit rate as it is valued, so `_coverShortfall` can reuse it.
             if (token == subsidyToken) subsidyRate = rate;
@@ -530,8 +533,9 @@ contract EquivalentExchangeUManager is UManager {
      * `10 ** tokenDecimals` native units. Restating that as the reference-asset value of one native unit at
      * NORMALIZED_DECIMALS is a rescale by `2 * NORMALIZED_DECIMALS - rateDecimals - tokenDecimals`: a
      * lossless multiply when that exponent is >= 0 (the common case, e.g. 8-dec rate + 6-to-18-dec token),
-     * else a divide that can floor. Flooring only triggers when rateDecimals + tokenDecimals > 36, beyond any
-     * supported token, and a rate that floors to zero is rejected by the InvalidRate guard.
+     * else a divide that would floor. `_checkAndValueBasket` rejects any token whose rateDecimals +
+     * tokenDecimals exceeds `2 * NORMALIZED_DECIMALS`, so in valuation this only ever takes the multiply
+     * branch; the divide branch is retained only so the helper stays total for direct/standalone use.
      * @param rate Whole-token price from the oracle, scaled to `rateDecimals` (NORMALIZED_ONE with
      * `rateDecimals == NORMALIZED_DECIMALS` for a 1:1 token).
      * @param rateDecimals Decimals of `rate`.
