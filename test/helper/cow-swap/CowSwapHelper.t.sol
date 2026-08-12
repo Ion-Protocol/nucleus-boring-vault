@@ -128,7 +128,9 @@ contract CowSwapHelperTest is Test {
         bytes memory uid = helper.placeOrder(p);
 
         assertEq(
-            sellToken.allowance(address(helper), relayer), p.sellAmount, "relayer approval uses cached vaultRelayer"
+            sellToken.allowance(address(helper), relayer),
+            type(uint256).max,
+            "relayer approval uses cached vaultRelayer"
         );
         assertEq(uid, _expectedUid(p), "UID uses cached domain separator");
     }
@@ -241,8 +243,34 @@ contract CowSwapHelperTest is Test {
         assertEq(sellToken.balanceOf(address(helper)), p.sellAmount, "helper holds the sell token");
         assertEq(sellToken.balanceOf(boringVault), 0, "vault emptied of sell token");
         assertEq(sellToken.allowance(boringVault, address(helper)), 0, "vault->helper allowance consumed");
-        assertEq(sellToken.allowance(address(helper), relayer), p.sellAmount, "relayer approved for sellAmount");
+        assertEq(sellToken.allowance(address(helper), relayer), type(uint256).max, "relayer granted unlimited approval");
         assertTrue(settlement.isSigned(expectedUid), "order pre-signed on settlement");
+    }
+
+    /// @dev Two live orders for the same sell token: the unlimited approval is not clobbered by the second
+    ///      placeOrder, and the helper's balance accumulates to cover both — the fix for the one-order-at-a-time
+    ///      hazard the exact-approval model had.
+    function test_placeOrder_concurrentOrdersShareApproval() external {
+        CowSwapHelper.OrderParams memory a = _defaultParams();
+        a.sellAmount = 1e18;
+        a.buyAmount = 3000e6;
+        _fundAndApprove(a.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uidA = helper.placeOrder(a);
+
+        CowSwapHelper.OrderParams memory b = _defaultParams();
+        b.sellAmount = 5e18;
+        b.buyAmount = 15_000e6;
+        _fundAndApprove(b.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uidB = helper.placeOrder(b);
+
+        assertTrue(settlement.isSigned(uidA), "order A still authorized");
+        assertTrue(settlement.isSigned(uidB), "order B authorized");
+        assertEq(sellToken.balanceOf(address(helper)), 6e18, "balance covers both orders");
+        assertEq(
+            sellToken.allowance(address(helper), relayer), type(uint256).max, "approval not clobbered by 2nd order"
+        );
     }
 
     function test_placeOrder_slippageLowersFloor() external {

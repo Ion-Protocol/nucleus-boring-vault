@@ -19,13 +19,6 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *      *helper*, so the vault must move the sell token into the helper before settlement. The helper holds
  *      that balance for the order's whole lifetime.
  *
- *      Consequences of the helper holding funds:
- *      - The helper is a second custodian with its own access control; it is no longer true that all vault
- *        assets live in the BoringVault.
- *      - `receiver` is set to the vault, so *filled* proceeds go straight to the vault with no withdrawal
- *        step. But an expired / unfilled / partially-filled order leaves residual sell tokens stranded in
- *        the helper, which must be swept back with `returnToVault`.
- *
  *      Pricing safety: CoW settles asynchronously, so there is no post-trade balance invariant to lean on.
  *      The order's `buyAmount` is the only on-chain protection against a bad fill, validated here against a
  *      floor derived from an `IRateProvider` oracle: `buyAmount >= fairRate * sellAmount * (1 - maxSlippageBps)`.
@@ -148,9 +141,10 @@ contract CowSwapHelper {
      *         helper as owner and the vault as receiver.
      * @dev Intended to be called by the BoringVault through `ManagerWithMerkleVerification`. The vault must
      *      have granted this helper an allowance of exactly `sellAmount` for `sellToken`; any residual
-     *      allowance after the pull reverts. The relayer approval overwrites
-     *      any prior allowance, so this assumes one live order per sell token at a time. Callable only by the
-     *      BoringVault; which orders are permitted is gated upstream by the merkle root.
+     *      allowance after the pull reverts. The relayer is granted an unlimited allowance (set once per sell
+     *      token), so multiple live orders for the same token draw from the helper's shared balance rather than
+     *      each order clobbering the previous one's approval - the collateral is the balance, which every
+     *      `placeOrder` tops up by `sellAmount`. Callable only by the BoringVault.
      * @param params Raw order fields; see `OrderParams`.
      * @return orderUid The pre-signed order UID.
      */
@@ -163,8 +157,13 @@ contract CowSwapHelper {
             revert DanglingApproval(address(params.sellToken));
         }
 
-        // Approve the relayer to pull the sell token at settlement.
-        params.sellToken.safeApprove(vaultRelayer, params.sellAmount);
+        // Approve the relayer to pull the sell token at settlement. An unlimited approval, (re)set only when the
+        // current allowance can't cover this order, lets concurrent orders for the same token settle from the
+        // helper's shared balance without one order's approval overwriting another's. In practice this sets the
+        // allowance once per token (0 -> max) and is skipped thereafter.
+        if (params.sellToken.allowance(address(this), vaultRelayer) < params.sellAmount) {
+            params.sellToken.safeApprove(vaultRelayer, type(uint256).max);
+        }
 
         // Authorize the order on-chain.
         settlement.setPreSignature(orderUid, true);
