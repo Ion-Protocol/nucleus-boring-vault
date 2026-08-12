@@ -383,11 +383,10 @@ contract EquivalentExchangeUManager is UManager {
                 if (baseRate == 0) revert InvalidRate(token);
             }
             uint8 tokenDecimals = ERC20(token).decimals();
-            // Reject any config whose rate would need flooring: when rateDecimals + tokenDecimals exceeds
-            // 2 * NORMALIZED_DECIMALS, _unitRate takes its divide branch and loses precision, which is not
-            // conservative across a mixed basket. Bounding the sum keeps valuation on _unitRate's lossless
-            // multiply branch. Realistic configs (<= 18-dec oracle, <= 18-dec token) never hit this, and with
-            // baseRate > 0 the resulting rate is then always > 0.
+            // Reject any config _unitRate can't rescale losslessly: when rateDecimals + tokenDecimals exceeds
+            // 2 * NORMALIZED_DECIMALS, its exponent would go negative (a lossy divide), which is not
+            // conservative across a mixed basket. Realistic configs (<= 18-dec oracle, <= 18-dec token) never
+            // hit this, and with baseRate > 0 the resulting rate is then always > 0.
             if (uint256(rateDecimals) + tokenDecimals > 2 * NORMALIZED_DECIMALS) revert InvalidRate(token);
 
             // Fold the oracle's own precision and the token's decimals into one per-native-unit rate, so
@@ -529,13 +528,13 @@ contract EquivalentExchangeUManager is UManager {
     /**
      * @notice Converts an oracle rate into a per-native-unit rate, accounting for both the oracle's output
      *         precision and the token's decimals in a single power-of-ten rescale.
-     * @dev The oracle reports a whole-token price scaled to `rateDecimals`; one whole token spans
-     * `10 ** tokenDecimals` native units. Restating that as the reference-asset value of one native unit at
-     * NORMALIZED_DECIMALS is a rescale by `2 * NORMALIZED_DECIMALS - rateDecimals - tokenDecimals`: a
-     * lossless multiply when that exponent is >= 0 (the common case, e.g. 8-dec rate + 6-to-18-dec token),
-     * else a divide that would floor. `_checkAndValueBasket` rejects any token whose rateDecimals +
-     * tokenDecimals exceeds `2 * NORMALIZED_DECIMALS`, so in valuation this only ever takes the multiply
-     * branch; the divide branch is retained only so the helper stays total for direct/standalone use.
+     * @dev A whole token costs `rate` at `rateDecimals` and is `10 ** tokenDecimals` native units, so one
+     * native unit is worth `rate / 10 ** (rateDecimals + tokenDecimals)` reference units. That is scaled up
+     * by `10 ** (2 * NORMALIZED_DECIMALS)` -- once to reach NORMALIZED_DECIMALS, once more to pre-cancel the
+     * NORMALIZED_ONE that `_tokenAmountToReferenceValue` later divides by -- giving the net multiply below.
+     * `_checkAndValueBasket` keeps `rateDecimals + tokenDecimals <= 2 * NORMALIZED_DECIMALS`, so the exponent
+     * stays non-negative: the rescale is a multiply, not the flooring divide a negative exponent would force.
+     * A larger sum underflows that subtraction and reverts.
      * @param rate Whole-token price from the oracle, scaled to `rateDecimals` (NORMALIZED_ONE with
      * `rateDecimals == NORMALIZED_DECIMALS` for a 1:1 token).
      * @param rateDecimals Decimals of `rate`.
@@ -543,16 +542,7 @@ contract EquivalentExchangeUManager is UManager {
      * @return Reference-asset value of one native token unit, scaled to NORMALIZED_DECIMALS.
      */
     function _unitRate(uint256 rate, uint8 rateDecimals, uint8 tokenDecimals) internal pure returns (uint256) {
-        // The net power of ten is `grow - shrink`. `shrink` strips the two input scales: the oracle's own
-        // precision (`rateDecimals`) and the token's decimals (converting whole token -> native unit).
-        // `grow` adds back two factors of NORMALIZED_DECIMALS: one to express the result at 18 decimals,
-        // one to pre-cancel the NORMALIZED_ONE that `_tokenAmountToReferenceValue` divides by afterward.
-        uint256 shrink = uint256(rateDecimals) + tokenDecimals;
-        uint256 grow = 2 * NORMALIZED_DECIMALS;
-        if (shrink <= grow) {
-            return rate * (10 ** (grow - shrink));
-        }
-        return rate / (10 ** (shrink - grow));
+        return rate * (10 ** (2 * NORMALIZED_DECIMALS - uint256(rateDecimals) - tokenDecimals));
     }
 
     /**
