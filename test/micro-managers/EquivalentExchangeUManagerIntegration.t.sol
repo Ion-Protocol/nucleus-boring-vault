@@ -480,6 +480,51 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
         assertEq(usdc.allowance(address(boringVault), address(mockSwap)), 0, "allowance fully reset");
     }
 
+    function test_Execute_RevertWhen_DanglingApprovalLeft_NonBasketToken() external {
+        // gold is held by the vault but is NOT in the basket {USDC, DAI}. A leftover approval on it is a
+        // standing drain vector, so the dangling-approval guard must catch it even though it is not a basket
+        // token. No basket balance moves, so the value invariant holds and this guard is the only thing that
+        // can revert.
+        gold.mint(address(boringVault), 1000e8);
+
+        bytes32[] memory approveProof = _setNonBasketApprovalRoot();
+
+        EquivalentExchangeUManager.ManageCalls memory calls = _batch(
+            _actions(
+                _mc(
+                    approveProof,
+                    address(gold),
+                    abi.encodeWithSelector(ERC20.approve.selector, address(mockSwap), 1000e8)
+                )
+            )
+        );
+
+        vm.expectRevert(EquivalentExchangeUManager.DanglingApproval.selector);
+        uManager.execute(calls, payer, dai, _wideAllowableTokenDeltas());
+    }
+
+    function test_Execute_NonBasketApprovalResetToZero_Passes() external {
+        // The widened guard must not reject a legitimate non-basket approve+reset. The gold approve leaf gates
+        // only the spender, so one proof serves both the nonzero set and the reset-to-zero.
+        gold.mint(address(boringVault), 1000e8);
+
+        bytes32[] memory approveProof = _setNonBasketApprovalRoot();
+
+        EquivalentExchangeUManager.ManageCalls memory calls = _batch(
+            _actions(
+                _mc(
+                    approveProof,
+                    address(gold),
+                    abi.encodeWithSelector(ERC20.approve.selector, address(mockSwap), 1000e8)
+                ),
+                _mc(approveProof, address(gold), abi.encodeWithSelector(ERC20.approve.selector, address(mockSwap), 0))
+            )
+        );
+
+        uManager.execute(calls, payer, dai, _wideAllowableTokenDeltas());
+        assertEq(gold.allowance(address(boringVault), address(mockSwap)), 0, "non-basket allowance fully reset");
+    }
+
     // ============================== merkle gating ==============================
 
     function test_Execute_RevertWhen_ProofInvalid() external {
@@ -1055,6 +1100,24 @@ contract EquivalentExchangeUManagerIntegrationTest is Test {
 
         approveProof = proofs[0];
         increaseProof = proofs[1];
+    }
+
+    /// @notice Gates approve(GLD -> swap) on the non-basket gold token, returning its proof. A second
+    ///         (unused) approve leaf keeps the tree even, as the builder requires.
+    function _setNonBasketApprovalRoot() internal returns (bytes32[] memory approveProof) {
+        ManageLeaf[] memory leafs = new ManageLeaf[](2);
+
+        leafs[0] = ManageLeaf(address(gold), false, "approve(address,uint256)", new address[](1));
+        leafs[0].argumentAddresses[0] = address(mockSwap);
+
+        leafs[1] = ManageLeaf(address(usdc), false, "approve(address,uint256)", new address[](1));
+        leafs[1].argumentAddresses[0] = address(mockSwap);
+
+        bytes32[][] memory tree = _generateMerkleTree(leafs);
+        manager.setManageRoot(address(uManager), tree[tree.length - 1][0]);
+        bytes32[][] memory proofs = _getProofsUsingTree(leafs, tree);
+
+        approveProof = proofs[0];
     }
 
     /// @notice Builds the two-call route (approve USDC -> swap, then swap USDC->DAI to the vault),

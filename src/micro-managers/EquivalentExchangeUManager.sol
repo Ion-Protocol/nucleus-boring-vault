@@ -317,7 +317,7 @@ contract EquivalentExchangeUManager is UManager {
         // changes to subsidy behavior.
         assert(totalAfter >= totalBefore);
 
-        // Ensure no approvals to basket tokens remain outstanding.
+        // Ensure no approval made during the batch remains outstanding.
         _enforceNoDanglingApprovals(calls);
 
         emit Executed(msg.sender, subsidyToken, totalBefore, totalAfter, subsidyAmount, subsidyAmountNormalized);
@@ -454,9 +454,10 @@ contract EquivalentExchangeUManager is UManager {
     //============================== APPROVAL TRACKING ===============================
 
     /**
-     * @notice Ensures that any ERC20#approve or ERC20#increaseAllowance calls made
-     *         by the vault to basket tokens during the batch have been fully reset
-     *         to zero by the end of execution.
+     * @notice Ensures that any ERC20#approve or ERC20#increaseAllowance call made by the
+     *         vault during the batch, on any token, has been fully reset to zero by the end
+     *         of execution. Non-basket tokens are covered too, since a leftover allowance on
+     *         any vault-held token is a drain vector.
      * @param calls Batch of merkle-verified BoringVault actions.
      */
     function _enforceNoDanglingApprovals(ManageCalls calldata calls) internal view {
@@ -464,8 +465,6 @@ contract EquivalentExchangeUManager is UManager {
 
         for (uint256 i; i < callsLength; ++i) {
             address target = calls.targets[i];
-            if (!basketTokens.contains(target)) continue;
-
             bytes calldata targetData = calls.targetData[i];
 
             // Length check is >= 68 because some token contracts (e.g., compiled
