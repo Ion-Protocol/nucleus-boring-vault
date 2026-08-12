@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { Test } from "@forge-std/Test.sol";
 import { EquivalentExchangeUManager } from "src/micro-managers/EquivalentExchangeUManager.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 import { MockManagerWithVault } from "./mocks/MockManagerWithVault.sol";
 
 /// @notice Exposes EquivalentExchangeUManager's internal pure valuation helpers for direct testing.
@@ -54,6 +55,11 @@ contract EquivalentExchangeUManagerExternal is EquivalentExchangeUManager {
         returns (uint256)
     {
         return _referenceValueToTokenAmount(value, _unitRate(rate, rateDecimals, tokenDecimals));
+    }
+
+    /// @notice Exposes the internal batch calldata checks for direct testing.
+    function enforceCalldataChecks(ManageCalls calldata calls) external view {
+        _enforceCalldataChecks(calls);
     }
 
 }
@@ -205,6 +211,35 @@ contract EquivalentExchangeUManagerInternal is Test {
 
         vm.expectRevert();
         harness.referenceValueToTokenAmountWithRateDecimals(1e18, 36, 1e18, 36);
+    }
+
+    // ============================== _enforceCalldataChecks: flashLoan ==============================
+
+    /// @dev Builds a single-call batch with the given target calldata; only targets/targetData are read by
+    /// the checks, so the other parallel arrays are left empty.
+    function _oneCall(bytes memory data) internal pure returns (EquivalentExchangeUManager.ManageCalls memory calls) {
+        calls.targets = new address[](1);
+        calls.targets[0] = address(0xBEEF);
+        calls.targetData = new bytes[](1);
+        calls.targetData[0] = data;
+    }
+
+    /// @notice A batch containing a Balancer flashLoan call is rejected, regardless of target, because it
+    /// would open a nested manage layer the checks cannot see.
+    function test_EnforceCalldataChecks_RevertsOnFlashLoan() external {
+        bytes memory flashLoanData = abi.encodeWithSelector(
+            BalancerVault.flashLoan.selector, address(0), new address[](0), new uint256[](0), bytes("")
+        );
+
+        vm.expectRevert(EquivalentExchangeUManager.FlashLoanInBatch.selector);
+        harness.enforceCalldataChecks(_oneCall(flashLoanData));
+    }
+
+    /// @notice A benign call (neither flashLoan nor a nonzero approval) passes the checks.
+    function test_EnforceCalldataChecks_AllowsBenignCall() external view {
+        // transfer(address,uint256) — not flashLoan, not approve/increaseAllowance.
+        bytes memory data = abi.encodeWithSelector(bytes4(0xa9059cbb), address(0xCAFE), uint256(1));
+        harness.enforceCalldataChecks(_oneCall(data));
     }
 
 }

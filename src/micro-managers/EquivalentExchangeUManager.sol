@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import { UManager, ERC20 } from "src/micro-managers/UManager.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
+import { BalancerVault } from "src/interfaces/BalancerVault.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -105,6 +106,7 @@ contract EquivalentExchangeUManager is UManager {
     error InsufficientSubsidy();
     error InvalidSubsidyPayer();
     error DanglingApproval();
+    error FlashLoanInBatch();
     error TokenDeltaLengthMismatch();
     error TokenDeltaViolation(
         address token, uint256 balanceBefore, uint256 balanceAfter, int256 balanceDelta, int256 allowedBalanceDelta
@@ -328,8 +330,8 @@ contract EquivalentExchangeUManager is UManager {
         // changes to subsidy behavior.
         assert(totalAfter >= totalBefore);
 
-        // Ensure no approval made during the batch remains outstanding.
-        _enforceNoDanglingApprovals(calls);
+        // Calldata checks over the executed batch: reject any flashLoan call and any leftover approval.
+        _enforceCalldataChecks(calls);
 
         emit Executed(msg.sender, subsidyToken, totalBefore, totalAfter, subsidyAmount, subsidyAmountNormalized);
     }
@@ -462,16 +464,19 @@ contract EquivalentExchangeUManager is UManager {
         }
     }
 
-    //============================== APPROVAL TRACKING ===============================
-
     /**
-     * @notice Ensures that any ERC20#approve or ERC20#increaseAllowance call made by the
-     *         vault during the batch, on any token, has been fully reset to zero by the end
-     *         of execution. Non-basket tokens are covered too, since a leftover allowance on
-     *         any vault-held token is a drain vector.
+     * @notice Scans the batch's calldata and reverts in the following cases:
+     *
+     * - A flashLoan call. It would run a second, separately merkle-verified batch inside the callback
+     *   (manager.flashLoan -> Balancer -> manager.receiveFlashLoan), which this contract's value invariant,
+     *   delta bounds and approval check never see. Rejecting the selector keeps every batch to one inspected
+     *   layer.
+     * - A leftover allowance. Any approve whose allowance is still non-zero after the batch is a standing
+     *   drain vector, on basket and non-basket tokens alike.
+     *
      * @param calls Batch of merkle-verified BoringVault actions.
      */
-    function _enforceNoDanglingApprovals(ManageCalls calldata calls) internal view {
+    function _enforceCalldataChecks(ManageCalls calldata calls) internal view {
         uint256 callsLength = calls.targets.length;
 
         for (uint256 i; i < callsLength; ++i) {
@@ -482,21 +487,23 @@ contract EquivalentExchangeUManager is UManager {
             // with older Solidity versions) may tolerate trailing calldata on
             // low-level calls rather than reverting. approve(address,uint256) and
             // increaseAllowance(address,uint256) both require 4 + 32 + 32 = 68
-            // bytes at minimum.
+            // bytes at minimum.  Flash loan calls are also not affected by this
+            // check because they require 132+ bytes.
             if (targetData.length < 68) continue;
 
             bytes4 selector = bytes4(targetData[0:4]);
+
+            // Reject flashLoan calls: they open a nested, uninspected manage layer that may contain unchecked
+            // approvals.
+            if (selector == BalancerVault.flashLoan.selector) revert FlashLoanInBatch();
+
             if (selector != ERC20.approve.selector && selector != INCREASE_ALLOWANCE_SELECTOR) continue;
 
-            // Spender is the first argument, located at byte offset 4 (selector)
-            // + 32 (zero-padded address) = 36. Amount is the second argument,
-            // spanning the next 32 bytes. This layout is identical for approve
-            // and increaseAllowance.
+            // Spender is the first argument (offset 4, zero-padded address), amount the second; this layout
+            // is identical for approve and increaseAllowance.
             (address spender, uint256 amount) = abi.decode(targetData[4:68], (address, uint256));
-            // A zero-amount approval cannot create a dangling allowance, so it
-            // does not need to be checked. Note: this only skips the current call;
-            // any preceding or subsequent non-zero approval to the same token and
-            // spender will still be checked normally.
+            // A zero-amount approval cannot create a dangling allowance. This only skips the current call;
+            // any other non-zero approval to the same token and spender is still checked.
             if (amount == 0) continue;
 
             if (ERC20(target).allowance(boringVault, spender) != 0) {
