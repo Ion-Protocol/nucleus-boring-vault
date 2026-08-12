@@ -136,8 +136,7 @@ contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
 
         // Market PAXG:XAU rate (XAU per PAXG), 18-decimal fixed point.
         //
-        // RATE_PROVIDER (PaxgXauRateProvider) reverts on a stale feed. Because WithdrawQueue.processOrders
-        // calls this in a loop outside its try/catch, one stale read reverts the whole batch.
+        // RATE_PROVIDER (PaxgXauRateProvider) reverts on a stale feed, which reverts WithdrawQueue processing.
         // The backend must pause processing during stale/volatile windows.
         uint256 marketPrice = RATE_PROVIDER.getRate();
 
@@ -163,8 +162,8 @@ contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
         //
         // There is no user-set max-fee or per-order slippage backstop on withdrawals: the fee scales directly
         // with the reported PAXG:XAU premium, so a genuine market depeg charges the withdrawer the full
-        // premium (bounded only by the order amount, above which WithdrawQueue refunds the order). The
-        // backend can mitigate this by processing only when market prices are reasonably close to peg.
+        // premium. The backend can mitigate this by processing only when market prices are reasonably close
+        // to peg.
         uint256 dynamicFee = (amount - fixedFee).mulDivUp(effectivePrice - PEG_PRICE, effectivePrice);
 
         // fixedFee <= amount and dynamicFee <= (amount - fixedFee), so this sum can never exceed amount; the fee <=
