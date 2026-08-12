@@ -25,6 +25,13 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *      the basket token at index `i` (in `basketTokens` order) is oracle-priced. A basket of only 1:1
  *      tokens (such as USD stablecoins) therefore requires no oracle lookups.
  *
+ *      Scope: this manager only guarantees the aggregate reference-asset value of the BASKET tokens does not
+ *      decrease across a batch. Tokens the vault holds that are not in the basket are outside the value
+ *      invariant and the per-token delta bounds entirely -- their safety rests solely on the merkle root not
+ *      authorizing a call that moves or approves them. Every value-bearing token the vault may hold or route
+ *      through should therefore be a basket token. (The dangling-approval check is the one place non-basket
+ *      tokens are inspected, and only for leftover allowances.)
+ *
  *      Subsidy, if required, is pulled from an approval-based subsidy payer. The subsidy payer must
  *      pre-approve the UManager to spend the subsidy token; if the approved/available amount is
  *      insufficient, the call reverts.
