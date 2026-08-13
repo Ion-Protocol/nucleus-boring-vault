@@ -28,8 +28,7 @@ V7 - Can it be packed in a struct with more than 1 other variable?
 V8 - Use full 256 bit types unless packing with other variables.
 V9 - If it's a public array, is a separate function provided to return the full array?
 V10 - Only use private to intentionally prevent child contracts from accessing the variable, prefer internal for flexibility.
-V11 - Ensure the layout of a contract is: State variables, events, errors, and modifiers come before functions. Within functions, the order is constructor → receive → fallback → external → public → internal → private, with view/pure last in each group. At the file level, pragmas and imports come first, then interfaces and libraries, then contracts.
-Structs
+V11 - Ensure the layout of a contract is in line with the solidity-style.md rule
 S1 - Is a struct necessary? Can the variable be packed raw in storage?
 S2 - Are its fields packed together (if possible)?
 S3 - Is the purpose of the struct and all fields documented using natspec?
@@ -96,11 +95,6 @@ C35 - When calling a function with many parameters, use the named argument synta
 C36 - Do not use assembly for create2. Prefer the modern salted contract creation syntax.
 C37 - Do not use assembly to access chainid or contract code/size/hash. Prefer the modern Solidity syntax.
 C38 - Use the delete keyword when setting a variable to a zero value (0, false, "", etc).
-C39 - Comment the "why" as much as possible.
-C40 - Comment the "what" if using obscure syntax or writing unconventional code.
-C41 - Comment explanations + example inputs/outputs next to complex and fixed point math.
-C42 - Comment explanations wherever optimizations are done, along with an estimate of much gas they save.
-C43 - Comment explanations wherever certain optimizations are purposely avoided, along with an estimate of much gas they would/wouldn't save if implemented.
 C44 - Use unchecked blocks where overflow/underflow is impossible, or where an overflow/underflow is unrealistic on human timescales (counters, etc). Comment explanations wherever unchecked is used, along with an estimate of how much gas it saves (if relevant).
 C45 - Do not depend on Solidity's arithmetic operator precedence rules. In addition to the use of parentheses to override default operator precedence, parentheses should also be used to emphasise it.
 C46 - Expressions passed to logical/comparison operators (&&/||/>=/==/etc) should not have side-effects.
@@ -223,3 +217,8 @@ address vault = config.readAddress(".boringVault.address");
 // Safe to cache: settlement stores the domain separator as an immutable at construction;
 // it is never recomputed, even across a chain split.
 ```
+# Solidity
+
+Base: official Solidity style guide — not restated here, should be in your training data. Conflicts resolve: repo code > this file > guide.
+- Formatting: `forge fmt` is law (`foundry.toml [fmt]`). Don't hand-format; formatter has strict definitions.
+- Comments/NatSpec: see Comment Policy above, not the guide's examples.
