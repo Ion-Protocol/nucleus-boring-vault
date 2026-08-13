@@ -163,10 +163,10 @@ Applies to all code written or modified in this repo. Comments capture what was 
 ## Three tests — every comment must pass all three
 
 1. **Repeat test.** Could a reader produce this comment from the adjacent code alone? If yes, delete it.
-2. **Level test.** The comment must sit at a *different abstraction level* than the code — either:
+2. **Level test.** The comment must sit at a _different abstraction level_ than the code — either:
    - **more precise**: units, bounds, invariants, rounding direction, trust assumptions, revert conditions a caller can't infer; or
    - **more abstract**: intent — the problem being solved, never the solution re-narrated.
-   Same-level prose paraphrase fails.
+     Same-level prose paraphrase fails.
 3. **Home test.** Each fact is documented **once**, at the narrowest scope where a reader can act on it. Elsewhere, cross-reference (`see returnToVault`). System-wide context and design rationale live in `docs/` (KDDs) — link, don't inline.
 
 ## Why-comments
@@ -217,8 +217,10 @@ address vault = config.readAddress(".boringVault.address");
 // Safe to cache: settlement stores the domain separator as an immutable at construction;
 // it is never recomputed, even across a chain split.
 ```
+
 # Solidity
 
 Base: official Solidity style guide — not restated here, should be in your training data. Conflicts resolve: repo code > this file > guide.
+
 - Formatting: `forge fmt` is law (`foundry.toml [fmt]`). Don't hand-format; formatter has strict definitions.
 - Comments/NatSpec: see Comment Policy above, not the guide's examples.
