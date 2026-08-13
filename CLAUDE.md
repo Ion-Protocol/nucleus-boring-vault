@@ -1,15 +1,11 @@
-# Dear AI Agent (and concerned humans)
+# Review/Code guidelines for /src files
 
-If you are reading this, you are likely either running a read-only check operation to help review code or are building an experimental, POC feature. This is our Smart Contract repo for Paxos Labs vaults and all production code will be human verified strictly. Security is of paramount importance in this repo.
-
-# Review Instructions for /src files
-
-Keep the following in mind as you review to guide your review and keep our code following best practices:
+Keep the following in mind as you review and write code, following best practices:
 
 General Review Approach:
 Read the project's docs, specs, and whitepaper to understand what the smart contracts are meant to do.
 Construct a mental model of what you expect the contracts to look like before checking out the code.
-Glance over the contracts to get a sense of the project's architecture. Tools like Surya can come in handy.
+Glance over the contracts to get a sense of the project's architecture.
 Compare the architecture to your mental model. Look into areas that are surprising.
 Create a threat model and make a list of theoretical high level attack vectors.
 Look at areas that can do value exchange. Especially functions like transfer, transferFrom, send, call, delegatecall, and selfdestruct. Walk backward from them to ensure they are secured properly.
@@ -19,6 +15,8 @@ Do another review from the perspective of every actor in the threat model.
 Glance over the project's tests + code coverage and look deeper at areas lacking coverage.
 Run tools like Slither/Solhint and review their output.
 Look at related projects and their audits to check for any similar issues or oversights.
+
+General Best Practices:
 Variables
 V1 - Can it be internal?
 V2 - Can it be constant?
@@ -91,7 +89,6 @@ C27 - Use SafeERC20 or check return values safely.
 C28 - Don't use msg.value in a loop.
 C29 - Don't use msg.value if recursive delegatecalls are possible (like if the contract inherits Multicall/Batchable).
 C30 - Don't assume msg.sender is always a relevant user.
-C31 - Don't use assert() unless for fuzzing or formal verification. (SWC-110)
 C32 - Don't use tx.origin for authorization. (SWC-115)
 C33 - Don't use address.transfer() or address.send(). Use .call.value(...)("") instead. (SWC-134)
 C34 - When using low-level calls, ensure the contract exists before calling.
@@ -164,3 +161,65 @@ D8 - Watch out for fee-on-transfer tokens. If they are unsupported, ensure that 
 D9 - Watch out for tokens that use too many or too few decimals. Ensure the max and min supported values are documented.
 D10 - Be careful of relying on the raw token balance of a contract to determine earnings. Contracts which provide a way to recover assets sent directly to them can mess up share price functions that rely on the raw Ether or token balances of an address.
 D11 - If your contract is a target for token approvals, do not make arbitrary calls from user input.
+
+# Comment Policy
+
+Applies to all code written or modified in this repo. Comments capture what was in the author's head that **cannot be expressed in code**. Everything else is noise. Default to no comment; when in doubt, delete. A human will request more verbosity if required.
+
+## Three tests — every comment must pass all three
+
+1. **Repeat test.** Could a reader produce this comment from the adjacent code alone? If yes, delete it.
+2. **Level test.** The comment must sit at a *different abstraction level* than the code — either:
+   - **more precise**: units, bounds, invariants, rounding direction, trust assumptions, revert conditions a caller can't infer; or
+   - **more abstract**: intent — the problem being solved, never the solution re-narrated.
+   Same-level prose paraphrase fails.
+3. **Home test.** Each fact is documented **once**, at the narrowest scope where a reader can act on it. Elsewhere, cross-reference (`see returnToVault`). System-wide context and design rationale live in `docs/` (KDDs) — link, don't inline.
+
+## Why-comments
+
+Keep a "why" comment **iff a competent auditor reading the code would otherwise ask the question or reach a wrong conclusion.** If no reviewer would ask, omit it.
+
+## NatSpec
+
+- `@notice` is for callers: behavior, preconditions, effects. No implementation detail.
+- `@dev` is for maintainers: invariants, constraints, trust assumptions. A budget, not a diary.
+- `@param` / `@return` must add information beyond the name. Never `@param token The token.`
+- Load-bearing security assumptions go in `@custom:security` on the contract or function where they are actionable — never buried mid-paragraph.
+- External/public functions may carry rich NatSpec. Internal/private: one line or none.
+
+## Anti-patterns — delete on sight
+
+- **Narration residue.** Chain-of-thought fossilized as comments ("first we pull the token, because the relayer needs..."). Reasoning and plans do not survive into code — only distilled intent does.
+- **Context-free-reader preamble.** Re-explaining repo context the reader already has. Write for a reviewer with the whole repo open, not for someone with zero context.
+- **Step narration.** A comment announcing what the next line visibly does.
+- **Signature restatement** in `@param` / `@return` / `@notice`.
+- **Explanation of bad code.** If prose is required to make code comprehensible, refactor the code. A long comment on a routine is a design smell — surface it, don't paper over it.
+
+## Verdicts by comment kind
+
+repeat → delete · explanation → refactor the code instead · marker → `TODO(name):`, short-lived · summary → one line per block, sparingly · **intent → best kind, keep** · inexpressible-in-code (refs, workarounds, invariants, trust assumptions) → keep
+
+## Editing existing code
+
+Bring comments into compliance in code you touch. No drive-by repo-wide comment sweeps.
+
+## Examples
+
+```solidity
+// BAD — repeat: restates the call below it
+// Read the BoringVault address from the deployment config and revert if unset.
+address vault = config.readAddress(".boringVault.address");
+
+// GOOD — wrong-level avoided (more precise): justifies a hardcode a reviewer would question
+// GPv2Settlement is deployed at the same address on every chain CoW supports.
+
+// BAD — narration residue
+// First we normalize both amounts so we can compare them against the rate.
+
+// GOOD — more precise: direction + consequence, not deducible from the math
+// Sell rounds UP, buy rounds DOWN: both directions make the price floor harder to clear.
+
+// GOOD — inexpressible in code: pre-answers the auditor's fork-safety question
+// Safe to cache: settlement stores the domain separator as an immutable at construction;
+// it is never recomputed, even across a chain split.
+```
