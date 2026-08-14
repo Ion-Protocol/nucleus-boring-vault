@@ -69,8 +69,9 @@ contract CowSwapHelper is Auth {
 
     /// @notice Maximum number of seconds past `block.timestamp` that an order's `validTo` may be set to. Bounds
     /// how long a pre-signed order (and the sell-token custody it entails) can stay live, capping the window in
-    /// which a stale price can still be filled. Fixed at deploy, and itself capped at `MAX_ORDER_VALIDITY_LIMIT`.
-    uint256 internal immutable maxOrderValidity;
+    /// which a stale price can still be filled. Set at deploy and adjustable by an authorized admin via
+    /// `setMaxOrderValidity`; always non-zero and capped at `MAX_ORDER_VALIDITY_LIMIT`.
+    uint256 internal maxOrderValidity;
 
     /**
      * @notice Raw order fields supplied by the strategist (via the vault). Some safety-critical fields
@@ -109,6 +110,7 @@ contract CowSwapHelper is Auth {
     );
     event OrderCancelled(bytes orderUid);
     event FundsReturned(address indexed token, uint256 amount);
+    event MaxOrderValiditySet(uint256 maxOrderValidity);
 
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
     error ZeroAmount();
@@ -149,10 +151,9 @@ contract CowSwapHelper is Auth {
         if (_owner == address(0)) revert ZeroAddress();
         if (_boringVault == address(0)) revert ZeroAddress();
         if (_settlement == address(0)) revert ZeroAddress();
-        if (_maxOrderValidity == 0 || _maxOrderValidity > MAX_ORDER_VALIDITY_LIMIT) revert InvalidMaxOrderValidity();
 
         boringVault = _boringVault;
-        maxOrderValidity = _maxOrderValidity;
+        _setMaxOrderValidity(_maxOrderValidity);
         settlement = IGPv2Settlement(_settlement);
         vaultRelayer = IGPv2Settlement(_settlement).vaultRelayer();
         // Safe to cache: although the domain separator encodes chainId, the settlement computes it once in its
@@ -221,6 +222,28 @@ contract CowSwapHelper is Auth {
             token.safeTransfer(boringVault, balance);
             emit FundsReturned(address(token), balance);
         }
+    }
+
+    /**
+     * @notice Updates the maximum seconds past `block.timestamp` an order's `validTo` may reach.
+     * @dev Gated by `requiresAuth`, so callable only by the `owner` or an address the `authority` permits - NOT
+     *      the merkle-verified vault path. `maxOrderValidity` is checked only when `placeOrder` runs, so this has
+     *      no retroactive effect.
+     * @param _maxOrderValidity New cap; must be non-zero and at most `MAX_ORDER_VALIDITY_LIMIT`.
+     */
+    function setMaxOrderValidity(uint256 _maxOrderValidity) external requiresAuth {
+        _setMaxOrderValidity(_maxOrderValidity);
+    }
+
+    /**
+     * @dev Shared by the constructor and `setMaxOrderValidity` so both enforce the same bounds (see that
+     *      function's docs) and emit the same event. A zero value would make every order revert, since `validTo`
+     *      must be strictly in the future.
+     */
+    function _setMaxOrderValidity(uint256 _maxOrderValidity) internal {
+        if (_maxOrderValidity == 0 || _maxOrderValidity > MAX_ORDER_VALIDITY_LIMIT) revert InvalidMaxOrderValidity();
+        maxOrderValidity = _maxOrderValidity;
+        emit MaxOrderValiditySet(_maxOrderValidity);
     }
 
     /**

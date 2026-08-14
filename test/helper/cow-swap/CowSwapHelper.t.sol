@@ -99,6 +99,7 @@ contract CowSwapHelperTest is Test {
     );
     event OrderCancelled(bytes orderUid);
     event FundsReturned(address indexed token, uint256 amount);
+    event MaxOrderValiditySet(uint256 maxOrderValidity);
 
     function setUp() external {
         settlement = new MockSettlement(relayer, domainSeparator);
@@ -525,6 +526,62 @@ contract CowSwapHelperTest is Test {
     function test_returnToVault_revertsForNonBoringVault() external {
         vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
         helper.returnToVault(ERC20(address(sellToken)));
+    }
+
+    // ------------------------------------------------------------------------
+    // setMaxOrderValidity
+    // ------------------------------------------------------------------------
+
+    /// @dev The constructor sets the value through the shared internal setter, so it emits the event too (T8).
+    function test_constructor_emitsMaxOrderValidity() external {
+        vm.expectEmit(false, false, false, true);
+        emit MaxOrderValiditySet(MAX_ORDER_VALIDITY);
+        new CowSwapHelper(owner, boringVault, address(settlement), MAX_ORDER_VALIDITY);
+    }
+
+    function test_setMaxOrderValidity_ownerUpdatesAndEmits() external {
+        uint256 newValidity = 2 days;
+        vm.expectEmit(address(helper));
+        emit MaxOrderValiditySet(newValidity);
+        vm.prank(owner);
+        helper.setMaxOrderValidity(newValidity);
+
+        // The new cap governs subsequent orders: an order one second past it is rejected...
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.validTo = uint32(block.timestamp + newValidity + 1);
+        vm.prank(boringVault);
+        vm.expectRevert(CowSwapHelper.OrderValidityTooLong.selector);
+        helper.placeOrder(p);
+
+        // ...while one exactly at the new cap (beyond the old 1-day cap) now succeeds.
+        p.validTo = uint32(block.timestamp + newValidity);
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        helper.placeOrder(p);
+        assertTrue(settlement.isSigned(_expectedUid(p)), "order under the raised cap is signed");
+    }
+
+    function test_setMaxOrderValidity_revertsForUnauthorized() external {
+        // Neither the boringVault nor a random address is the owner or permitted by an (unset) authority.
+        vm.prank(boringVault);
+        vm.expectRevert(bytes("UNAUTHORIZED"));
+        helper.setMaxOrderValidity(2 days);
+
+        vm.prank(makeAddr("stranger"));
+        vm.expectRevert(bytes("UNAUTHORIZED"));
+        helper.setMaxOrderValidity(2 days);
+    }
+
+    function test_setMaxOrderValidity_revertsOnZero() external {
+        vm.prank(owner);
+        vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
+        helper.setMaxOrderValidity(0);
+    }
+
+    function test_setMaxOrderValidity_revertsAboveLimit() external {
+        vm.prank(owner);
+        vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
+        helper.setMaxOrderValidity(uint256(type(uint32).max) + 1);
     }
 
     // ------------------------------------------------------------------------
