@@ -49,6 +49,11 @@ contract CowSwapHelper {
     /// @notice Basis-point denominator for the slippage bound.
     uint256 internal constant BPS_DENOMINATOR = 10_000;
 
+    /// @notice Upper bound on `maxOrderValidity`. `validTo` is a `uint32`, so no expiry beyond
+    /// `type(uint32).max` is representable; capping the deploy-time window here also guarantees
+    /// `block.timestamp + maxOrderValidity` can never overflow `uint256`.
+    uint256 internal constant MAX_ORDER_VALIDITY_LIMIT = type(uint32).max;
+
     /// @notice The BoringVault this helper serves: the source of sell tokens and the `receiver` of proceeds.
     address internal immutable boringVault;
 
@@ -61,6 +66,11 @@ contract CowSwapHelper {
     /// @notice Cached EIP-712 domain separator of `settlement`, read once at deploy.
     bytes32 internal immutable domainSeparator;
 
+    /// @notice Maximum number of seconds past `block.timestamp` that an order's `validTo` may be set to. Bounds
+    /// how long a pre-signed order (and the sell-token custody it entails) can stay live, capping the window in
+    /// which a stale price can still be filled. Fixed at deploy, and itself capped at `MAX_ORDER_VALIDITY_LIMIT`.
+    uint256 internal immutable maxOrderValidity;
+
     /**
      * @notice Raw order fields supplied by the strategist (via the vault). Some safety-critical fields
      *         (`receiver`, `kind`, balance kinds) are forced to safe constants when deriving order UID
@@ -69,8 +79,8 @@ contract CowSwapHelper {
      * @param buyToken Token to buy; proceeds are always sent to the BoringVault.
      * @param sellAmount Amount of `sellToken` to offer.
      * @param buyAmount Minimum buy amount; must satisfy the oracle-derived floor for the given provider.
-     * @param validTo Order expiry (unix timestamp); must be in the future. Not otherwise bounded - a stale
-     * order can be cancelled at will via `cancelOrder`.
+     * @param validTo Order expiry (unix timestamp); must be in the future and no later than
+     * `block.timestamp + maxOrderValidity`. A stale order can also be cancelled at will via `cancelOrder`.
      * @param partiallyFillable Whether the order may be filled in multiple parts. CoW enforces the same
      * `buyAmount / sellAmount` limit price on every partial fill (rounding the executed buy amount up, in the
      * vault's favor), so the oracle floor validated here protects each fill regardless of this flag; residual
@@ -102,6 +112,8 @@ contract CowSwapHelper {
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
     error ZeroAmount();
     error OrderExpired();
+    error OrderValidityTooLong();
+    error InvalidMaxOrderValidity();
     error DanglingApproval(address token);
     error InvalidRate(address rateProvider);
     error InvalidSlippage();
@@ -120,14 +132,19 @@ contract CowSwapHelper {
      * @param _boringVault The BoringVault whose funds this helper trades and returns to, and the only
      * permitted caller of the order functions.
      * @param _settlement The CoW settlement contract.
+     * @param _maxOrderValidity Maximum seconds past `block.timestamp` an order's `validTo` may reach; must be
+     * non-zero (else every order, whose `validTo` must be strictly in the future, would revert) and at most
+     * `MAX_ORDER_VALIDITY_LIMIT` (`type(uint32).max`, the largest representable expiry).
      */
-    constructor(address _boringVault, address _settlement) {
+    constructor(address _boringVault, address _settlement, uint256 _maxOrderValidity) {
         // receiver is hardcoded to boringVault when building orders; a zero vault would silently route
         // proceeds to the order owner (this helper) under CoW's RECEIVER_SAME_AS_OWNER marker.
         if (_boringVault == address(0)) revert ZeroAddress();
         if (_settlement == address(0)) revert ZeroAddress();
+        if (_maxOrderValidity == 0 || _maxOrderValidity > MAX_ORDER_VALIDITY_LIMIT) revert InvalidMaxOrderValidity();
 
         boringVault = _boringVault;
+        maxOrderValidity = _maxOrderValidity;
         settlement = IGPv2Settlement(_settlement);
         vaultRelayer = IGPv2Settlement(_settlement).vaultRelayer();
         // Safe to cache: although the domain separator encodes chainId, the settlement computes it once in its
@@ -209,6 +226,7 @@ contract CowSwapHelper {
     function _buildAndValidateOrderUid(OrderParams calldata params) internal view returns (bytes memory orderUid) {
         if (params.sellAmount == 0 || params.buyAmount == 0) revert ZeroAmount();
         if (params.validTo <= block.timestamp) revert OrderExpired();
+        if (params.validTo > block.timestamp + maxOrderValidity) revert OrderValidityTooLong();
         if (params.maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippage();
 
         uint256 rate = params.rateProvider.getRate();

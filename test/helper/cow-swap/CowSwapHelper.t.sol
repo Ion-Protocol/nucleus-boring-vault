@@ -89,6 +89,9 @@ contract CowSwapHelperTest is Test {
     // 3000 buyToken per 1 sellToken, expressed as an 18-decimal (WAD) rate.
     uint256 internal constant RATE_18 = 3000e18;
 
+    // Cap on how far ahead an order's validTo may be set.
+    uint256 internal constant MAX_ORDER_VALIDITY = 1 days;
+
     // Mirror of the helper's events for expectEmit.
     event OrderPlaced(
         address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
@@ -101,7 +104,7 @@ contract CowSwapHelperTest is Test {
         rateProvider = new MockRateProvider(RATE_18);
         sellToken = new MockERC20("Sell", "SELL", 18);
         buyToken = new MockERC20("Buy", "BUY", 6);
-        helper = new CowSwapHelper(boringVault, address(settlement));
+        helper = new CowSwapHelper(boringVault, address(settlement), MAX_ORDER_VALIDITY);
     }
 
     // ------------------------------------------------------------------------
@@ -110,12 +113,22 @@ contract CowSwapHelperTest is Test {
 
     function test_constructor_revertsOnZeroBoringVault() external {
         vm.expectRevert(CowSwapHelper.ZeroAddress.selector);
-        new CowSwapHelper(address(0), address(settlement));
+        new CowSwapHelper(address(0), address(settlement), MAX_ORDER_VALIDITY);
     }
 
     function test_constructor_revertsOnZeroSettlement() external {
         vm.expectRevert();
-        new CowSwapHelper(boringVault, address(0));
+        new CowSwapHelper(boringVault, address(0), MAX_ORDER_VALIDITY);
+    }
+
+    function test_constructor_revertsOnZeroMaxOrderValidity() external {
+        vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
+        new CowSwapHelper(boringVault, address(settlement), 0);
+    }
+
+    function test_constructor_revertsOnMaxOrderValidityAboveLimit() external {
+        vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
+        new CowSwapHelper(boringVault, address(settlement), uint256(type(uint32).max) + 1);
     }
 
     /// @dev The relayer approval target and the UID's domain separator prove the constructor cached both
@@ -167,6 +180,22 @@ contract CowSwapHelperTest is Test {
         vm.prank(boringVault);
         vm.expectRevert(CowSwapHelper.OrderExpired.selector);
         helper.placeOrder(p);
+    }
+
+    function test_placeOrder_revertsWhenValidityTooLong() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.validTo = uint32(block.timestamp + MAX_ORDER_VALIDITY + 1); // one second past the cap
+        vm.prank(boringVault);
+        vm.expectRevert(CowSwapHelper.OrderValidityTooLong.selector);
+        helper.placeOrder(p);
+    }
+
+    function test_placeOrder_succeedsAtMaxValidity() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.validTo = uint32(block.timestamp + MAX_ORDER_VALIDITY); // exactly at the cap
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        helper.placeOrder(p); // must not revert
     }
 
     function test_placeOrder_revertsOnSlippageAboveDenominator() external {
