@@ -621,35 +621,42 @@ contract CowSwapHelperTest is Test {
     }
 
     // ------------------------------------------------------------------------
-    // returnToVault
+    // sweepToken
     // ------------------------------------------------------------------------
 
-    function test_returnToVault_sweepsBalanceAndEmits() external {
+    /// @dev Gated by `requiresAuth`, so the sweep is driven by the Auth owner, and always routes to the vault.
+    function test_sweepToken_sweepsBalanceAndEmits() external {
         uint256 stranded = 5e18;
         sellToken.mint(address(helper), stranded);
 
         vm.expectEmit(address(helper));
         emit FundsReturned(address(sellToken), stranded);
-        vm.prank(boringVault);
-        helper.returnToVault(ERC20(address(sellToken)));
+        vm.prank(owner);
+        helper.sweepToken(ERC20(address(sellToken)));
 
         assertEq(sellToken.balanceOf(address(helper)), 0, "helper swept");
         assertEq(sellToken.balanceOf(boringVault), stranded, "vault received residual");
     }
 
-    function test_returnToVault_noopOnZeroBalance() external {
+    function test_sweepToken_noopOnZeroBalance() external {
         vm.recordLogs();
-        vm.prank(boringVault);
-        helper.returnToVault(ERC20(address(sellToken)));
+        vm.prank(owner);
+        helper.sweepToken(ERC20(address(sellToken)));
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(logs.length, 0, "no transfer or event on zero balance");
         assertEq(sellToken.balanceOf(boringVault), 0, "nothing moved");
     }
 
-    function test_returnToVault_revertsForNonBoringVault() external {
-        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
-        helper.returnToVault(ERC20(address(sellToken)));
+    /// @dev Not the merkle/vault path: even the boringVault is unauthorized, only the owner/authority may sweep.
+    function test_sweepToken_revertsForUnauthorized() external {
+        vm.prank(boringVault);
+        vm.expectRevert(bytes("UNAUTHORIZED"));
+        helper.sweepToken(ERC20(address(sellToken)));
+
+        vm.prank(makeAddr("stranger"));
+        vm.expectRevert(bytes("UNAUTHORIZED"));
+        helper.sweepToken(ERC20(address(sellToken)));
     }
 
     // ------------------------------------------------------------------------
@@ -712,8 +719,9 @@ contract CowSwapHelperTest is Test {
     // Auth does not gate the order functions
     // ------------------------------------------------------------------------
 
-    /// @dev The Auth owner is NOT the boringVault, so the order functions still reject it: `Authority`/owner
-    ///      grants no access to order logic, which stays reachable only via the merkle-verified vault path.
+    /// @dev The Auth owner is NOT the boringVault, so the order functions (`placeOrder`/`cancelOrder`) still
+    ///      reject it: `Authority`/owner grants no access to order logic, which stays reachable only via the
+    ///      merkle-verified vault path.
     function test_orderFunctions_rejectAuthOwner() external {
         CowSwapHelper.OrderParams memory p = _defaultParams();
 
@@ -724,10 +732,6 @@ contract CowSwapHelperTest is Test {
         vm.prank(owner);
         vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
         helper.cancelOrder(hex"1234");
-
-        vm.prank(owner);
-        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
-        helper.returnToVault(ERC20(address(sellToken)));
     }
 
     // ------------------------------------------------------------------------

@@ -91,7 +91,7 @@ contract CowSwapHelper is Auth {
      * @param partiallyFillable Whether the order may be filled in multiple parts. CoW enforces the same
      * `buyAmount / sellAmount` limit price on every partial fill (rounding the executed buy amount up, in the
      * vault's favor), so the oracle floor validated here protects each fill regardless of this flag; residual
-     * sell tokens from an incomplete order are swept back with `returnToVault`.
+     * sell tokens from an incomplete order are refunded to the vault on `cancelOrder`.
      * @param rateProvider Oracle returning the `buyToken`-per-`sellToken` rate, scaled to `rateDecimals`
      * decimals.
      * @param rateDecimals Fixed-point decimals the oracle's rate is expressed in; used as the divisor when
@@ -264,11 +264,11 @@ contract CowSwapHelper is Auth {
 
     /**
      * @notice Sweeps the helper's entire balance of `token` back to the BoringVault.
-     * @dev The custody cost of this design: residual sell tokens from an expired, unfilled, or partially
-     *      filled order sit in the helper until this is called. Callable only by the BoringVault.
+     * @dev Emergency admin function. Normal refunds happen via `cancelOrder`; this is the escape hatch for stuck
+     *      balances. Can undercollateralize live orders if used improperly.
      * @param token Token to return to the vault.
      */
-    function returnToVault(ERC20 token) external onlyBoringVault {
+    function sweepToken(ERC20 token) external requiresAuth {
         uint256 balance = token.balanceOf(address(this));
         if (balance != 0) {
             token.safeTransfer(boringVault, balance);

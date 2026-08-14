@@ -37,17 +37,10 @@ abstract contract CowSwapHelperDecoderAndSanitizer is BaseDecoderAndSanitizer {
         );
     }
 
-    // @desc Cancel a previously placed CoW order.
+    // @desc Cancel a previously placed CoW order (and refund its unfilled remainder to the vault).
     function cancelOrder(bytes calldata) external pure returns (bytes memory addressesFound) {
         // Nothing to decode: orderUid is an opaque hash and cancellation only clears the helper's own
         // pre-signature.
-    }
-
-    // @desc Sweep a token from the helper back to the BoringVault.
-    // @tag token:address:token to sweep back to the vault
-    function returnToVault(address token) external pure returns (bytes memory addressesFound) {
-        // Proceeds always route to the vault (hardcoded in the helper), so pinning the token address is sufficient.
-        addressesFound = abi.encodePacked(token);
     }
 
 }
