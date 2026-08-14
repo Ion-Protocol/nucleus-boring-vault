@@ -523,6 +523,8 @@ contract CowSwapHelperTest is Test {
         assertEq(sellToken.balanceOf(address(helper)), p.sellAmount, "precondition: helper holds sell token");
 
         vm.expectEmit(address(helper));
+        emit FundsReturned(address(sellToken), p.sellAmount);
+        vm.expectEmit(address(helper));
         emit OrderCancelled(uid, p.sellAmount);
         vm.prank(boringVault);
         uint256 unfilled = helper.cancelOrder(uid);
@@ -547,6 +549,8 @@ contract CowSwapHelperTest is Test {
         sellToken.transfer(relayer, filled);
 
         uint256 expectedRefund = p.sellAmount - filled;
+        vm.expectEmit(address(helper));
+        emit FundsReturned(address(sellToken), expectedRefund);
         vm.expectEmit(address(helper));
         emit OrderCancelled(uid, expectedRefund);
         vm.prank(boringVault);

@@ -257,6 +257,7 @@ contract CowSwapHelper is Auth {
 
         if (unfilled != 0) {
             ERC20(record.sellToken).safeTransfer(boringVault, unfilled);
+            emit FundsReturned(record.sellToken, unfilled);
         }
 
         emit OrderCancelled(orderUid, unfilled);
