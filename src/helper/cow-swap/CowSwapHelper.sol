@@ -230,7 +230,6 @@ contract CowSwapHelper is Auth {
             params.sellToken.safeApprove(vaultRelayer, type(uint256).max);
         }
 
-        // Authorize the order on-chain.
         settlement.setPreSignature(orderUid, true);
 
         emit OrderPlaced(
