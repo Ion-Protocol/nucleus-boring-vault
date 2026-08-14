@@ -63,8 +63,8 @@ contract CowSwapHelper {
 
     /**
      * @notice Raw order fields supplied by the strategist (via the vault). Some safety-critical fields
-     *         (`receiver`, `kind`, balance kinds) are forced to safe constants on
-     *         rebuild and so are absent here.
+     *         (`receiver`, `kind`, balance kinds) are forced to safe constants when deriving order UID
+     *         and so are absent here.
      * @param sellToken Token to sell.
      * @param buyToken Token to buy; proceeds are always sent to the BoringVault.
      * @param sellAmount Amount of `sellToken` to offer.
@@ -78,7 +78,7 @@ contract CowSwapHelper {
      * @param rateProvider Oracle returning the `buyToken`-per-`sellToken` rate, scaled to `rateDecimals`
      * decimals.
      * @param rateDecimals Fixed-point decimals the oracle's rate is expressed in; used as the divisor when
-     * mapping the sell amount through the rate. Caller-supplied and, like `rateProvider`.
+     * mapping the sell amount through the rate.
      * @param maxSlippageBps Tolerated slippage below the oracle's fair rate, in basis points.
      */
     struct OrderParams {
