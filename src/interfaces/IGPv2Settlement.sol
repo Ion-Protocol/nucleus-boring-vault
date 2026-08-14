@@ -21,6 +21,15 @@ interface IGPv2Settlement {
     function setPreSignature(bytes calldata orderUid, bool signed) external;
 
     /**
+     * @notice Cumulative amount of an order already settled, keyed by its packed UID.
+     * @dev For the sell orders this helper places, the value is denominated in sell-token units and never
+     *      exceeds the order's `sellAmount`. Read on cancellation to compute the unfilled remainder to refund.
+     * @param orderUid The 56-byte packed order UID.
+     * @return The amount filled so far.
+     */
+    function filledAmount(bytes calldata orderUid) external view returns (uint256);
+
+    /**
      * @notice The EIP-712 domain separator this settlement contract signs orders under.
      */
     function domainSeparator() external view returns (bytes32);

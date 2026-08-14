@@ -73,6 +73,11 @@ contract CowSwapHelper is Auth {
     /// `setMaxOrderValidity`; always non-zero and capped at `MAX_ORDER_VALIDITY_LIMIT`.
     uint256 internal maxOrderValidity;
 
+    /// @notice Record of every order this helper has pre-signed, keyed by the packed 56-byte UID. Lets a
+    /// cancellation refund the unfilled sell amount without re-supplying the order, and enforces that any UID is
+    /// pre-signed at most once. See {OrderRecord}.
+    mapping(bytes => OrderRecord) internal orders;
+
     /**
      * @notice Raw order fields supplied by the strategist (via the vault). Some safety-critical fields
      *         (`receiver`, `kind`, balance kinds) are forced to safe constants when deriving order UID
@@ -105,10 +110,34 @@ contract CowSwapHelper is Auth {
         uint256 maxSlippageBps;
     }
 
+    /**
+     * @notice Lifecycle state of an order UID this helper has pre-signed.
+     * @param None Never placed (default).
+     * @param Active Pre-signed, whether still live or expired-but-uncancelled; refundable on cancellation.
+     * @param Closed Cancelled; its unfilled remainder has already been returned.
+     */
+    enum OrderStatus {
+        None,
+        Active,
+        Closed
+    }
+
+    /**
+     * @notice Per-UID bookkeeping captured at `placeOrder`.
+     * @param status Lifecycle state; see {OrderStatus}.
+     * @param sellToken The order's sell token.
+     * @param sellAmount The order's total sell amount.
+     */
+    struct OrderRecord {
+        OrderStatus status;
+        address sellToken;
+        uint256 sellAmount;
+    }
+
     event OrderPlaced(
         address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
     );
-    event OrderCancelled(bytes orderUid);
+    event OrderCancelled(bytes orderUid, uint256 unfilledReturned);
     event FundsReturned(address indexed token, uint256 amount);
     event MaxOrderValiditySet(uint256 maxOrderValidity);
 
@@ -122,6 +151,8 @@ contract CowSwapHelper is Auth {
     error InvalidSlippage();
     error ZeroAddress();
     error NotBoringVault();
+    error DuplicateOrder(bytes orderUid);
+    error UnknownOrder(bytes orderUid);
 
     /// @notice Restricts a function to the BoringVault, i.e. calls routed through
     /// `ManagerWithMerkleVerification`.
@@ -171,11 +202,19 @@ contract CowSwapHelper is Auth {
      *      token), so multiple live orders for the same token draw from the helper's shared balance rather than
      *      each order clobbering the previous one's approval - the collateral is the balance, which every
      *      `placeOrder` tops up by `sellAmount`. Callable only by the BoringVault.
+     *      Each UID is pre-signed at most once. A UID already seen (`Active` or `Closed`)
+     *      reverts with `DuplicateOrder`.
      * @param params Raw order fields; see `OrderParams`.
      * @return orderUid The pre-signed order UID.
      */
     function placeOrder(OrderParams calldata params) external onlyBoringVault returns (bytes memory orderUid) {
         orderUid = _buildAndValidateOrderUid(params);
+
+        if (orders[orderUid].status != OrderStatus.None) revert DuplicateOrder(orderUid);
+
+        orders[orderUid] = OrderRecord({
+            status: OrderStatus.Active, sellToken: address(params.sellToken), sellAmount: params.sellAmount
+        });
 
         // Move the sell token from the vault into this helper.
         params.sellToken.safeTransferFrom(boringVault, address(this), params.sellAmount);
@@ -200,14 +239,27 @@ contract CowSwapHelper is Auth {
     }
 
     /**
-     * @notice Cancels a previously pre-signed order by clearing the helper's signature for its UID.
-     * @dev Triggered by the BoringVault (routed through `ManagerWithMerkleVerification`). `setPreSignature`
-     *      still succeeds because the order's owner is this helper, which is the account calling it.
+     * @notice Cancels a previously pre-signed order and returns its unfilled sell amount to the BoringVault.
+     * @dev Refunds `sellAmount - filledAmount(orderUid)` (CoW's cumulative fill, in sell-token units). Also the
+     *      path to reclaim funds from an expired order, which stays `Active` until cancelled. Reverts
+     *      `UnknownOrder` if the UID was never placed or is already cancelled.
      * @param orderUid The UID to revoke.
+     * @return unfilled The sell-token amount returned to the vault (0 if the order was fully filled).
      */
-    function cancelOrder(bytes calldata orderUid) external onlyBoringVault {
+    function cancelOrder(bytes calldata orderUid) external onlyBoringVault returns (uint256 unfilled) {
+        OrderRecord storage record = orders[orderUid];
+        if (record.status != OrderStatus.Active) revert UnknownOrder(orderUid);
+
+        record.status = OrderStatus.Closed;
         settlement.setPreSignature(orderUid, false);
-        emit OrderCancelled(orderUid);
+
+        unfilled = record.sellAmount - settlement.filledAmount(orderUid);
+
+        if (unfilled != 0) {
+            ERC20(record.sellToken).safeTransfer(boringVault, unfilled);
+        }
+
+        emit OrderCancelled(orderUid, unfilled);
     }
 
     /**

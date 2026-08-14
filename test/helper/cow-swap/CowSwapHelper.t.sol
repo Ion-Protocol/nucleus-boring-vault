@@ -54,6 +54,7 @@ contract MockSettlement is IGPv2Settlement {
     bytes32 public immutable domainSeparator;
 
     mapping(bytes => bool) public isSigned;
+    mapping(bytes => uint256) public filledAmount;
 
     event PreSignatureSet(bytes orderUid, bool signed);
 
@@ -65,6 +66,11 @@ contract MockSettlement is IGPv2Settlement {
     function setPreSignature(bytes calldata orderUid, bool signed) external {
         isSigned[orderUid] = signed;
         emit PreSignatureSet(orderUid, signed);
+    }
+
+    /// @dev Simulates CoW recording a fill (and the relayer pulling that much sell token from the helper).
+    function setFilledAmount(bytes calldata orderUid, uint256 amount) external {
+        filledAmount[orderUid] = amount;
     }
 
 }
@@ -97,7 +103,7 @@ contract CowSwapHelperTest is Test {
     event OrderPlaced(
         address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
     );
-    event OrderCancelled(bytes orderUid);
+    event OrderCancelled(bytes orderUid, uint256 unfilledReturned);
     event FundsReturned(address indexed token, uint256 amount);
     event MaxOrderValiditySet(uint256 maxOrderValidity);
 
@@ -289,6 +295,37 @@ contract CowSwapHelperTest is Test {
         assertTrue(settlement.isSigned(expectedUid), "order pre-signed on settlement");
     }
 
+    /// @dev Re-placing an identical order (same fields + validTo => same UID) reverts instead of pulling the
+    ///      sell amount in a second time. The revert fires after the sell token is funded/approved again, proving
+    ///      the guard is on the UID, not on balances.
+    function test_placeOrder_revertsOnDuplicateUid() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uid = helper.placeOrder(p);
+
+        _fundAndApprove(p.sellAmount); // fund again so only the duplicate guard can stop the second call
+        vm.prank(boringVault);
+        vm.expectRevert(abi.encodeWithSelector(CowSwapHelper.DuplicateOrder.selector, uid));
+        helper.placeOrder(p);
+    }
+
+    /// @dev Even after cancellation the UID stays Closed, so it can never be re-placed (prevents double-counting
+    ///      against CoW's cumulative filledAmount).
+    function test_placeOrder_revertsOnReplacingCancelledUid() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uid = helper.placeOrder(p);
+        vm.prank(boringVault);
+        helper.cancelOrder(uid);
+
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        vm.expectRevert(abi.encodeWithSelector(CowSwapHelper.DuplicateOrder.selector, uid));
+        helper.placeOrder(p);
+    }
+
     /// @dev Two live orders for the same sell token: the unlimited approval is not clobbered by the second
     ///      placeOrder, and the helper's balance accumulates to cover both — the fix for the one-order-at-a-time
     ///      hazard the exact-approval model had.
@@ -476,19 +513,106 @@ contract CowSwapHelperTest is Test {
     // cancelOrder
     // ------------------------------------------------------------------------
 
-    function test_cancelOrder_clearsPreSignatureAndEmits() external {
+    /// @dev No fills: cancellation clears the signature, refunds the entire sell amount, and emits the amount.
+    function test_cancelOrder_unfilledRefundsFullAmountAndEmits() external {
         CowSwapHelper.OrderParams memory p = _defaultParams();
         _fundAndApprove(p.sellAmount);
         vm.prank(boringVault);
         bytes memory uid = helper.placeOrder(p);
         assertTrue(settlement.isSigned(uid), "precondition: order signed");
+        assertEq(sellToken.balanceOf(address(helper)), p.sellAmount, "precondition: helper holds sell token");
 
         vm.expectEmit(address(helper));
-        emit OrderCancelled(uid);
+        emit OrderCancelled(uid, p.sellAmount);
+        vm.prank(boringVault);
+        uint256 unfilled = helper.cancelOrder(uid);
+
+        assertEq(unfilled, p.sellAmount, "returns full unfilled amount");
+        assertFalse(settlement.isSigned(uid), "order signature cleared");
+        assertEq(sellToken.balanceOf(address(helper)), 0, "helper swept of the sell token");
+        assertEq(sellToken.balanceOf(boringVault), p.sellAmount, "vault refunded the unfilled remainder");
+    }
+
+    /// @dev Partial fill: only the unfilled remainder is refunded; CoW's filledAmount is read directly.
+    function test_cancelOrder_partialFillRefundsRemainder() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams(); // sellAmount 1e18
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uid = helper.placeOrder(p);
+
+        // Simulate CoW filling 0.4e18 (and the relayer pulling that much out of the helper).
+        uint256 filled = 0.4e18;
+        settlement.setFilledAmount(uid, filled);
+        vm.prank(address(helper));
+        sellToken.transfer(relayer, filled);
+
+        uint256 expectedRefund = p.sellAmount - filled;
+        vm.expectEmit(address(helper));
+        emit OrderCancelled(uid, expectedRefund);
+        vm.prank(boringVault);
+        uint256 unfilled = helper.cancelOrder(uid);
+
+        assertEq(unfilled, expectedRefund, "refunds only the unfilled remainder");
+        assertEq(sellToken.balanceOf(boringVault), expectedRefund, "vault got the remainder");
+        assertEq(sellToken.balanceOf(address(helper)), 0, "helper balance fully accounted for");
+    }
+
+    /// @dev Fully filled: nothing to refund, but the order is still closed and the signature cleared.
+    function test_cancelOrder_fullyFilledRefundsZero() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uid = helper.placeOrder(p);
+
+        settlement.setFilledAmount(uid, p.sellAmount);
+        vm.prank(address(helper));
+        sellToken.transfer(relayer, p.sellAmount); // relayer pulled the whole order
+
+        vm.expectEmit(address(helper));
+        emit OrderCancelled(uid, 0);
+        vm.prank(boringVault);
+        uint256 unfilled = helper.cancelOrder(uid);
+
+        assertEq(unfilled, 0, "nothing to refund");
+        assertEq(sellToken.balanceOf(boringVault), 0, "vault gets nothing");
+        assertFalse(settlement.isSigned(uid), "signature cleared even when fully filled");
+    }
+
+    /// @dev An expired-but-uncancelled order is still Active, so cancellation reclaims its unfilled funds.
+    function test_cancelOrder_expiredOrderIsCancellableAndRefunds() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uid = helper.placeOrder(p);
+
+        // Warp past the order's validTo; the helper never auto-closes, so the record stays Active.
+        vm.warp(uint256(p.validTo) + 1);
+
+        vm.prank(boringVault);
+        uint256 unfilled = helper.cancelOrder(uid);
+        assertEq(unfilled, p.sellAmount, "expired order refunds its full unfilled amount");
+        assertEq(sellToken.balanceOf(boringVault), p.sellAmount, "vault refunded after expiry");
+    }
+
+    function test_cancelOrder_revertsOnUnknownUid() external {
+        vm.prank(boringVault);
+        vm.expectRevert(abi.encodeWithSelector(CowSwapHelper.UnknownOrder.selector, bytes(hex"1234")));
+        helper.cancelOrder(hex"1234");
+    }
+
+    /// @dev Double cancellation reverts: the record is Closed after the first, so no second refund is possible.
+    function test_cancelOrder_revertsOnDoubleCancel() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        bytes memory uid = helper.placeOrder(p);
+
         vm.prank(boringVault);
         helper.cancelOrder(uid);
 
-        assertFalse(settlement.isSigned(uid), "order signature cleared");
+        vm.prank(boringVault);
+        vm.expectRevert(abi.encodeWithSelector(CowSwapHelper.UnknownOrder.selector, uid));
+        helper.cancelOrder(uid);
     }
 
     function test_cancelOrder_revertsForNonBoringVault() external {
