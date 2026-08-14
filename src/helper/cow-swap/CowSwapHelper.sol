@@ -41,6 +41,9 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *        match the provider's actual scale. It must perform its own staleness and sanity checks and be
  *        unmanipulable within a block (wrap raw Chainlink feeds in an adapter such as `EthPerTokenRateProvider`).
  *        A reverting or zero-returning provider reverts the order, which is preferable to mispricing it.
+ *
+ *      Token assumptions: only standard, fixed-balance ERC20s are supported. Fee-on-transfer and rebasing
+ *      tokens break the helper's `sellAmount`-based accounting and must be excluded via the pinned tokens.
  */
 contract CowSwapHelper is Auth {
 
