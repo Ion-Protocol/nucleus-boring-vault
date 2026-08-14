@@ -82,6 +82,7 @@ contract CowSwapHelperTest is Test {
     MockERC20 internal sellToken; // 18 decimals
     MockERC20 internal buyToken; // 6 decimals
 
+    address internal owner = makeAddr("owner");
     address internal boringVault = makeAddr("boringVault");
     address internal relayer = makeAddr("relayer");
     bytes32 internal domainSeparator = keccak256("test-domain-separator");
@@ -104,31 +105,42 @@ contract CowSwapHelperTest is Test {
         rateProvider = new MockRateProvider(RATE_18);
         sellToken = new MockERC20("Sell", "SELL", 18);
         buyToken = new MockERC20("Buy", "BUY", 6);
-        helper = new CowSwapHelper(boringVault, address(settlement), MAX_ORDER_VALIDITY);
+        helper = new CowSwapHelper(owner, boringVault, address(settlement), MAX_ORDER_VALIDITY);
     }
 
     // ------------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------------
 
+    function test_constructor_revertsOnZeroOwner() external {
+        vm.expectRevert(CowSwapHelper.ZeroAddress.selector);
+        new CowSwapHelper(address(0), boringVault, address(settlement), MAX_ORDER_VALIDITY);
+    }
+
     function test_constructor_revertsOnZeroBoringVault() external {
         vm.expectRevert(CowSwapHelper.ZeroAddress.selector);
-        new CowSwapHelper(address(0), address(settlement), MAX_ORDER_VALIDITY);
+        new CowSwapHelper(owner, address(0), address(settlement), MAX_ORDER_VALIDITY);
     }
 
     function test_constructor_revertsOnZeroSettlement() external {
         vm.expectRevert();
-        new CowSwapHelper(boringVault, address(0), MAX_ORDER_VALIDITY);
+        new CowSwapHelper(owner, boringVault, address(0), MAX_ORDER_VALIDITY);
     }
 
     function test_constructor_revertsOnZeroMaxOrderValidity() external {
         vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
-        new CowSwapHelper(boringVault, address(settlement), 0);
+        new CowSwapHelper(owner, boringVault, address(settlement), 0);
     }
 
     function test_constructor_revertsOnMaxOrderValidityAboveLimit() external {
         vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
-        new CowSwapHelper(boringVault, address(settlement), uint256(type(uint32).max) + 1);
+        new CowSwapHelper(owner, boringVault, address(settlement), uint256(type(uint32).max) + 1);
+    }
+
+    /// @dev Auth is wired at construction: owner is set and the authority starts unset.
+    function test_constructor_setsOwnerAndUnsetAuthority() external view {
+        assertEq(helper.owner(), owner, "owner set to constructor arg");
+        assertEq(address(helper.authority()), address(0), "authority starts unset");
     }
 
     /// @dev The relayer approval target and the UID's domain separator prove the constructor cached both
@@ -511,6 +523,28 @@ contract CowSwapHelperTest is Test {
     }
 
     function test_returnToVault_revertsForNonBoringVault() external {
+        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
+        helper.returnToVault(ERC20(address(sellToken)));
+    }
+
+    // ------------------------------------------------------------------------
+    // Auth does not gate the order functions
+    // ------------------------------------------------------------------------
+
+    /// @dev The Auth owner is NOT the boringVault, so the order functions still reject it: `Authority`/owner
+    ///      grants no access to order logic, which stays reachable only via the merkle-verified vault path.
+    function test_orderFunctions_rejectAuthOwner() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+
+        vm.prank(owner);
+        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
+        helper.placeOrder(p);
+
+        vm.prank(owner);
+        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
+        helper.cancelOrder(hex"1234");
+
+        vm.prank(owner);
         vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
         helper.returnToVault(ERC20(address(sellToken)));
     }

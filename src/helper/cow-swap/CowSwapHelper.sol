@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
+import { Auth, Authority } from "@solmate/auth/Auth.sol";
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
@@ -41,7 +42,7 @@ import { CowSwapOrderLib } from "src/libraries/CowSwapOrderLib.sol";
  *        unmanipulable within a block (wrap raw Chainlink feeds in an adapter such as `EthPerTokenRateProvider`).
  *        A reverting or zero-returning provider reverts the order, which is preferable to mispricing it.
  */
-contract CowSwapHelper {
+contract CowSwapHelper is Auth {
 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -129,6 +130,7 @@ contract CowSwapHelper {
 
     /**
      * @notice Deploys the helper and caches the settlement immutables.
+     * @param _owner The contract admin
      * @param _boringVault The BoringVault whose funds this helper trades and returns to, and the only
      * permitted caller of the order functions.
      * @param _settlement The CoW settlement contract.
@@ -136,9 +138,15 @@ contract CowSwapHelper {
      * non-zero (else every order, whose `validTo` must be strictly in the future, would revert) and at most
      * `MAX_ORDER_VALIDITY_LIMIT` (`type(uint32).max`, the largest representable expiry).
      */
-    constructor(address _boringVault, address _settlement, uint256 _maxOrderValidity) {
-        // receiver is hardcoded to boringVault when building orders; a zero vault would silently route
-        // proceeds to the order owner (this helper) under CoW's RECEIVER_SAME_AS_OWNER marker.
+    constructor(
+        address _owner,
+        address _boringVault,
+        address _settlement,
+        uint256 _maxOrderValidity
+    )
+        Auth(_owner, Authority(address(0)))
+    {
+        if (_owner == address(0)) revert ZeroAddress();
         if (_boringVault == address(0)) revert ZeroAddress();
         if (_settlement == address(0)) revert ZeroAddress();
         if (_maxOrderValidity == 0 || _maxOrderValidity > MAX_ORDER_VALIDITY_LIMIT) revert InvalidMaxOrderValidity();

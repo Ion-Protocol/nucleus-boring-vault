@@ -28,6 +28,7 @@ contract DeployCowSwapHelper is BaseScript {
     }
 
     function _deploy(ConfigReader.Config memory config) public override broadcast returns (address) {
+        require(config.protocolAdmin != address(0), "protocolAdmin must not be zero address");
         require(config.boringVault != address(0), "boringVault must not be zero address");
         require(config.boringVault.code.length != 0, "boringVault must have code");
         require(SETTLEMENT.code.length != 0, "SETTLEMENT has no code on this chain");
@@ -37,7 +38,10 @@ contract DeployCowSwapHelper is BaseScript {
 
         bytes memory creationCode = type(CowSwapHelper).creationCode;
         address helper = CREATEX.deployCreate3(
-            salt, abi.encodePacked(creationCode, abi.encode(config.boringVault, SETTLEMENT, MAX_ORDER_VALIDITY))
+            salt,
+            abi.encodePacked(
+                creationCode, abi.encode(config.protocolAdmin, config.boringVault, SETTLEMENT, MAX_ORDER_VALIDITY)
+            )
         );
 
         console2.log("CowSwapHelper: ", helper);
