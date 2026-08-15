@@ -96,8 +96,8 @@ contract CowSwapHelperTest is Test {
     // 3000 buyToken per 1 sellToken, expressed as an 18-decimal (WAD) rate.
     uint256 internal constant RATE_18 = 3000e18;
 
-    // Cap on how far ahead an order's validTo may be set.
-    uint256 internal constant MAX_ORDER_VALIDITY = 1 days;
+    // Cap on how far ahead an order's validTo may be set. `uint32` to match the helper's constructor.
+    uint32 internal constant MAX_ORDER_VALIDITY = 1 days;
 
     // Mirror of the helper's events for expectEmit.
     event OrderPlaced(
@@ -105,7 +105,7 @@ contract CowSwapHelperTest is Test {
     );
     event OrderCancelled(bytes orderUid, uint256 unfilledReturned);
     event FundsReturned(address indexed token, uint256 amount);
-    event MaxOrderValiditySet(uint256 maxOrderValidity);
+    event MaxOrderValiditySet(uint32 maxOrderValidity);
 
     function setUp() external {
         settlement = new MockSettlement(relayer, domainSeparator);
@@ -139,9 +139,22 @@ contract CowSwapHelperTest is Test {
         new CowSwapHelper(owner, boringVault, address(settlement), 0);
     }
 
-    function test_constructor_revertsOnMaxOrderValidityAboveLimit() external {
-        vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
-        new CowSwapHelper(owner, boringVault, address(settlement), uint256(type(uint32).max) + 1);
+    /// @dev The upper bound on the cap is carried by the `uint32` parameter type rather than a runtime check, so
+    ///      an out-of-range argument is rejected while the constructor decodes the creation code. Deployed here
+    ///      through raw `create` because the typed `new` expression would not compile with such an argument -
+    ///      which is itself the point: callers cannot express an over-wide cap.
+    function test_constructor_revertsOnMaxOrderValidityAboveUint32() external {
+        bytes memory creationCode = abi.encodePacked(
+            type(CowSwapHelper).creationCode,
+            abi.encode(owner, boringVault, address(settlement), uint256(type(uint32).max) + 1)
+        );
+
+        address deployed;
+        assembly {
+            deployed := create(0, add(creationCode, 0x20), mload(creationCode))
+        }
+
+        assertEq(deployed, address(0), "an out-of-range cap reverts the deployment");
     }
 
     /// @dev Auth is wired at construction: owner is set and the authority starts unset.
@@ -675,7 +688,7 @@ contract CowSwapHelperTest is Test {
     }
 
     function test_setMaxOrderValidity_ownerUpdatesAndEmits() external {
-        uint256 newValidity = 2 days;
+        uint32 newValidity = 2 days;
         vm.expectEmit(address(helper));
         emit MaxOrderValiditySet(newValidity);
         vm.prank(owner);
@@ -713,10 +726,23 @@ contract CowSwapHelperTest is Test {
         helper.setMaxOrderValidity(0);
     }
 
-    function test_setMaxOrderValidity_revertsAboveLimit() external {
+    /// @dev Counterpart to the constructor case: the `uint32` parameter type is the upper bound, so a hand-crafted
+    ///      over-wide word is rejected by ABI decoding (a bare revert, no `InvalidMaxOrderValidity`) and the
+    ///      stored cap is left untouched.
+    function test_setMaxOrderValidity_revertsOnValueAboveUint32() external {
         vm.prank(owner);
-        vm.expectRevert(CowSwapHelper.InvalidMaxOrderValidity.selector);
-        helper.setMaxOrderValidity(uint256(type(uint32).max) + 1);
+        (bool success, bytes memory returnData) = address(helper)
+            .call(abi.encodeWithSelector(CowSwapHelper.setMaxOrderValidity.selector, uint256(type(uint32).max) + 1));
+
+        assertFalse(success, "an out-of-range cap is rejected");
+        assertEq(returnData.length, 0, "rejected by the ABI decoder, so no custom error is returned");
+
+        // The old cap still governs: an order one second past it is still refused.
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.validTo = uint32(block.timestamp + MAX_ORDER_VALIDITY + 1);
+        vm.prank(boringVault);
+        vm.expectRevert(CowSwapHelper.OrderValidityTooLong.selector);
+        helper.placeOrder(p);
     }
 
     // ------------------------------------------------------------------------

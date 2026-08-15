@@ -16,7 +16,9 @@ contract DeployCowSwapHelper is BaseScript {
 
     // Upper bound on how far past `block.timestamp` a placed order's `validTo` may reach. Caps the window a
     // stale price can be filled and how long the helper custodies the sell token. Human-tuned per deployment.
-    uint256 constant MAX_ORDER_VALIDITY = 1 days;
+    // Declared `uint32` to match the constructor: an over-wide value fails to compile here rather than
+    // reverting the deployment inside the constructor's ABI decoding.
+    uint32 constant MAX_ORDER_VALIDITY = 1 days;
 
     // Entropy folded into the CREATE3 salt; determines the deployed address.
     string constant SALT_ENTROPY = "CowSwapHelper";

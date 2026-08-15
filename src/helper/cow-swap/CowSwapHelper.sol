@@ -53,11 +53,6 @@ contract CowSwapHelper is Auth {
     /// @notice Basis-point denominator for the slippage bound.
     uint256 internal constant BPS_DENOMINATOR = 10_000;
 
-    /// @notice Upper bound on `maxOrderValidity`. `validTo` is a `uint32`, so no expiry beyond
-    /// `type(uint32).max` is representable; capping the deploy-time window here also guarantees
-    /// `block.timestamp + maxOrderValidity` can never overflow `uint256`.
-    uint256 internal constant MAX_ORDER_VALIDITY_LIMIT = type(uint32).max;
-
     /// @notice The BoringVault this helper serves: the source of sell tokens and the `receiver` of proceeds.
     address internal immutable boringVault;
 
@@ -73,8 +68,8 @@ contract CowSwapHelper is Auth {
     /// @notice Maximum number of seconds past `block.timestamp` that an order's `validTo` may be set to. Bounds
     /// how long a pre-signed order (and the sell-token custody it entails) can stay live, capping the window in
     /// which a stale price can still be filled. Set at deploy and adjustable by an authorized admin via
-    /// `setMaxOrderValidity`; always non-zero and capped at `MAX_ORDER_VALIDITY_LIMIT`.
-    uint256 internal maxOrderValidity;
+    /// `setMaxOrderValidity`; always non-zero.
+    uint32 internal maxOrderValidity;
 
     /// @notice Record of every order this helper has pre-signed, keyed by the packed 56-byte UID. Lets a
     /// cancellation refund the unfilled sell amount without re-supplying the order, and enforces that any UID is
@@ -142,7 +137,7 @@ contract CowSwapHelper is Auth {
     );
     event OrderCancelled(bytes orderUid, uint256 unfilledReturned);
     event FundsReturned(address indexed token, uint256 amount);
-    event MaxOrderValiditySet(uint256 maxOrderValidity);
+    event MaxOrderValiditySet(uint32 maxOrderValidity);
 
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
     error ZeroAmount();
@@ -171,14 +166,13 @@ contract CowSwapHelper is Auth {
      * permitted caller of the order functions.
      * @param _settlement The CoW settlement contract.
      * @param _maxOrderValidity Maximum seconds past `block.timestamp` an order's `validTo` may reach; must be
-     * non-zero (else every order, whose `validTo` must be strictly in the future, would revert) and at most
-     * `MAX_ORDER_VALIDITY_LIMIT` (`type(uint32).max`, the largest representable expiry).
+     * non-zero (else every order, whose `validTo` must be strictly in the future, would revert).
      */
     constructor(
         address _owner,
         address _boringVault,
         address _settlement,
-        uint256 _maxOrderValidity
+        uint32 _maxOrderValidity
     )
         Auth(_owner, Authority(address(0)))
     {
@@ -284,19 +278,19 @@ contract CowSwapHelper is Auth {
      * @dev Gated by `requiresAuth`, so callable only by the `owner` or an address the `authority` permits - NOT
      *      the merkle-verified vault path. `maxOrderValidity` is checked only when `placeOrder` runs, so this has
      *      no retroactive effect.
-     * @param _maxOrderValidity New cap; must be non-zero and at most `MAX_ORDER_VALIDITY_LIMIT`.
+     * @param _maxOrderValidity Upper bound for the order expiry timestamp.
      */
-    function setMaxOrderValidity(uint256 _maxOrderValidity) external requiresAuth {
+    function setMaxOrderValidity(uint32 _maxOrderValidity) external requiresAuth {
         _setMaxOrderValidity(_maxOrderValidity);
     }
 
     /**
-     * @dev Shared by the constructor and `setMaxOrderValidity` so both enforce the same bounds (see that
-     *      function's docs) and emit the same event. A zero value would make every order revert, since `validTo`
-     *      must be strictly in the future.
+     * @dev Shared by the constructor and `setMaxOrderValidity` so both enforce non-zero vallue and emit the same event.
+     *      Only the zero case needs checking here - the upper bound is carried by the `uint32` parameter type.
+     *      A zero value would make every order revert, since `validTo` must be strictly in the future.
      */
-    function _setMaxOrderValidity(uint256 _maxOrderValidity) internal {
-        if (_maxOrderValidity == 0 || _maxOrderValidity > MAX_ORDER_VALIDITY_LIMIT) revert InvalidMaxOrderValidity();
+    function _setMaxOrderValidity(uint32 _maxOrderValidity) internal {
+        if (_maxOrderValidity == 0) revert InvalidMaxOrderValidity();
         maxOrderValidity = _maxOrderValidity;
         emit MaxOrderValiditySet(_maxOrderValidity);
     }
