@@ -285,7 +285,7 @@ contract CowSwapHelper is Auth {
     }
 
     /**
-     * @dev Shared by the constructor and `setMaxOrderValidity` so both enforce non-zero vallue and emit the same event.
+     * @dev Shared by the constructor and `setMaxOrderValidity` so both enforce non-zero value and emit the same event.
      *      Only the zero case needs checking here - the upper bound is carried by the `uint32` parameter type.
      *      A zero value would make every order revert, since `validTo` must be strictly in the future.
      */
