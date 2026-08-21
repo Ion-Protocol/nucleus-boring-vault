@@ -15,7 +15,7 @@ contract DeployCowSwapHelper is BaseScript {
     address internal constant BORING_VAULT = address(0);
 
     /// @dev Upper bound on how far past `block.timestamp` a placed order's `validTo` may reach. Caps the window a
-    /// stale price can be filled and how long the helper custodies the sell token. Human-tuned per deployment.
+    /// stale price can be filled.
     /// Declared `uint32` to match the constructor: an over-wide value fails to compile here rather than
     /// reverting the deployment inside the constructor's ABI decoding.
     uint32 internal constant MAX_ORDER_VALIDITY = 1 days;
