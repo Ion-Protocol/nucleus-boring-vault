@@ -64,6 +64,11 @@ contract MockSettlement is IGPv2Settlement {
     }
 
     function setPreSignature(bytes calldata orderUid, bool signed) external {
+        // Mirrors GPv2Signing: the owner packed into the UID (bytes [32:52] of digest ‖ owner ‖ validTo) must be
+        // the caller. This is the invariant that forces the helper to be the order owner, so tests exercise it.
+        require(orderUid.length == 56, "MockSettlement: bad uid length");
+        address uidOwner = address(bytes20(orderUid[32:52]));
+        require(uidOwner == msg.sender, "GPv2: caller does not own order");
         isSigned[orderUid] = signed;
         emit PreSignatureSet(orderUid, signed);
     }
@@ -130,7 +135,7 @@ contract CowSwapHelperTest is Test {
     }
 
     function test_constructor_revertsOnZeroSettlement() external {
-        vm.expectRevert();
+        vm.expectRevert(CowSwapHelper.ZeroAddress.selector);
         new CowSwapHelper(owner, boringVault, address(0), MAX_ORDER_VALIDITY);
     }
 
@@ -804,6 +809,21 @@ contract CowSwapHelperTest is Test {
             vm.prank(boringVault);
             helper.placeOrder(p);
         }
+    }
+
+    /// @dev At 100% slippage the oracle floor collapses to zero, so only the `ZeroAmount` check constrains
+    ///      `buyAmount`. This is the upper boundary of the inclusive `maxSlippageBps <= BPS_DENOMINATOR` bound and
+    ///      is excluded from `testFuzz_floorBoundaryIsExact` (a zero floor makes `buyAtFloor` zero, which the
+    ///      fuzz test's `vm.assume` discards). Accepted by design: the decoder pins `maxSlippageBps`. Pinned here
+    ///      so a later tightening of the bound is caught.
+    function test_placeOrder_fullSlippageCollapsesFloor() external {
+        CowSwapHelper.OrderParams memory p = _defaultParams();
+        p.maxSlippageBps = BPS_DENOMINATOR;
+        p.buyAmount = 1; // smallest non-zero buy; clears because the floor is zero.
+        _fundAndApprove(p.sellAmount);
+        vm.prank(boringVault);
+        helper.placeOrder(p);
+        assertTrue(settlement.isSigned(_expectedUid(p)), "100% slippage removes the floor entirely");
     }
 
     // ------------------------------------------------------------------------
