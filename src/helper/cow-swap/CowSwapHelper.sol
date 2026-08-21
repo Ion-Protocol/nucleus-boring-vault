@@ -284,6 +284,16 @@ contract CowSwapHelper is Auth {
         _setMaxOrderValidity(_maxOrderValidity);
     }
 
+    /// @notice The BoringVault this helper serves: source of sell tokens and `receiver` of proceeds.
+    function getBoringVault() external view returns (address) {
+        return boringVault;
+    }
+
+    /// @notice The current maximum seconds past `block.timestamp` an order's `validTo` may reach.
+    function getMaxOrderValidity() external view returns (uint32) {
+        return maxOrderValidity;
+    }
+
     /**
      * @dev Shared by the constructor and `setMaxOrderValidity` so both enforce non-zero value and emit the same event.
      *      Only the zero case needs checking here - the upper bound is carried by the `uint32` parameter type.
