@@ -33,7 +33,9 @@ contract DeployCowSwapHelper is BaseScript {
         require(SETTLEMENT.code.length != 0, "SETTLEMENT has no code on this chain");
 
         // Permissioned (broadcaster-guarded), no cross-chain protection: same address on every chain.
-        bytes32 salt = makeSalt(broadcaster, false, SALT_ENTROPY);
+        // `BORING_VAULT` is folded into the entropy so helpers for different vaults get distinct addresses.
+        bytes32 salt =
+            makeSalt(broadcaster, false, string(abi.encodePacked(SALT_ENTROPY, ":", vm.toString(BORING_VAULT))));
 
         bytes memory creationCode = type(CowSwapHelper).creationCode;
         address helper = CREATEX.deployCreate3(
