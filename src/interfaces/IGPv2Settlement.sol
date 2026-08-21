@@ -3,9 +3,9 @@ pragma solidity 0.8.21;
 
 /**
  * @title IGPv2Settlement
- * @notice Minimal interface for CoW Protocol's settlement contract, exposing only the surface these
- *         CowSwap modules use: the pre-signature entrypoint and the two immutables needed to reconstruct
- *         an order's UID on-chain.
+ * @notice Minimal interface for CoW Protocol's settlement contract, exposing only the surface the CowSwap
+ *         helper uses: the pre-signature entrypoint and the two immutables needed to reconstruct an order's
+ *         UID on-chain.
  * @dev `setPreSignature` requires `owner == msg.sender`, where `owner` is the account embedded in
  *      `orderUid`. That single constraint is what forces the caller of `setPreSignature` to be the same
  *      account whose sell-token balance and approval the relayer draws from at settlement.
