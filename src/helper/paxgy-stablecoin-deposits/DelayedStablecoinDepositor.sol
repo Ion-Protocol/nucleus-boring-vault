@@ -9,22 +9,18 @@ import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
-import { Attestation } from "@predicate/interfaces/IPredicateRegistry.sol";
-
-import { DistributorCodeDepositor } from "src/helper/DistributorCodeDepositor.sol";
 import { Pausable } from "src/helper/Pausable.sol";
 
 /**
  * @title DelayedStablecoinDepositor
  * @notice Order helper attached to a dedicated offer-receiver {BoringVault}. Accepts user stablecoin deposits against a
- *         backend-signed {Quote} pending an off-chain conversion to PAXG, then mints PAXGy (BoringVault shares) to the
+ *         backend-signed {Quote} pending an off-chain conversion, then delivers PAXGy (BoringVault shares) to the
  *         quote's receiver on the depositor's behalf.
- * @dev This contract owns the order bookkeeping for the PAXGy stablecoin deposit flow but does NOT custody the
- *      deposited stablecoins: on submission they are transferred immediately into the {offerReceiver}, a dedicated
- *      {BoringVault} that holds funds in flight to Paxos. Because PAXGy can only be minted from PAXG, a permissioned
- *      strategist converts the staged stablecoins to PAXG off-chain (via Paxos) and delivers the PAXG here to complete
- *      the deposit. Orders are independent: each is acted on by its id, so a single failing order never blocks the
- *      others.
+ * @dev This contract owns the order bookkeeping for the PAXGy stablecoin deposit flow but does NOT custody any funds:
+ *      on submission the stablecoins are transferred immediately into the {offerReceiver}, a dedicated {BoringVault}
+ *      that holds funds in flight to Paxos. A permissioned strategist converts the staged stablecoins to PAXGy
+ *      off-chain (via Paxos); to fill an order, the vault delivers that PAXGy to the receiver through this contract.
+ *      Orders are independent: each is acted on by its id, so a single failing order never blocks the others.
  *
  *      Signed-quote model (mirrors {TransitStation}):
  *        - Order terms are priced off-chain and EIP-712 signed by the trusted {quoteSigner}. A {Quote} is a bearer
@@ -39,18 +35,16 @@ import { Pausable } from "src/helper/Pausable.sol";
  *          defense-in-depth backstop: even a compromised signer can only ever land orders within these bounds.
  *
  *      Fund custody and movement:
- *        - The staged stablecoins live in {offerReceiver}. This contract never holds them (aside from PAXG transiently
- *          during {settleOrder}).
+ *        - The staged stablecoins live in {offerReceiver}; this contract never holds any funds. On settlement the
+ *          calling vault provides both the fill's PAXGy and the unfilled offer asset, which this contract pulls
+ *          straight to the receiver.
  *        - The transfer of staged stablecoins to the fixed Paxos deposit address is performed OUTSIDE this contract,
  *          while the order is live, by the strategist via the {offerReceiver} vault's {ManagerWithMerkleVerification}
  *          (which enforces the permitted destination via its merkle root).
- *        - The PAXG-to-PAXGy mint is routed through the canonical {DistributorCodeDepositor}, NOT the teller directly,
- *          so these deposits inherit the same supply cap, KYT/attestation, fee, and distributor-code policy as any
- *          other PAXG deposit and cannot bypass the global supply cap.
  *
  *      Order flow:
  *        - submit -> stages the stablecoins in {offerReceiver} and records the order.
- *        - settle -> fills part or all of the order (depositing PAXG into PAXGy via {DistributorCodeDepositor}),
+ *        - settle -> fills part or all of the order (delivering PAXGy from the vault to the receiver),
  *                    refunds the unfilled remainder, and deletes the record.
  *
  *      Roles are enforced by the configured {Authority}. The intended wiring is:
@@ -83,8 +77,8 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      * @param offerAsset The stablecoin to deposit.
      * @param offerAmount The stablecoin amount to stage for conversion.
      * @param wantAmount PAXGy wanted for a full fill. Together with `offerAmount` this sets the quote's
-     *        stablecoin:PAXGy rate, which prices partial fills, and it is the PAXGy a full fill must mint.
-     * @param receiver Beneficiary of the order: recipient of the minted PAXGy (or of a refund).
+     *        stablecoin:PAXGy rate, which prices partial fills, and it is the PAXGy a full fill must deliver.
+     * @param receiver Beneficiary of the order: recipient of the PAXGy (or of a refund).
      * @param deadline Unix timestamp after which the quote may no longer be submitted.
      * @param salt Entropy so otherwise-identical quotes get distinct uuids.
      */
@@ -128,16 +122,11 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
 
     // ========================================= IMMUTABLES =========================================
 
-    /// @notice The dedicated offer-receiver vault that custodies deposited stablecoins in flight to Paxos. Funds move
-    /// out of it to Paxos via its own {ManagerWithMerkleVerification}; on refund it approves this contract to pull.
+    /// @notice The dedicated offer-receiver that custodies deposited stablecoins.
     address public immutable offerReceiver;
 
-    /// @notice The canonical PAXGy depositor used to mint shares from PAXG. Applies the shared supply cap, KYT,
-    ///         fee, and distributor-code policy, and mints shares directly to the beneficiary.
-    DistributorCodeDepositor public immutable paxgyDepositor;
-
-    /// @notice The PAXG token deposited into {paxgyDepositor} to mint PAXGy. Must be a supported deposit asset there.
-    ERC20 public immutable paxg;
+    /// @notice The PAXGy token delivered to fill orders, pulled from the calling vault to the beneficiary.
+    ERC20 public immutable paxgy;
 
     // ========================================= STATE =========================================
 
@@ -164,17 +153,10 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
 
     event OrderSubmitted(uint256 indexed orderId, address indexed depositor, address indexed receiver, Quote quote);
 
-    /// @dev Emitted when an order is settled and deleted. `fillAmount` is the PAXGy the fill was priced at,
-    ///      `sharesMinted` what the depositor actually minted (>= `fillAmount`), and `refundAmount` the stablecoin
-    ///      returned for the unfilled portion; a pure fill or pure refund just zeroes the unused side.
-    event OrderSettled(
-        uint256 indexed orderId,
-        address indexed beneficiary,
-        uint256 paxgDeposited,
-        uint256 fillAmount,
-        uint256 sharesMinted,
-        uint256 refundAmount
-    );
+    /// @dev Emitted when an order is settled and deleted. `fillAmount` is the PAXGy delivered to the beneficiary and
+    ///      `refundAmount` the offer asset returned for the unfilled portion; a pure fill or pure refund zeroes the
+    ///      unused side.
+    event OrderSettled(uint256 indexed orderId, address indexed beneficiary, uint256 fillAmount, uint256 refundAmount);
 
     event QuoteSignerSet(address indexed signer);
     event StablecoinConfigUpdated(ERC20 indexed stablecoin, bool supported, uint256 minOrderSize, uint256 maxOrderSize);
@@ -199,15 +181,13 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     /**
      * @param _offerReceiver The dedicated offer-receiver vault (a {BoringVault}) that custodies staged stablecoins for
      *        this flow. Typed as `address` since only plain transfers are made to/from it.
-     * @param _paxgyDepositor The canonical PAXGy {DistributorCodeDepositor}; must support {_paxg} for deposits.
-     * @param _paxg The PAXG token used to mint PAXGy.
+     * @param _paxgy The PAXGy token delivered to fill orders.
      * @param _quoteSigner The trusted backend key that signs {Quote}s.
      * @param _owner Initial owner (always authorized).
      */
     constructor(
         address _offerReceiver,
-        DistributorCodeDepositor _paxgyDepositor,
-        ERC20 _paxg,
+        ERC20 _paxgy,
         address _quoteSigner,
         address _owner
     )
@@ -215,13 +195,11 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     {
         if (_owner == address(0)) revert ZeroAddress();
         if (_offerReceiver == address(0)) revert ZeroAddress();
-        if (address(_paxgyDepositor) == address(0)) revert ZeroAddress();
-        if (address(_paxg) == address(0)) revert ZeroAddress();
+        if (address(_paxgy) == address(0)) revert ZeroAddress();
         if (_quoteSigner == address(0)) revert ZeroAddress();
 
         offerReceiver = _offerReceiver;
-        paxgyDepositor = _paxgyDepositor;
-        paxg = _paxg;
+        paxgy = _paxgy;
         quoteSigner = _quoteSigner;
 
         emit QuoteSignerSet(_quoteSigner);
@@ -285,7 +263,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
 
     /**
      * @notice Emergency stop: halts new submissions ({submitOrder}, {submitOrderWithPermit}) and the fill leg of
-     *         {settleOrder} so a compromised signer or strategist can be frozen before more orders land or mint.
+     *         {settleOrder} so a compromised signer or strategist can be frozen before more orders land or fill.
      * @dev A refund-only settlement ({settleOrder} with `fillAmount == 0`) stays callable while paused so staged funds
      *      can always be unwound.
      */
@@ -304,8 +282,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      * @notice Submit a backend-signed quote: moves the stablecoin into {offerReceiver} and records a live order whose
      *         beneficiary is the quote's `receiver`. The order id is the quote's EIP-712 digest (uuid).
      * @dev Gated by {requiresAuth} so access can be scoped at deploy, but the signed quote is the substantive
-     *      gate. No fee is taken here; the PAXGy deposit fee is applied once, on the PAXG leg, by the
-     *      {DistributorCodeDepositor} during {settleOrder}.
+     *      gate. No on-chain fee is taken; any spread or fee is priced into the signed quote's rate.
      * @param quote Backend-priced deposit terms. See {Quote}.
      * @param signature EIP-712 signature over `quote` by {quoteSigner}.
      * @return orderId The id of the created order (also the quote uuid).
@@ -359,8 +336,8 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     // ========================================= EXTERNAL: STRATEGIST =========================================
 
     /**
-     * @notice Settle an order: fill part or all of it by depositing PAXG into PAXGy for the beneficiary, refund the
-     *         offer asset for whatever is unfilled, and delete the order.
+     * @notice Settle an order: fill part or all of it by delivering PAXGy to the beneficiary, refund the offer asset
+     *         for whatever is unfilled, and delete the order.
      * @dev Strategist-gated. The fill is priced at the quote's stablecoin:PAXGy rate (`offerAmount`:`wantAmount`), and
      *      the refund must be exactly the unfilled remainder:
      *
@@ -368,35 +345,19 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      *          require: refundAmount == offerAmount - offerAmountFilled
      *
      *      The filled amount rounds up, so the refund rounds down by at most one unit and any dust stays in the vault.
-     * The fill leg deposits
-     *      `paxgAmount` PAXG (which the strategist must have delivered here) through {DistributorCodeDepositor} with
-     *      `minimumMint == fillAmount`; the refund leg pulls `refundAmount` from {offerReceiver}, which must have
-     *      approved this contract in the same manager batch. While paused, only refunds are allowed (`fillAmount == 0`)
-     *      so open orders can still be unwound.
+     *      Both legs pull from the caller: `fillAmount` PAXGy on the fill and `refundAmount` of the
+     *      offer asset on the refund, each straight to the beneficiary. The vault must have approved this contract for
+     *      both in the same manager batch. While paused, only refunds are allowed (`fillAmount == 0`) so open orders
+     *      can still be unwound.
      * @param orderId The order to settle.
-     * @param paxgAmount PAXG to deposit for the fill leg; 0 for a pure refund.
-     * @param fillAmount PAXGy the fill is priced at, and the deposit's `minimumMint`; must not exceed `wantAmount`.
-     * @param refundAmount Stablecoin to refund; must equal the exact unfilled remainder.
-     * @param distributorCode Distributor code for the fill, forwarded to {DistributorCodeDepositor}.
-     * @param attestation Predicate KYT attestation for the fill; may be empty when KYT is disabled for PAXG.
-     * @return sharesMinted PAXGy minted to the beneficiary (0 for a pure refund).
+     * @param fillAmount PAXGy to deliver to the beneficiary; must not exceed `wantAmount`. 0 for a pure refund.
+     * @param refundAmount Offer asset to refund; must equal the exact unfilled remainder.
      */
-    function settleOrder(
-        uint256 orderId,
-        uint256 paxgAmount,
-        uint256 fillAmount,
-        uint256 refundAmount,
-        bytes calldata distributorCode,
-        Attestation calldata attestation
-    )
-        external
-        requiresAuth
-        returns (uint256 sharesMinted)
-    {
+    function settleOrder(uint256 orderId, uint256 fillAmount, uint256 refundAmount) external requiresAuth {
         Order memory order = orders[orderId];
         if (address(order.offerAsset) == address(0)) revert OrderNotFound(orderId);
 
-        // Filling mints new PAXGy, so it is blocked while paused; refunds stay available to unwind staged funds.
+        // Delivering PAXGy inventory is blocked while paused; refunds stay available to unwind open orders.
         if (fillAmount != 0 && paused()) revert EnforcedPause();
 
         // Value the fill at the quote's stablecoin:PAXGy rate and require the refund to be the exact unfilled
@@ -415,22 +376,16 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         // Effects before interactions: resolve the order (delete record) before any external call.
         delete orders[orderId];
 
-        // Fill leg: deposit PAXG via the canonical depositor, which pulls it from here and mints shares straight to the
-        // beneficiary. `minimumMint == fillAmount` enforces the priced fill; clear any residual approval afterward.
+        // Both legs pull from the caller (which must have approved this contract) straight to the beneficiary:
+        // the priced PAXGy on the fill, the unfilled offer asset on the refund.
         if (fillAmount != 0) {
-            paxg.safeApprove(address(paxgyDepositor), paxgAmount);
-            sharesMinted =
-                paxgyDepositor.deposit(paxg, paxgAmount, fillAmount, beneficiary, distributorCode, attestation);
-            paxg.safeApprove(address(paxgyDepositor), 0);
+            paxgy.safeTransferFrom(msg.sender, beneficiary, fillAmount);
         }
-
-        // Refund leg: pull the unfilled stablecoin out of the vault (which must have approved this contract) to the
-        // beneficiary.
         if (refundAmount != 0) {
-            order.offerAsset.safeTransferFrom(offerReceiver, beneficiary, refundAmount);
+            order.offerAsset.safeTransferFrom(msg.sender, beneficiary, refundAmount);
         }
 
-        emit OrderSettled(orderId, beneficiary, paxgAmount, fillAmount, sharesMinted, refundAmount);
+        emit OrderSettled(orderId, beneficiary, fillAmount, refundAmount);
     }
 
     // ========================================= VIEW =========================================
