@@ -80,6 +80,8 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      *        stablecoin:PAXGy rate, which prices partial fills, and it is the PAXGy a full fill must deliver.
      * @param receiver Beneficiary of the order: recipient of the PAXGy (or of a refund).
      * @param deadline Unix timestamp after which the quote may no longer be submitted.
+     * @param fillOrKill If true, the order rejects partial fills: {settleOrder} must either fill it in full or refund
+     *        it in full.
      * @param salt Entropy so otherwise-identical quotes get distinct uuids.
      */
     struct Quote {
@@ -88,6 +90,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         uint256 wantAmount;
         address receiver;
         uint256 deadline;
+        bool fillOrKill;
         bytes32 salt;
     }
 
@@ -102,12 +105,14 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      *        already-resolved) order.
      * @param receiver The beneficiary from the signed quote: recipient of the PAXGy on fulfillment or the refunded
      *        stablecoin on refund.
+     * @param fillOrKill If true, {settleOrder} rejects a partial fill: it must fully fill or fully refund the order.
      */
     struct Order {
         uint128 offerAmount;
         uint128 wantAmount;
         ERC20 offerAsset;
         address receiver;
+        bool fillOrKill;
     }
 
     // ========================================= CONSTANTS =========================================
@@ -117,7 +122,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     bytes32 internal constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 internal constant QUOTE_TYPEHASH = keccak256(
-        "Quote(address offerAsset,uint256 offerAmount,uint256 wantAmount,address receiver,uint256 deadline,bytes32 salt)"
+        "Quote(address offerAsset,uint256 offerAmount,uint256 wantAmount,address receiver,uint256 deadline,bool fillOrKill,bytes32 salt)"
     );
 
     // ========================================= IMMUTABLES =========================================
@@ -175,6 +180,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     error ZeroWantAmount();
     error FillExceedsOrder(uint256 fillAmount, uint256 wantAmount);
     error RefundMismatch(uint256 expectedRefund, uint256 refundAmount);
+    error PartialFillNotAllowed(uint256 fillAmount, uint256 wantAmount);
 
     // ========================================= CONSTRUCTOR =========================================
 
@@ -349,6 +355,9 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      *      offer asset on the refund, each straight to the beneficiary. The vault must have approved this contract for
      *      both in the same manager batch. While paused, only refunds are allowed (`fillAmount == 0`) so open orders
      *      can still be unwound.
+     *
+     *      If the order was submitted fill-or-kill, `fillAmount` must be either `wantAmount` (full fill) or 0 (full
+     *      refund); a partial fill reverts.
      * @param orderId The order to settle.
      * @param fillAmount PAXGy to deliver to the beneficiary; must not exceed `wantAmount`. 0 for a pure refund.
      * @param refundAmount Offer asset to refund; must equal the exact unfilled remainder.
@@ -367,6 +376,12 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         // Round the filled amount UP so any sub-unit dust stays in the vault rather than inflating the refund to the
         // beneficiary. At a full fill (fillAmount == wantAmount) it divides exactly, leaving a zero refund.
         if (fillAmount > order.wantAmount) revert FillExceedsOrder(fillAmount, order.wantAmount);
+
+        // A fill-or-kill order permits only the two endpoints: fill it in full or refund it in full.
+        if (order.fillOrKill && fillAmount != 0 && fillAmount != order.wantAmount) {
+            revert PartialFillNotAllowed(fillAmount, order.wantAmount);
+        }
+
         uint256 offerAmountFilled = FixedPointMathLib.mulDivUp(fillAmount, order.offerAmount, order.wantAmount);
         uint256 expectedRefund = order.offerAmount - offerAmountFilled;
         if (refundAmount != expectedRefund) revert RefundMismatch(expectedRefund, refundAmount);
@@ -413,6 +428,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
                 quote.wantAmount,
                 quote.receiver,
                 quote.deadline,
+                quote.fillOrKill,
                 quote.salt
             )
         );
@@ -454,7 +470,8 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
             offerAmount: quote.offerAmount.toUint128(),
             wantAmount: quote.wantAmount.toUint128(),
             offerAsset: quote.offerAsset,
-            receiver: quote.receiver
+            receiver: quote.receiver,
+            fillOrKill: quote.fillOrKill
         });
 
         // Move the full deposit into the offer-receiver vault immediately.
