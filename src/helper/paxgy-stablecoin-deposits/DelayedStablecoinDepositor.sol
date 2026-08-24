@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { ERC721Enumerable, ERC721 } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -18,20 +17,20 @@ import { Pausable } from "src/helper/Pausable.sol";
  * @title DelayedStablecoinDepositor
  * @notice Order helper attached to a dedicated offer-receiver {BoringVault}. Accepts user stablecoin deposits against a
  *         backend-signed {Quote} pending an off-chain conversion to PAXG, then mints PAXGy (BoringVault shares) to the
- *         depositor on the depositor's behalf.
- * @dev This contract owns the bookkeeping (live orders + receipt NFTs) for the PAXGy stablecoin deposit flow but does
- *      NOT custody the deposited stablecoins: on submission they are transferred immediately into the {offerReceiver},
- *      a dedicated {BoringVault} that holds funds in flight to Paxos. Because PAXGy can only be minted from PAXG, a
- *      permissioned strategist converts the staged stablecoins to PAXG off-chain (via Paxos) and returns the PAXG here
- *      to complete the deposit. Orders are independent: each is acted on by its id, so a single failing order never
- *      blocks the others.
+ *         quote's receiver on the depositor's behalf.
+ * @dev This contract owns the order bookkeeping for the PAXGy stablecoin deposit flow but does NOT custody the
+ *      deposited stablecoins: on submission they are transferred immediately into the {offerReceiver}, a dedicated
+ *      {BoringVault} that holds funds in flight to Paxos. Because PAXGy can only be minted from PAXG, a permissioned
+ *      strategist converts the staged stablecoins to PAXG off-chain (via Paxos) and returns the PAXG here to complete
+ *      the deposit. Orders are independent: each is acted on by its id, so a single failing order never blocks the
+ *      others.
  *
  *      Signed-quote model (mirrors {TransitStation}):
  *        - Order terms are priced off-chain and EIP-712 signed by the trusted {quoteSigner}. A {Quote} is a bearer
- *          instrument: whoever submits it funds the offer, and the receipt (hence the eventual PAXGy) goes to the
- *          quote's fixed `receiver`.
- *        - An order's uuid is the EIP-712 digest of its quote, used directly as the order id and receipt token id, so
- *          it is fully determined by the signed terms and identical no matter who submits it. The `salt` field gives
+ *          instrument: whoever submits it funds the offer, and the eventual PAXGy (or a refund) goes to the quote's
+ *          `receiver`.
+ *        - An order's uuid is the EIP-712 digest of its quote, used directly as the order id, so it is fully
+ *          determined by the signed terms and identical no matter who submits it. The `salt` field gives
  *          otherwise-identical quotes distinct uuids.
  *        - {usedUuids} is a permanent ledger: a uuid is marked used on submission and never cleared, so a given quote
  *          can be submitted at most once — even after its order record is deleted on fulfillment/refund.
@@ -43,27 +42,24 @@ import { Pausable } from "src/helper/Pausable.sol";
  *          during {fulfillOrder}).
  *        - The transfer of staged stablecoins to the fixed Paxos deposit address is performed OUTSIDE this contract,
  *          while the order is live, by the strategist via the {offerReceiver} vault's {ManagerWithMerkleVerification}
- * (which
- *          enforces the permitted destination via its merkle root).
+ *          (which enforces the permitted destination via its merkle root).
  *        - The PAXG-to-PAXGy mint is routed through the canonical {DistributorCodeDepositor}, NOT the teller directly,
  *          so these deposits inherit the same supply cap, KYT/attestation, fee, and distributor-code policy as any
  *          other PAXG deposit and cannot bypass the global supply cap.
  *
  *      Order flow (there is no on-chain lifecycle state; a live order record simply exists until it is resolved):
- *        - submit    : stablecoins moved into {offerReceiver}, uuid marked used, live order recorded, receipt NFT
- *                      minted to the quote's `receiver`.
+ *        - submit    : stablecoins moved into {offerReceiver}, uuid marked used, live order recorded (including its
+ *                      `receiver`).
  *        - fulfill   : strategist returned PAXG here; it is deposited into PAXGy via the {DistributorCodeDepositor},
- *                      which mints shares directly to the receipt holder. The order record is deleted and the receipt
- *                      burned.
- *        - refund    : staged stablecoins returned to the receipt holder: the vault approves this contract, then this
- *                      contract pulls the funds from the vault to the beneficiary. The order record is deleted and the
- *                      receipt burned.
+ *                      which mints shares directly to the order's receiver. The order record is deleted.
+ *        - refund    : staged stablecoins returned to the order's receiver: the vault approves this contract, then this
+ *                      contract pulls the funds from the vault to the receiver. The order record is deleted.
  *      Fulfill and refund are mutually exclusive terminal actions; the uuid stays used forever regardless.
  *
  *      Roles are enforced by the configured {Authority}. The intended wiring is:
  *        - submitter        -> {submitOrder}/{submitOrderWithPermit}. Gated by {requiresAuth}; grant the
  *                              intended (public or allowlisted) capability at deploy. The signed quote is the real
- * gate.
+ *                              gate.
  *        - STRATEGIST role  -> {fulfillOrder} (moving funds to Paxos is done separately via the vault's manager).
  *        - offerReceiver vault -> {refundOrder} (called by the vault, in the same manager batch that approves this
  *                               contract to pull the refund).
@@ -76,12 +72,10 @@ import { Pausable } from "src/helper/Pausable.sol";
  *      funds can always be unwound while paused.
  *
  *      Beneficiary model: the beneficiary of an order (who receives the PAXGy on fulfillment, or the stablecoin on
- *      refund) is always the CURRENT holder of the receipt NFT, not necessarily the original depositor. The receipt
- *      is therefore a transferable claim on the order's outcome. The original depositor is recorded in the
- *      {OrderSubmitted} event only.
+ *      refund) is the `receiver` from the signed quote, recorded on the order.
  * @custom:security-contact security@paxoslabs.com
  */
-contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
+contract DelayedStablecoinDepositor is Auth, Pausable {
 
     using SafeTransferLib for ERC20;
     using SafeCast for uint256;
@@ -90,12 +84,13 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
 
     /**
      * @notice Backend-priced deposit terms, EIP-712 signed by {quoteSigner}. Bearer instrument: anyone may submit a
-     *         valid quote (they pay the offer amount; the receipt NFT, and thus the eventual PAXGy, goes to the fixed
-     *         `receiver`). Amounts are in the offer asset's own decimals.
+     *         valid quote (they pay the offer amount; the eventual PAXGy goes to the quote's `receiver`). Amounts are
+     * in
+     *         the offer asset's own decimals.
      * @param offerAsset The stablecoin to deposit.
      * @param offerAmount The stablecoin amount to stage for conversion.
      * @param minShares Minimum PAXGy shares that must be minted on fulfillment; enforces the user's slippage bound.
-     * @param receiver Recipient of the receipt NFT.
+     * @param receiver Fixed beneficiary of the order: recipient of the minted PAXGy (or of a refund).
      * @param deadline Unix timestamp after which the quote may no longer be submitted.
      * @param salt Entropy so otherwise-identical quotes get distinct uuids.
      */
@@ -111,19 +106,19 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
     /**
      * @notice A single live delayed stablecoin deposit order. Exists from submission until fulfilled or refunded, when
      *         it is deleted.
-     * @dev Packed into 2 storage slots.
-     *      slot 0: stablecoinAmount (128) | minShares (128)
-     *      slot 1: offerAsset (160)
      * @param stablecoinAmount Stablecoin amount staged for this order, in the stablecoin's own decimals. Returned on
      *        refund.
      * @param minShares Minimum PAXGy shares that must be minted on fulfillment; enforces the user's slippage bound.
      * @param offerAsset The stablecoin deposited for this order. A zero value marks a non-existent (never-created or
      *        already-resolved) order.
+     * @param receiver The beneficiary from the signed quote: recipient of the PAXGy on fulfillment or the refunded
+     *        stablecoin on refund.
      */
     struct Order {
         uint128 stablecoinAmount;
         uint128 minShares;
         ERC20 offerAsset;
+        address receiver;
     }
 
     // ========================================= CONSTANTS =========================================
@@ -166,8 +161,8 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
     /// @notice Minimum net stablecoin amount permitted in a single order, per stablecoin.
     mapping(ERC20 => uint256) public minOrderSize;
 
-    /// @notice Live order data by order id (== receipt token id == uuid == EIP-712 quote digest). Deleted on
-    ///         fulfillment/refund.
+    /// @notice Live order data, keyed by order id: the uint256 of the quote's EIP-712 digest, which is also its uuid.
+    ///         Deleted on fulfillment or refund.
     mapping(uint256 => Order) public orders;
 
     // ========================================= EVENTS =========================================
@@ -195,8 +190,6 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
     // ========================================= CONSTRUCTOR =========================================
 
     /**
-     * @param _name ERC721 name for receipt tokens.
-     * @param _symbol ERC721 symbol for receipt tokens.
      * @param _offerReceiver The dedicated offer-receiver vault (a {BoringVault}) that custodies staged stablecoins for
      *        this flow. Typed as `address` since only plain transfers are made to/from it.
      * @param _paxgyDepositor The canonical PAXGy {DistributorCodeDepositor}; must support {_paxg} for deposits.
@@ -205,15 +198,12 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
      * @param _owner Initial owner (always authorized).
      */
     constructor(
-        string memory _name,
-        string memory _symbol,
         address _offerReceiver,
         DistributorCodeDepositor _paxgyDepositor,
         ERC20 _paxg,
         address _quoteSigner,
         address _owner
     )
-        ERC721(_name, _symbol)
         Auth(_owner, Authority(address(0)))
     {
         if (_owner == address(0)) revert ZeroAddress();
@@ -304,14 +294,14 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
     // ========================================= EXTERNAL: USER =========================================
 
     /**
-     * @notice Submit a backend-signed quote: moves the stablecoin into {offerReceiver} and mints a receipt NFT to the
-     *         quote's `receiver`. The order id is the quote's EIP-712 digest (uuid).
+     * @notice Submit a backend-signed quote: moves the stablecoin into {offerReceiver} and records a live order whose
+     *         beneficiary is the quote's `receiver`. The order id is the quote's EIP-712 digest (uuid).
      * @dev Gated by {requiresAuth} so access can be scoped at deploy, but the signed quote is the substantive
      *      gate. No fee is taken here; the PAXGy deposit fee is applied once, on the PAXG leg, by the
      *      {DistributorCodeDepositor} during {fulfillOrder}.
      * @param quote Backend-priced deposit terms. See {Quote}.
      * @param signature EIP-712 signature over `quote` by {quoteSigner}.
-     * @return orderId The id of the created order (also the receipt token id and quote uuid).
+     * @return orderId The id of the created order (also the quote uuid).
      */
     function submitOrder(
         Quote calldata quote,
@@ -334,7 +324,7 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
      * @param v Permit signature component.
      * @param r Permit signature component.
      * @param s Permit signature component.
-     * @return orderId The id of the created order (also the receipt token id and quote uuid).
+     * @return orderId The id of the created order (also the quote uuid).
      */
     function submitOrderWithPermit(
         Quote calldata quote,
@@ -363,8 +353,7 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
 
     /**
      * @notice Fulfill a live order: deposit the returned PAXG into PAXGy via the canonical {DistributorCodeDepositor},
-     *         which mints shares directly to the order's beneficiary (the current receipt holder). Deletes the order
-     *         and burns the receipt.
+     *         which mints shares directly to the order's beneficiary (its receiver). Deletes the order.
      * @dev Strategist-gated. The strategist must have returned at least `paxgAmount` of PAXG to this contract before
      *      calling. Routing through {DistributorCodeDepositor} applies the shared supply cap, KYT, and PAXG-side fee,
      *      and enforces the user's slippage floor via `minimumMint == order.minShares`: if the PAXG obtained is too
@@ -391,12 +380,11 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
         Order memory order = orders[orderId];
         if (address(order.offerAsset) == address(0)) revert OrderNotFound(orderId);
 
-        // Beneficiary is the current receipt holder.
-        address beneficiary = ownerOf(orderId);
+        // Beneficiary is the order's receiver.
+        address beneficiary = order.receiver;
 
-        // Effects before interaction: resolve the order (delete record, burn receipt) before the external deposit.
+        // Effects before interaction: resolve the order (delete record) before the external deposit.
         delete orders[orderId];
-        _burn(orderId);
 
         // Approve exactly, deposit via the canonical depositor (which pulls PAXG from this contract and mints shares
         // straight to `beneficiary`), then clear any residual approval. Slippage is enforced by `minShares`.
@@ -410,8 +398,8 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
     // ========================================= REFUND =========================================
 
     /**
-     * @notice Refund a live order's staged stablecoins to its beneficiary (the current receipt holder), delete the
-     *         order, and burn the receipt. Callable at any time.
+     * @notice Refund a live order's staged stablecoins to its beneficiary (its receiver) and delete the order.
+     *         Callable at any time.
      * @dev Auth-gated. Intended to be driven by {offerReceiver} via its {ManagerWithMerkleVerification}: in a single
      *      manager batch the vault approves this contract to spend `offerAsset`, then calls this function, which pulls
      *      the staged stablecoins from the vault to the beneficiary atomically. If the staged stablecoins were already
@@ -423,11 +411,10 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
         Order memory order = orders[orderId];
         if (address(order.offerAsset) == address(0)) revert OrderNotFound(orderId);
 
-        address beneficiary = ownerOf(orderId);
+        address beneficiary = order.receiver;
 
-        // Effects before interaction: resolve the order (delete record, burn receipt) before the external pull.
+        // Effects before interaction: resolve the order (delete record) before the external pull.
         delete orders[orderId];
-        _burn(orderId);
 
         // Pull the staged stablecoins out of the vault (which must have approved this contract) to the beneficiary.
         order.offerAsset.safeTransferFrom(offerReceiver, beneficiary, order.stablecoinAmount);
@@ -444,7 +431,7 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
 
     /**
      * @notice The order id (uuid) a given quote would produce: its EIP-712 digest as a uint256. Lets off-chain
-     *         callers predict the id (and receipt token id) before submission.
+     *         callers predict the id before submission.
      */
     function quoteOrderId(Quote calldata quote) external view returns (uint256) {
         return uint256(_hashTypedData(quote));
@@ -470,7 +457,7 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
     /**
      * @dev Shared submit core. Verifies the signed quote and its on-chain backstops, derives the uuid from the quote
      *      digest, marks it used and records the live order (the replay-critical effects) before any external call,
-     *      stages the stablecoin in {offerReceiver}, and mints the receipt NFT.
+     *      then stages the stablecoin in {offerReceiver}.
      */
     function _submitOrder(Quote calldata quote, bytes calldata signature) internal returns (uint256 orderId) {
         if (block.timestamp > quote.deadline) revert QuoteExpired(quote.deadline);
@@ -496,17 +483,16 @@ contract DelayedStablecoinDepositor is ERC721Enumerable, Auth, Pausable {
         if (usedUuids[orderId]) revert UuidAlreadyUsed(orderId);
         usedUuids[orderId] = true;
 
-        // Record the live order before any external call.
+        // Record the live order (with its beneficiary) before any external call.
         orders[orderId] = Order({
             stablecoinAmount: quote.offerAmount.toUint128(),
             minShares: quote.minShares.toUint128(),
-            offerAsset: quote.offerAsset
+            offerAsset: quote.offerAsset,
+            receiver: quote.receiver
         });
 
-        // Move the full deposit into the offer-receiver vault immediately, then mint the receipt to the quote's
-        // receiver.
+        // Move the full deposit into the offer-receiver vault immediately.
         quote.offerAsset.safeTransferFrom(msg.sender, offerReceiver, quote.offerAmount);
-        _safeMint(quote.receiver, orderId);
 
         emit OrderSubmitted(orderId, msg.sender, quote.receiver, quote);
     }
