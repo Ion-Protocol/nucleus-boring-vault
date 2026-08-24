@@ -54,7 +54,6 @@ contract MockSettlement is IGPv2Settlement {
     bytes32 public immutable domainSeparator;
 
     mapping(bytes => bool) public isSigned;
-    mapping(bytes => uint256) public filledAmount;
 
     event PreSignatureSet(bytes orderUid, bool signed);
 
@@ -71,11 +70,6 @@ contract MockSettlement is IGPv2Settlement {
         require(uidOwner == msg.sender, "GPv2: caller does not own order");
         isSigned[orderUid] = signed;
         emit PreSignatureSet(orderUid, signed);
-    }
-
-    /// @dev Simulates CoW recording a fill (and the relayer pulling that much sell token from the helper).
-    function setFilledAmount(bytes calldata orderUid, uint256 amount) external {
-        filledAmount[orderUid] = amount;
     }
 
 }
@@ -108,7 +102,7 @@ contract CowSwapHelperTest is Test {
     event OrderPlaced(
         address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
     );
-    event OrderCancelled(bytes orderUid, uint256 unfilledReturned);
+    event OrderCancelled(bytes orderUid);
     event FundsReturned(address indexed token, uint256 amount);
     event MaxOrderValiditySet(uint32 maxOrderValidity);
 
@@ -531,8 +525,9 @@ contract CowSwapHelperTest is Test {
     // cancelOrder
     // ------------------------------------------------------------------------
 
-    /// @dev No fills: cancellation clears the signature, refunds the entire sell amount, and emits the amount.
-    function test_cancelOrder_unfilledRefundsFullAmountAndEmits() external {
+    /// @dev Cancellation clears the pre-signature and closes the UID, moving no tokens; the helper keeps its
+    ///      balance, which is pulled back separately via sweepToken.
+    function test_cancelOrder_clearsSignatureAndMovesNoTokens() external {
         CowSwapHelper.OrderParams memory p = _defaultParams();
         _fundAndApprove(p.sellAmount);
         vm.prank(boringVault);
@@ -541,67 +536,34 @@ contract CowSwapHelperTest is Test {
         assertEq(sellToken.balanceOf(address(helper)), p.sellAmount, "precondition: helper holds sell token");
 
         vm.expectEmit(address(helper));
-        emit FundsReturned(address(sellToken), p.sellAmount);
-        vm.expectEmit(address(helper));
-        emit OrderCancelled(uid, p.sellAmount);
+        emit OrderCancelled(uid);
         vm.prank(boringVault);
-        uint256 unfilled = helper.cancelOrder(uid);
+        helper.cancelOrder(uid);
 
-        assertEq(unfilled, p.sellAmount, "returns full unfilled amount");
         assertFalse(settlement.isSigned(uid), "order signature cleared");
-        assertEq(sellToken.balanceOf(address(helper)), 0, "helper swept of the sell token");
-        assertEq(sellToken.balanceOf(boringVault), p.sellAmount, "vault refunded the unfilled remainder");
+        assertEq(sellToken.balanceOf(address(helper)), p.sellAmount, "helper balance untouched by cancel");
+        assertEq(sellToken.balanceOf(boringVault), 0, "cancel moves no tokens to the vault");
     }
 
-    /// @dev Partial fill: only the unfilled remainder is refunded; CoW's filledAmount is read directly.
-    function test_cancelOrder_partialFillRefundsRemainder() external {
-        CowSwapHelper.OrderParams memory p = _defaultParams(); // sellAmount 1e18
-        _fundAndApprove(p.sellAmount);
-        vm.prank(boringVault);
-        bytes memory uid = helper.placeOrder(p);
-
-        // Simulate CoW filling 0.4e18 (and the relayer pulling that much out of the helper).
-        uint256 filled = 0.4e18;
-        settlement.setFilledAmount(uid, filled);
-        vm.prank(address(helper));
-        sellToken.transfer(relayer, filled);
-
-        uint256 expectedRefund = p.sellAmount - filled;
-        vm.expectEmit(address(helper));
-        emit FundsReturned(address(sellToken), expectedRefund);
-        vm.expectEmit(address(helper));
-        emit OrderCancelled(uid, expectedRefund);
-        vm.prank(boringVault);
-        uint256 unfilled = helper.cancelOrder(uid);
-
-        assertEq(unfilled, expectedRefund, "refunds only the unfilled remainder");
-        assertEq(sellToken.balanceOf(boringVault), expectedRefund, "vault got the remainder");
-        assertEq(sellToken.balanceOf(address(helper)), 0, "helper balance fully accounted for");
-    }
-
-    /// @dev Fully filled: nothing to refund, but the order is still closed and the signature cleared.
-    function test_cancelOrder_fullyFilledRefundsZero() external {
+    /// @dev The unfilled sell tokens left after a cancel are recovered by sweepToken, not by cancelOrder itself.
+    function test_cancelOrder_thenSweepReturnsTokens() external {
         CowSwapHelper.OrderParams memory p = _defaultParams();
         _fundAndApprove(p.sellAmount);
         vm.prank(boringVault);
         bytes memory uid = helper.placeOrder(p);
 
-        settlement.setFilledAmount(uid, p.sellAmount);
-        vm.prank(address(helper));
-        sellToken.transfer(relayer, p.sellAmount); // relayer pulled the whole order
-
-        vm.expectEmit(address(helper));
-        emit OrderCancelled(uid, 0);
         vm.prank(boringVault);
-        uint256 unfilled = helper.cancelOrder(uid);
+        helper.cancelOrder(uid);
 
-        assertEq(unfilled, 0, "nothing to refund");
-        assertEq(sellToken.balanceOf(boringVault), 0, "vault gets nothing");
-        assertFalse(settlement.isSigned(uid), "signature cleared even when fully filled");
+        vm.prank(boringVault);
+        helper.sweepToken(ERC20(address(sellToken)), p.sellAmount);
+
+        assertEq(sellToken.balanceOf(boringVault), p.sellAmount, "vault made whole via sweepToken after cancel");
+        assertEq(sellToken.balanceOf(address(helper)), 0, "helper swept");
     }
 
-    /// @dev An expired-but-uncancelled order is still Active, so cancellation reclaims its unfilled funds.
-    function test_cancelOrder_expiredOrderIsCancellableAndRefunds() external {
+    /// @dev An expired-but-uncancelled order is still Active, so it can be cancelled after expiry.
+    function test_cancelOrder_expiredOrderIsCancellable() external {
         CowSwapHelper.OrderParams memory p = _defaultParams();
         _fundAndApprove(p.sellAmount);
         vm.prank(boringVault);
@@ -611,9 +573,8 @@ contract CowSwapHelperTest is Test {
         vm.warp(uint256(p.validTo) + 1);
 
         vm.prank(boringVault);
-        uint256 unfilled = helper.cancelOrder(uid);
-        assertEq(unfilled, p.sellAmount, "expired order refunds its full unfilled amount");
-        assertEq(sellToken.balanceOf(boringVault), p.sellAmount, "vault refunded after expiry");
+        helper.cancelOrder(uid);
+        assertFalse(settlement.isSigned(uid), "expired order can still be cancelled");
     }
 
     function test_cancelOrder_revertsOnUnknownUid() external {
@@ -622,7 +583,7 @@ contract CowSwapHelperTest is Test {
         helper.cancelOrder(hex"1234");
     }
 
-    /// @dev Double cancellation reverts: the record is Closed after the first, so no second refund is possible.
+    /// @dev Double cancellation reverts: the record is Closed after the first cancel.
     function test_cancelOrder_revertsOnDoubleCancel() external {
         CowSwapHelper.OrderParams memory p = _defaultParams();
         _fundAndApprove(p.sellAmount);
@@ -646,39 +607,55 @@ contract CowSwapHelperTest is Test {
     // sweepToken
     // ------------------------------------------------------------------------
 
-    /// @dev Gated by `requiresAuth`, so the sweep is driven by the Auth owner, and always routes to the vault.
-    function test_sweepToken_sweepsBalanceAndEmits() external {
+    /// @dev The strategist (the boringVault, via the merkle manager) sweeps, and the amount routes to the vault.
+    function test_sweepToken_boringVaultSweepsAmountAndEmits() external {
         uint256 stranded = 5e18;
         sellToken.mint(address(helper), stranded);
 
         vm.expectEmit(address(helper));
         emit FundsReturned(address(sellToken), stranded);
-        vm.prank(owner);
-        helper.sweepToken(ERC20(address(sellToken)));
+        vm.prank(boringVault);
+        helper.sweepToken(ERC20(address(sellToken)), stranded);
 
         assertEq(sellToken.balanceOf(address(helper)), 0, "helper swept");
         assertEq(sellToken.balanceOf(boringVault), stranded, "vault received residual");
     }
 
-    function test_sweepToken_noopOnZeroBalance() external {
+    /// @dev Only the requested amount is moved; the rest stays in the helper (e.g. collateral for a live order).
+    function test_sweepToken_sweepsPartialAmount() external {
+        uint256 stranded = 5e18;
+        sellToken.mint(address(helper), stranded);
+
+        uint256 amount = 2e18;
+        vm.expectEmit(address(helper));
+        emit FundsReturned(address(sellToken), amount);
+        vm.prank(boringVault);
+        helper.sweepToken(ERC20(address(sellToken)), amount);
+
+        assertEq(sellToken.balanceOf(boringVault), amount, "vault received the requested amount");
+        assertEq(sellToken.balanceOf(address(helper)), stranded - amount, "helper keeps the remainder");
+    }
+
+    function test_sweepToken_noopOnZeroAmount() external {
+        sellToken.mint(address(helper), 5e18);
         vm.recordLogs();
-        vm.prank(owner);
-        helper.sweepToken(ERC20(address(sellToken)));
+        vm.prank(boringVault);
+        helper.sweepToken(ERC20(address(sellToken)), 0);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        assertEq(logs.length, 0, "no transfer or event on zero balance");
+        assertEq(logs.length, 0, "no transfer or event on a zero amount");
         assertEq(sellToken.balanceOf(boringVault), 0, "nothing moved");
     }
 
-    /// @dev Not the merkle/vault path: even the boringVault is unauthorized, only the owner/authority may sweep.
-    function test_sweepToken_revertsForUnauthorized() external {
-        vm.prank(boringVault);
-        vm.expectRevert(bytes("UNAUTHORIZED"));
-        helper.sweepToken(ERC20(address(sellToken)));
+    /// @dev Only the merkle-verified vault path may sweep; even the Auth owner is rejected.
+    function test_sweepToken_revertsForNonBoringVault() external {
+        vm.prank(owner);
+        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
+        helper.sweepToken(ERC20(address(sellToken)), 0);
 
         vm.prank(makeAddr("stranger"));
-        vm.expectRevert(bytes("UNAUTHORIZED"));
-        helper.sweepToken(ERC20(address(sellToken)));
+        vm.expectRevert(CowSwapHelper.NotBoringVault.selector);
+        helper.sweepToken(ERC20(address(sellToken)), 0);
     }
 
     // ------------------------------------------------------------------------
