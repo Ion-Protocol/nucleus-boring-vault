@@ -31,8 +31,8 @@ import { Pausable } from "src/helper/Pausable.sol";
  *          otherwise-identical quotes distinct uuids.
  *        - {usedUuids} is a permanent ledger: a uuid is marked used on submission and never cleared, so a given quote
  *          can be submitted at most once — even after its order record is deleted on fulfillment/refund.
- *        - The on-chain config ({isStablecoinSupported}, {minOrderSize}/{maxOrderSize}) is retained as a
- *          defense-in-depth backstop: even a compromised signer can only ever land orders within these bounds.
+ *        - The on-chain {isStablecoinSupported} allowlist is retained as a defense-in-depth backstop: even a
+ *          compromised signer can only ever land orders for an approved stablecoin.
  *
  *      Fund custody and movement:
  *        - The staged stablecoins live in {offerReceiver}; this contract never holds any funds. On settlement the
@@ -144,12 +144,6 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     /// @notice Whether a stablecoin is accepted for new orders.
     mapping(ERC20 => bool) public isStablecoinSupported;
 
-    /// @notice Maximum net stablecoin amount permitted in a single order, per stablecoin (0 disables new orders).
-    mapping(ERC20 => uint256) public maxOrderSize;
-
-    /// @notice Minimum net stablecoin amount permitted in a single order, per stablecoin.
-    mapping(ERC20 => uint256) public minOrderSize;
-
     /// @notice Live order data, keyed by order id: the uint256 of the quote's EIP-712 digest, which is also its uuid.
     ///         Deleted on settlement.
     mapping(uint256 => Order) public orders;
@@ -164,14 +158,13 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     event OrderSettled(uint256 indexed orderId, address indexed beneficiary, uint256 fillAmount, uint256 refundAmount);
 
     event QuoteSignerSet(address indexed signer);
-    event StablecoinConfigUpdated(ERC20 indexed stablecoin, bool supported, uint256 minOrderSize, uint256 maxOrderSize);
+    event StablecoinSupportSet(ERC20 indexed stablecoin, bool supported);
     event ERC20Rescued(ERC20 indexed token, address indexed to, uint256 amount);
 
     // ========================================= ERRORS =========================================
 
     error ZeroAddress();
     error StablecoinNotSupported(ERC20 stablecoin);
-    error AmountOutsideBounds(uint256 amount, uint256 min, uint256 max);
     error QuoteExpired(uint256 deadline);
     error InvalidSigner(address recoveredSigner);
     error UuidAlreadyUsed(uint256 orderId);
@@ -226,31 +219,16 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     }
 
     /**
-     * @notice Add, update, or disable a supported stablecoin and its per-order bounds.
-     * @dev Set `supported` to false (or `maxSize` to 0) to stop accepting new orders for the asset. Existing orders
-     *      are unaffected and can still be fulfilled or refunded. These bounds are an on-chain backstop on top of the
-     *      signed quote.
+     * @notice Enable or disable a supported stablecoin for new orders.
+     * @dev Set `supported` to false to stop accepting new orders for the asset. Existing orders are unaffected and can
+     *      still be fulfilled or refunded. This allowlist is an on-chain backstop on top of the signed quote.
      * @param stablecoin The stablecoin to configure.
      * @param supported Whether new orders may be submitted for it.
-     * @param minSize Minimum net order size (in stablecoin decimals).
-     * @param maxSize Maximum net order size / per-order cap (in stablecoin decimals).
      */
-    function setStablecoinConfig(
-        ERC20 stablecoin,
-        bool supported,
-        uint256 minSize,
-        uint256 maxSize
-    )
-        external
-        requiresAuth
-    {
+    function setStablecoinSupported(ERC20 stablecoin, bool supported) external requiresAuth {
         if (address(stablecoin) == address(0)) revert ZeroAddress();
-
         isStablecoinSupported[stablecoin] = supported;
-        minOrderSize[stablecoin] = minSize;
-        maxOrderSize[stablecoin] = maxSize;
-
-        emit StablecoinConfigUpdated(stablecoin, supported, minSize, maxSize);
+        emit StablecoinSupportSet(stablecoin, supported);
     }
 
     /**
@@ -448,11 +426,6 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         if (!isStablecoinSupported[quote.offerAsset]) revert StablecoinNotSupported(quote.offerAsset);
         if (quote.receiver == address(0)) revert ZeroAddress();
         if (quote.wantAmount == 0) revert ZeroWantAmount(); // wantAmount sets the price, so it must be nonzero
-        uint256 maxSize = maxOrderSize[quote.offerAsset];
-        uint256 minSize = minOrderSize[quote.offerAsset];
-        if (quote.offerAmount < minSize || quote.offerAmount > maxSize) {
-            revert AmountOutsideBounds(quote.offerAmount, minSize, maxSize);
-        }
 
         // Verify the quote is signed by the trusted backend; the digest doubles as the uuid / order id.
         bytes32 digest = _hashTypedData(quote);
