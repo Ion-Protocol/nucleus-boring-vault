@@ -54,7 +54,7 @@ contract CowSwapHelper is Auth {
     uint256 internal constant BPS_DENOMINATOR = 10_000;
 
     /// @notice The BoringVault this helper serves: the source of sell tokens and the `receiver` of proceeds.
-    address internal immutable boringVault;
+    address public immutable boringVault;
 
     /// @notice CoW settlement contract this helper authorizes orders on.
     IGPv2Settlement internal immutable settlement;
@@ -69,7 +69,7 @@ contract CowSwapHelper is Auth {
     /// how long a pre-signed order (and the sell-token custody it entails) can stay live, capping the window in
     /// which a stale price can still be filled. Set at deploy and adjustable by an authorized admin via
     /// `setMaxOrderValidity`; always non-zero.
-    uint32 internal maxOrderValidity;
+    uint32 public maxOrderValidity;
 
     /// @notice Status of every order UID this helper has pre-signed, keyed by the packed 56-byte UID. Used for
     /// replay protection: a UID can be pre-signed at most once and cancelled at most once. See {OrderStatus}.
@@ -261,16 +261,6 @@ contract CowSwapHelper is Auth {
      */
     function setMaxOrderValidity(uint32 _maxOrderValidity) external requiresAuth {
         _setMaxOrderValidity(_maxOrderValidity);
-    }
-
-    /// @notice The BoringVault this helper serves: source of sell tokens and `receiver` of proceeds.
-    function getBoringVault() external view returns (address) {
-        return boringVault;
-    }
-
-    /// @notice The current maximum seconds past `block.timestamp` an order's `validTo` may reach.
-    function getMaxOrderValidity() external view returns (uint32) {
-        return maxOrderValidity;
     }
 
     /**
