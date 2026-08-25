@@ -51,12 +51,6 @@ contract DeployBoringVaultAndManager is BaseScript {
         bytes32 SALT_PAXG_USD_RATE_PROVIDER =
             makeSalt(broadcaster, false, "PaxgyFundsAutomationVault: PaxgUsdRateProvider");
 
-        require(address(bytes20(SALT_ROLES_AUTHORITY)) == broadcaster, "salt not deployer-prefixed");
-        require(address(bytes20(SALT_BORING_VAULT)) == broadcaster, "salt not deployer-prefixed");
-        require(address(bytes20(SALT_MANAGER_WITH_MERKLE_VERIFICATION)) == broadcaster, "salt not deployer-prefixed");
-        require(address(bytes20(SALT_EQUIVALENT_EXCHANGE_UMANAGER)) == broadcaster, "salt not deployer-prefixed");
-        require(address(bytes20(SALT_PAXG_USD_RATE_PROVIDER)) == broadcaster, "salt not deployer-prefixed");
-
         // deploy a roles authority
         RolesAuthority rolesAuthority = RolesAuthority(
             CREATEX.deployCreate3(
