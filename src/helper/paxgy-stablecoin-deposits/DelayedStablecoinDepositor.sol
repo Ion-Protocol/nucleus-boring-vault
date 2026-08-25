@@ -10,6 +10,7 @@ import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { Auth, Authority } from "@solmate/auth/Auth.sol";
 
 import { Pausable } from "src/helper/Pausable.sol";
+import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 
 /**
  * @title DelayedStablecoinDepositor
@@ -31,8 +32,9 @@ import { Pausable } from "src/helper/Pausable.sol";
  *          otherwise-identical quotes distinct uuids.
  *        - {usedUuids} is a permanent ledger: a uuid is marked used on submission and never cleared, so a given quote
  *          can be submitted at most once — even after its order record is deleted on fulfillment/refund.
- *        - The on-chain {isStablecoinSupported} allowlist is retained as a defense-in-depth backstop: even a
- *          compromised signer can only ever land orders for an approved stablecoin.
+ *        - Two on-chain checks limit a compromised signer: {isStablecoinSupported} only accepts approved
+ *          stablecoins, and a price floor (via {paxgyUsdRateProvider}) rejects any order that sells PAXGy below
+ *          its oracle price.
  *
  *      Fund custody and movement:
  *        - The staged stablecoins live in {offerReceiver}; this contract never holds any funds. On settlement the
@@ -66,6 +68,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
 
     using SafeTransferLib for ERC20;
     using SafeCast for uint256;
+    using FixedPointMathLib for uint256;
 
     // ========================================= TYPES =========================================
 
@@ -125,6 +128,9 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         "Quote(address offerAsset,uint256 offerAmount,uint256 wantAmount,address receiver,uint256 deadline,bool fillOrKill,bytes32 salt)"
     );
 
+    /// @notice Basis-points denominator used for the price floor slippage calculation.
+    uint256 internal constant BPS_DENOMINATOR = 10_000;
+
     // ========================================= IMMUTABLES =========================================
 
     /// @notice The dedicated offer-receiver that custodies deposited stablecoins.
@@ -132,6 +138,16 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
 
     /// @notice The PAXGy token delivered to fill orders, pulled from the calling vault to the beneficiary.
     ERC20 public immutable paxgy;
+
+    /// @notice Cached `paxgy.decimals()`, used to scale the oracle price floor without re-reading it per order.
+    uint8 public immutable paxgyDecimals;
+
+    /// @notice Oracle reporting the USD price of one PAXGy share; anchors the on-chain price floor.
+    IRateProvider public immutable paxgyUsdRateProvider;
+
+    /// @notice Decimal precision of {paxgyUsdRateProvider}'s reported USD-per-PAXGy rate. The price floor math depends
+    ///         on it, so it must match the provider's actual output precision.
+    uint8 public immutable RATE_PROVIDER_DECIMALS;
 
     // ========================================= STATE =========================================
 
@@ -148,6 +164,9 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     ///         Deleted on settlement.
     mapping(uint256 => Order) public orders;
 
+    /// @notice How far below oracle fair value an order may be priced, in basis points. Defaults to 0 (strict floor).
+    uint256 public maxSlippageBps;
+
     // ========================================= EVENTS =========================================
 
     event OrderSubmitted(uint256 indexed orderId, address indexed depositor, address indexed receiver, Quote quote);
@@ -160,6 +179,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     event QuoteSignerSet(address indexed signer);
     event StablecoinSupportSet(ERC20 indexed stablecoin, bool supported);
     event ERC20Rescued(ERC20 indexed token, address indexed to, uint256 amount);
+    event MaxSlippageSet(uint256 bps);
 
     // ========================================= ERRORS =========================================
 
@@ -174,6 +194,8 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     error FillExceedsOrder(uint256 fillAmount, uint256 wantAmount);
     error RefundMismatch(uint256 expectedRefund, uint256 refundAmount);
     error PartialFillNotAllowed(uint256 fillAmount, uint256 wantAmount);
+    error PriceBelowFloor(uint256 offerAmount, uint256 minOffer);
+    error MaxSlippageTooHigh(uint256 bps, uint256 maxBps);
 
     // ========================================= CONSTRUCTOR =========================================
 
@@ -182,12 +204,16 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      *        this flow. Typed as `address` since only plain transfers are made to/from it.
      * @param _paxgy The PAXGy token delivered to fill orders.
      * @param _quoteSigner The trusted backend key that signs {Quote}s.
+     * @param _paxgyUsdRateProvider Oracle reporting USD per PAXGy; anchors the on-chain price floor.
+     * @param _rateProviderDecimals Decimal precision of `_paxgyUsdRateProvider`'s rate; must match its actual output.
      * @param _owner Initial owner (always authorized).
      */
     constructor(
         address _offerReceiver,
         ERC20 _paxgy,
         address _quoteSigner,
+        IRateProvider _paxgyUsdRateProvider,
+        uint8 _rateProviderDecimals,
         address _owner
     )
         Auth(_owner, Authority(address(0)))
@@ -196,10 +222,14 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         if (_offerReceiver == address(0)) revert ZeroAddress();
         if (address(_paxgy) == address(0)) revert ZeroAddress();
         if (_quoteSigner == address(0)) revert ZeroAddress();
+        if (address(_paxgyUsdRateProvider) == address(0)) revert ZeroAddress();
 
         offerReceiver = _offerReceiver;
         paxgy = _paxgy;
+        paxgyDecimals = _paxgy.decimals();
         quoteSigner = _quoteSigner;
+        paxgyUsdRateProvider = _paxgyUsdRateProvider;
+        RATE_PROVIDER_DECIMALS = _rateProviderDecimals;
 
         emit QuoteSignerSet(_quoteSigner);
     }
@@ -229,6 +259,17 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         if (address(stablecoin) == address(0)) revert ZeroAddress();
         isStablecoinSupported[stablecoin] = supported;
         emit StablecoinSupportSet(stablecoin, supported);
+    }
+
+    /**
+     * @notice Set the max slippage below oracle fair value an order may be priced at, in basis points.
+     * @dev 0 is a strict floor; the knob only ever loosens it, up to {BPS_DENOMINATOR} (100%, which disables it).
+     * @param bps New max slippage in basis points.
+     */
+    function setMaxSlippageBps(uint256 bps) external requiresAuth {
+        if (bps > BPS_DENOMINATOR) revert MaxSlippageTooHigh(bps, BPS_DENOMINATOR);
+        maxSlippageBps = bps;
+        emit MaxSlippageSet(bps);
     }
 
     /**
@@ -360,7 +401,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
             revert PartialFillNotAllowed(fillAmount, order.wantAmount);
         }
 
-        uint256 offerAmountFilled = FixedPointMathLib.mulDivUp(fillAmount, order.offerAmount, order.wantAmount);
+        uint256 offerAmountFilled = fillAmount.mulDivUp(order.offerAmount, order.wantAmount);
         uint256 expectedRefund = order.offerAmount - offerAmountFilled;
         if (refundAmount != expectedRefund) revert RefundMismatch(expectedRefund, refundAmount);
 
@@ -426,6 +467,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         if (!isStablecoinSupported[quote.offerAsset]) revert StablecoinNotSupported(quote.offerAsset);
         if (quote.receiver == address(0)) revert ZeroAddress();
         if (quote.wantAmount == 0) revert ZeroWantAmount(); // wantAmount sets the price, so it must be nonzero
+        _enforcePriceFloor(quote.offerAsset, quote.offerAmount, quote.wantAmount);
 
         // Verify the quote is signed by the trusted backend; the digest doubles as the uuid / order id.
         bytes32 digest = _hashTypedData(quote);
@@ -451,6 +493,20 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         quote.offerAsset.safeTransferFrom(msg.sender, offerReceiver, quote.offerAmount);
 
         emit OrderSubmitted(orderId, msg.sender, quote.receiver, quote);
+    }
+
+    /**
+     * @dev Reverts unless the order prices PAXGy within {maxSlippageBps} bps of its oracle-derived price.
+     *      Offer stablecoins are treated as pegged to $1.
+     */
+    function _enforcePriceFloor(ERC20 offerAsset, uint256 offerAmount, uint256 wantAmount) internal view {
+        uint256 paxgyUsd = paxgyUsdRateProvider.getRate(); // USD per 1 PAXGy, at RATE_PROVIDER_DECIMALS precision
+
+        uint256 stablePerPaxgy = paxgyUsd.mulDivUp(10 ** offerAsset.decimals(), 10 ** RATE_PROVIDER_DECIMALS);
+        uint256 fairOffer = wantAmount.mulDivUp(stablePerPaxgy, 10 ** paxgyDecimals);
+        uint256 minOffer = fairOffer.mulDivUp(BPS_DENOMINATOR - maxSlippageBps, BPS_DENOMINATOR);
+
+        if (offerAmount < minOffer) revert PriceBelowFloor(offerAmount, minOffer);
     }
 
     /// @dev Full EIP-712 digest (`0x1901 || domainSeparator || hashStruct`) of `quote`.
