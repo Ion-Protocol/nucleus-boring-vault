@@ -34,12 +34,13 @@ contract PaxgyUsdRateProvider is IRateProvider {
     /// @notice Cached `ACCOUNTANT.decimals()`: precision of the PAXGy/XAU exchange rate.
     uint8 public immutable ACCOUNTANT_DECIMALS;
 
-    /// @notice Cached `XAU_USD_FEED.decimals()`: precision of the XAU/USD price.
-    uint8 public immutable FEED_DECIMALS;
+    /// @notice Chainlink USD price feeds report 8 decimals; the XAU/USD feed is required to match at construction.
+    uint8 public constant CHAINLINK_DECIMALS = 8;
 
     error MaxTimeFromLastUpdatePassed(uint256 blockTimestamp, uint256 lastUpdated);
     error InvalidDescription();
     error InvalidPrice(int256 answer);
+    error InvalidPriceFeedDecimals(uint8 priceFeedDecimals);
 
     /**
      * @param _description The XAU/USD feed's expected asset-pair label, e.g. "XAU/USD".
@@ -55,11 +56,13 @@ contract PaxgyUsdRateProvider is IRateProvider {
     ) {
         if (!_isEqual(_description, _xauUsdFeed.description())) revert InvalidDescription();
 
+        uint8 feedDecimals = _xauUsdFeed.decimals();
+        if (feedDecimals != CHAINLINK_DECIMALS) revert InvalidPriceFeedDecimals(feedDecimals);
+
         ACCOUNTANT = _accountant;
         XAU_USD_FEED = _xauUsdFeed;
         MAX_TIME_FROM_LAST_UPDATE = _maxTimeFromLastUpdate;
         ACCOUNTANT_DECIMALS = _accountant.decimals();
-        FEED_DECIMALS = _xauUsdFeed.decimals();
     }
 
     /**
@@ -82,10 +85,11 @@ contract PaxgyUsdRateProvider is IRateProvider {
         if (answer <= 0) revert InvalidPrice(answer);
         uint256 xauUsd = answer.toUint256();
 
-        // PAXGy/USD(18) = paxgyPerXau(ACCOUNTANT_DECIMALS) * xauUsd(FEED_DECIMALS) * 1e18
-        //                 / (10^ACCOUNTANT_DECIMALS * 10^FEED_DECIMALS)
+        // PAXGy/USD(18) = paxgyPerXau(ACCOUNTANT_DECIMALS) * xauUsd(CHAINLINK_DECIMALS) * 1e18
+        //                 / (10^ACCOUNTANT_DECIMALS * 10^CHAINLINK_DECIMALS)
         // Multiply-before-divide; magnitudes (rate ~1e18, price ~1e11) stay far below 2^256.
-        paxgyUsd = (paxgyPerXau * xauUsd * (10 ** RATE_DECIMALS)) / (10 ** ACCOUNTANT_DECIMALS * 10 ** FEED_DECIMALS);
+        paxgyUsd =
+            (paxgyPerXau * xauUsd * (10 ** RATE_DECIMALS)) / (10 ** ACCOUNTANT_DECIMALS * 10 ** CHAINLINK_DECIMALS);
     }
 
     /**
