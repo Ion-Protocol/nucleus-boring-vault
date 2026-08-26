@@ -20,8 +20,9 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
  * @dev This contract owns the order bookkeeping for the PAXGy stablecoin deposit flow but does NOT custody any funds:
  *      on submission the stablecoins are transferred immediately into the {offerReceiver}, a dedicated {BoringVault}
  *      that holds funds in flight to Paxos. A permissioned strategist converts the staged stablecoins to PAXGy
- *      off-chain (via Paxos); to fill an order, the vault delivers that PAXGy to the receiver through this contract.
- *      Orders are independent: each is acted on by its id, so a single failing order never blocks the others.
+ *      off-chain (via Paxos); to fill an order, the calling vault provides both the fill's PAXGy and the unfilled
+ *      offer asset, which this contract pulls straight to the receiver. Orders are independent: each is acted on by
+ *      its id, so a single failing order never blocks the others.
  *
  *      Signed-quote model (mirrors {TransitStation}):
  *        - Order terms are priced off-chain and EIP-712 signed by the trusted {quoteSigner}. A {Quote} is a bearer
@@ -36,18 +37,9 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
  *          stablecoins, and a price floor (via {paxgyUsdRateProvider}) rejects any order that sells PAXGy below
  *          its oracle price.
  *
- *      Fund custody and movement:
- *        - The staged stablecoins live in {offerReceiver}; this contract never holds any funds. On settlement the
- *          calling vault provides both the fill's PAXGy and the unfilled offer asset, which this contract pulls
- *          straight to the receiver.
- *        - The transfer of staged stablecoins to the fixed Paxos deposit address is performed OUTSIDE this contract,
- *          while the order is live, by the strategist via the {offerReceiver} vault's {ManagerWithMerkleVerification}
- *          (which enforces the permitted destination via its merkle root).
- *
- *      Order flow:
- *        - submit -> stages the stablecoins in {offerReceiver} and records the order.
- *        - settle -> fills part or all of the order (delivering PAXGy from the vault to the receiver),
- *                    refunds the unfilled remainder, and deletes the record.
+ *      The transfer of staged stablecoins to the fixed Paxos deposit address is performed OUTSIDE this contract,
+ *      while the order is live, by the strategist via the {offerReceiver} vault's {ManagerWithMerkleVerification}
+ *      (which enforces the permitted destination via its merkle root).
  *
  *      Roles are enforced by the configured {Authority}. The intended wiring is:
  *        - submitter        -> {submitOrder}/{submitOrderWithPermit}.
@@ -55,13 +47,6 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
  *        - PAUSER role      -> {pause}; ADMIN role/owner -> {unpause}.
  *        - ADMIN role/owner -> all config setters.
  *      The owner is always authorized (see solmate {Auth}).
- *
- *      Pausing halts new submissions ({submitOrder}, {submitOrderWithPermit}) and the fill leg of {settleOrder} as an
- *      emergency stop for a compromised signer/strategist. A refund-only settlement ({settleOrder} with no fill) stays
- *      callable while paused so staged funds can always be unwound.
- *
- *      Beneficiary model: the beneficiary of an order (who receives the PAXGy on fulfillment, or the stablecoin on
- *      refund) is the `receiver` from the signed quote, recorded on the order.
  * @custom:security-contact security@paxoslabs.com
  */
 contract DelayedStablecoinDepositor is Auth, Pausable {
@@ -75,8 +60,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     /**
      * @notice Backend-priced deposit terms, EIP-712 signed by {quoteSigner}. Bearer instrument: anyone may submit a
      *         valid quote (they pay the offer amount; the eventual PAXGy goes to the quote's `receiver`). Amounts are
-     * in
-     *         the offer asset's own decimals.
+     *         in the offer asset's own decimals.
      * @param offerAsset The stablecoin to deposit.
      * @param offerAmount The stablecoin amount to stage for conversion.
      * @param wantAmount PAXGy wanted for a full fill. Together with `offerAmount` this sets the quote's
@@ -385,7 +369,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
      *      refund); a partial fill reverts.
      * @param orderIds The orders to settle.
      * @param fillAmounts PAXGy to deliver per order; each must not exceed its order's `wantAmount`. 0 for a pure
-     * refund.
+     *        refund.
      * @param refundAmounts Offer asset to refund per order; each must equal that order's exact unfilled remainder.
      */
     function settleOrder(
@@ -408,33 +392,27 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
             Order memory order = orders[orderId];
             if (address(order.offerAsset) == address(0)) revert OrderNotFound(orderId);
 
-            // Delivering PAXGy inventory is blocked while paused; refunds stay available to unwind open orders.
+            // Fills are frozen while paused; refunds stay open so staged funds can always be unwound.
             if (fillAmount != 0 && paused()) revert EnforcedPause();
 
-            // Value the fill at the quote's stablecoin:PAXGy rate and require the refund to be the exact unfilled
-            // remainder. `wantAmount` is nonzero for any live order (enforced at submission), so the division is safe,
-            // and bounding `fillAmount` by it keeps the subtraction from underflowing.
-            //
-            // Round the filled amount UP so any sub-unit dust stays in the vault rather than inflating the refund to
-            // the beneficiary. At a full fill (fillAmount == wantAmount) it divides exactly, leaving a zero refund.
+            // wantAmount is nonzero for any live order, so bounding fillAmount by it keeps the division below safe and
+            // the refund subtraction from underflowing.
             if (fillAmount > order.wantAmount) revert FillExceedsOrder(fillAmount, order.wantAmount);
 
-            // A fill-or-kill order permits only the two endpoints: fill it in full or refund it in full.
             if (order.fillOrKill && fillAmount != 0 && fillAmount != order.wantAmount) {
                 revert PartialFillNotAllowed(fillAmount, order.wantAmount);
             }
 
+            // Round the fill UP so any sub-unit dust stays in the vault instead of inflating the beneficiary's refund.
             uint256 offerAmountFilled = fillAmount.mulDivUp(order.offerAmount, order.wantAmount);
             uint256 expectedRefund = order.offerAmount - offerAmountFilled;
             if (refundAmount != expectedRefund) revert RefundMismatch(expectedRefund, refundAmount);
 
             address beneficiary = order.receiver;
 
-            // Effects before interactions: resolve the order (delete record) before any external call.
+            // Delete the record before the external transfers below, so a reentrant call sees no live order.
             delete orders[orderId];
 
-            // Both legs pull from the caller (which must have approved this contract) straight to the beneficiary:
-            // the priced PAXGy on the fill, the unfilled offer asset on the refund.
             if (fillAmount != 0) {
                 paxgy.safeTransferFrom(msg.sender, beneficiary, fillAmount);
             }
@@ -448,7 +426,11 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
 
     // ========================================= VIEW =========================================
 
-    /// @notice Return the live order struct for `orderId` (zeroed if it does not exist).
+    /**
+     * @notice Return the live order struct for `orderId` (zeroed if it does not exist).
+     * @param orderId The order id to look up.
+     * @return The stored order, or a zeroed struct if none exists.
+     */
     function getOrder(uint256 orderId) external view returns (Order memory) {
         return orders[orderId];
     }
@@ -456,12 +438,18 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     /**
      * @notice The order id (uuid) a given quote would produce: its EIP-712 digest as a uint256. Lets off-chain
      *         callers predict the id before submission.
+     * @param quote The quote to derive the id for.
+     * @return The order id (also the quote uuid).
      */
     function quoteOrderId(Quote calldata quote) external view returns (uint256) {
         return uint256(_hashTypedData(quote));
     }
 
-    /// @notice EIP-712 hashStruct of `quote`.
+    /**
+     * @notice EIP-712 hashStruct of `quote`.
+     * @param quote The quote to hash.
+     * @return The EIP-712 hashStruct.
+     */
     function hashQuote(Quote calldata quote) public pure returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -504,7 +492,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         if (usedUuids[orderId]) revert UuidAlreadyUsed(orderId);
         usedUuids[orderId] = true;
 
-        // Record the live order (with its beneficiary) before any external call.
+        // Record the order before the external transfer below, so a reentrant call sees the live order.
         orders[orderId] = Order({
             offerAmount: quote.offerAmount.toUint128(),
             wantAmount: quote.wantAmount.toUint128(),
@@ -513,7 +501,6 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
             fillOrKill: quote.fillOrKill
         });
 
-        // Move the full deposit into the offer-receiver vault immediately.
         quote.offerAsset.safeTransferFrom(msg.sender, offerReceiver, quote.offerAmount);
 
         emit OrderSubmitted(orderId, msg.sender, quote.receiver, quote);
@@ -526,6 +513,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     function _enforcePriceFloor(ERC20 offerAsset, uint256 offerAmount, uint256 wantAmount) internal view {
         uint256 paxgyUsd = paxgyUsdRateProvider.getRate(); // USD per 1 PAXGy, at RATE_PROVIDER_DECIMALS precision
 
+        // Each step rounds UP so the required offer is never understated, making the floor harder to clear.
         uint256 stablePerPaxgy = paxgyUsd.mulDivUp(10 ** offerAsset.decimals(), 10 ** RATE_PROVIDER_DECIMALS);
         uint256 fairOffer = wantAmount.mulDivUp(stablePerPaxgy, 10 ** paxgyDecimals);
         uint256 minOffer = fairOffer.mulDivUp(BPS_DENOMINATOR - maxSlippageBps, BPS_DENOMINATOR);
