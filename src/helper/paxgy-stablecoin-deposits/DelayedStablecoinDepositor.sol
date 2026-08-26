@@ -196,6 +196,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     error PartialFillNotAllowed(uint256 fillAmount, uint256 wantAmount);
     error PriceBelowFloor(uint256 offerAmount, uint256 minOffer);
     error MaxSlippageTooHigh(uint256 bps, uint256 maxBps);
+    error ArrayLengthMismatch(uint256 orderIdsLength, uint256 fillAmountsLength, uint256 refundAmountsLength);
 
     // ========================================= CONSTRUCTOR =========================================
 
@@ -361,65 +362,88 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
     // ========================================= EXTERNAL: STRATEGIST =========================================
 
     /**
-     * @notice Settle an order: fill part or all of it by delivering PAXGy to the beneficiary, refund the offer asset
-     *         for whatever is unfilled, and delete the order.
-     * @dev Strategist-gated. The fill is priced at the quote's stablecoin:PAXGy rate (`offerAmount`:`wantAmount`), and
-     *      the refund must be exactly the unfilled remainder:
+     * @notice Settle one or more orders in a single call: for each, fill part or all of it by delivering PAXGy to the
+     *         beneficiary, refund the offer asset for whatever is unfilled, and delete the order.
+     * @dev Strategist-gated. The three arrays are parallel: index `i` settles `orderIds[i]` with `fillAmounts[i]` and
+     *      `refundAmounts[i]`. Settlement is atomic — any single entry that reverts (unknown order, bad refund,
+     *      disallowed partial fill, or a fill while paused) reverts the whole call. Batching lets one manager batch's
+     *      approvals cover every fill/refund at once.
+     *
+     *      Per order, the fill is priced at the quote's stablecoin:PAXGy rate (`offerAmount`:`wantAmount`), and the
+     *      refund must be exactly the unfilled remainder:
      *
      *          offerAmountFilled = ceil(fillAmount * offerAmount / wantAmount)
      *          require: refundAmount == offerAmount - offerAmountFilled
      *
      *      The filled amount rounds up, so the refund rounds down by at most one unit and any dust stays in the vault.
-     *      Both legs pull from the caller: `fillAmount` PAXGy on the fill and `refundAmount` of the
-     *      offer asset on the refund, each straight to the beneficiary. The vault must have approved this contract for
-     *      both in the same manager batch. While paused, only refunds are allowed (`fillAmount == 0`) so open orders
-     *      can still be unwound.
+     *      Both legs pull from the caller: `fillAmount` PAXGy on the fill and `refundAmount` of the offer asset on the
+     *      refund, each straight to the beneficiary. The vault must have approved this contract for both in the same
+     *      manager batch. While paused, only refunds are allowed (`fillAmount == 0`) so open orders can still be
+     *      unwound.
      *
-     *      If the order was submitted fill-or-kill, `fillAmount` must be either `wantAmount` (full fill) or 0 (full
+     *      If an order was submitted fill-or-kill, its `fillAmount` must be either `wantAmount` (full fill) or 0 (full
      *      refund); a partial fill reverts.
-     * @param orderId The order to settle.
-     * @param fillAmount PAXGy to deliver to the beneficiary; must not exceed `wantAmount`. 0 for a pure refund.
-     * @param refundAmount Offer asset to refund; must equal the exact unfilled remainder.
+     * @param orderIds The orders to settle.
+     * @param fillAmounts PAXGy to deliver per order; each must not exceed its order's `wantAmount`. 0 for a pure
+     * refund.
+     * @param refundAmounts Offer asset to refund per order; each must equal that order's exact unfilled remainder.
      */
-    function settleOrder(uint256 orderId, uint256 fillAmount, uint256 refundAmount) external requiresAuth {
-        Order memory order = orders[orderId];
-        if (address(order.offerAsset) == address(0)) revert OrderNotFound(orderId);
-
-        // Delivering PAXGy inventory is blocked while paused; refunds stay available to unwind open orders.
-        if (fillAmount != 0 && paused()) revert EnforcedPause();
-
-        // Value the fill at the quote's stablecoin:PAXGy rate and require the refund to be the exact unfilled
-        // remainder. `wantAmount` is nonzero for any live order (enforced at submission), so the division is safe, and
-        // bounding `fillAmount` by it keeps the subtraction from underflowing.
-        //
-        // Round the filled amount UP so any sub-unit dust stays in the vault rather than inflating the refund to the
-        // beneficiary. At a full fill (fillAmount == wantAmount) it divides exactly, leaving a zero refund.
-        if (fillAmount > order.wantAmount) revert FillExceedsOrder(fillAmount, order.wantAmount);
-
-        // A fill-or-kill order permits only the two endpoints: fill it in full or refund it in full.
-        if (order.fillOrKill && fillAmount != 0 && fillAmount != order.wantAmount) {
-            revert PartialFillNotAllowed(fillAmount, order.wantAmount);
+    function settleOrder(
+        uint256[] calldata orderIds,
+        uint256[] calldata fillAmounts,
+        uint256[] calldata refundAmounts
+    )
+        external
+        requiresAuth
+    {
+        if (orderIds.length != fillAmounts.length || orderIds.length != refundAmounts.length) {
+            revert ArrayLengthMismatch(orderIds.length, fillAmounts.length, refundAmounts.length);
         }
 
-        uint256 offerAmountFilled = fillAmount.mulDivUp(order.offerAmount, order.wantAmount);
-        uint256 expectedRefund = order.offerAmount - offerAmountFilled;
-        if (refundAmount != expectedRefund) revert RefundMismatch(expectedRefund, refundAmount);
+        for (uint256 i = 0; i < orderIds.length; ++i) {
+            uint256 orderId = orderIds[i];
+            uint256 fillAmount = fillAmounts[i];
+            uint256 refundAmount = refundAmounts[i];
 
-        address beneficiary = order.receiver;
+            Order memory order = orders[orderId];
+            if (address(order.offerAsset) == address(0)) revert OrderNotFound(orderId);
 
-        // Effects before interactions: resolve the order (delete record) before any external call.
-        delete orders[orderId];
+            // Delivering PAXGy inventory is blocked while paused; refunds stay available to unwind open orders.
+            if (fillAmount != 0 && paused()) revert EnforcedPause();
 
-        // Both legs pull from the caller (which must have approved this contract) straight to the beneficiary:
-        // the priced PAXGy on the fill, the unfilled offer asset on the refund.
-        if (fillAmount != 0) {
-            paxgy.safeTransferFrom(msg.sender, beneficiary, fillAmount);
+            // Value the fill at the quote's stablecoin:PAXGy rate and require the refund to be the exact unfilled
+            // remainder. `wantAmount` is nonzero for any live order (enforced at submission), so the division is safe,
+            // and bounding `fillAmount` by it keeps the subtraction from underflowing.
+            //
+            // Round the filled amount UP so any sub-unit dust stays in the vault rather than inflating the refund to
+            // the beneficiary. At a full fill (fillAmount == wantAmount) it divides exactly, leaving a zero refund.
+            if (fillAmount > order.wantAmount) revert FillExceedsOrder(fillAmount, order.wantAmount);
+
+            // A fill-or-kill order permits only the two endpoints: fill it in full or refund it in full.
+            if (order.fillOrKill && fillAmount != 0 && fillAmount != order.wantAmount) {
+                revert PartialFillNotAllowed(fillAmount, order.wantAmount);
+            }
+
+            uint256 offerAmountFilled = fillAmount.mulDivUp(order.offerAmount, order.wantAmount);
+            uint256 expectedRefund = order.offerAmount - offerAmountFilled;
+            if (refundAmount != expectedRefund) revert RefundMismatch(expectedRefund, refundAmount);
+
+            address beneficiary = order.receiver;
+
+            // Effects before interactions: resolve the order (delete record) before any external call.
+            delete orders[orderId];
+
+            // Both legs pull from the caller (which must have approved this contract) straight to the beneficiary:
+            // the priced PAXGy on the fill, the unfilled offer asset on the refund.
+            if (fillAmount != 0) {
+                paxgy.safeTransferFrom(msg.sender, beneficiary, fillAmount);
+            }
+            if (refundAmount != 0) {
+                order.offerAsset.safeTransferFrom(msg.sender, beneficiary, refundAmount);
+            }
+
+            emit OrderSettled(orderId, beneficiary, fillAmount, refundAmount);
         }
-        if (refundAmount != 0) {
-            order.offerAsset.safeTransferFrom(msg.sender, beneficiary, refundAmount);
-        }
-
-        emit OrderSettled(orderId, beneficiary, fillAmount, refundAmount);
     }
 
     // ========================================= VIEW =========================================
