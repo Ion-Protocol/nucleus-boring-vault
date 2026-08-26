@@ -107,9 +107,9 @@ contract PaxgyDynamicWithdrawalFeeModule is IFeeModule {
     /**
      * @notice Calculate the share-denominated withdraw fee for an order.
      * @dev feeAmount = fixedFee + dynamicFee, where:
-     *   - fixedFee = amount * FIXED_FEE_BPS / BPS_DIVISOR, a flat fee charged on every withdrawal, taken
+     *     fixedFee = amount * FIXED_FEE_BPS / BPS_DIVISOR, a flat fee charged on every withdrawal, taken
      *     first; and
-     *   - dynamicFee = remaining * (marketPrice - 1) / marketPrice when marketPrice > 1, else 0, levied on
+     *     dynamicFee = remaining * (marketPrice - 1) / marketPrice when marketPrice > 1, else 0, levied on
      *     remaining = amount - fixedFee (marketPrice is the market PAXG:XAU rate, denominated against it so
      *     the fraction is always < 1).
      * The two fees are applied sequentially (fixed first, dynamic on the remainder), so the total is
