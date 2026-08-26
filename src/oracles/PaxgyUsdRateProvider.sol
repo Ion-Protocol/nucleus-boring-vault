@@ -19,7 +19,8 @@ contract PaxgyUsdRateProvider is IRateProvider {
     /// @notice Output precision. PAXGy/USD is always returned at 18 decimals.
     uint8 public constant RATE_DECIMALS = 18;
 
-    /// @notice The vault Accountant supplying the PAXGy/XAU exchange rate (in `base`, i.e. XAU-standin, units).
+    /// @notice The vault Accountant supplying the PAXGy/XAU exchange rate (in `base` units, where base stands in for
+    ///         XAU).
     AccountantWithRateProviders public immutable ACCOUNTANT;
 
     /// @notice The Chainlink XAU/USD price feed supplying the gold leg.
@@ -74,7 +75,7 @@ contract PaxgyUsdRateProvider is IRateProvider {
     function getRate() public view returns (uint256 paxgyUsd) {
         _validityCheck();
 
-        // Vault leg: PAXGy priced in the XAU-standin base. getRateSafe reverts if the Accountant is paused.
+        // Vault leg: PAXGy priced in the XAU-standin base.
         uint256 paxgyPerXau = ACCOUNTANT.getRateSafe();
 
         // Gold leg: XAU/USD from Chainlink, with a staleness guard.
