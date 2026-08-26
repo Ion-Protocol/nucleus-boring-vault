@@ -13,7 +13,7 @@ import { Pausable } from "src/helper/Pausable.sol";
 import { IRateProvider } from "src/interfaces/IRateProvider.sol";
 
 /**
- * @title DelayedStablecoinDepositor
+ * @title PaxgyStablecoinDepositor
  * @notice Order helper attached to a dedicated offer-receiver {BoringVault}. Accepts user stablecoin deposits against a
  *         backend-signed {Quote} pending an off-chain conversion, then delivers PAXGy (BoringVault shares) to the
  *         quote's receiver on the depositor's behalf.
@@ -49,7 +49,7 @@ import { IRateProvider } from "src/interfaces/IRateProvider.sol";
  *      The owner is always authorized (see solmate {Auth}).
  * @custom:security-contact security@paxoslabs.com
  */
-contract DelayedStablecoinDepositor is Auth, Pausable {
+contract PaxgyStablecoinDepositor is Auth, Pausable {
 
     using SafeTransferLib for ERC20;
     using SafeCast for uint256;
@@ -531,7 +531,7 @@ contract DelayedStablecoinDepositor is Auth, Pausable {
         return keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
-                keccak256(bytes("DelayedStablecoinDepositor")),
+                keccak256(bytes("PaxgyStablecoinDepositor")),
                 keccak256(bytes("1")),
                 block.chainid,
                 address(this)
