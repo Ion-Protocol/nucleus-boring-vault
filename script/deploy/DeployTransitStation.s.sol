@@ -54,13 +54,6 @@ contract DeployTransitStation is BaseScript {
     uint32 constant EID_RH = 30_416;
     uint32 constant EID_ARB = 30_110;
 
-    // ============================== SALTS ==============================
-
-    bytes32 SALT_ROLES_AUTHORITY = makeSalt(broadcaster, false, "Transit: RolesAuthority");
-    bytes32 SALT_BORING_VAULT = makeSalt(broadcaster, false, "Transit: BoringVault");
-    bytes32 SALT_MANAGER = makeSalt(broadcaster, false, "Transit: ManagerWithMerkleVerification");
-    bytes32 SALT_STATION = makeSalt(broadcaster, false, "Transit: TransitStation");
-
     // LayerZero config type id for the ULN (DVNs + confirmations) config.
     uint32 constant CONFIG_TYPE_ULN = 2;
 
@@ -79,6 +72,13 @@ contract DeployTransitStation is BaseScript {
     TransitStation public transitStation;
 
     function run() public broadcast {
+        // ============================== SALTS ==============================
+
+        bytes32 SALT_ROLES_AUTHORITY = makeSalt(broadcaster, false, "Transit: RolesAuthority");
+        bytes32 SALT_BORING_VAULT = makeSalt(broadcaster, false, "Transit: BoringVault");
+        bytes32 SALT_MANAGER = makeSalt(broadcaster, false, "Transit: ManagerWithMerkleVerification");
+        bytes32 SALT_STATION = makeSalt(broadcaster, false, "Transit: TransitStation");
+
         // rolesAuthority = RolesAuthority(EXISTING_ROLES_AUTHORITY);
         // boringVault = BoringVault(payable(EXISTING_BORING_VAULT));
         // manager = ManagerWithMerkleVerification(EXISTING_MANAGER);

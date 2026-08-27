@@ -145,6 +145,10 @@ abstract contract BaseScript is Script {
         pure
         returns (bytes32)
     {
+        require(
+            deployer != address(0),
+            "Deployer is 0. You are likely trying to makeSalt before deployer is initialized. Move this into the run() function"
+        );
         bytes1 crosschainProtectionFlag = isCrosschainProtected ? bytes1(0x01) : bytes1(0x00);
         bytes32 nameEntropyHash = keccak256(abi.encodePacked(nameEntropy));
         bytes11 nameEntropyHash11 = bytes11(nameEntropyHash);
