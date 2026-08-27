@@ -59,3 +59,4 @@ docs_style = "preserve"
 ignore = []
 pow_no_space = false
 single_line_imports = false
+namespace_import_style = "prefer_plain"
