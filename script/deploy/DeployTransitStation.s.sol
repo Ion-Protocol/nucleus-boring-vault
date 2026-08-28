@@ -205,12 +205,12 @@ contract DeployTransitStation is BaseScript {
             // Arbitrum source: USDG out to either peer, plus the local USDC<>USDG pair. A route whose destEID is this
             // chain's own EID is a same-chain swap — the station queues it locally instead of bridging.
             routes = new TransitStation.Route[](7);
-            routes[0] = TransitStation.Route({ destEID: EID_ETH, offerAsset: USDG_ARB, wantAsset: USDG_ETH });
-            routes[1] = TransitStation.Route({ destEID: EID_ETH, offerAsset: USDG_ARB, wantAsset: USDC_ETH });
-            routes[2] = TransitStation.Route({ destEID: EID_RH, offerAsset: USDG_ARB, wantAsset: USDG_RH });
-            routes[3] = TransitStation.Route({ destEID: EID_ARB, offerAsset: USDC_ARB, wantAsset: USDG_ARB });
-            routes[4] = TransitStation.Route({ destEID: EID_ARB, offerAsset: USDC_ARB, wantAsset: USDG_ETH });
-            routes[5] = TransitStation.Route({ destEID: EID_ARB, offerAsset: USDC_ARB, wantAsset: USDG_RH });
+            routes[0] = TransitStation.Route({ destEID: EID_RH, offerAsset: USDC_ARB, wantAsset: USDG_RH });
+            routes[1] = TransitStation.Route({ destEID: EID_ETH, offerAsset: USDG_ARB, wantAsset: USDG_ETH });
+            routes[2] = TransitStation.Route({ destEID: EID_ETH, offerAsset: USDG_ARB, wantAsset: USDC_ETH });
+            routes[3] = TransitStation.Route({ destEID: EID_RH, offerAsset: USDG_ARB, wantAsset: USDG_RH });
+            routes[4] = TransitStation.Route({ destEID: EID_ETH, offerAsset: USDC_ARB, wantAsset: USDG_ETH });
+            routes[5] = TransitStation.Route({ destEID: EID_ARB, offerAsset: USDC_ARB, wantAsset: USDG_ARB });
             routes[6] = TransitStation.Route({ destEID: EID_ARB, offerAsset: USDG_ARB, wantAsset: USDC_ARB });
         }
 
