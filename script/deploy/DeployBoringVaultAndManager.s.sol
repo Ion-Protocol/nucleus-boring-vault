@@ -16,12 +16,12 @@ contract DeployBoringVaultAndManager is BaseScript {
     address constant BALANCER_VAULT = 0x0000000000000000000000000000000000000000;
     uint8 constant DECIMALS = 6;
 
-    bytes32 SALT_ROLES_AUTHORITY = makeSalt(broadcaster, false, "SubsidyVault: RolesAuthority");
-    bytes32 SALT_BORING_VAULT = makeSalt(broadcaster, false, "SubsidyVault: BoringVault");
-    bytes32 SALT_MANAGER_WITH_MERKLE_VERIFICATION =
-        makeSalt(broadcaster, false, "SubsidyVault: ManagerWithMerkleVerification");
-
     function run() public broadcast {
+        bytes32 SALT_ROLES_AUTHORITY = makeSalt(broadcaster, false, "SubsidyVault: RolesAuthority");
+        bytes32 SALT_BORING_VAULT = makeSalt(broadcaster, false, "SubsidyVault: BoringVault");
+        bytes32 SALT_MANAGER_WITH_MERKLE_VERIFICATION =
+            makeSalt(broadcaster, false, "SubsidyVault: ManagerWithMerkleVerification");
+
         address STRATEGIST_ADDRESS = 0x91FE06C6E9F97E7DE4580A280E03046155f8e1e3;
         // deploy a roles authority
         RolesAuthority rolesAuthority = RolesAuthority(
