@@ -4,12 +4,10 @@ pragma solidity 0.8.21;
 /**
  * @title CowSwapOrderLib
  * @notice Pure mechanics for reconstructing a CoW Protocol order digest and UID on-chain from raw fields.
- * @dev This is the security-critical primitive shared by both CowSwap modules: because
- *      `IGPv2Settlement.setPreSignature` only sees the opaque `orderUid` (a hash), every economically
- *      meaningful field must be folded into that hash here, exactly as CoW's off-chain orderbook computes
- *      it, or the resulting UID will not match a real order (harmless) — or worse, a field left out of the
- *      hash would be one the strategist could vary freely. Keeping the hashing in one audited place means
- *      Option A and Option B cannot drift apart on this detail.
+ * @dev The digest must be reconstructed exactly as CoW's orderbook computes it, or the UID will not match a
+ *      real order and settlement will never happen. This library only hashes; it does not police the values it
+ *      commits to, so the caller must validate or pin every strategist-supplied field (see
+ *      `CowSwapHelper._buildAndValidateOrderUid`).
  *
  *      The field layout, type hash, and UID packing mirror CoW's `GPv2Order` library. `kind`,
  *      `sellTokenBalance`, and `buyTokenBalance` are stored as `bytes32` (the keccak of their string label)

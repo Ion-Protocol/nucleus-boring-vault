@@ -8,20 +8,20 @@ import { console2 } from "forge-std/console2.sol";
 /// @notice Deploys the {CowSwapHelper} via CreateX CREATE3. Set `BORING_VAULT` before broadcasting.
 contract DeployCowSwapHelper is BaseScript {
 
-    // Canonical CoW Protocol GPv2Settlement, deployed at the same address on every supported chain.
-    address constant SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
+    /// @dev Canonical CoW Protocol GPv2Settlement, deployed at the same address on every supported chain.
+    address internal constant SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
 
-    // The BoringVault this helper serves. Deployment-specific: set to the target vault before broadcasting.
-    address constant BORING_VAULT = address(0);
+    /// @dev The BoringVault this helper serves. Deployment-specific: set to the target vault before broadcasting.
+    address internal constant BORING_VAULT = address(0);
 
-    // Upper bound on how far past `block.timestamp` a placed order's `validTo` may reach. Caps the window a
-    // stale price can be filled and how long the helper custodies the sell token. Human-tuned per deployment.
-    // Declared `uint32` to match the constructor: an over-wide value fails to compile here rather than
-    // reverting the deployment inside the constructor's ABI decoding.
-    uint32 constant MAX_ORDER_VALIDITY = 1 days;
+    /// @dev Upper bound on how far past `block.timestamp` a placed order's `validTo` may reach. Caps the window a
+    /// stale price can be filled.
+    /// Declared `uint32` to match the constructor: an over-wide value fails to compile here rather than
+    /// reverting the deployment inside the constructor's ABI decoding.
+    uint32 internal constant MAX_ORDER_VALIDITY = 1 days;
 
-    // Entropy folded into the CREATE3 salt; determines the deployed address.
-    string constant SALT_ENTROPY = "CowSwapHelper";
+    /// @dev Entropy folded into the CREATE3 salt; determines the deployed address.
+    string internal constant SALT_ENTROPY = "CowSwapHelper";
 
     function run() public broadcast returns (address) {
         // Owner is the chain's canonical protocol multisig.
@@ -33,7 +33,9 @@ contract DeployCowSwapHelper is BaseScript {
         require(SETTLEMENT.code.length != 0, "SETTLEMENT has no code on this chain");
 
         // Permissioned (broadcaster-guarded), no cross-chain protection: same address on every chain.
-        bytes32 salt = makeSalt(broadcaster, false, SALT_ENTROPY);
+        // `BORING_VAULT` is folded into the entropy so helpers for different vaults get distinct addresses.
+        bytes32 salt =
+            makeSalt(broadcaster, false, string(abi.encodePacked(SALT_ENTROPY, ":", vm.toString(BORING_VAULT))));
 
         bytes memory creationCode = type(CowSwapHelper).creationCode;
         address helper = CREATEX.deployCreate3(
