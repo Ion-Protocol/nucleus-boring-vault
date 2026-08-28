@@ -71,7 +71,7 @@ contract DeployTransitStation is BaseScript {
     ManagerWithMerkleVerification public manager;
     TransitStation public transitStation;
 
-    // Intentionally moved here in order to keep consistent with past Transit
+    // Intentionally moved outside of the `run` function in order to keep consistent with past Transit
     bytes32 SALT_ROLES_AUTHORITY = makeSalt(broadcaster, false, "Transit: RolesAuthority");
     bytes32 SALT_BORING_VAULT = makeSalt(broadcaster, false, "Transit: BoringVault");
     bytes32 SALT_MANAGER = makeSalt(broadcaster, false, "Transit: ManagerWithMerkleVerification");
