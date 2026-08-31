@@ -119,11 +119,36 @@ contract CowSwapHelper is Auth {
         Closed
     }
 
+    /**
+     * @notice Emitted when `placeOrder` pre-signs a new order.
+     * @param sellToken Token the order sells.
+     * @param buyToken Token the order buys.
+     * @param sellAmount Amount of `sellToken` the order sells.
+     * @param buyAmount Minimum amount of `buyToken` the order buys.
+     * @param orderUid UID of the pre-signed order.
+     */
     event OrderPlaced(
         address indexed sellToken, address indexed buyToken, uint256 sellAmount, uint256 buyAmount, bytes orderUid
     );
+
+    /**
+     * @notice Emitted when `cancelOrder` revokes a previously pre-signed order.
+     * @param orderUid UID of the cancelled order.
+     */
     event OrderCancelled(bytes orderUid);
+
+    /**
+     * @notice Emitted when `sweepToken` returns a non-zero amount of a token from the helper to the BoringVault.
+     * @param token Token returned to the vault.
+     * @param amount Amount of `token` returned.
+     */
     event FundsReturned(address indexed token, uint256 amount);
+
+    /**
+     * @notice Emitted when the maximum order validity is set, by the constructor or `setMaxOrderValidity`.
+     * @param maxOrderValidity New upper bound, in seconds past the `block.timestamp` at which an order is placed, for
+     * that order's `validTo`.
+     */
     event MaxOrderValiditySet(uint32 maxOrderValidity);
 
     error PriceTooLow(uint256 buyAmountNormalized, uint256 minBuyAmountNormalized);
