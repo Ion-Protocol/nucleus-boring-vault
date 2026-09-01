@@ -44,6 +44,18 @@ library ConfigReader {
         address lzEndpoint;
         address mailbox;
         uint32 peerDomainId;
+        address ccipRouter;
+        uint32 peerChainId;
+        uint64 peerCcipChainSelector;
+        bool setupCCIPConfigs;
+        uint32 ccipOutboundFinality;
+        uint32 ccipInboundFinality;
+        bool ccipOutboundRateLimitEnabled;
+        uint128 ccipOutboundRateLimitCapacity;
+        uint128 ccipOutboundRateLimitRate;
+        bool ccipInboundRateLimitEnabled;
+        uint128 ccipInboundRateLimitCapacity;
+        uint128 ccipInboundRateLimitRate;
         address manager;
         address teller;
         string tellerContractName;
@@ -150,6 +162,26 @@ library ConfigReader {
         } else if (compareStrings(config.tellerContractName, "MultiChainHyperlaneTellerWithMultiAssetSupport")) {
             config.mailbox = _chainConfig.readAddress(".mailbox");
             config.peerDomainId = uint32(_config.readUint(".teller.peerDomainId"));
+        } else if (compareStrings(config.tellerContractName, "MultiChainCCIPTellerWithMultiAssetSupport")) {
+            config.ccipRouter = _chainConfig.readAddress(".ccipRouter");
+
+            config.setupCCIPConfigs = _config.readBool(".teller.setupCCIPConfigs");
+            // The uint32 key MultiChainTellerBase uses for this lane is the peer's EVM chain id; CCIP's own uint64
+            // selector for that chain is carried separately and mapped by setCcipChainSelector.
+            config.peerChainId = uint32(_config.readUint(".teller.peerChainId"));
+            config.peerCcipChainSelector = uint64(_config.readUint(".teller.peerCcipChainSelector"));
+
+            // Unset means WAIT_FOR_FINALITY (bytes4(0)) and disabled rate limiters, which are the safe defaults.
+            config.ccipOutboundFinality = uint32(_config.readUintOr(".teller.ccipOutboundFinality", 0));
+            config.ccipInboundFinality = uint32(_config.readUintOr(".teller.ccipInboundFinality", 0));
+            config.ccipOutboundRateLimitEnabled = _config.readBoolOr(".teller.ccipOutboundRateLimit.isEnabled", false);
+            config.ccipOutboundRateLimitCapacity =
+                uint128(_config.readUintOr(".teller.ccipOutboundRateLimit.capacity", 0));
+            config.ccipOutboundRateLimitRate = uint128(_config.readUintOr(".teller.ccipOutboundRateLimit.rate", 0));
+            config.ccipInboundRateLimitEnabled = _config.readBoolOr(".teller.ccipInboundRateLimit.isEnabled", false);
+            config.ccipInboundRateLimitCapacity =
+                uint128(_config.readUintOr(".teller.ccipInboundRateLimit.capacity", 0));
+            config.ccipInboundRateLimitRate = uint128(_config.readUintOr(".teller.ccipInboundRateLimit.rate", 0));
         }
 
         // Reading from the 'rolesAuthority' section
