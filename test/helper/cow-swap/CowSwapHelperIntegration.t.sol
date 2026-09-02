@@ -186,6 +186,37 @@ contract CowSwapHelperIntegrationTest is Test {
         assertTrue(settlement.isSigned(uid), "partial-fill order pre-signed");
     }
 
+    /// @dev The merkle leaf pins the partial-fill flag: with the default root (partiallyFillable = false), a
+    ///      placeOrder flipping the flag to true re-derives a different leaf and fails verification before ever
+    ///      reaching the helper.
+    function test_placeOrder_partiallyFillable_failsVerification() external {
+        sellToken.mint(address(boringVault), SELL_AMOUNT);
+
+        // Keep the default setUp root, which pins partiallyFillable = false, then submit a true order against it.
+        CowSwapHelper.OrderParams memory p = _params(BUY_AMOUNT, true);
+        bytes memory placeData = abi.encodeWithSelector(CowSwapHelper.placeOrder.selector, p);
+
+        // Reuse the pinned (false) placeOrder proof; the true flag decodes to a different leaf that won't verify.
+        (
+            bytes32[][] memory proofs,
+            address[] memory decoders,
+            address[] memory targets,
+            bytes[] memory data,
+            uint256[] memory values
+        ) = _singleCall(placeLeaf, address(helper), placeData);
+
+        vm.prank(strategist);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ManagerWithMerkleVerification.ManagerWithMerkleVerification__FailedToVerifyManageProof.selector,
+                address(helper),
+                placeData,
+                uint256(0)
+            )
+        );
+        manager.manageVaultWithMerkleVerification(proofs, decoders, targets, data, values);
+    }
+
     /// @dev The merkle leaf pins the rate provider: a placeOrder pointing at a different provider fails
     ///      verification before ever reaching the helper. This is the on-chain gate the helper relies on.
     function test_placeOrder_unpinnedRateProvider_failsVerification() external {
