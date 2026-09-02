@@ -138,8 +138,9 @@ contract CowSwapHelperIntegrationTest is Test {
     function test_placeOrder_presignsThroughMerklePath() external {
         sellToken.mint(address(boringVault), SELL_AMOUNT);
 
-        bytes memory uid = _expectedUid(BUY_AMOUNT, false);
-        _approveAndPlace(BUY_AMOUNT, false);
+        CowSwapHelper.OrderParams memory p = _params(BUY_AMOUNT, false);
+        bytes memory uid = _expectedUid(p);
+        _approveAndPlace(p);
 
         assertTrue(settlement.isSigned(uid), "order pre-signed on settlement");
         assertEq(sellToken.balanceOf(address(helper)), SELL_AMOUNT, "helper custodies the sell token");
@@ -154,8 +155,9 @@ contract CowSwapHelperIntegrationTest is Test {
     ///      collateral from the helper to the vault (the helper keeps no fill accounting, so the sweep is separate).
     function test_cancelOrder_thenSweep_returnsFundsToVault() external {
         sellToken.mint(address(boringVault), SELL_AMOUNT);
-        bytes memory uid = _expectedUid(BUY_AMOUNT, false);
-        _approveAndPlace(BUY_AMOUNT, false);
+        CowSwapHelper.OrderParams memory p = _params(BUY_AMOUNT, false);
+        bytes memory uid = _expectedUid(p);
+        _approveAndPlace(p);
         assertTrue(settlement.isSigned(uid), "precondition: signed");
 
         _manageSingle(cancelLeaf, address(helper), abi.encodeWithSelector(CowSwapHelper.cancelOrder.selector, uid));
@@ -174,11 +176,12 @@ contract CowSwapHelperIntegrationTest is Test {
     /// @dev partiallyFillable = true is honored end-to-end: the resulting (distinct) UID is pre-signed.
     function test_placeOrder_partiallyFillable_presigns() external {
         sellToken.mint(address(boringVault), SELL_AMOUNT);
-        bytes memory uid = _expectedUid(BUY_AMOUNT, true);
+        CowSwapHelper.OrderParams memory p = _params(BUY_AMOUNT, true);
+        bytes memory uid = _expectedUid(p);
 
         // Rebuild the tree with a partiallyFillable = true placeOrder leaf so it is authorized.
         _buildAndSetRoot(true);
-        _approveAndPlace(BUY_AMOUNT, true);
+        _approveAndPlace(p);
 
         assertTrue(settlement.isSigned(uid), "partial-fill order pre-signed");
     }
@@ -227,7 +230,7 @@ contract CowSwapHelperIntegrationTest is Test {
             address[] memory targets,
             bytes[] memory data,
             uint256[] memory values
-        ) = _approveAndPlaceCalls(tooLow, false);
+        ) = _approveAndPlaceCalls(_params(tooLow, false));
 
         vm.prank(strategist);
         vm.expectRevert(); // helper reverts PriceTooLow; the exact floor is asserted in the unit suite
@@ -239,24 +242,21 @@ contract CowSwapHelperIntegrationTest is Test {
     // ------------------------------------------------------------------------
 
     /// @dev Runs the approve + placeOrder pair through the manager in one verified batch.
-    function _approveAndPlace(uint256 buyAmount, bool partiallyFillable) internal {
+    function _approveAndPlace(CowSwapHelper.OrderParams memory p) internal {
         (
             bytes32[][] memory proofs,
             address[] memory decoders,
             address[] memory targets,
             bytes[] memory data,
             uint256[] memory values
-        ) = _approveAndPlaceCalls(buyAmount, partiallyFillable);
+        ) = _approveAndPlaceCalls(p);
 
         vm.prank(strategist);
         manager.manageVaultWithMerkleVerification(proofs, decoders, targets, data, values);
     }
 
     /// @dev Builds the approve + placeOrder batch arguments (without executing) so callers can also assert reverts.
-    function _approveAndPlaceCalls(
-        uint256 buyAmount,
-        bool partiallyFillable
-    )
+    function _approveAndPlaceCalls(CowSwapHelper.OrderParams memory p)
         internal
         view
         returns (
@@ -267,11 +267,9 @@ contract CowSwapHelperIntegrationTest is Test {
             uint256[] memory values
         )
     {
-        CowSwapHelper.OrderParams memory p = _params(buyAmount, partiallyFillable);
-
         proofs = new bytes32[][](2);
         proofs[0] = _proof(approveLeaf);
-        proofs[1] = _proof(_placeLeaf(partiallyFillable));
+        proofs[1] = _proof(_placeLeaf(p.partiallyFillable));
 
         decoders = new address[](2);
         decoders[0] = address(decoder);
@@ -351,23 +349,23 @@ contract CowSwapHelperIntegrationTest is Test {
     }
 
     /// @dev Rebuilds the order digest the helper will sign; owner is the helper itself.
-    function _expectedUid(uint256 buyAmount, bool partiallyFillable) internal view returns (bytes memory) {
+    function _expectedUid(CowSwapHelper.OrderParams memory p) internal view returns (bytes memory) {
         CowSwapOrderLib.Data memory order = CowSwapOrderLib.Data({
-            sellToken: address(sellToken),
-            buyToken: address(buyToken),
+            sellToken: address(p.sellToken),
+            buyToken: address(p.buyToken),
             receiver: address(boringVault),
-            sellAmount: SELL_AMOUNT,
-            buyAmount: buyAmount,
-            validTo: uint32(block.timestamp + 1 hours),
+            sellAmount: p.sellAmount,
+            buyAmount: p.buyAmount,
+            validTo: p.validTo,
             appData: bytes32(0),
             feeAmount: 0,
             kind: CowSwapOrderLib.KIND_SELL,
-            partiallyFillable: partiallyFillable,
+            partiallyFillable: p.partiallyFillable,
             sellTokenBalance: CowSwapOrderLib.BALANCE_ERC20,
             buyTokenBalance: CowSwapOrderLib.BALANCE_ERC20
         });
         bytes32 digest = CowSwapOrderLib.hash(order, DOMAIN_SEPARATOR);
-        return CowSwapOrderLib.packOrderUid(digest, address(helper), uint32(block.timestamp + 1 hours));
+        return CowSwapOrderLib.packOrderUid(digest, address(helper), p.validTo);
     }
 
     // ------------------------------------------------------------------------

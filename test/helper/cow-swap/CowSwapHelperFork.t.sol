@@ -110,8 +110,9 @@ contract CowSwapHelperForkTest is Test {
     function test_placeOrder_presignsOnRealSettlement() external {
         deal(address(WETH), address(boringVault), SELL_AMOUNT);
 
-        bytes memory uid = _expectedUid(BUY_AMOUNT, false);
-        _approveAndPlace(BUY_AMOUNT, false);
+        CowSwapHelper.OrderParams memory p = _params(BUY_AMOUNT, false);
+        bytes memory uid = _expectedUid(p);
+        _approveAndPlace(p);
 
         assertTrue(IGPv2SettlementExt(COW_SETTLEMENT).preSignature(uid) != 0, "order pre-signed on real settlement");
         assertEq(WETH.balanceOf(address(helper)), SELL_AMOUNT, "helper custodies the sell token");
@@ -127,8 +128,9 @@ contract CowSwapHelperForkTest is Test {
     ///      the unfilled collateral from the helper to the vault.
     function test_cancelOrder_clearsPresignatureOnRealSettlement() external {
         deal(address(WETH), address(boringVault), SELL_AMOUNT);
-        bytes memory uid = _expectedUid(BUY_AMOUNT, false);
-        _approveAndPlace(BUY_AMOUNT, false);
+        CowSwapHelper.OrderParams memory p = _params(BUY_AMOUNT, false);
+        bytes memory uid = _expectedUid(p);
+        _approveAndPlace(p);
         assertTrue(IGPv2SettlementExt(COW_SETTLEMENT).preSignature(uid) != 0, "precondition: signed");
 
         _manageSingle(cancelLeaf, address(helper), abi.encodeWithSelector(CowSwapHelper.cancelOrder.selector, uid));
@@ -148,12 +150,10 @@ contract CowSwapHelperForkTest is Test {
     // ------------------------------------------------------------------------
 
     /// @dev Runs the approve + placeOrder pair through the manager in one verified batch.
-    function _approveAndPlace(uint256 buyAmount, bool partiallyFillable) internal {
-        CowSwapHelper.OrderParams memory p = _params(buyAmount, partiallyFillable);
-
+    function _approveAndPlace(CowSwapHelper.OrderParams memory p) internal {
         bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = _proof(approveLeaf);
-        proofs[1] = _proof(_placeLeaf(partiallyFillable));
+        proofs[1] = _proof(_placeLeaf(p.partiallyFillable));
 
         address[] memory decoders = new address[](2);
         decoders[0] = address(decoder);
@@ -212,23 +212,23 @@ contract CowSwapHelperForkTest is Test {
 
     /// @dev Rebuilds, against the REAL settlement's domain separator, the order digest the helper will sign;
     ///      owner is the helper itself.
-    function _expectedUid(uint256 buyAmount, bool partiallyFillable) internal view returns (bytes memory) {
+    function _expectedUid(CowSwapHelper.OrderParams memory p) internal view returns (bytes memory) {
         CowSwapOrderLib.Data memory order = CowSwapOrderLib.Data({
-            sellToken: address(WETH),
-            buyToken: address(USDC),
+            sellToken: address(p.sellToken),
+            buyToken: address(p.buyToken),
             receiver: address(boringVault),
-            sellAmount: SELL_AMOUNT,
-            buyAmount: buyAmount,
-            validTo: uint32(block.timestamp + 1 hours),
+            sellAmount: p.sellAmount,
+            buyAmount: p.buyAmount,
+            validTo: p.validTo,
             appData: bytes32(0),
             feeAmount: 0,
             kind: CowSwapOrderLib.KIND_SELL,
-            partiallyFillable: partiallyFillable,
+            partiallyFillable: p.partiallyFillable,
             sellTokenBalance: CowSwapOrderLib.BALANCE_ERC20,
             buyTokenBalance: CowSwapOrderLib.BALANCE_ERC20
         });
         bytes32 digest = CowSwapOrderLib.hash(order, IGPv2Settlement(COW_SETTLEMENT).domainSeparator());
-        return CowSwapOrderLib.packOrderUid(digest, address(helper), uint32(block.timestamp + 1 hours));
+        return CowSwapOrderLib.packOrderUid(digest, address(helper), p.validTo);
     }
 
     // ------------------------------------------------------------------------
