@@ -235,8 +235,14 @@ contract CowSwapHelperIntegrationTest is CowSwapHelperTestBase {
             uint256[] memory values
         ) = _approveAndPlaceCalls(_params(tooLow, false));
 
+        // The helper normalizes both amounts to 18 decimals before comparing to the floor. buyToken has 6
+        // decimals, so the scale-up factor is 1e12. minBuyNormalized is BUY_AMOUNT * 1e12 = 29_700e18, the exact
+        // 1% floor (10 sell * 3000 rate * 0.99); tooLow sits one buyToken atom below it.
+        uint256 buyNormalized = tooLow * 1e12;
+        uint256 minBuyNormalized = BUY_AMOUNT * 1e12;
+
         vm.prank(strategist);
-        vm.expectRevert(); // helper reverts PriceTooLow; the exact floor is asserted in the unit suite
+        vm.expectRevert(abi.encodeWithSelector(CowSwapHelper.PriceTooLow.selector, buyNormalized, minBuyNormalized));
         manager.manageVaultWithMerkleVerification(proofs, decoders, targets, data, values);
     }
 
