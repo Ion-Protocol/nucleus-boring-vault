@@ -43,6 +43,9 @@ import {
     CoreWriterDecoderAndSanitizer
 } from "src/base/DecodersAndSanitizers/Protocols/CoreWriterDecoderAndSanitizer.sol";
 import { KhalaniDecoderAndSanitizer } from "src/base/DecodersAndSanitizers/Protocols/KhalaniDecoderAndSanitizer.sol";
+import {
+    CowSwapHelperDecoderAndSanitizer
+} from "src/base/DecodersAndSanitizers/Protocols/CowSwapHelperDecoderAndSanitizer.sol";
 
 contract GenericDecoderAndSanitizer is
     PendleRouterDecoderAndSanitizer,
@@ -64,7 +67,8 @@ contract GenericDecoderAndSanitizer is
     LayerZeroOFTDecoderAndSanitizer,
     PxlDecoderAndSanitizer,
     CoreWriterDecoderAndSanitizer,
-    KhalaniDecoderAndSanitizer
+    KhalaniDecoderAndSanitizer,
+    CowSwapHelperDecoderAndSanitizer
 {
 
     constructor(
