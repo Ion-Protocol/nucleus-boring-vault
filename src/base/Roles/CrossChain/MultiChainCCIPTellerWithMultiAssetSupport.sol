@@ -91,7 +91,9 @@ contract MultiChainCCIPTellerWithMultiAssetSupport is MultiChainTellerBase, IAny
 
     /// @notice Sets the Nucleus selector-key to CCIP selector mapping used for sends and receives.
     /// @dev Callable by Paxos auth. Reassigning either side clears stale reverse/forward mappings to keep the mapping
-    /// one-to-one.
+    /// one-to-one. Remapping is rejected while the lane has either message direction enabled so the selector mappings
+    /// and the inherited `Chain` row can never diverge on an active lane; stealing a CCIP selector still owned by
+    /// another active lane is rejected for the same reason.
     /// @param nucleusChainSelector Nucleus `MultiChainTellerBase` chain-selector key.
     /// @param ccipChainSelector Chainlink CCIP chain selector.
     function setCcipChainSelector(uint32 nucleusChainSelector, uint64 ccipChainSelector) external requiresAuth {
@@ -99,11 +101,22 @@ contract MultiChainCCIPTellerWithMultiAssetSupport is MultiChainTellerBase, IAny
             revert InvalidChainSelector();
         }
 
+        Chain memory chain = selectorToChains[nucleusChainSelector];
+        if (chain.allowMessagesFrom || chain.allowMessagesTo) {
+            revert CcipChainStillActive(nucleusChainSelector);
+        }
+
         uint64 oldCcipSelector = chainSelectorToCcipSelector[nucleusChainSelector];
         if (oldCcipSelector != 0) delete ccipSelectorToChainSelector[oldCcipSelector];
 
         uint32 oldNucleusSelector = ccipSelectorToChainSelector[ccipChainSelector];
-        if (oldNucleusSelector != 0) delete chainSelectorToCcipSelector[oldNucleusSelector];
+        if (oldNucleusSelector != 0) {
+            Chain memory oldChain = selectorToChains[oldNucleusSelector];
+            if (oldChain.allowMessagesFrom || oldChain.allowMessagesTo) {
+                revert CcipChainStillActive(oldNucleusSelector);
+            }
+            delete chainSelectorToCcipSelector[oldNucleusSelector];
+        }
 
         chainSelectorToCcipSelector[nucleusChainSelector] = ccipChainSelector;
         ccipSelectorToChainSelector[ccipChainSelector] = nucleusChainSelector;

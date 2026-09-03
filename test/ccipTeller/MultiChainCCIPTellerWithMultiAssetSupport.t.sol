@@ -60,10 +60,14 @@ contract MultiChainCCIPTellerWithMultiAssetSupportTest is Test {
         authority.setUserRole(address(adapter), MINTER_ROLE, true);
         authority.setUserRole(address(adapter), BURNER_ROLE, true);
 
-        adapter.addChain(PAXOS_SOURCE, true, true, remoteTeller, 100_000, 0);
-        adapter.addChain(PAXOS_DESTINATION, true, true, remoteTeller, 100_000, 0);
+        adapter.addChain(PAXOS_SOURCE, false, false, remoteTeller, 100_000, 0);
+        adapter.addChain(PAXOS_DESTINATION, false, false, remoteTeller, 100_000, 0);
         adapter.setCcipChainSelector(PAXOS_SOURCE, CCIP_SOURCE);
         adapter.setCcipChainSelector(PAXOS_DESTINATION, CCIP_DESTINATION);
+        adapter.allowMessagesFromChain(PAXOS_SOURCE, remoteTeller);
+        adapter.allowMessagesToChain(PAXOS_SOURCE, remoteTeller, 100_000);
+        adapter.allowMessagesFromChain(PAXOS_DESTINATION, remoteTeller);
+        adapter.allowMessagesToChain(PAXOS_DESTINATION, remoteTeller, 100_000);
 
         vault.enter(address(0), ERC20(address(0)), 0, address(this), 100 ether);
         vm.deal(address(this), 10 ether);
@@ -251,22 +255,66 @@ contract MultiChainCCIPTellerWithMultiAssetSupportTest is Test {
         adapter.resetCcipChainConfig(PAXOS_DESTINATION);
     }
 
-    function test_setCcipChainSelector_reverts_for_zero_selector_and_clears_old_mappings() public {
-        assertTrue(router.isChainSupported(CCIP_DESTINATION));
+    function test_setCcipChainSelector_reverts_while_lane_is_active() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultiChainCCIPTellerWithMultiAssetSupport.CcipChainStillActive.selector, PAXOS_SOURCE
+            )
+        );
+        adapter.setCcipChainSelector(PAXOS_SOURCE, CCIP_SOURCE + 1);
 
+        adapter.stopMessagesToChain(PAXOS_SOURCE);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultiChainCCIPTellerWithMultiAssetSupport.CcipChainStillActive.selector, PAXOS_SOURCE
+            )
+        );
+        adapter.setCcipChainSelector(PAXOS_SOURCE, CCIP_SOURCE + 1);
+        adapter.stopMessagesFromChain(PAXOS_SOURCE);
+        adapter.setCcipChainSelector(PAXOS_SOURCE, CCIP_SOURCE + 1);
+        assertEq(adapter.chainSelectorToCcipSelector(PAXOS_SOURCE), CCIP_SOURCE + 1);
+        assertEq(adapter.ccipSelectorToChainSelector(CCIP_SOURCE), 0);
+    }
+
+    function test_setCcipChainSelector_reprovisioning_after_disable_reenable_flow() public {
+        adapter.stopMessagesFromChain(PAXOS_DESTINATION);
+        adapter.stopMessagesToChain(PAXOS_DESTINATION);
+        adapter.setCcipChainSelector(PAXOS_DESTINATION, CCIP_DESTINATION + 1);
+
+        adapter.allowMessagesFromChain(PAXOS_DESTINATION, remoteTeller);
+        adapter.allowMessagesToChain(PAXOS_DESTINATION, remoteTeller, 100_000);
+        adapter.bridge{ value: 0.01 ether }(1 ether, _bridgeData(receiver, ERC20(NATIVE)));
+        assertEq(vault.balanceOf(address(this)), 99 ether);
+    }
+
+    function test_setCcipChainSelector_reverts_for_zero_selector() public {
         vm.expectRevert(MultiChainCCIPTellerWithMultiAssetSupport.InvalidChainSelector.selector);
         adapter.setCcipChainSelector(0, CCIP_DESTINATION);
 
-        uint64 replacementCcipSelector = CCIP_DESTINATION + 1;
-        uint32 replacementPaxosSelector = PAXOS_DESTINATION + 1;
+        vm.expectRevert(MultiChainCCIPTellerWithMultiAssetSupport.InvalidChainSelector.selector);
+        adapter.setCcipChainSelector(PAXOS_DESTINATION, 0);
+    }
 
-        adapter.setCcipChainSelector(PAXOS_SOURCE, replacementCcipSelector);
-        assertEq(adapter.ccipSelectorToChainSelector(CCIP_SOURCE), 0);
-        assertEq(adapter.chainSelectorToCcipSelector(PAXOS_SOURCE), replacementCcipSelector);
+    function test_setCcipChainSelector_rejects_stealing_selector_from_active_lane() public {
+        uint32 thiefKey = PAXOS_DESTINATION + 7;
+        adapter.addChain(thiefKey, false, false, remoteTeller, 100_000, 0);
 
-        adapter.setCcipChainSelector(replacementPaxosSelector, CCIP_DESTINATION);
-        assertEq(adapter.chainSelectorToCcipSelector(PAXOS_DESTINATION), 0);
-        assertEq(adapter.ccipSelectorToChainSelector(CCIP_DESTINATION), replacementPaxosSelector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultiChainCCIPTellerWithMultiAssetSupport.CcipChainStillActive.selector, PAXOS_SOURCE
+            )
+        );
+        adapter.setCcipChainSelector(thiefKey, CCIP_SOURCE);
+
+        assertEq(adapter.chainSelectorToCcipSelector(PAXOS_SOURCE), CCIP_SOURCE);
+        assertEq(adapter.ccipSelectorToChainSelector(CCIP_SOURCE), PAXOS_SOURCE);
+        assertEq(adapter.chainSelectorToCcipSelector(thiefKey), 0);
+
+        adapter.stopMessagesFromChain(PAXOS_SOURCE);
+        adapter.stopMessagesToChain(PAXOS_SOURCE);
+        adapter.setCcipChainSelector(thiefKey, CCIP_SOURCE);
+        assertEq(adapter.chainSelectorToCcipSelector(PAXOS_SOURCE), 0);
+        assertEq(adapter.ccipSelectorToChainSelector(CCIP_SOURCE), thiefKey);
     }
 
     function test_previewFee_reverts_for_non_native_fee_token_and_unmapped_destination() public {

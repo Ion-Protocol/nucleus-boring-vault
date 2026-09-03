@@ -223,8 +223,14 @@ contract CCIPAdapterHandler is Test {
     function reassignSourceSelector(bool alternateNucleus, bool alternateCcip) external {
         uint32 nucleusSelector = alternateNucleus ? ALTERNATE_SELECTOR : DESTINATION_SELECTOR;
         uint64 ccipSelector = alternateCcip ? ALTERNATE_CCIP_SELECTOR : CCIP_DESTINATION_SELECTOR;
-        vm.prank(owner);
-        sourceAdapter.setCcipChainSelector(nucleusSelector, ccipSelector);
+
+        vm.startPrank(owner);
+        sourceAdapter.stopMessagesFromChain(nucleusSelector);
+        sourceAdapter.stopMessagesToChain(nucleusSelector);
+        try sourceAdapter.setCcipChainSelector(nucleusSelector, ccipSelector) {
+            sourceAdapter.allowMessagesToChain(nucleusSelector, address(destinationAdapter), 100_000);
+        } catch { }
+        vm.stopPrank();
     }
 
 }
@@ -271,10 +277,12 @@ contract CCIPAdapterInvariantTest is StdInvariant, Test {
         _configureVault(sourceVault, sourceAdapter, true);
         _configureVault(destinationVault, destinationAdapter, false);
 
-        sourceAdapter.addChain(DESTINATION_SELECTOR, false, true, address(destinationAdapter), 100_000, 0);
+        sourceAdapter.addChain(DESTINATION_SELECTOR, false, false, address(destinationAdapter), 100_000, 0);
         sourceAdapter.setCcipChainSelector(DESTINATION_SELECTOR, CCIP_DESTINATION_SELECTOR);
-        destinationAdapter.addChain(SOURCE_SELECTOR, true, false, address(sourceAdapter), 100_000, 0);
+        sourceAdapter.allowMessagesToChain(DESTINATION_SELECTOR, address(destinationAdapter), 100_000);
+        destinationAdapter.addChain(SOURCE_SELECTOR, false, false, address(sourceAdapter), 100_000, 0);
         destinationAdapter.setCcipChainSelector(SOURCE_SELECTOR, CCIP_SOURCE_SELECTOR);
+        destinationAdapter.allowMessagesFromChain(SOURCE_SELECTOR, address(sourceAdapter));
 
         sourceVault.enter(address(0), ERC20(address(0)), 0, address(this), INITIAL_SUPPLY);
 
