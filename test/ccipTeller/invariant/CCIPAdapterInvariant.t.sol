@@ -220,15 +220,15 @@ contract CCIPAdapterHandler is Test {
         vm.warp(block.timestamp + bound(elapsed, 1, 30 days));
     }
 
-    function reassignSourceSelector(bool alternateNucleus, bool alternateCcip) external {
-        uint32 nucleusSelector = alternateNucleus ? ALTERNATE_SELECTOR : DESTINATION_SELECTOR;
+    function reassignSourceSelector(bool alternateBaseTeller, bool alternateCcip) external {
+        uint32 baseTellerSelector = alternateBaseTeller ? ALTERNATE_SELECTOR : DESTINATION_SELECTOR;
         uint64 ccipSelector = alternateCcip ? ALTERNATE_CCIP_SELECTOR : CCIP_DESTINATION_SELECTOR;
 
         vm.startPrank(owner);
-        sourceAdapter.stopMessagesFromChain(nucleusSelector);
-        sourceAdapter.stopMessagesToChain(nucleusSelector);
-        try sourceAdapter.setCcipChainSelector(nucleusSelector, ccipSelector) {
-            sourceAdapter.allowMessagesToChain(nucleusSelector, address(destinationAdapter), 100_000);
+        sourceAdapter.stopMessagesFromChain(baseTellerSelector);
+        sourceAdapter.stopMessagesToChain(baseTellerSelector);
+        try sourceAdapter.setCcipChainSelector(baseTellerSelector, ccipSelector) {
+            sourceAdapter.allowMessagesToChain(baseTellerSelector, address(destinationAdapter), 100_000);
         } catch { }
         vm.stopPrank();
     }
@@ -372,14 +372,16 @@ contract CCIPAdapterInvariantTest is StdInvariant, Test {
         assertEq(afterSuccess.tokens, 10 ether);
     }
 
-    function _assertMappingRoundTrip(uint32 nucleusSelector) internal view {
-        uint64 ccipSelector = sourceAdapter.chainSelectorToCcipSelector(nucleusSelector);
-        if (ccipSelector != 0) assertEq(sourceAdapter.ccipSelectorToChainSelector(ccipSelector), nucleusSelector);
+    function _assertMappingRoundTrip(uint32 baseTellerSelector) internal view {
+        uint64 ccipSelector = sourceAdapter.chainSelectorToCcipSelector(baseTellerSelector);
+        if (ccipSelector != 0) assertEq(sourceAdapter.ccipSelectorToChainSelector(ccipSelector), baseTellerSelector);
     }
 
     function _assertReverseMappingRoundTrip(uint64 ccipSelector) internal view {
-        uint32 nucleusSelector = sourceAdapter.ccipSelectorToChainSelector(ccipSelector);
-        if (nucleusSelector != 0) assertEq(sourceAdapter.chainSelectorToCcipSelector(nucleusSelector), ccipSelector);
+        uint32 baseTellerSelector = sourceAdapter.ccipSelectorToChainSelector(ccipSelector);
+        if (baseTellerSelector != 0) {
+            assertEq(sourceAdapter.chainSelectorToCcipSelector(baseTellerSelector), ccipSelector);
+        }
     }
 
     function _configureVault(
